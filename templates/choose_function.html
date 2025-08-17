@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chọn Chức Năng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            accent: '#111827'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: linear-gradient(to bottom right, #f4f7fa, #e9eafc);
+    }
+    .card {
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .card:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen text-gray-800 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] dark:text-gray-100">
+
+  <div class="text-center space-y-8">
+    <!-- Logo -->
+    <div>
+      <img src="/static/logo.png" alt="Logo" class="mx-auto h-12 mb-4">
+      <h1 class="text-2xl font-semibold">Chọn Chức Năng</h1>
+    </div>
+
+    <!-- Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-lg mx-auto">
+      <!-- Quản lý -->
+      <a href="/home" class="card p-6 bg-white/80 dark:bg-[#23243a] rounded-xl shadow-lg flex flex-col items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-blue-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7h18M3 12h18M3 17h18" />
+        </svg>
+        <span class="font-semibold text-lg">Phần mềm Quản lý</span>
+      </a>
+
+      <!-- Điểm danh -->
+      <a href="/attendance/ui" class="card p-6 bg-white/80 dark:bg-[#23243a] rounded-xl shadow-lg flex flex-col items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-green-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2l4-4m6 2a9 9 0 11-18 0a9 9 0 0118 0z" />
+        </svg>
+        <span class="font-semibold text-lg">Điểm Danh</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Dark mode toggle sync với login.html
+    if (localStorage.theme === "dark") {
+      document.documentElement.classList.add("dark");
+    }
+  </script>
+
+</body>
+</html>

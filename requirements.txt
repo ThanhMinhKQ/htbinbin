@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+jinja2
+sqlalchemy
+psycopg2-binary
+aiosmtplib
+email-validator
+python-dotenv
+itsdangerous
+python-multipart
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+gspread
+pytz

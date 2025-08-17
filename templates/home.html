@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý công việc</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#2563eb',
+            }
+          }
+        },
+        corePlugins: {
+          preflight: true
+        },
+        safelist: [
+          'hidden',
+          'table-cell',
+          'md:table-cell',
+          'md:hidden',
+          'sm:table-cell',
+          'lg:table-cell'
+        ]
+      };
+    </script>
+
+    <style>
+      input[type="text"].datepicker {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
+      }
+
+      @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      .animate-gradient-shift {
+        background-size: 200% 200%;
+        transition: background-position 0.5s ease-in-out;
+      }
+
+      .animate-gradient-shift:hover {
+        animation: gradientShift 4s ease infinite;
+      }
+
+      .swipe-item {
+        touch-action: pan-y;
+        will-change: transform;
+      }
+    </style>
+
+
+    <!-- Custom Styles -->
+    <style>
+      /* Responsive */
+      @media (max-width: 640px) {
+        .datepicker, select, input {
+          font-size: 14px; /* Giảm font size nếu cần thiết */
+          padding: 12px;  /* Tăng padding để tạo khoảng cách hợp lý */
+        }
+      }
+      @media (max-height: 500px) {
+        #editModal form {
+          max-height: 90vh;
+          overflow-y: auto;
+          padding-bottom: 5rem;
+        }
+      }
+
+      /* Chuyển động */
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      @keyframes bounceIn {
+        0% { transform: scale(0.7); opacity: 0; }
+        60% { transform: scale(1.1); opacity: 1; }
+        100% { transform: scale(1); }
+      }
+
+      @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        20%, 60% { transform: translateX(-4px); }
+        40%, 80% { transform: translateX(4px); }
+      }
+
+      @keyframes toastIn {
+        from { opacity: 0; transform: translateX(20px); }
+        to { opacity: 1; transform: translateX(0); }
+      }
+
+      /* Animation classes */
+      .animate-fadeIn { animation: fadeIn 0.35s ease-out; }
+      .animate-bounce-in { animation: bounceIn 0.4s ease-out both; }
+      .animate-shake { animation: shake 0.45s ease-in-out both; }
+      .animate-toastIn { animation: toastIn 0.5s ease-out; }
+
+      /* Cải thiện nền */
+      body {
+        background: linear-gradient(135deg, #18192a, #23243a); /* Nền gradient tối */
+        color: #e5e7eb; /* Màu sáng cho văn bản */
+      }
+
+      /* Các thành phần tương tác */
+      .btn-edit, .btn-complete, .btn-delete, .btn-close {
+        transition: all 0.3s ease;
+        border-radius: 10px;
+        padding: 12px;
+        font-weight: 600;
+        font-size: 15px;
+        color: white;
+        display: inline-block;
+      }
+
+      .btn-edit { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+      .btn-complete { background: linear-gradient(135deg, #4caf50, #388e3c); }
+      .btn-delete { background: linear-gradient(135deg, #ef4444, #dc2626); }
+      .btn-close { background: linear-gradient(135deg, #6b7280, #4b5563); }
+
+      .btn-edit:hover, .btn-complete:hover, .btn-delete:hover, .btn-close:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Cải thiện bảng và modal */
+      .table, .card {
+        background-color: #242b3b;
+        border-radius: 12px;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+      }
+
+      .modal-content {
+        background: rgba(30, 30, 45, 0.8); /* Độ mờ cho modal */
+        padding: 20px;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Các gradient đẹp cho background */
+      .bg-gradient-to-br {
+        background: linear-gradient(145deg, #23243a, #2f3a56); /* Gradient đẹp cho background */
+      }
+
+      /* Giảm khoảng cách giữa form thêm công việc và danh sách công việc */
+      .max-w-6xl.mx-auto.w-full.mb-10 {
+        margin-bottom: 0.5rem; /* Giảm khoảng cách dưới của form thêm công việc */
+      }
+
+      /* Giảm khoảng cách dưới của form danh sách công việc */
+      .table-fixed {
+        margin-top: 1rem; /* Điều chỉnh khoảng cách phía trên của bảng */
+      }
+
+    </style>
+
+    <style>
+      /* Ẩn tiêu đề và nút của FullCalendar mini */
+      #miniFullCalendar .fc-header-toolbar,
+      #miniFullCalendar .fc-toolbar-title,
+      #miniFullCalendar .fc-button-group,
+      #miniFullCalendar .fc-button,
+      #miniFullCalendar .fc-today-button {
+        display: none !important;
+      }
+      /* Đảm bảo modal không có thanh cuộn */
+      #calendarModal {
+        overflow: hidden; /* Tắt thanh cuộn trong modal */
+      }
+
+      /* Tăng chiều cao của modal nếu cần */
+      #fullCalendar {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 400px;
+      }
+
+      /* Tắt thanh cuộn của body khi modal mở */
+      body.overflow-hidden {
+        overflow: hidden; /* Đảm bảo body không cuộn khi modal mở */
+      }
+
+      .fc-toolbar-title {
+        text-transform: uppercase; 
+      }
+
+      /* Viền cho ô ngày */
+      .fc-daygrid-day-frame {
+        border: 1px solid rgba(0, 0, 0, 0.05); /* hoặc rgba(255,255,255,0.1) cho dark mode */
+        border-radius: 6px;
+        overflow: hidden;
+        transition: background 0.2s, border 0.2s;
+      }
+
+      /* Hover highlight */
+      .fc-daygrid-day:hover .fc-daygrid-day-frame {
+        background-color: rgba(59, 130, 246, 0.1); /* blue-500/10 */
+        border-color: rgba(59, 130, 246, 0.3);
+        }
+
+      .fc-daygrid-day-number {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 24px;
+        width: 24px;
+        margin: 4px auto;
+        font-weight: 500;
+        border-radius: 50%;
+        transition: background 0.2s, color 0.2s;
+      }
+
+      /* Highlight ngày hiện tại */
+      .fc-day-today .fc-daygrid-day-number {
+        background-color: #3b82f6; /* blue-500 */
+        color: white;
+      }
+
+      .modal-content {
+        word-break: break-word;
+        overflow-wrap: break-word;
+      }
+
+    </style>
+
+    <!-- Thư viện ngoài -->
+    <script src="https://animatedicons.co/scripts/embed-animated-icons.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]"></canvas>
+  </head>
+  <body class="bg-gradient-to-br from-[#f4f7fa] to-[#e9eafc] dark:from-[#18192a] dark:to-[#23243a] text-gray-800 dark:text-gray-100 min-h-screen text-[15px]">
+  <div class="w-full min-h-screen p-4">
+    <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
+      <h1 class="text-2xl font-bold tracking-tight">Xin chào {{ user_name }}</h1>
+      <div class="flex items-center gap-3">
+        <!-- Nút ẩn/hiện dashboard dùng SVG thay cho animated-icon -->
+        <button id="toggleDashboard" title="Ẩn/Hiện Dashboard" class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-blue-100 dark:hover:bg-indigo-900 transition">
+          <!-- Icon SVG cho Dashboard -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-bar-chart-2">
+            <path d="M21 20h-3v-7h3v7zM14 20h-3V10h3v10zM7 20H4V4h3v16z"></path>
+          </svg>
+        </button>
+
+        <!-- Nút chuyển chế độ tối/sáng dùng SVG thay cho animated-icon -->
+        <button id="toggleDark" title="Chuyển chế độ tối/sáng"
+          class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-blue-100 dark:hover:bg-indigo-900 transition">
+          <!-- Icon SVG cho chế độ sáng/tối -->
+          <svg id="themeIcon" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon">
+            <path d="M12 2a9.93 9.93 0 0 0-6.32 2.35A9.96 9.96 0 0 0 2 12a9.96 9.96 0 0 0 3.68 7.65A9.93 9.93 0 0 0 12 22a9.93 9.93 0 0 0 6.32-2.35A9.96 9.96 0 0 0 22 12a9.96 9.96 0 0 0-3.68-7.65A9.93 9.93 0 0 0 12 2z"></path>
+          </svg>
+        </button>
+
+        <a href="/logout" onclick="return confirm('Bạn có chắc muốn đăng xuất?')" title="Đăng xuất"
+          class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-red-100 dark:hover:bg-red-900 transition">
+          <!-- Icon SVG cho Đăng xuất -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-log-out">
+            <path d="M14 2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V14m-5-4l4 4-4 4m7-4H10"></path>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+
+
+  <div id="dashboardSection" class="max-w-6xl mx-auto mb-6">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 transition-all duration-300">
+      <div class="bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl rounded-3xl shadow-2xl p-4">
+        <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100 text-center">Tổng quan</h2>
+        <div class="grid grid-cols-2 md:grid-cols-2 gap-3">
+          {% set status_map = {
+            "Tổng công việc": "",
+            "Hoàn thành": "Hoàn thành",
+            "Đang chờ": "Đang chờ",
+            "Quá hạn": "Quá hạn"
+          } %}
+          {% for label, color, value in [
+            ("Tổng công việc", "text-blue-500", thong_ke.tong_cong_viec),
+            ("Hoàn thành", "text-green-500", thong_ke.hoan_thanh),
+            ("Đang chờ", "text-yellow-500", thong_ke.dang_cho),
+            ("Quá hạn", "text-red-500", thong_ke.qua_han)
+          ] %}
+            {% set status = status_map[label] %}
+            <a href="/home?trang_thai={{ status | urlencode }}"
+              class="bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl rounded-xl p-4 flex flex-col items-center justify-center shadow-inner transition-all duration-300 ease-out hover:scale-[1.05] hover:shadow-[0_12px_40px_rgba(0,0,0,0.25)] hover:brightness-110">
+              <div class="text-2xl font-bold {{ color }}" data-countup="{{ value }}">0</div> <!-- Giảm kích thước chữ -->
+              <div class="text-sm text-gray-600 dark:text-gray-300 mt-2">{{ label }}</div>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+
+     <!-- Lịch mini (phiên bản icon cuốn lịch động 2025) -->
+      <div class="hidden sm:flex bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl rounded-3xl shadow-2xl p-6 flex flex-col justify-between min-h-[260px] cursor-pointer hover:scale-[1.03] hover:shadow-[0_8px_30px_rgba(0,0,0,0.3)] transition-transform duration-200"
+          onclick="openModal('calendarModal')">
+          <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100 text-center">Lịch công việc</h2>
+
+          <div class="flex-1 flex items-center justify-center w-full">
+              <!-- Icon cuốn lịch động -->
+              <div>
+                  <animated-icons
+                    src="https://animatedicons.co/get-icon?name=Schedule&style=minimalistic&token=5be054c1-2954-4c87-9287-f1e6362c8da3"
+                    trigger="loop-on-hover"
+                    attributes='{"variationThumbColour":"#536DFE","variationName":"Two Tone","variationNumber":2,"numberOfGroups":2,"backgroundIsGroup":false,"strokeWidth":1,"defaultColours":{"group-1":"#000000","group-2":"#536DFE","background":"#FFFFFF"}}'
+                    height="200"
+                    width="200"
+                  ></animated-icons>
+              </div>
+          </div>
+      </div>
+
+
+      <!-- Biểu đồ cột -->
+      <div class="hidden sm:flex bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl rounded-3xl shadow-2xl p-6 flex flex-col justify-between min-h-[260px]">
+        <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100 text-center">Theo trạng thái</h2>
+        <div class="flex-1 flex items-center justify-center">
+          <canvas id="barChart" class="w-full h-[180px]"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Form thêm công việc (bọc trong div max-w-2xl mx-auto) -->
+  <div class="max-w-6xl mx-auto w-full mb-10">
+    <form method="post" action="/add"
+      class="bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-transparent dark:border-[#35377b]/40 transition-all duration-300">
+
+      <!-- 👇 Grid theo role -->
+      <div class="{% if role in ['quanly', 'ktv'] %}grid grid-cols-4{% else %}grid grid-cols-3{% endif %} gap-4 mb-2">
+        
+        {% if role in ['quanly', 'ktv'] %}
+        <div>
+          <select name="chi_nhanh" required
+            class="border border-gray-300 dark:border-[#35377b]/40 bg-white dark:bg-[#23243a] text-gray-900 dark:text-gray-100 p-2 rounded focus:ring-2 focus:ring-blue-400 w-full">
+            <option value="" disabled selected class="text-gray-400 dark:text-gray-500">Chọn chi nhánh</option>
+            {% for cn in branches %}
+            <option value="{{ cn }}">{{ cn }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% else %}
+          <input type="hidden" name="chi_nhanh" value="{{ user_chi_nhanh }}">
+        {% endif %}
+
+        <div>
+          <input type="text" name="phong" placeholder="Phòng" required
+            class="border border-gray-300 dark:border-[#35377b]/40 bg-white dark:bg-[#23243a] text-gray-900 dark:text-gray-100 p-2 rounded focus:ring-2 focus:ring-blue-400 w-full placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+        </div>
+
+        <div>
+          <input type="text" name="mo_ta" placeholder="Mô tả công việc" required
+            class="border border-gray-300 dark:border-[#35377b]/40 bg-white dark:bg-[#23243a] text-gray-900 dark:text-gray-100 p-2 rounded focus:ring-2 focus:ring-blue-400 w-full placeholder:text-gray-400 dark:placeholder:text-gray-500" />
+        </div>
+
+        <div class="w-full overflow-hidden flex items-center">
+          <input type="date" name="han_hoan_thanh" required
+            class="border border-gray-300 dark:border-[#35377b]/40 bg-white dark:bg-[#23243a] 
+                  text-gray-700 dark:text-gray-100 p-2 rounded focus:ring-2 focus:ring-blue-400 
+                  w-full truncate block appearance-none" />
+        </div>
+      </div>
+
+      <!-- Ghi chú -->
+      <div class="mt-4">
+        <textarea name="ghi_chu" placeholder="Ghi chú"
+          class="border border-gray-300 dark:border-[#35377b]/40 bg-white dark:bg-[#23243a] text-gray-900 dark:text-gray-100 p-2 rounded w-full focus:ring-2 focus:ring-blue-400 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+          rows="3"></textarea>
+      </div>
+
+      <!-- Người tạo -->
+      <input type="hidden" name="nguoi_tao" value="{{ user }}">
+
+      <div class="flex justify-between mt-4">
+        <!-- ✅ Bộ lọc: thêm type="button" -->
+        <button type="button" onclick="openModal('filterModal')"
+          class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-blue-600 hover:to-green-600 text-white px-6 py-2 rounded shadow-lg flex items-center gap-2 font-semibold transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M6 10h12M10 14h4" />
+          </svg>
+          Bộ lọc
+        </button>
+
+        <!-- ✅ Giữ nguyên nút submit -->
+        <button type="submit"
+          class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-blue-600 hover:to-green-600 text-white px-6 py-2 rounded shadow-lg flex items-center gap-2 font-semibold transition">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Thêm công việc
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <form id="addTaskForm">
+    
+  </form>
+
+
+    <style>
+      .scrollbar-thin::-webkit-scrollbar {
+        height: 8px;
+        width: 8px;
+      }
+      .scrollbar-thin::-webkit-scrollbar-thumb {
+        background-color: rgba(156, 163, 175, 0.6);
+        border-radius: 6px;
+      }
+
+      .pagination a, .pagination span {
+        transition: all 0.2s ease-in-out;
+      }
+      .pagination a:hover {
+        background-color: rgba(59, 130, 246, 0.1);
+        color: #2563eb;
+        border-color: #2563eb;
+      }
+    </style>
+
+<!-- Modal Lọc với thiết kế hiện đại -->
+<div id="filterModal"
+    class="modal fixed inset-0 z-[9998] bg-black/30 backdrop-blur-md hidden flex items-center justify-center overflow-hidden p-4"
+    onclick="closeModal('filterModal')">
+
+  <div onclick="event.stopPropagation()"
+    class="relative w-full sm:max-w-lg max-w-[95vw] p-4 sm:p-6
+      bg-gradient-to-br from-green-200/70 via-white/40 to-teal-200/60 bg-white/20
+      dark:bg-white/10 dark:border dark:border-white/20 dark:shadow-2xl dark:shadow-black/50
+      rounded-2xl backdrop-blur-xl max-h-[95vh] overflow-y-auto transition-all animate-fadeIn">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <animated-icons
+          src="https://animatedicons.co/get-icon?name=search&style=minimalistic&token=12e9ffab-e7da-417f-a9d9-d7f67b64d808"
+          trigger="loop"
+          height="40"
+          width="40"
+        ></animated-icons>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white tracking-tight">Bộ Lọc Công Việc</h2>
+      </div>
+      <button onclick="closeModal('filterModal')"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800 dark:text-gray-100" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Các trường nhập -->
+    <form method="get" action="/home" class="space-y-6">
+
+      <div class="w-full overflow-hidden flex items-center">
+        <div class="w-full">
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ngày hoàn thành</label>
+          <div class="relative w-full">
+            <input type="date" name="han_hoan_thanh" value="{{ han_hoan_thanh or '' }}"
+              class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+                    bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm 
+                    focus:ring-2 focus:ring-blue-500 truncate appearance-none">
+          </div>
+        </div>
+      </div>
+
+
+      <!-- Ẩn chi nhánh khi là lễ tân -->
+      {% if role != 'letan' %}
+      <div class="w-full">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chi nhánh</label>
+        <select name="chi_nhanh"
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500">
+          <option value=""> Tất cả chi nhánh </option>
+          {% for cn in branches %}
+            <option value="{{ cn }}" {% if chi_nhanh == cn %}selected{% endif %}>{{ cn }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <!-- Lễ tân sẽ không thấy trường chi nhánh -->
+      <input type="hidden" name="chi_nhanh" value="{{ user_chi_nhanh }}">
+      {% endif %}
+
+      <!-- Từ khoá -->
+      <div class="w-full">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Từ khoá</label>
+        <input name="search" value="{{ search or '' }}" placeholder="Tìm kiếm..."
+               class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500">
+      </div>
+
+      <!-- Trạng thái -->
+      <div class="w-full">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái</label>
+        <select name="trang_thai"
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500">
+          <option value="">Tất cả trạng thái</option>
+          <option value="Đang chờ" {% if trang_thai == 'Đang chờ' %}selected{% endif %}>Đang chờ</option>
+          <option value="Hoàn thành" {% if trang_thai == 'Hoàn thành' %}selected{% endif %}>Hoàn thành</option>
+          <option value="Quá hạn" {% if trang_thai == 'Quá hạn' %}selected{% endif %}>Quá hạn</option>
+          
+          {% if role == 'quanly' %}
+          <option value="Đã xoá" {% if trang_thai == 'Đã xoá' %}selected{% endif %}>Đã xoá</option>
+          {% endif %}
+          
+        </select>
+      </div>
+
+      <!-- Button group -->
+      <div class="pt-6">
+        <button type="submit"
+                class="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-3xl 
+                      bg-gradient-to-r from-orange-400 via-yellow-400 to-pink-500 
+                      text-white font-semibold text-lg shadow-xl transition-all duration-300
+                      hover:brightness-110 active:scale-95 hover:shadow-2xl hover:ring-4 hover:ring-pink-300/40 bg-[length:200%_200%] animate-gradient-shift">
+          <span>Tìm kiếm</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 transition-all duration-300">
+  <!-- KHỐI PHÂN TRANG (luôn giữ chỗ, dù ẩn) -->
+  <div class="w-full flex justify-center items-center mt-4">
+    {% if total_pages > 1 %}
+      <div class="pagination flex flex-wrap justify-center gap-1 text-sm text-gray-700 dark:text-gray-300">
+        {% if page > 1 %}
+          <a href="/home?page=1{{ query_string|safe }}" class="px-3 py-1 border rounded-full hover:bg-blue-100 dark:hover:bg-gray-700 transition">«</a>
+          <a href="/home?page={{ page - 1 }}{{ query_string|safe }}" class="px-3 py-1 border rounded-full hover:bg-blue-100 dark:hover:bg-gray-700 transition">‹</a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+          {% if p == page %}
+            <span class="px-3 py-1 rounded-full bg-blue-600 text-white font-semibold shadow">{{ p }}</span>
+          {% elif p >= page - 2 and p <= page + 2 %}
+            <a href="/home?page={{ p }}{{ query_string|safe }}" class="px-3 py-1 border rounded-full hover:bg-blue-100 dark:hover:bg-gray-700 transition">{{ p }}</a>
+          {% elif p == 1 or p == total_pages %}
+            <span class="px-2 text-gray-400">...</span>
+          {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+          <a href="/home?page={{ page + 1 }}{{ query_string|safe }}" class="px-3 py-1 border rounded-full hover:bg-blue-100 dark:hover:bg-gray-700 transition">›</a>
+          <a href="/home?page={{ total_pages }}{{ query_string|safe }}" class="px-3 py-1 border rounded-full hover:bg-blue-100 dark:hover:bg-gray-700 transition">»</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="flex justify-center px-2">
+  <!-- DESKTOP TABLE VIEW -->
+  <div class="w-full rounded-3xl shadow-2xl bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl border border-transparent dark:border-[#35377b]/40 transition-all duration-300 {% if total_pages <= 1 %}mb-4{% else %}mb-10{% endif %} hidden lg:block">
+    <div class="rounded-3xl overflow-hidden">
+      <table class="w-full table-fixed border-separate border-spacing-0 font-sans text-sm text-gray-800 dark:text-gray-100 rounded-3xl">
+        <thead>
+          <tr class="text-center">
+            {% if role != 'letan' %}
+            <th class="p-2 font-semibold text-center">Chi nhánh</th>
+            {% endif %}
+            <th class="p-2 font-semibold text-center">Phòng</th>
+            <th class="hidden lg:table-cell p-2 font-semibold text-center">Người lập</th>
+            <th class="p-2 font-semibold text-center">Mô tả</th>
+            {% if role != 'letan' %}
+            <th class="hidden lg:table-cell p-2 font-semibold text-center">Ghi nhận</th>
+            {% endif %}
+            <th class="p-2 font-semibold text-center">Hạn</th>
+            <th class="p-2 font-semibold text-center">Trạng thái</th>
+            <th class="hidden md:table-cell p-2 font-semibold text-center">Ghi chú</th>
+            {% if role == 'quanly' %}
+            <th class="hidden lg:table-cell p-2 font-semibold text-center">Hoàn thành</th>
+            {% endif %}
+            <th class="p-2 font-semibold text-center">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tasks %}
+          {% set row_class = '' %}
+          {% set formatted_han_hoan_thanh = t.han_hoan_thanh %}
+          {% if not formatted_han_hoan_thanh and t.han_hoan_thanh_raw %}
+            {% set date_parts = t.han_hoan_thanh_raw.split('T')[0].split('-') %}
+            {% if date_parts | length == 3 %}
+              {% set formatted_han_hoan_thanh = date_parts[2] ~ '/' ~ date_parts[1] ~ '/' ~ date_parts[0] %}
+            {% endif %}
+          {% endif %}
+
+          {% if t.trang_thai == 'Hoàn thành' %}
+            {% set row_class = 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' %}
+          {% elif t.trang_thai == 'Quá hạn' %}
+            {% set row_class = 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400' %}
+          {% elif t.trang_thai == 'Đang chờ' %}
+            {% set row_class = 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400' %}
+          {% elif t.trang_thai == 'Đã xoá' %}
+            {% set row_class = 'bg-gray-100 dark:bg-gray-800 text-gray-400 italic' %}
+          {% endif %}
+          <tr onclick="handleRowClick(event, this)" data-task='{{ t | tojson | safe }}' class="group hover:bg-blue-50 dark:hover:bg-gray-800 transition-all duration-150 {{ row_class }}">
+            {% if role != 'letan' %}
+            <td class="p-2 text-center truncate">{{ t.chi_nhanh }}</td>
+            {% endif %}
+            <td class="p-2 text-center truncate">{{ t.phong }}</td>
+            <td class="hidden lg:table-cell p-2 text-center truncate">{{ t.nguoi_tao }}</td>
+            <td class="p-2 text-center max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap" title="{{ t.mo_ta }}">{{ t.mo_ta }}</td>
+            {% if role != 'letan' %}
+            <td class="hidden lg:table-cell p-2 text-center truncate">{{ t.ngay_tao }}</td>
+            {% endif %}
+            <td class="p-2 text-center truncate">
+              <span class="block sm:hidden">{{ formatted_han_hoan_thanh[:5] if formatted_han_hoan_thanh else '' }}</span>
+              <span class="hidden sm:block">{{ formatted_han_hoan_thanh or '' }}</span>
+            </td>
+            <td class="p-2 text-center">
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                {% if t.trang_thai == 'Hoàn thành' %} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+                {% elif t.trang_thai == 'Quá hạn' %} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+                {% elif t.trang_thai == 'Đang chờ' %} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+                {% elif t.trang_thai == 'Đã xoá' %} bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400
+                {% endif %}">{{ t.trang_thai }}</span>
+            </td>
+            <td class="hidden md:table-cell p-2 text-center max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap" title="{{ t.ghi_chu }}">{{ t.ghi_chu }}</td>
+            {% if role == 'quanly' %}
+            <td class="hidden lg:table-cell p-2 text-center text-sm text-gray-600 dark:text-gray-300">
+              {% if t.nguoi_thuc_hien %}
+              <span class="flex items-center justify-center gap-1">
+                <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5.121 17.804A10.95 10.95 0 0112 16c2.216 0 4.278.645 5.879 1.804M12 12a4 4 0 100-8 4 4 0 000 8z" />
+                </svg>
+                {{ t.nguoi_thuc_hien }}
+              </span>
+              {% endif %}
+              {% if t.ngay_hoan_thanh %}
+              <div class="text-xs text-gray-400">{{ t.ngay_hoan_thanh }}</div>
+              {% endif %}
+            </td>
+            {% endif %}
+            <td class="p-2 text-center text-sm text-gray-600 dark:text-gray-300">
+              <div class="flex justify-center flex-wrap gap-1 max-w-[80px] mx-auto pointer-events-auto">
+                {% if role in ['quanly', 'ktv'] or (role == 'letan' and t.chi_nhanh == user_chi_nhanh) %}
+                {% if t.trang_thai not in ['Hoàn thành', 'Đã xoá'] %}
+                <form action="/complete/{{ t.id }}?{{ query_string }}" method="post" class="inline">
+                  <input type="hidden" name="nguoi_thuc_hien" value="{{ user }}">
+                  <button title="Hoàn thành" class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300 transition" onclick="event.stopPropagation()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                </form>
+                {% endif %}
+                <button title="Sửa" class="text-yellow-600 hover:text-yellow-800 dark:text-yellow-400 dark:hover:text-yellow-300 transition" onclick="event.stopPropagation(); openEditModal(this)" data-task='{{ t | tojson | safe }}'>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2 2 0 112.828 2.828L11.828 13.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z" />
+                  </svg>
+                </button>
+                {% if role == 'quanly' or (role == 'letan' and t.chi_nhanh == user_chi_nhanh) %}
+                <form method="post" action="/delete/{{ t.id }}?{{ query_string }}" onsubmit="return confirm('Bạn có chắc muốn xoá công việc này không?');" class="inline">
+                  <button title="Xoá" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition" onclick="event.stopPropagation()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </form>
+                {% endif %}
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<!-- MOBILE LIST VIEW - SWIPE ACTION (No Button Layer) -->
+<div class="block lg:hidden w-full h-[calc(100vh-150px)] overflow-y-auto scroll-smooth px-2">
+  <div class="space-y-4">
+    {% for t in tasks %}
+    {% set formatted_han_hoan_thanh = t.han_hoan_thanh %}
+    {% if not formatted_han_hoan_thanh and t.han_hoan_thanh_raw %}
+      {% set date_parts = t.han_hoan_thanh_raw.split('T')[0].split('-') %}
+      {% if date_parts | length == 3 %}
+        {% set formatted_han_hoan_thanh = date_parts[2] ~ '/' ~ date_parts[1] ~ '/' ~ date_parts[0] %}
+      {% endif %}
+    {% endif %}
+
+    <div class="relative overflow-hidden rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 swipe-item" 
+         data-task-id="{{ t.id }}" 
+         data-task='{{ t | tojson | safe }}'>
+
+      <!-- Content -->
+      <div class="p-4 flex flex-col gap-2">
+        <div class="flex justify-between items-center">
+          <div class="text-base font-semibold text-gray-800 dark:text-gray-100">{{ t.phong }}</div>
+          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+            {% if t.trang_thai == 'Hoàn thành' %} bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300
+            {% elif t.trang_thai == 'Quá hạn' %} bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300
+            {% elif t.trang_thai == 'Đang chờ' %} bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300
+            {% elif t.trang_thai == 'Đã xoá' %} bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400
+            {% endif %}">{{ t.trang_thai }}</span>
+        </div>
+        <div class="text-sm text-gray-600 dark:text-gray-300">{{ t.mo_ta }}</div>
+        {% if t.ghi_chu %}
+        <div class="text-xs text-gray-400 italic">Ghi chú: {{ t.ghi_chu }}</div>
+        {% endif %}
+        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+          {% if role != 'letan' %}<span>CN: {{ t.chi_nhanh }}</span>{% endif %}
+          <span>Hạn: {{ formatted_han_hoan_thanh or '' }}</span>
+        </div>
+        {% if role == 'quanly' %}
+        <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+          {% if t.nguoi_thuc_hien %}<span>Thực hiện: {{ t.nguoi_thuc_hien }}</span>{% endif %}
+          {% if t.ngay_hoan_thanh %}<span>HT: {{ t.ngay_hoan_thanh }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+  const USER_ROLE = "{{ role }}";
+</script>
+<script>
+document.querySelectorAll('.swipe-item').forEach(item => {
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+
+    const statusSpan = item.querySelector('span');
+
+    item.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+        item.style.transition = 'none';
+    });
+
+    item.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+
+        currentX = e.touches[0].clientX - startX;
+        const currentStatus = statusSpan.textContent.trim();
+
+        // ---- KTV ----
+        if (USER_ROLE === 'ktv') {
+            if (currentStatus === 'Hoàn thành') {
+                currentX = 0; // Không cho vuốt nữa
+            } else {
+                if (currentX > 0) {
+                    currentX = 0; // Không cho vuốt phải (xoá)
+                }
+            }
+        }
+
+        // ---- Các Role khác ----
+        if (USER_ROLE !== 'ktv') {
+            if (currentStatus === 'Hoàn thành' && currentX < 0) {
+                currentX = 0; // Khóa vuốt trái khi đã hoàn thành
+            }
+            if (currentStatus === 'Đã xoá' && currentX < 0) {
+                currentX = 0; // Đã xoá thì không vuốt trái nữa
+            }
+        }
+
+        // Giới hạn vuốt
+        if (currentX < 120 && currentX > -120) {
+            item.style.transform = `translateX(${currentX}px)`;
+            const swipePercent = Math.min(Math.abs(currentX) / 120, 1);
+            item.style.backgroundColor = currentX < 0
+                ? `rgba(34,197,94,${swipePercent})`  // Green (Hoàn thành)
+                : `rgba(239,68,68,${swipePercent})`; // Red (Xoá)
+        }
+    });
+
+    item.addEventListener('touchend', async () => {
+        item.style.transition = 'transform 0.3s ease, background-color 0.3s ease';
+        const taskId = item.getAttribute('data-task-id');
+        const currentStatus = statusSpan.textContent.trim();
+
+        // ---- Vuốt Trái -> Hoàn thành ----
+        if (currentX < -120) {
+            if (USER_ROLE === 'ktv') {
+                if (currentStatus === 'Đang chờ' || currentStatus === 'Quá hạn') {
+                    const res = await fetch(`/complete/${taskId}?json=1`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `nguoi_thuc_hien={{ user }}`
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        statusSpan.textContent = 'Hoàn thành';
+                        statusSpan.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+                    }
+                }
+            } else {
+                if (currentStatus !== 'Hoàn thành' && currentStatus !== 'Đã xoá') {
+                    const res = await fetch(`/complete/${taskId}?json=1`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `nguoi_thuc_hien={{ user }}`
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                        statusSpan.textContent = 'Hoàn thành';
+                        statusSpan.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+                    }
+                }
+            }
+        }
+
+        // ---- Vuốt Phải -> Xoá ----
+        else if (currentX > 120 && USER_ROLE !== 'ktv') {
+            if (currentStatus === 'Đã xoá') {
+                // Vuốt lần 2 -> Remove khỏi DOM
+                item.style.transform = 'translateX(100%)';
+                setTimeout(() => item.remove(), 300);
+            } else {
+                const res = await fetch(`/delete/${taskId}?json=1`, { method: 'POST' });
+                const result = await res.json();
+                if (result.success) {
+                    statusSpan.textContent = 'Đã xoá';
+                    statusSpan.className = 'inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
+                    item.style.opacity = '0.6';
+                    item.style.filter = 'grayscale(50%)';
+                }
+            }
+        }
+
+        // Reset Position nếu không đủ lực
+        item.style.transform = 'translateX(0px)';
+        item.style.backgroundColor = '';
+
+        isDragging = false;
+        currentX = 0;
+    });
+
+    item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openEditModal(item);
+    });
+});
+</script>
+
+<!-- Modal Sửa Công Việc với hiệu ứng Neumorphism và mờ nền -->
+<div id="editModal"
+    class="modal fixed inset-0 z-[9999] bg-black/30 backdrop-blur-md hidden flex items-center justify-center overflow-hidden p-4 p-4 sm:p-6"
+    onclick="closeModal('editModal')">
+  <div onclick="event.stopPropagation()"
+    class="relative w-full sm:max-w-lg max-w-[95vw] p-4 sm:p-6
+      bg-gradient-to-br from-green-200/70 via-white/40 to-teal-200/60 bg-white/20
+      dark:bg-white/10 dark:border dark:border-white/20 dark:shadow-2xl dark:shadow-black/50
+      rounded-2xl backdrop-blur-xl max-h-[95vh] overflow-y-auto transition-all animate-fadeIn">
+
+    <!-- Header with Animated Icon -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <!-- Animated Icon from AnimatedIcons -->
+        <animated-icons
+          src="https://animatedicons.co/get-icon?name=Maintenance&style=minimalistic&token=c427791f-d7f8-4a99-a56b-60ef3373e1f7"
+          trigger="loop"
+          attributes='{"variationThumbColour":"#536DFE","variationName":"Two Tone","variationNumber":2,"numberOfGroups":2,"backgroundIsGroup":false,"strokeWidth":1,"defaultColours":{"group-1":"#000000","group-2":"#536DFE","background":"#FFFFFF"}}'
+          height="60"
+          width="60"
+        ></animated-icons>
+        <h2 class="text-xl font-semibold text-gray-800 dark:text-white tracking-tight">Sửa Công Việc</h2>
+      </div>
+      <button onclick="closeModal('editModal')"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition transform hover:scale-110">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800 dark:text-gray-100" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+
+    <!-- Form -->
+    <form id="editForm" method="post" action="/edit" class="space-y-6">
+      <input type="hidden" name="task_id" id="edit_task_id">
+      <input type="hidden" name="redirect_query" value="{{ query_string }}">
+
+      <!-- Chi nhánh -->
+      {% if role == "quanly" %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chi nhánh</label>
+        <select name="chi_nhanh" id="edit_chi_nhanh"
+                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+                      bg-white dark:bg-[#26283d] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500 transition-all ease-in-out"
+                required>
+          <option value="" disabled selected>-- Chọn chi nhánh --</option>
+          {% for cn in branches %}
+            <option value="{{ cn }}">{{ cn }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" name="chi_nhanh" value="{{ user_chi_nhanh }}">
+      {% endif %}
+
+      <!-- Các trường khác (Phòng, Mô tả, Hạn hoàn thành, Ghi chú) -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Phòng</label>
+        <input type="text" name="phong" id="edit_phong" placeholder="VD: 203 hoặc A2"
+              class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+                      bg-white dark:bg-[#26283d] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500 transition-all ease-in-out"
+              required>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mô tả</label>
+        <input type="text" name="mo_ta" id="edit_mo_ta" placeholder="VD: Vệ sinh máy lạnh"
+              class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+                      bg-white dark:bg-[#26283d] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500 transition-all ease-in-out"
+              required>
+      </div>
+        <div class="w-full overflow-hidden flex items-center">
+          <div class="w-full">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hạn hoàn thành</label>
+            <div class="relative w-full">
+              <input type="text" name="han_hoan_thanh" id="edit_han_hoan_thanh" placeholder="dd/mm/yyyy"
+                class="datepicker w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+                      bg-white dark:bg-[#26283d] text-gray-900 dark:text-gray-100 shadow-sm 
+                      focus:ring-2 focus:ring-blue-500 transition-all ease-in-out truncate appearance-none">
+            </div>
+          </div>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ghi chú</label>
+        <textarea name="ghi_chu" id="edit_ghi_chu" rows="4" placeholder="Thông tin bổ sung..."
+                  class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+                        bg-white dark:bg-[#26283d] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500 transition-all ease-in-out"></textarea>
+      </div>
+
+      <!-- Nút -->
+      <div class="pt-6">
+        <button type="submit"
+                class="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-3xl 
+                      bg-gradient-to-r from-orange-400 via-yellow-400 to-pink-500 
+                      text-white font-semibold text-lg shadow-xl transition-all duration-300
+                      hover:brightness-110 active:scale-95 hover:shadow-2xl hover:ring-4 hover:ring-pink-300/40 bg-[length:200%_200%] animate-gradient-shift">
+          <span>Cập Nhật</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- TASK NÈ -->
+
+<!-- Modal overlay -->
+<div id="taskDetailModal"
+     class="fixed inset-0 z-[9999] bg-black/30 backdrop-blur-md hidden flex items-center justify-center overflow-hidden p-2 sm:p-4"
+     onclick="closeTaskDetailModal()">
+
+  <!-- Modal content -->
+  <div onclick="event.stopPropagation()"
+    class="relative w-full sm:max-w-lg max-w-[95vw] p-4 sm:p-6
+    bg-gradient-to-br from-green-200/70 via-white/40 to-teal-200/60 bg-white/20
+    dark:bg-white/10 dark:border dark:border-white/20 dark:shadow-2xl dark:shadow-black/50
+    rounded-2xl backdrop-blur-xl max-h-[95vh] overflow-y-auto transition-all animate-fadeIn">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <!-- Icon động -->
+        <animated-icons
+          src="https://animatedicons.co/get-icon?name=information&style=minimalistic&token=4a9d7337-655d-4d65-9456-1a332908b1aa"
+          trigger="loop"
+          attributes='{"variationThumbColour":"#536DFE","variationName":"Two Tone","variationNumber":2,"numberOfGroups":2,"backgroundIsGroup":false,"strokeWidth":1,"defaultColours":{"group-1":"#000000","group-2":"#536DFE","background":"#FFFFFF"}}'
+          height="60"
+          width="60"
+        ></animated-icons>
+
+        <!-- Tên phòng thay thế tiêu đề -->
+        <h2 id="taskDetailPhong" class="text-lg font-semibold text-gray-800 dark:text-white truncate"></h2>
+      </div>
+
+      <!-- Nút đóng -->
+      <button onclick="closeTaskDetailModal()"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800 dark:text-gray-100" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Grid 3 trường -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+      <!-- Chi nhánh -->
+      <div class="flex flex-col items-center p-3 rounded-xl 
+                  bg-white dark:bg-[#2e314d]/80 
+                  border border-gray-200 dark:border-white/15 
+                  shadow-sm dark:shadow-lg w-full transition-colors">
+        <div class="text-xs text-gray-500 dark:text-gray-300">Chi nhánh</div>
+        <div id="taskDetailChiNhanhField" class="text-sm font-semibold text-gray-800 dark:text-white text-center truncate"></div>
+      </div>
+
+      <!-- Trạng thái -->
+      <div class="flex flex-col items-center p-3 rounded-xl 
+                  bg-white dark:bg-[#2e314d]/80 
+                  border border-gray-200 dark:border-white/15 
+                  shadow-sm dark:shadow-lg w-full transition-colors">
+        <div class="text-xs text-gray-500 dark:text-gray-300">Trạng thái</div>
+        <div id="taskDetailTrangThai" class="text-sm font-semibold text-gray-800 dark:text-white text-center truncate"></div>
+      </div>
+
+      <!-- Người lập -->
+      <div class="flex flex-col items-center p-3 rounded-xl 
+                  bg-white dark:bg-[#2e314d]/80 
+                  border border-gray-200 dark:border-white/15 
+                  shadow-sm dark:shadow-lg w-full transition-colors">
+        <div class="text-xs text-gray-500 dark:text-gray-300">Người lập</div>
+        <div id="taskDetailNguoiLap" class="text-sm font-semibold text-gray-800 dark:text-white text-center truncate"></div>
+      </div>
+    </div>
+
+    <!-- Mô tả -->
+    <div class="w-full px-4 py-3 rounded-2xl 
+                border border-gray-300 dark:border-white/15 
+                bg-white dark:bg-[#2e314d]/80 
+                text-gray-900 dark:text-gray-100 
+                shadow-sm dark:shadow-lg 
+                focus:ring-2 focus:ring-blue-500 
+                truncate appearance-none mb-4 transition-colors">
+      <div class="flex items-center gap-2 mb-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-indigo-600 dark:text-indigo-300" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 14h.01M16 10h.01M21 21H3V7h18v14z" />
+        </svg>
+        <div class="text-sm font-semibold text-gray-700 dark:text-gray-200">Mô tả</div>
+      </div>
+      <div id="taskDetailMoTa" class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap break-words"></div>
+    </div>
+
+    <!-- Ghi chú -->
+    <div class="p-4 rounded-2xl 
+                bg-white dark:bg-[#2e314d]/80 
+                border border-gray-200 dark:border-white/15 
+                shadow-sm dark:shadow-lg transition-colors">
+      <div class="flex items-center gap-2 mb-1">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-purple-600 dark:text-purple-300" fill="none"
+            viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M8 10h.01M12 14h.01M16 10h.01M21 21H3V7h18v14z" />
+        </svg>
+        <div class="text-sm font-semibold text-gray-700 dark:text-gray-200">Ghi chú</div>
+      </div>
+      <div id="taskDetailGhiChu" class="text-sm text-gray-800 dark:text-gray-100 whitespace-pre-wrap break-words"></div>
+    </div>
+
+
+    <!-- Action Buttons -->
+    <div class="flex flex-col sm:flex-row gap-3 mt-6">
+      <button id="btn-delete"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-tr from-red-400 to-red-500 text-white font-medium shadow hover:shadow-lg hover:scale-[1.02] transition duration-200
+              {% if role == 'ktv' %}hidden{% endif %}">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+            stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12" />
+        </svg>
+        Xoá
+      </button>
+
+      <button id="btn-edit"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-tr from-yellow-400 to-yellow-500 text-white font-medium shadow hover:shadow-lg hover:scale-[1.02] transition duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2 2 0 112.828 2.828L11.828 13.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z" />
+        </svg>
+        Sửa
+      </button>
+
+      <button id="btn-complete"
+              class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-tr from-green-400 to-green-500 text-white font-medium shadow hover:shadow-lg hover:scale-[1.02] transition duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24"
+             stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M5 13l4 4L19 7" />
+        </svg>
+        Hoàn thành
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal xem chi tiết lịch mini -->
+<div
+  id="calendarModal"
+  class="fixed inset-0 z-[9998] bg-black/50 hidden flex items-center justify-center p-4 overflow-hidden"
+  onclick="closeModal('calendarModal')"
+>
+  <!-- Modal content -->
+  <div
+    onclick="event.stopPropagation()"
+    class="relative w-full max-w-[95vw] sm:max-w-2xl lg:max-w-4xl bg-white/30 dark:bg-gradient-to-br dark:from-[#1e1e2b] dark:to-[#25273c] rounded-2xl shadow-xl backdrop-blur-lg max-h-[90dvh] flex flex-col overflow-y-auto transition-all animate-fadeIn"
+  >
+    <!-- Header -->
+    <div class="flex items-center justify-between p-4 border-b border-gray-300 dark:border-gray-700">
+      <div class="flex items-center gap-3">
+        <animated-icons
+          src="https://animatedicons.co/get-icon?name=calendar&style=minimalistic&token=12e9ffab-e7da-417f-a9d9-d7f67b64d808"
+          trigger="loop"
+          height="40"
+          width="40"
+        ></animated-icons>
+        <h2 class="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white">
+          Lịch công việc
+        </h2>
+      </div>
+      <button
+        onclick="closeModal('calendarModal')"
+        class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        title="Đóng"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-800 dark:text-gray-100" fill="none"
+          viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Calendar container -->
+    <div id="calendarDetailContent" class="flex-1 w-full h-full p-2">
+      <div id="fullCalendar" class="w-full h-full"></div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Hàm render lịch mini (ví dụ: lịch tháng hiện tại)
+
+    // Render lịch mini trong popup khi mở modal
+    window.openModal = function(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        document.body.classList.add("overflow-hidden");
+        if (modalId === "calendarModal") {
+          renderMiniCalendar("popupMiniCalendar");
+        }
+      }
+    }
+  });
+  </script>
+
+<script>
+  function showTaskDetail(task) {
+    const modal = document.getElementById('taskDetailModal');
+    if (!modal) return;
+
+    // ✅ Hiển thị tên phòng trên header
+    modal.querySelector('#taskDetailPhong').innerText = task.phong || "";
+
+    // ✅ Gán các giá trị cần hiển thị
+    modal.querySelector('#taskDetailPhong').innerText = task.phong || "";
+    modal.querySelector('#taskDetailChiNhanhField').innerText = task.chi_nhanh || ""; // Hiển thị hàng ngang
+    modal.querySelector('#taskDetailTrangThai').innerText = task.trang_thai || "";
+    modal.querySelector('#taskDetailNguoiLap').innerText = task.nguoi_tao || "";
+    modal.querySelector('#taskDetailMoTa').innerText = task.mo_ta || "";
+    modal.querySelector('#taskDetailGhiChu').innerText = task.ghi_chu || "";
+
+    const btnEdit = document.getElementById('btn-edit');
+    const btnComplete = document.getElementById('btn-complete');
+    const btnDelete = document.getElementById('btn-delete');
+
+    // Ẩn nút nếu task đã hoàn thành
+    if (task.trang_thai && task.trang_thai.trim().toLowerCase() === "hoàn thành") {
+        btnComplete.classList.add('hidden');
+    } else {
+        btnComplete.classList.remove('hidden');
+    }
+
+    btnEdit.onclick = function () {
+      const modal = document.getElementById('taskDetailModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      openEditModal({ dataset: { task: JSON.stringify(task) } });
+    };
+
+    btnComplete.onclick = function () {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/complete/${task.id}${window.location.search}`;
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'nguoi_thuc_hien';
+      input.value = "{{ user }}";
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+    };
+
+    btnDelete.onclick = function () {
+      if (!confirm("Bạn có chắc muốn xoá công việc này không?")) return;
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/delete/${task.id}${window.location.search}`;
+      document.body.appendChild(form);
+      form.submit();
+    };
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+  }
+
+  function closeTaskDetailModal() {
+    const modal = document.getElementById('taskDetailModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.classList.remove('overflow-hidden');
+  }
+</script>
+
+<!-- 📌 Xử lý Modal chung + Modal sửa công việc -->
+<script>
+  function formatDateToDMY(dateStr) {
+    if (!dateStr) return "";
+    const d = (dateStr.split("T")[0] || dateStr.split(" ")[0]).split("-");
+    return d.length === 3 ? `${d[2]}/${d[1]}/${d[0]}` : dateStr;
+  }
+
+  function openEditModal(button) {
+    const task = JSON.parse(button.dataset.task);
+    const form = document.getElementById("editForm");
+    const queryString = window.location.search.substring(1);
+    form.action = `/edit/${task.id}${queryString ? "?" + queryString : ""}`;
+
+    if (form.elements['chi_nhanh']) form.elements['chi_nhanh'].value = task.chi_nhanh;
+    form.elements['phong'].value = task.phong;
+    form.elements['mo_ta'].value = task.mo_ta;
+    form.elements['han_hoan_thanh'].value = formatDateToDMY(task.han_hoan_thanh_raw);
+    form.elements['ghi_chu'].value = task.ghi_chu || '';
+    form.elements['phong'].focus();
+
+    openModal('editModal');
+  }
+
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+      document.body.classList.add("overflow-hidden");
+    }
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+      document.body.classList.remove("overflow-hidden");
+    }
+  }
+
+  // ESC để đóng tất cả modals
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal").forEach(modal => {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+      });
+      document.body.classList.remove("overflow-hidden");
+    }
+  });
+</script>
+
+<!-- 🔢 Đếm động số trong thẻ data-countup -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-countup]").forEach(el => {
+      const target = +el.dataset.countup;
+      let count = 0;
+      const step = Math.max(1, Math.floor(target / 40));
+      const interval = setInterval(() => {
+        count += step;
+        if (count >= target) {
+          el.textContent = target;
+          clearInterval(interval);
+        } else {
+          el.textContent = count;
+        }
+      }, 20);
+    });
+  });
+</script>
+
+<!-- 📊 Biểu đồ ChartJS (cột & tròn) -->
+<script>
+  const thongKe = JSON.parse('{{ thong_ke | tojson | safe }}');
+
+  function getTextColor() {
+    if (localStorage.theme === "dark" || 
+        (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      return "#ffffff"; // màu trắng ở dark mode
+    } else {
+      return "#000000"; // màu đen ở light mode
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const textColor = getTextColor();
+
+    Chart.defaults.color = textColor;
+    Chart.defaults.plugins.legend.labels.color = textColor;
+
+    const barChart = new Chart(document.getElementById("barChart"), {
+      type: "bar",
+      data: {
+        labels: ["Hoàn thành", "Đang chờ", "Quá hạn"],
+        datasets: [{
+          data: [thongKe.hoan_thanh, thongKe.dang_cho, thongKe.qua_han],
+          backgroundColor: ["#10b981", "#fbbf24", "#ef4444"],
+          borderRadius: 6,
+          barPercentage: 0.6,
+          categoryPercentage: 0.6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { stepSize: 1, color: textColor },
+            grid: { display: false }
+          },
+          x: {
+            ticks: { color: textColor },
+            grid: { display: false }
+          }
+        }
+      }
+    });
+
+    // Tự động cập nhật khi toggle dark/light
+    const toggleDark = document.getElementById("toggleDark");
+    toggleDark?.addEventListener("click", () => {
+      setTimeout(() => {
+        const newColor = getTextColor();
+
+        Chart.defaults.color = newColor;
+        Chart.defaults.plugins.legend.labels.color = newColor;
+
+        barChart.options.scales.y.ticks.color = newColor;
+        barChart.options.scales.x.ticks.color = newColor;
+
+        barChart.update();
+      }, 50);
+    });
+  });
+</script>
+
+<!-- 📉 Toggle Dashboard Section -->
+<script>
+  const toggleBtn = document.getElementById("toggleDashboard");
+  const dashboard = document.getElementById("dashboardSection");
+
+  // Luôn hiện dashboard mặc định, chỉ ẩn nếu đã lưu trạng thái ẩn
+  if (localStorage.getItem("dashboardHidden") === "true") {
+    dashboard.classList.add("hidden");
+  } else {
+    dashboard.classList.remove("hidden");
+  }
+
+  toggleBtn?.addEventListener("click", () => {
+    const isHidden = dashboard.classList.toggle("hidden");
+    localStorage.setItem("dashboardHidden", isHidden ? "true" : "false");
+  });
+
+  // localStorage.removeItem("dashboardHidden");
+</script>
+
+<!-- 📅 Flatpickr cho ô ngày -->
+<script>
+  flatpickr(".datepicker", {
+    dateFormat: "d/m/Y",
+    enableTime: false,
+    allowInput: true,
+    locale: "vn"
+  });
+</script>
+
+<!-- 🧠 Auto format ngày dạng dd/mm/yyyy + Cảnh báo -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("han_hoan_thanh");
+
+    function autoFormatDate() {
+      let raw = input.value.trim().replace(/\D/g, "");
+
+      if (raw.length === 8) {
+        const dd = raw.slice(0, 2);
+        const mm = raw.slice(2, 4);
+        const yyyy = raw.slice(4, 8);
+
+        const d = Number(dd), m = Number(mm), y = Number(yyyy);
+        if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
+          input.value = `${dd}/${mm}/${yyyy}`;
+        } else {
+          alert("Ngày không hợp lệ, vui lòng nhập dạng dd/mm/yyyy");
+          input.value = "";
+        }
+      } else if (!/^\d{2}\/\d{2}\/\d{4}$/.test(input.value)) {
+        alert("Vui lòng nhập ngày theo đúng định dạng dd/mm/yyyy");
+        input.value = "";
+      }
+    }
+
+    input?.addEventListener("blur", autoFormatDate);
+    input?.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        autoFormatDate();
+      }
+    });
+  });
+</script>
+
+<!-- ⛔ Ngăn Enter tự submit form (trừ textarea) -->
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.querySelector('form[action="/add"]');
+    const submitButton = form?.querySelector('button[type="submit"]');
+
+    form?.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && e.target.tagName.toLowerCase() !== "textarea") {
+        if (document.activeElement !== submitButton) {
+          e.preventDefault();
+        }
+      }
+    });
+  });
+</script>
+
+{% if request.query_params.get("success") == "1" %}
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.has("action") ? params.get("action").toLowerCase() : "";
+
+    const toastMap = {
+      add: {
+        title: "Đã thêm công việc",
+        message: "Công việc mới đã được tạo thành công.",
+        bg: "#10b981",
+        sound: "/static/sounds/Add.mp3",
+        icon: `
+          <div class="w-8 h-8 flex items-center justify-center rounded-full bg-green-500/10 animate-bounce-in">
+            <svg class="w-5 h-5 text-green-700 dark:text-green-300 drop-shadow" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>`
+      },
+      update: {
+        title: "Đã cập nhật công việc",
+        message: "Thông tin đã được chỉnh sửa.",
+        bg: "#3b82f6",
+        sound: "/static/sounds/Update.mp3",
+        icon: `
+          <div class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-500/10 animate-scale-fade">
+            <svg class="w-5 h-5 text-blue-700 dark:text-blue-300 drop-shadow" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5h10M5 19h10M7 9h14M7 15h14"/>
+            </svg>
+          </div>`
+      },
+      complete: {
+        title: "Hoàn thành",
+        message: "Công việc đã được đánh dấu xong.",
+        bg: "#0ea5e9",
+        sound: "/static/sounds/Complete.mp3",
+        icon: `
+          <div class="w-8 h-8 flex items-center justify-center rounded-full bg-sky-500/10 animate-rotate-in">
+            <svg class="w-5 h-5 text-sky-700 dark:text-sky-300 drop-shadow" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>`
+      },
+      delete: {
+        title: "Đã xoá công việc",
+        message: "Mục đã bị xoá khỏi danh sách.",
+        bg: "#ef4444",
+        sound: "/static/sounds/Delete.mp3",
+        icon: `
+          <div class="w-8 h-8 flex items-center justify-center rounded-full bg-red-500/10 animate-shake">
+            <svg class="w-5 h-5 text-red-700 dark:text-red-300 drop-shadow" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>`
+      },
+      default: {
+        title: "Thành công",
+        message: "Thao tác đã được thực hiện.",
+        bg: "#6366f1",
+        sound: "/static/sounds/Add.mp3",
+        icon: `
+          <div class="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-500/10 animate-fade-in">
+            <svg class="w-5 h-5 text-indigo-700 dark:text-indigo-300 drop-shadow" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>`
+      }
+    };
+
+    const config = toastMap[action] || toastMap.default;
+    const toastContainer = document.createElement("div");
+    toastContainer.className = "fixed top-6 right-6 z-[9999] flex flex-col gap-3";
+    document.body.appendChild(toastContainer);
+
+    const toast = document.createElement("div");
+    toast.className = `group relative overflow-hidden transition-all shadow-xl border border-gray-200 dark:border-gray-700 rounded-xl px-5 py-4 w-[300px] bg-white dark:bg-[#1f2937] backdrop-blur-md animate-toastIn`;
+
+    toast.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="mt-1">${config.icon}</div>
+        <div class="flex-1">
+          <div class="text-sm font-semibold text-gray-800 dark:text-white">${config.title}</div>
+          <div class="text-xs text-gray-600 dark:text-gray-300 mt-0.5">${config.message}</div>
+        </div>
+      </div>
+      <div class="progress-bar absolute bottom-0 left-0 h-[3px] bg-opacity-80"
+           style="background-color: ${config.bg}; width: 100%; transition: none;"></div>`;
+
+    toastContainer.appendChild(toast);
+
+    // 🔊 Phát âm thanh nếu có
+    if (config.sound) {
+      const audio = new Audio(config.sound);
+      audio.volume = 0.6;
+      audio.play().catch(err => {
+        console.warn("⚠️ Không phát được âm thanh:", err.message);
+      });
+    }
+
+
+    // Progress bar logic
+    let duration = 5000;
+    let elapsed = 0;
+    let last = performance.now();
+    const progress = toast.querySelector('.progress-bar');
+
+    const updateProgress = (now) => {
+      if (!toast._paused) elapsed += now - last;
+      last = now;
+
+      const percent = Math.max(0, 1 - elapsed / duration);
+      progress.style.width = `${percent * 100}%`;
+
+      if (elapsed < duration) {
+        toast._rafId = requestAnimationFrame(updateProgress);
+      } else {
+        toast.classList.add("opacity-0", "translate-x-6");
+        toast.style.transition = "all 0.4s ease-in-out";
+        setTimeout(() => toast.remove(), 400);
+      }
+    };
+
+    toast._paused = false;
+    toast._rafId = requestAnimationFrame(updateProgress);
+    toast.addEventListener("mouseenter", () => toast._paused = true);
+    toast.addEventListener("mouseleave", () => {
+      if (toast._rafId) cancelAnimationFrame(toast._rafId);
+      toast._paused = false;
+      last = performance.now();
+      toast._rafId = requestAnimationFrame(updateProgress);
+    });
+
+    // ✅ Xoá query string sau khi hiển thị
+    setTimeout(() => {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      history.replaceState({}, document.title, cleanUrl);
+    }, 800);
+  });
+</script>
+
+
+<!-- Hoạt ảnh -->
+<style>
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .animate-toastIn {
+    animation: toastIn 0.5s ease-out;
+  }
+</style>
+{% endif %}
+
+<script>
+  if (window.location.search) {
+    if (performance.getEntriesByType("navigation")[0]?.type === "reload") {
+      window.location.href = "/home";
+    }
+  }
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("form[method='post']").forEach(form => {
+      if (!form.action.includes("/login")) {
+        const query = window.location.search;
+        if (query) {
+          form.action += form.action.includes("?") ? "&" + query.slice(1) : query;
+        }
+      }
+    });
+  });
+</script>
+
+<script>
+  // 💾 Trước khi reload hoặc chuyển trang, lưu lại vị trí scroll
+  document.querySelectorAll("form[method='post']").forEach(form => {
+    form.addEventListener("submit", () => {
+      localStorage.setItem("scrollY", window.scrollY);
+    });
+  });
+
+  // 🔁 Khi trang tải lại, khôi phục vị trí scroll
+  document.addEventListener("DOMContentLoaded", () => {
+    const y = localStorage.getItem("scrollY");
+    if (y !== null) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(y));
+        localStorage.removeItem("scrollY");
+      }, 10); // Chờ 10ms để đảm bảo layout đã render
+    }
+  });
+</script>
+<script>
+  document.addEventListener("click", () => {
+    const audio = document.getElementById("toastSound");
+    if (audio && audio.paused) {
+      audio.play().catch(() => {});
+    }
+  }, { once: true });
+</script>
+<script>
+function handleRowClick(event, row) {
+  // Không mở popup nếu click vào button, svg, path hoặc form
+  if (event.target.closest("button, svg, path, form")) return;
+
+  try {
+    const taskJson = row.dataset.task;
+    if (!taskJson) return;
+    const task = JSON.parse(taskJson);
+    showTaskDetail(task);
+  } catch (e) {
+
+    console.error("❌ Lỗi parse task:", e);
+  }
+}
+</script>
+
+<script>
+/// Kiểm tra và áp dụng chế độ tối/sáng khi trang tải lại
+document.addEventListener("DOMContentLoaded", function() {
+  // Kiểm tra chế độ đã lưu trong localStorage (nếu có)
+  if (localStorage.getItem('theme') === 'dark') {
+    document.documentElement.classList.add('dark');  // Áp dụng chế độ tối
+  } else {
+    document.documentElement.classList.remove('dark');  // Áp dụng chế độ sáng
+  }
+
+  // Lắng nghe sự kiện click trên nút toggleDark để chuyển chế độ sáng/tối
+  document.getElementById("toggleDark").addEventListener("click", function() {
+    document.documentElement.classList.toggle('dark'); // Chuyển chế độ tối/sáng
+    localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light'); // Lưu trạng thái
+  });
+
+  // Áp dụng chế độ đã lưu từ localStorage
+  if (localStorage.getItem('theme') === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+});
+</script>
+<script id="tasks-data" type="application/json">
+    {{ tasks | tojson | safe }}
+</script>
+
+<!-- Dữ liệu task full cho Calendar (JSON chuẩn) -->
+<script id="calendar-tasks-data" type="application/json">
+  {{ all_tasks_for_calendar | tojson }}
+</script>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    // Lấy danh sách task từ JSON script tag
+    const tasks = JSON.parse(document.getElementById('calendar-tasks-data').textContent);
+
+    // Chuyển đổi thành mảng sự kiện chỉ để tô màu ngày cho lịch mini
+    const backgroundEvents = tasks.filter(task => {
+      // Loại bỏ các task có trạng thái "Hoàn thành"
+      return task.trang_thai === "Đang chờ" || task.trang_thai === "Quá hạn";
+    }).map(task => {
+      let color = "#fbbf24"; // Vàng - Đang chờ
+      if (task.trang_thai === "Quá hạn") color = "#ef4444"; // Đỏ - Quá hạn
+
+      // Chuyển đổi ngày về yyyy-mm-dd nếu cần
+      let rawDate = task.han_hoan_thanh_raw || task.han_hoan_thanh;
+      let dateStr = rawDate;
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+        const [dd, mm, yyyy] = rawDate.split("/");
+        dateStr = `${yyyy}-${mm}-${dd}`;
+      } else if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+        dateStr = rawDate.slice(0, 10);
+      }
+
+      return {
+        start: dateStr,
+        backgroundColor: color,
+        display: 'background',
+        allDay: true
+      };
+    });
+
+    // Khởi tạo lịch mini (chỉ tô màu ngày)
+    if (document.getElementById('miniFullCalendar')) {
+      const miniCalendar = new FullCalendar.Calendar(document.getElementById('miniFullCalendar'), {
+        initialView: 'dayGridMonth',
+        locale: 'vi',
+        height: 180,
+        headerToolbar: false,
+        events: backgroundEvents,
+        themeSystem: 'standard'
+      });
+      miniCalendar.render();
+    }
+
+    // Khởi tạo lịch popup (hiển thị toàn bộ task)
+    window.openModal = function(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        document.body.classList.add("overflow-hidden");
+
+        if (modalId === "calendarModal") {
+          const calendarEl = document.getElementById('fullCalendar');
+          calendarEl.innerHTML = "";
+
+          // Đảm bảo calendar chiếm toàn bộ modal
+          calendarEl.style.height = "100%";
+          calendarEl.style.maxHeight = "calc(100dvh - 40px)";
+
+          // Chuyển đổi task thành events cho popup (hiển thị text + màu sắc)
+          const popupEvents = tasks.map(task => {
+            let color = "#fbbf24"; // Vàng - Đang chờ
+            if (task.trang_thai === "Quá hạn") color = "#ef4444"; // Đỏ - Quá hạn
+            if (task.trang_thai === "Hoàn thành") color = "#10b981"; // Xanh lá - Hoàn thành
+
+            // Chuyển ngày về yyyy-mm-dd nếu cần
+            let rawDate = task.han_hoan_thanh_raw || task.han_hoan_thanh;
+            let dateStr = rawDate;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+              const [dd, mm, yyyy] = rawDate.split("/");
+              dateStr = `${yyyy}-${mm}-${dd}`;
+            } else if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+              dateStr = rawDate.slice(0, 10);
+            }
+
+            return {
+              id: task.id,
+              title: `${task.phong} - ${task.mo_ta}`,
+              start: dateStr,
+              color: color,
+              allDay: true
+            };
+          });
+
+          const popupCalendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'vi',
+            height: 'auto',
+            expandRows: true,
+            aspectRatio: 1.5,
+            headerToolbar: {
+              left: 'prev,next today',
+              center: 'title',
+            },
+            events: popupEvents,
+            themeSystem: 'standard',
+          });
+
+          popupCalendar.render();
+        }
+      }
+    };
+  });
+</script>
+
+<!-- Canvas Cosmic Background -->
+<canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]"></canvas>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const canvas = document.getElementById('cosmicCanvas');
+    const ctx = canvas.getContext('2d');
+    let w, h, particles = [];
+
+    function resize() {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Star (Dark Mode)
+    function Star() {
+      this.x = Math.random() * w;
+      this.y = Math.random() * h;
+      this.radius = Math.random() * 1.2;
+      this.vx = (Math.random() - 0.5) * 0.1;
+      this.vy = (Math.random() - 0.5) * 0.1;
+      this.opacity = Math.random() * 0.5 + 0.2;
+    }
+
+    // Cloud (Light Mode) nâng cấp
+function Cloud() {
+    this.x = Math.random() * w;
+    this.y = Math.random() * h * 0.5;
+    this.size = 50 + Math.random() * 100;
+    this.vx = 0.15 + Math.random() * 0.25;
+    this.opacity = 0.1 + Math.random() * 0.2;
+    this.layer = Math.random() > 0.5 ? 1 : 2; // layer 1 (lớn chậm) và layer 2 (nhỏ nhanh)
+}
+
+// Vẽ mây dạng cụm tròn gradient
+function drawCloud(c) {
+    const gradient = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, c.size);
+    gradient.addColorStop(0, `rgba(255, 255, 255, ${c.opacity})`);
+    gradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cụm tròn nhỏ quanh mây để tạo cụm mềm mại
+    for (let i = 0; i < 4; i++) {
+        const offsetX = (Math.random() - 0.5) * c.size * 0.6;
+        const offsetY = (Math.random() - 0.5) * c.size * 0.3;
+        const smallRadius = c.size * (0.3 + Math.random() * 0.2);
+        const smallGradient = ctx.createRadialGradient(c.x + offsetX, c.y + offsetY, 0, c.x + offsetX, c.y + offsetY, smallRadius);
+        smallGradient.addColorStop(0, `rgba(255, 255, 255, ${c.opacity * 0.8})`);
+        smallGradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+        ctx.fillStyle = smallGradient;
+        ctx.beginPath();
+        ctx.arc(c.x + offsetX, c.y + offsetY, smallRadius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+}
+
+    function createParticles(count, type) {
+      particles = [];
+      for (let i = 0; i < count; i++) {
+        particles.push(type === 'star' ? new Star() : new Cloud());
+      }
+    }
+
+    function drawGradient() {
+      ctx.clearRect(0, 0, w, h);
+      const gradient = ctx.createLinearGradient(0, 0, w, h);
+      if (document.documentElement.classList.contains('dark')) {
+        gradient.addColorStop(0, "#0f2027");
+        gradient.addColorStop(0.5, "#203a43");
+        gradient.addColorStop(1, "#2c5364");
+      } else {
+        gradient.addColorStop(0, "#a1c4fd");
+        gradient.addColorStop(0.5, "#c2e9fb");
+        gradient.addColorStop(1, "#fbc2eb");
+      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function animate() {
+      drawGradient();
+      if (document.documentElement.classList.contains('dark')) {
+        particles.forEach(s => {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${s.opacity})`;
+          ctx.fill();
+          s.x += s.vx;
+          s.y += s.vy;
+          if (s.x < 0 || s.x > w) s.vx *= -1;
+          if (s.y < 0 || s.y > h) s.vy *= -1;
+        });
+      } else {
+        particles.forEach(c => {
+          ctx.beginPath();
+          ctx.ellipse(c.x, c.y, c.size, c.size * 0.6, 0, 0, 2 * Math.PI);
+          ctx.fillStyle = `rgba(255, 255, 255, ${c.opacity})`;
+          ctx.fill();
+          c.x += c.vx;
+          if (c.x - c.size > w) c.x = -c.size;
+        });
+      }
+      requestAnimationFrame(animate);
+    }
+
+    function initialize() {
+      if (document.documentElement.classList.contains('dark')) {
+        createParticles(120, 'star');
+      } else {
+        createParticles(25, 'cloud');
+      }
+    }
+
+    initialize();
+    animate();
+
+    const toggleDark = document.getElementById("toggleDark");
+    if (toggleDark) {
+      toggleDark.addEventListener("click", () => {
+        setTimeout(() => {
+          initialize();
+          drawGradient();
+        }, 300);
+      });
+    }
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      setTimeout(() => {
+        initialize();
+        drawGradient();
+      }, 300);
+    });
+});
+</script>
+</body>
+</html>
