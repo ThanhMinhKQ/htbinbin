@@ -1,7 +1,7 @@
 import os
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-DATABASE_URL = "postgresql://admin_klo1_user:X0cwp6miJ1lVmcetAGrZpArXDkqxOW2w@dpg-d20e2p95pdvs73cepelg-a.oregon-postgres.render.com/admin_klo1"
+DATABASE_URL = "postgresql://htbinbin_user:w9A5jWBBOxJ21x0nkisqNpc43uId29e3@dpg-d2gkraodl3ps73fdvm60-a/htbinbin_db"
 
 # Cấu hình SMTP để gửi email
 SMTP_CONFIG = {
