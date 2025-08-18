@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text
+from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean
 from database import Base
 
 class User(Base):
@@ -24,3 +24,12 @@ class Task(Base):
     nguoi_tao = Column(String, nullable=False)
     nguoi_thuc_hien = Column(String, nullable=True)
     ghi_chu = Column(Text, nullable=True)
+
+class AttendanceLog(Base):
+    __tablename__ = "attendance_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_code = Column(String, index=True)
+    date = Column(Date, index=True)
+    token = Column(String, unique=True, index=True)
+    checked_in = Column(Boolean, default=False)
