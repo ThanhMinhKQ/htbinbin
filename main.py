@@ -1,12 +1,14 @@
+import secrets
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from utils import parse_datetime_input, format_datetime_display, is_overdue
+from fastapi import Request
 
 from database import SessionLocal
-from models import User, Task
+from models import User, Task, AttendanceLog
 from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
 from database import init_db
 
@@ -14,10 +16,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, cast, Date
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
-import os, asyncio, re, json 
+import os, re
 from email.message import EmailMessage 
-import aiosmtplib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
+from services.email_service import send_alert_email
 
 from employees import employees  # import danh sách nhân viên tĩnh
 
@@ -101,28 +103,20 @@ async def detect_branch(request: Request):
     # Lưu vào session để UI tự nhận
     request.session["active_branch"] = nearest_branch
     return {"branch": nearest_branch, "distance_km": round(min_distance, 3)}
-
-@app.get("/attendance/ui", response_class=HTMLResponse)
-def attendance_ui(request: Request):
-    ua = request.headers.get("user-agent", "").lower()
-    if not ("mobi" in ua or "android" in ua or "iphone" in ua):
-        return HTMLResponse("<h2>Chỉ hỗ trợ trên điện thoại!</h2>", status_code=403)
-
+    
+@app.get("/attendance/service", response_class=HTMLResponse)
+def attendance_service_ui(request: Request):
     user_data = request.session.get("user")
     if not user_data:
         return RedirectResponse("/login", status_code=303)
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
-    return templates.TemplateResponse("attendance.html", {
+    return templates.TemplateResponse("attendance_service.html", {
         "request": request,
         "branch_id": active_branch,
         "csrf_token": csrf_token,
-        "branches": BRANCHES,
         "user": user_data,
-        "login_code": user_data.get("code", ""),
     })
-
-from urllib.parse import urlencode
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
@@ -131,12 +125,31 @@ def root(request: Request):
         return RedirectResponse("/home", status_code=303)
     return RedirectResponse("/login", status_code=303)
 
+# --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
+@app.get("/choose-function", response_class=HTMLResponse)
+async def choose_function(request: Request):
+    if not require_checked_in_user(request):
+        return RedirectResponse("/login", status_code=303)
+
+    # Nếu có flag after_checkin thì xóa để tránh dùng lại
+    if request.session.get("after_checkin") == "choose_function":
+        request.session.pop("after_checkin", None)
+
+    return templates.TemplateResponse("choose_function.html", {"request": request})
+
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    # Nếu người dùng đã đăng nhập VÀ đây không phải là redirect sau khi đăng nhập thành công,
-    # thì mới chuyển hướng về trang chủ.
-    if request.session.get("user") and "success=1" not in str(request.query_params):
-        return RedirectResponse("/home", status_code=303)
+    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chủ
+    user = request.session.get("user")
+    if user:
+        today = date.today()
+        db = SessionLocal()
+        try:
+            log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+            if log and log.checked_in:
+                return RedirectResponse(url="/show_qr", status_code=303)
+        finally:
+            db.close()
     error = request.query_params.get("error", "")
     role = request.query_params.get("role", "")
     return templates.TemplateResponse("login.html", {
@@ -145,12 +158,9 @@ def login_form(request: Request):
         "role": role
     })
 
-
-
 @app.post("/login", response_class=HTMLResponse)
 def login_submit(request: Request, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     request.session.clear()
-    # Chỉ cho phép các role được đăng nhập
     allowed_roles = ["letan", "quanly", "ktv", "admin", "boss"]
     user = db.query(User).filter(
         User.code == username,
@@ -159,13 +169,31 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     ).first()
 
     if user:
-        request.session["user"] = {
-            "code": user.code,
-            "role": user.role,
-            "branch": user.branch,
-            "name": user.name
-        }
-        return RedirectResponse("/login?success=1", status_code=303)
+        today = date.today()
+        log = db.query(AttendanceLog).filter_by(user_code=user.code, date=today).first()
+        if log and log.checked_in:
+            request.session["user"] = {
+                "code": user.code,
+                "role": user.role,
+                "branch": user.branch,
+                "name": user.name
+            }
+            request.session.pop("pending_user", None)
+            return RedirectResponse("/choose-function", status_code=303)
+        else:
+            token = secrets.token_urlsafe(24)
+            db.query(AttendanceLog).filter_by(user_code=user.code, date=today).delete()
+            log = AttendanceLog(user_code=user.code, date=today, token=token, checked_in=False)
+            db.add(log)
+            db.commit()
+            request.session["pending_user"] = {
+                "code": user.code,
+                "role": user.role,
+                "branch": user.branch,
+                "name": user.name
+            }
+            request.session["qr_token"] = token
+            return RedirectResponse("/show_qr", status_code=303)
     else:
         guessed_role = ""
         if username.lower().startswith("b") and "lt" in username.lower():
@@ -181,21 +209,31 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
         })
         return RedirectResponse(f"/login?{query}", status_code=303)
 
-@app.get("/choose-function", response_class=HTMLResponse)
-def choose_function_page(request: Request):
-    user_data = request.session.get("user")
-    if not user_data:
-        return RedirectResponse("/login", status_code=303)
+# --- Middleware kiểm tra trạng thái điểm danh QR ---
+from datetime import date
 
-    return templates.TemplateResponse("choose_function.html", {
-        "request": request,
-        "user": user_data
-    })
+def require_checked_in_user(request: Request):
+    user = request.session.get("user")
+    if not user:
+        return False
 
-from fastapi import APIRouter
-import secrets
+    today = date.today()
+    db = SessionLocal()
+    try:
+        log = db.query(AttendanceLog).filter_by(
+            user_code=user["code"],
+            date=today
+        ).first()
 
-attendance_router = APIRouter(prefix="/attendance", tags=["Attendance"])
+        # ✅ Cho phép vào nếu:
+        # - Có log checked_in trong DB
+        # - Hoặc session có flag after_checkin = "choose_function"
+        if (log and log.checked_in) or request.session.get("after_checkin") == "choose_function":
+            return True
+    finally:
+        db.close()
+
+    return False
 
 # --- CSRF Token Management ---
 def generate_csrf_token():
@@ -231,20 +269,6 @@ def attendance_ui(request: Request):
         "user": user_data,
         "login_code": user_data.get("code", ""),  # thêm dòng này
     })
-
-# --- Switch active branch ---
-# @app.post("/attendance/switch-branch")
-# async def switch_branch(request: Request, branch_id: str = Form(...)):
-#     user = request.session.get("user")
-#     if not user:
-#         return RedirectResponse("/login", status_code=303)
-#     # Only letan and quanly can switch branch
-#     if user.get("role") not in ["letan", "quanly"]:
-#         raise HTTPException(status_code=403, detail="Không có quyền đổi chi nhánh")
-#     request.session["active_branch"] = branch_id
-#     # Audit log
-#     print(f"[AUDIT] {user['code']} switched active branch to {branch_id}")
-#     return RedirectResponse("/attendance/ui", status_code=303)
 
 # --- Get CSRF token ---
 @app.get("/attendance/csrf-token")
@@ -596,8 +620,6 @@ def add_task(
 
     return RedirectResponse(redirect_url, status_code=303)
 
-from fastapi.responses import JSONResponse
-
 @app.post("/complete/{task_id}")
 async def complete_task(task_id: int, request: Request, nguoi_thuc_hien: str = Form(...), db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
@@ -695,8 +717,6 @@ async def edit_submit(
     redirect_query = form_data.get("redirect_query", "")
 
     return RedirectResponse(f"/home?success=1&action=update{('&' + redirect_query) if redirect_query else ''}", status_code=303)
-
-from fastapi import Request
 
 @app.get("/send-overdue-alerts")
 async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
@@ -928,18 +948,63 @@ def startup():
     threading.Thread(target=watch_employees_file, daemon=True).start()
 
 if __name__ == "__main__":
-    import uvicorn, os
+    import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
+# Hàm lấy IP LAN để tạo base_url
+def get_base_url(request: Request):
+    host = request.client.host
+    port = request.url.port or 8000
+    return f"http://{host}:{port}"
+
+@app.get("/show_qr", response_class=HTMLResponse)
+async def show_qr(request: Request, db: Session = Depends(get_db)):
+    user = request.session.get("pending_user") or request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    today = date.today()
+    # Kiểm tra xem đã có log cho hôm nay chưa
+    log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+    if log:
+        if log.checked_in:
+            # Nếu đã check-in thì không cần show_qr nữa → đi thẳng choose_function
+            return RedirectResponse("/choose-function", status_code=303)
+        else:
+            qr_token = log.token
+    else:
+        # Nếu chưa có log thì tạo mới
+        import uuid
+        qr_token = str(uuid.uuid4())
+        log = AttendanceLog(
+            user_code=user["code"],
+            date=today,
+            token=qr_token,
+            checked_in=False
+        )
+        db.add(log)
+        db.commit()
+
+    request.session["qr_token"] = qr_token
+    base_url = str(request.base_url).strip("/")
+    return templates.TemplateResponse("show_qr.html", {
+        "request": request,
+        "qr_token": qr_token,
+        "base_url": base_url
+    })
 
 from services.attendance_service import push_bulk_checkin
 
 @app.post("/attendance/checkin_bulk")
 async def attendance_checkin_bulk(request: Request, db: Session = Depends(get_db)):
     validate_csrf(request)
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["letan", "quanly"]:
-        raise HTTPException(status_code=403, detail="Không có quyền điểm danh")
+
+    # Lấy user từ session["user"] hoặc session["pending_user"]
+    user = request.session.get("user") or request.session.get("pending_user")
+    # Chỉ cần có user (từ session["user"] hoặc session["pending_user"]) là cho phép điểm danh
+    if not user:
+        raise HTTPException(status_code=403, detail="Không có quyền điểm danh. Vui lòng đăng nhập lại hoặc quét lại QR.")
 
     active_branch = request.session.get("active_branch") or user.get("branch", "")
     raw_data = await request.json()
@@ -947,7 +1012,8 @@ async def attendance_checkin_bulk(request: Request, db: Session = Depends(get_db
     if not isinstance(raw_data, list):
         raise HTTPException(status_code=400, detail="Payload phải là danh sách")
 
-    # Chuẩn hóa key
+    # Chuẩn hóa key và thêm trường người điểm danh
+    nguoi_diem_danh_code = user.get("code")
     normalized_data = []
     for rec in raw_data:
         normalized_data.append({
@@ -960,16 +1026,97 @@ async def attendance_checkin_bulk(request: Request, db: Session = Depends(get_db
             "la_tang_ca": rec.get("la_tang_ca"),
             "so_cong_nv": rec.get("so_cong_nv"),
             "ghi_chu": rec.get("ghi_chu", ""),
-            # Các cột dịch vụ cần map đúng tên key
             "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
             "so_phong": rec.get("so_phong") or rec.get("room_count") or "",
             "so_luong": rec.get("so_luong") or rec.get("item_count") or "",
+            "nguoi_diem_danh": nguoi_diem_danh_code
         })
 
     result = push_bulk_checkin(normalized_data)
     inserted = result.get("inserted", 0)
     print(f"[AUDIT] {user['code']} đã lưu điểm danh {inserted} bản ghi cho branch {active_branch}")
     return {"status": "success", "inserted": inserted}
+
+# --- QR Checkin APIs ---
+
+@app.get("/attendance/checkin")
+def attendance_checkin(request: Request, token: str, db: Session = Depends(get_db)):
+    log = db.query(AttendanceLog).filter_by(token=token).first()
+    if not log:
+        return HTMLResponse("Token không hợp lệ!", status_code=400)
+    user = db.query(User).filter_by(code=log.user_code).first()
+    if not user:
+        return HTMLResponse("Không tìm thấy user!", status_code=400)
+
+    # FIX: Store user in session to authenticate subsequent API calls
+    user_data = {
+        "code": user.code,
+        "role": user.role,
+        "branch": user.branch,
+        "name": user.name
+    }
+    request.session["pending_user"] = user_data
+
+    # Render the attendance page
+    return templates.TemplateResponse("attendance.html", {
+        "request": request,
+        "branch_id": user.branch,
+        "csrf_token": get_csrf_token(request),
+        "user": user_data,
+        "login_code": user.code,
+        "token": token
+    })
+
+@app.post("/attendance/checkin_success")
+async def checkin_success(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    token = data.get("token")
+    if not token:
+        return JSONResponse({"success": False, "error": "Thiếu token"}, status_code=400)
+
+    log = db.query(AttendanceLog).filter_by(token=token).first()
+    if not log:
+        return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=404)
+
+    log.checked_in = True
+    db.commit()
+
+    user = db.query(User).filter_by(code=log.user_code).first()
+    if user:
+        # Cập nhật session cho thiết bị di động
+        request.session["user"] = {
+            "code": user.code,
+            "role": user.role,
+            "branch": user.branch,
+            "name": user.name
+        }
+        request.session["after_checkin"] = "choose_function"
+        request.session.pop("pending_user", None)
+        return JSONResponse({"success": True, "redirect_to": "/choose-function"})
+    
+    return JSONResponse({"success": False, "error": "Không tìm thấy người dùng"}, status_code=404)
+
+
+@app.get("/attendance/checkin_status")
+async def checkin_status(request: Request, token: str, db: Session = Depends(get_db)):
+    log = db.query(AttendanceLog).filter_by(token=token).first()
+    if not log:
+        return JSONResponse(content={"checked_in": False})
+
+    if log.checked_in:
+        user = db.query(User).filter_by(code=log.user_code).first()
+        if user:
+            # Đăng nhập cho user ở session của máy tính
+            request.session["user"] = {
+                "code": user.code,
+                "role": user.role,
+                "branch": user.branch,
+                "name": user.name,
+            }
+            request.session.pop("pending_user", None)
+            return JSONResponse(content={"checked_in": True, "redirect_to": "choose-function"})
+
+    return JSONResponse(content={"checked_in": False})
 
 @app.get("/favicon.ico")
 def favicon():
@@ -980,4 +1127,3 @@ def favicon():
     # Nếu không có, trả về 1x1 PNG trắng
     png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\xdac\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b\x0c\x00\x00\x00\x00IEND\xaeB`\x82'
     return Response(content=png_data, media_type="image/png")
-
