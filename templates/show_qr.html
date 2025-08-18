@@ -1,0 +1,146 @@
+<!-- templates/show_qr.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Điểm danh bằng QR</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* ===== Animations ===== */
+    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+    @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+    .animate-fadeIn { animation: fadeIn .35s ease-out both; }
+    .animate-slideUp { animation: slideUp .35s ease-out both; }
+    .animate-sheetUp { animation: sheetUp .32s cubic-bezier(.22,.61,.36,1) both; }
+
+    /* ===== Card swipe-to-delete (iOS-like) ===== */
+    .swipe-container {
+      position: relative;
+      overflow: hidden;
+      touch-action: pan-y;
+    }
+    .swipe-actions {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      justify-content: flex-end;
+      align-items: stretch;
+      background: #fee2e2; /* red-100 */
+      padding-right: .5rem;
+    }
+    .swipe-actions button {
+      min-width: 72px;
+      border-radius: 12px;
+      margin: auto .25rem;
+      height: 44px;
+    }
+    .swipe-content {
+      position: relative;
+      background: white;
+      transform: translateX(0);
+      transition: transform .18s ease-out;
+      border-radius: 16px;
+      box-shadow: 0 6px 22px rgba(0,0,0,.06);
+    }
+
+    /* ===== Bottom bar glass ===== */
+    .glass {
+      background: rgba(255,255,255,.82);
+      -webkit-backdrop-filter: saturate(180%) blur(16px);
+      backdrop-filter: saturate(180%) blur(16px);
+    }
+
+    /* ===== Bottom sheet ===== */
+    .sheet {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      background: #fff;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      box-shadow: 0 -10px 30px rgba(0,0,0,.12);
+      max-height: 78vh;
+      padding-bottom: calc(16px + var(--safe-bottom));
+    }
+    .sheet-handle {
+      width: 44px; height: 5px; border-radius: 999px;
+      background: #e5e7eb; /* gray-200 */
+      margin: 8px auto 12px;
+    }
+
+    /* Hide native scrollbars on mobile for cleaner look */
+    ::-webkit-scrollbar { width: 0; height: 0; }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen pb-28">
+  <div class="max-w-xl mx-auto px-4 pt-3 space-y-3 animate-fadeIn">
+    <!-- Header -->
+    <header class="pt-[var(--safe-top)] flex items-center justify-between">
+      <h1 class="text-2xl font-bold tracking-tight">📋 Điểm danh bằng QR</h1>
+    </header>
+
+    <!-- QR Code -->
+    <div class="flex flex-col items-center justify-center min-h-screen">
+      <h2 class="text-xl font-semibold mb-4">Quét mã QR để điểm danh trên điện thoại</h2>
+      <canvas id="qrcode"></canvas>
+      <div class="mt-4 text-gray-500 text-sm">
+        Vui lòng dùng điện thoại quét mã này để điểm danh.<br>
+        <b>Sau khi điểm danh thành công trên điện thoại, trang này sẽ tự động chuyển sang chức năng.</b>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <script>
+    // Tạo QR code
+    // var qr = new QRious({
+    //   element: document.getElementById('qrcode'),
+    //   value: window.location.origin + "/attendance/checkin?token={{ qr_token }}",
+    //   size: 220
+    // });
+
+    // Thay window.location.origin bằng IP LAN
+    var qr = new QRious({
+        element: document.getElementById('qrcode'),
+        value: "{{ base_url }}/attendance/checkin?token={{ qr_token }}",
+        size: 220
+        });
+
+    // Polling kiểm tra trạng thái điểm danh
+    function isDesktop() {
+      // Kiểm tra user-agent để xác định có phải máy tính không
+      const ua = navigator.userAgent.toLowerCase();
+      return !(ua.includes('android') || ua.includes('iphone') || ua.includes('ipad') || ua.includes('mobi'));
+    }
+    async function pollCheckin() {
+      try {
+        // Thêm tham số ngẫu nhiên để tránh cache
+        const res = await fetch("/attendance/checkin_status?token={{ qr_token }}&t=" + Date.now());
+        const data = await res.json();
+        if (data.checked_in) {
+          if (isDesktop()) {
+            if (data.redirect_to) {
+              window.location.href = "/" + data.redirect_to;
+            } else {
+              window.location.href = "/choose-function"; // fallback
+            }
+          }
+        } else {
+          setTimeout(pollCheckin, 2500);
+        }
+      } catch (e) {
+        setTimeout(pollCheckin, 3500);
+      }
+    }
+    pollCheckin();
+  </script>
+</body>
+</html>
