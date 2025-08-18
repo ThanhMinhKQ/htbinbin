@@ -4,6 +4,9 @@ from fastapi.responses import HTMLResponse
 from fastapi import Query
 from typing import Dict
 
+from services import attendance_service
+from employees import employees
+
 router = APIRouter(prefix="/attendance", tags=["Attendance"])
 templates = Jinja2Templates(directory="templates")
 
