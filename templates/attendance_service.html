@@ -1,0 +1,269 @@
+<!-- templates/attendance_service.html -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Chấm dịch vụ buồng phòng</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+    .animate-sheetUp { animation: sheetUp .32s cubic-bezier(.22,.61,.36,1) both; }
+    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .sheet { position: fixed; left:0; right:0; bottom:0; background:#fff; border-top-left-radius:20px; border-top-right-radius:20px; box-shadow:0 -10px 30px rgba(0,0,0,.12); max-height:78vh; padding-bottom:calc(16px + var(--safe-bottom)); }
+    .sheet-handle { width:44px; height:5px; border-radius:999px; background:#e5e7eb; margin:8px auto 12px; }
+
+    /* Desktop enhancements */
+    @media (min-width: 900px) {
+      body {
+        background: linear-gradient(120deg, #f0f4ff 0%, #f9fafb 100%);
+      }
+      .desktop-container {
+        max-width: 700px;
+        margin: 32px auto 0 auto;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 1.5px 0 #e5e7eb;
+        padding: 36px 40px 32px 40px;
+      }
+      .desktop-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        background: #f8fafc;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+      }
+      .desktop-table th, .desktop-table td {
+        padding: 12px 10px;
+        text-align: left;
+        font-size: 15px;
+      }
+      .desktop-table th {
+        background: #f1f5f9;
+        font-weight: 600;
+        color: #2563eb;
+        border-bottom: 1.5px solid #e5e7eb;
+      }
+      .desktop-table tr {
+        transition: background 0.18s;
+      }
+      .desktop-table tr:hover {
+        background: #e0e7ff;
+      }
+      .desktop-table td {
+        border-bottom: 1px solid #e5e7eb;
+      }
+      .desktop-table tr:last-child td {
+        border-bottom: none;
+      }
+      .desktop-btn {
+        font-size: 17px;
+        padding: 12px 32px;
+        border-radius: 10px;
+        background: linear-gradient(90deg, #2563eb 60%, #60a5fa 100%);
+        color: #fff;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+        border: none;
+        transition: background 0.18s, box-shadow 0.18s;
+        cursor: pointer;
+      }
+      .desktop-btn:hover {
+        background: linear-gradient(90deg, #1d4ed8 60%, #3b82f6 100%);
+        box-shadow: 0 4px 16px rgba(37,99,235,0.13);
+      }
+      .desktop-status {
+        font-size: 14px;
+        color: #64748b;
+        margin-top: 12px;
+        text-align: right;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-28">
+  <div class="max-w-xl mx-auto px-4 pt-3 animate-fadeIn desktop-container">
+    <!-- Header -->
+    <header class="pt-[var(--safe-top)] flex items-center justify-between mb-2">
+      <h1 class="text-2xl font-bold tracking-tight">🛎 Chấm dịch vụ buồng phòng</h1>
+      <span class="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600">GPS xác định</span>
+    </header>
+
+    <!-- Branch info -->
+    <section id="branchInfo" class="bg-gradient-to-r from-sky-50 to-blue-50 p-3 rounded-2xl text-[13px] text-gray-700 shadow-sm flex items-center gap-2 mt-3 mb-4">
+      <span>📍</span>
+      <span class="font-medium">Chi nhánh làm:</span>
+      <span id="branchName" class="text-blue-700">(đang xác định...)</span>
+    </section>
+
+    <!-- Service list -->
+    <div class="mt-4">
+      <h2 class="text-lg font-semibold mb-2">Danh sách nhân viên buồng phòng</h2>
+      <!-- Desktop table -->
+      <div class="hidden md:block">
+        <table class="desktop-table w-full" id="serviceTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>Nhân viên</th>
+              <th>Số phòng</th>
+              <th>Số lượng</th>
+              <th>Dịch vụ</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody id="serviceTableBody"></tbody>
+        </table>
+      </div>
+      <!-- Mobile card list -->
+      <div id="serviceList" class="space-y-3 md:hidden"></div>
+    </div>
+
+    <!-- Empty hint -->
+    <div id="emptyHint" class="hidden text-center text-gray-500 text-sm py-12">
+      Không có nhân viên buồng phòng nào tại chi nhánh này.
+    </div>
+  </div>
+
+  <!-- Bottom action bar -->
+  <div class="fixed left-0 right-0 bottom-0 border-t glass border-gray-200 shadow-lg">
+    <div class="max-w-xl mx-auto px-4 py-2.5 flex gap-2 items-center justify-end" style="padding-bottom: calc(10px + var(--safe-bottom));">
+      <button id="serviceSaveBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold active:scale-[.99] desktop-btn">💾 Lưu dịch vụ</button>
+    </div>
+    <div class="max-w-xl mx-auto px-4 pb-2 -mt-2 text-[12px] text-gray-600 desktop-status">
+      <span id="status">Chưa lưu</span>
+    </div>
+  </div>
+
+  <script>
+    let currentBranch = "{{ branch_id }}";
+    const csrfToken = "{{ csrf_token }}";
+    let employees = [];
+    let serviceRows = [];
+
+    function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+    function escapeAttr(s){ return String(s).replaceAll('"','&quot;'); }
+    function showStatus(text){ document.getElementById("status").textContent = text; }
+
+    async function safeFetchJson(url, options){
+      const res = await fetch(url, options);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
+
+    async function loadEmployees(){
+      if(!currentBranch) return;
+      const data = await safeFetchJson(`/attendance/api/employees/by-branch/${encodeURIComponent(currentBranch)}`);
+      employees = data.filter(e => e.department.toLowerCase()==="buongphong");
+      if(employees.length===0){
+        document.getElementById("emptyHint").classList.remove("hidden");
+        document.getElementById("serviceTable").style.display = "none";
+        document.getElementById("serviceList").style.display = "none";
+      } else {
+        serviceRows = employees.map(e=>({ code:e.code, name:e.name, so_phong:"", so_luong:"", dich_vu:"", ghi_chu:""}));
+        renderServiceList();
+        renderServiceTable();
+      }
+    }
+
+    // Mobile card list
+    function renderServiceList(){
+      const list = document.getElementById("serviceList");
+      list.innerHTML="";
+      serviceRows.forEach((row, idx)=>{
+        const el=document.createElement("div");
+        el.className="bg-white border border-gray-100 rounded-2xl p-3 shadow-sm";
+        el.innerHTML=`
+          <div class="font-medium text-[14px]">${escapeHtml(row.name)}</div>
+          <div class="mt-2 grid grid-cols-3 gap-2">
+            <div><label class="text-[11px] text-gray-500">Số phòng</label>
+              <input type="text" class="w-full border rounded-lg px-2 py-2 text-sm" data-idx="${idx}" data-field="so_phong" value="${escapeAttr(row.so_phong)}">
+            </div>
+            <div><label class="text-[11px] text-gray-500">Số lượng</label>
+              <input type="number" class="w-full border rounded-lg px-2 py-2 text-sm" data-idx="${idx}" data-field="so_luong" value="${escapeAttr(row.so_luong)}">
+            </div>
+            <div><label class="text-[11px] text-gray-500">Dịch vụ</label>
+              <select class="w-full border rounded-lg px-2 py-2 text-sm" data-idx="${idx}" data-field="dich_vu">
+                <option value="">Chọn</option>
+                <option value="Giặt">Giặt</option>
+                <option value="Ủi">Ủi</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-2">
+            <label class="text-[11px] text-gray-500">Ghi chú</label>
+            <input type="text" class="w-full border rounded-lg px-3 py-2 text-sm" data-idx="${idx}" data-field="ghi_chu" value="${escapeAttr(row.ghi_chu)}">
+          </div>
+        `;
+        list.appendChild(el);
+      });
+
+      list.querySelectorAll("input,select").forEach(el=>{
+        el.oninput=()=>{ const i=el.dataset.idx; const f=el.dataset.field; serviceRows[i][f]=el.value; showStatus("Chưa lưu"); };
+      });
+    }
+
+    // Desktop table
+    function renderServiceTable(){
+      const table = document.getElementById("serviceTable");
+      const tbody = document.getElementById("serviceTableBody");
+      if(window.innerWidth < 900){
+        table.style.display = "none";
+        return;
+      }
+      tbody.innerHTML = "";
+      serviceRows.forEach((row, idx)=>{
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span class="font-medium">${escapeHtml(row.name)}</span></td>
+          <td><input type="text" class="border border-gray-200 rounded-lg px-2 py-1 text-sm w-24" data-idx="${idx}" data-field="so_phong" value="${escapeAttr(row.so_phong)}"></td>
+          <td><input type="number" class="border border-gray-200 rounded-lg px-2 py-1 text-sm w-16" data-idx="${idx}" data-field="so_luong" value="${escapeAttr(row.so_luong)}"></td>
+          <td>
+            <select class="border border-gray-200 rounded-lg px-2 py-1 text-sm" data-idx="${idx}" data-field="dich_vu">
+              <option value="">Chọn</option>
+              <option value="Giặt" ${row.dich_vu==="Giặt"?"selected":""}>Giặt</option>
+              <option value="Ủi" ${row.dich_vu==="Ủi"?"selected":""}>Ủi</option>
+            </select>
+          </td>
+          <td><input type="text" class="border border-gray-200 rounded-lg px-2 py-1 text-sm w-36" data-idx="${idx}" data-field="ghi_chu" value="${escapeAttr(row.ghi_chu)}"></td>
+        `;
+        tbody.appendChild(tr);
+      });
+      table.style.display = serviceRows.length > 0 ? "table" : "none";
+      tbody.querySelectorAll("input,select").forEach(el=>{
+        el.oninput=()=>{ const i=el.dataset.idx; const f=el.dataset.field; serviceRows[i][f]=el.value; showStatus("Chưa lưu"); };
+      });
+    }
+
+    async function saveService(){
+      const payload = serviceRows.filter(r=>r.dich_vu && r.so_phong && r.so_luong);
+      if(payload.length===0){ alert("Vui lòng nhập đủ dữ liệu"); return; }
+      showStatus("Đang lưu...");
+      try{
+        const res=await fetch("/attendance/checkin_bulk",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},
+          body:JSON.stringify(payload)
+        });
+        if(!res.ok) throw new Error("Lỗi lưu");
+        alert("Lưu thành công");
+        showStatus("Đã lưu");
+      }catch(e){ alert("Lỗi: "+e.message); showStatus("Lỗi"); }
+    }
+
+    document.getElementById("serviceSaveBtn").onclick=saveService;
+
+    window.addEventListener("DOMContentLoaded", ()=>{
+      loadEmployees();
+      // Responsive: chuyển đổi table/card khi resize
+      window.addEventListener("resize", ()=>{
+        renderServiceTable();
+      });
+    });
+  </script>
+</body>
+</html>
