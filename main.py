@@ -145,6 +145,20 @@ async def choose_function(request: Request):
     response.headers["Expires"] = "0"
     return response
 
+@app.get("/attendance/results", response_class=HTMLResponse)
+def view_attendance_results(request: Request):
+    """
+    Route để hiển thị trang xem kết quả điểm danh.
+    """
+    if not require_checked_in_user(request):
+        return RedirectResponse("/login", status_code=303)
+
+    user_data = request.session.get("user")
+    return templates.TemplateResponse("attendance_results.html", {
+        "request": request,
+        "user": user_data
+    })
+
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
     # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chọn chức năng
@@ -1061,7 +1075,7 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
         "base_url": base_url
     })
 
-from services.attendance_service import push_bulk_checkin
+from services.attendance_service import push_bulk_checkin, get_attendance_by_checker
 
 from fastapi import BackgroundTasks
 
@@ -1105,6 +1119,22 @@ async def attendance_checkin_bulk(
 
     print(f"[AUDIT] {user['code']} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
     return {"status": "queued", "inserted": len(normalized_data)}
+
+@app.get("/api/attendance/results-by-checker")
+async def api_get_attendance_results(request: Request):
+    """
+    API trả về kết quả điểm danh của lễ tân đang đăng nhập.
+    """
+    user = request.session.get("user")
+    if not user or user.get("role") != 'letan':
+        raise HTTPException(status_code=403, detail="Chỉ lễ tân mới có quyền truy cập.")
+
+    checker_code = user.get("code")
+    if not checker_code:
+        raise HTTPException(status_code=403, detail="Không tìm thấy mã người dùng.")
+
+    results = get_attendance_by_checker(checker_code)
+    return JSONResponse(content=results)
 
 # --- QR Checkin APIs ---
 
