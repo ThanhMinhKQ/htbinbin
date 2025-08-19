@@ -111,18 +111,22 @@ def attendance_service_ui(request: Request):
         return RedirectResponse("/login", status_code=303)
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
-    return templates.TemplateResponse("attendance_service.html", {
+    response = templates.TemplateResponse("attendance_service.html", {
         "request": request,
         "branch_id": active_branch,
         "csrf_token": csrf_token,
         "user": user_data,
     })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
     """Route gốc, chuyển hướng người dùng dựa trên trạng thái đăng nhập."""
     if request.session.get("user"):
-        return RedirectResponse("/home", status_code=303)
+        return RedirectResponse("/login", status_code=303) 
     return RedirectResponse("/login", status_code=303)
 
 # --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
@@ -135,11 +139,15 @@ async def choose_function(request: Request):
     if request.session.get("after_checkin") == "choose_function":
         request.session.pop("after_checkin", None)
 
-    return templates.TemplateResponse("choose_function.html", {"request": request})
+    response = templates.TemplateResponse("choose_function.html", {"request": request})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chủ
+    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chọn chức năng
     user = request.session.get("user")
     if user:
         today = date.today()
@@ -147,16 +155,20 @@ def login_form(request: Request):
         try:
             log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
             if log and log.checked_in:
-                return RedirectResponse(url="/show_qr", status_code=303)
+                    return RedirectResponse(url="/choose-function", status_code=303)
         finally:
             db.close()
     error = request.query_params.get("error", "")
     role = request.query_params.get("role", "")
-    return templates.TemplateResponse("login.html", {
+    response = templates.TemplateResponse("login.html", {
         "request": request,
         "error": error,
         "role": role
     })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.post("/login", response_class=HTMLResponse)
 def login_submit(request: Request, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
@@ -181,19 +193,35 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
             request.session.pop("pending_user", None)
             return RedirectResponse("/choose-function", status_code=303)
         else:
-            token = secrets.token_urlsafe(24)
-            db.query(AttendanceLog).filter_by(user_code=user.code, date=today).delete()
-            log = AttendanceLog(user_code=user.code, date=today, token=token, checked_in=False)
-            db.add(log)
-            db.commit()
-            request.session["pending_user"] = {
-                "code": user.code,
-                "role": user.role,
-                "branch": user.branch,
-                "name": user.name
-            }
-            request.session["qr_token"] = token
-            return RedirectResponse("/show_qr", status_code=303)
+            # Phân luồng cho mobile và desktop
+            user_agent = request.headers.get("user-agent", "").lower()
+            is_mobile = any(k in user_agent for k in ["mobi", "android", "iphone", "ipad"])
+
+            if is_mobile:
+                # Luồng mobile: Bỏ qua QR, coi như đã check-in và vào thẳng trang điểm danh
+                if log:
+                    log.checked_in = True
+                else:
+                    # Nếu chưa có log, tạo mới và đánh dấu đã check-in
+                    log = AttendanceLog(user_code=user.code, date=today, checked_in=True, token=secrets.token_urlsafe(16))
+                    db.add(log)
+                db.commit()
+
+                # Đăng nhập cho user
+                request.session["user"] = { "code": user.code, "role": user.role, "branch": user.branch, "name": user.name }
+                request.session.pop("pending_user", None)
+                # Chuyển hướng đến trang điểm danh
+                return RedirectResponse("/attendance/ui", status_code=303)
+            else:
+                # Luồng desktop: Hiển thị QR code như cũ
+                token = secrets.token_urlsafe(24)
+                db.query(AttendanceLog).filter_by(user_code=user.code, date=today).delete()
+                log = AttendanceLog(user_code=user.code, date=today, token=token, checked_in=False)
+                db.add(log)
+                db.commit()
+                request.session["pending_user"] = { "code": user.code, "role": user.role, "branch": user.branch, "name": user.name }
+                request.session["qr_token"] = token
+                return RedirectResponse("/show_qr", status_code=303)
     else:
         guessed_role = ""
         if username.lower().startswith("b") and "lt" in username.lower():
@@ -261,7 +289,7 @@ def attendance_ui(request: Request):
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
     # Truyền mã nhân viên đăng nhập cho frontend để luôn hiển thị trong danh sách điểm danh
-    return templates.TemplateResponse("attendance.html", {
+    response = templates.TemplateResponse("attendance.html", {
         "request": request,
         "branch_id": active_branch,
         "csrf_token": csrf_token,
@@ -269,6 +297,10 @@ def attendance_ui(request: Request):
         "user": user_data,
         "login_code": user_data.get("code", ""),  # thêm dòng này
     })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # --- Get CSRF token ---
 @app.get("/attendance/csrf-token")
@@ -282,36 +314,50 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
     try:
         user = request.session.get("user") if request else None
         now_hour = datetime.now(VN_TZ).hour
-        # Xác định ca dựa theo giờ
-        shift_code = "CS" if 7 <= now_hour < 19 else "CT"
+        current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
-        def filter_by_shift(query):
-            return query.filter(User.code.ilike(f"%{shift_code}%"))
+        def match_shift(emp_code: str):
+            """
+            Trả về True nếu mã nhân viên hợp lệ với ca hiện tại.
+            - Nếu có 'CS' trong mã → chỉ hợp lệ ca sáng
+            - Nếu có 'CT' trong mã → chỉ hợp lệ ca tối
+            - Nếu không có CS/CT → luôn hợp lệ
+            """
+            emp_code = emp_code.upper()
+            if "CS" in emp_code and current_shift != "CS":
+                return False
+            if "CT" in emp_code and current_shift != "CT":
+                return False
+            return True
+
+        employees = []
 
         if user and user.get("role") == "letan":
-            # Lấy chính lễ tân đang đăng nhập (chỉ nếu mã của họ đúng ca)
+            # Luôn thêm chính lễ tân đang đăng nhập (bất kể ca nào)
             lt_self = db.query(User).filter(
                 User.code == user.get("code"),
-                User.branch == branch_id,
-                User.code.ilike(f"%{shift_code}%")
-            )
+                User.branch == branch_id
+            ).all()
 
-            # Lấy các bộ phận khác cùng chi nhánh, bỏ quản lý, KTV, lễ tân khác
+            # Các bộ phận khác cùng chi nhánh (bỏ quản lý, ktv, lễ tân khác)
             others = db.query(User).filter(
                 User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv", "letan"]),
-                User.code.ilike(f"%{shift_code}%")
-            )
+                ~User.role.in_(["quanly", "ktv", "letan"])
+            ).all()
 
-            employees = lt_self.union_all(others).order_by(User.name).all()
+            # Chỉ lọc ca cho others, lễ tân đăng nhập giữ nguyên
+            others = [emp for emp in others if match_shift(emp.code)]
+
+            employees = sorted(lt_self + others, key=lambda e: e.name)
 
         else:
-            # Các role khác: lấy toàn bộ (trừ quản lý, KTV) theo ca
+            # Role khác: lấy toàn bộ (trừ quản lý, ktv), rồi lọc theo ca
             employees = db.query(User).filter(
                 User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv"]),
-                User.code.ilike(f"%{shift_code}%")
-            ).order_by(User.name).all()
+                ~User.role.in_(["quanly", "ktv"])
+            ).all()
+            employees = [emp for emp in employees if match_shift(emp.code)]
+            employees.sort(key=lambda e: e.name)
 
         employee_list = [
             {
@@ -329,19 +375,36 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 
 # --- Employee search ---
 @app.get("/attendance/api/employees/search", response_class=JSONResponse)
-def search_employees(q: str = "", db: Session = Depends(get_db)):
+def search_employees(
+    q: str = "",
+    only_bp: bool = False,
+    db: Session = Depends(get_db)
+):
     """
-    API để tìm kiếm nhân viên theo mã hoặc tên để thêm vào danh sách điểm danh.
+    API tìm kiếm nhân viên theo mã hoặc tên.
+    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
+    - Giới hạn 20 kết quả.
     """
     if not q:
         return JSONResponse(content=[], status_code=400)
 
     search_pattern = f"%{q}%"
     employees = db.query(User).filter(
-        or_(User.code.ilike(search_pattern), User.name.ilike(search_pattern))
-    ).limit(20).all()  # Giới hạn 20 kết quả để tránh quá tải
+        or_(
+            User.code.ilike(search_pattern),
+            User.name.ilike(search_pattern)
+        )
+    ).limit(50).all()
 
-    employee_list = [{"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch} for emp in employees]
+    if only_bp:
+        employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
+
+    employees = employees[:20]
+
+    employee_list = [
+        {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
+        for emp in employees
+    ]
     return JSONResponse(content=employee_list)
 
 def serialize_task(task: dict) -> dict:
@@ -548,7 +611,7 @@ def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: st
     ]
 
     # ✅ Trả về template
-    return templates.TemplateResponse("home.html", {
+    response = templates.TemplateResponse("home.html", {
         "request": request,
         "tasks": tasks_serialized,
         "user": username,
@@ -568,6 +631,10 @@ def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: st
         "query_string": query_string,
         "all_tasks_for_calendar": all_tasks_for_calendar_serialized,
     })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 from typing import Optional
@@ -969,7 +1036,7 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
     log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
     if log:
         if log.checked_in:
-            # Nếu đã check-in thì không cần show_qr nữa → đi thẳng choose_function
+            # Nếu đã check-in thì không cần show_qr nữa → đi thẳng trang chọn chức năng
             return RedirectResponse("/choose-function", status_code=303)
         else:
             qr_token = log.token
@@ -1023,7 +1090,7 @@ async def attendance_checkin_bulk(request: Request, db: Session = Depends(get_db
             "ten_nv": rec.get("ten_nv"),
             "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
             "chi_nhanh_lam": rec.get("chi_nhanh_lam"),
-            "la_tang_ca": rec.get("la_tang_ca"),
+            "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
             "so_cong_nv": rec.get("so_cong_nv"),
             "ghi_chu": rec.get("ghi_chu", ""),
             "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
