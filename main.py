@@ -1063,23 +1063,24 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
 
 from services.attendance_service import push_bulk_checkin
 
+from fastapi import BackgroundTasks
+
 @app.post("/attendance/checkin_bulk")
-async def attendance_checkin_bulk(request: Request, db: Session = Depends(get_db)):
+async def attendance_checkin_bulk(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     validate_csrf(request)
 
-    # Lấy user từ session["user"] hoặc session["pending_user"]
     user = request.session.get("user") or request.session.get("pending_user")
-    # Chỉ cần có user (từ session["user"] hoặc session["pending_user"]) là cho phép điểm danh
     if not user:
-        raise HTTPException(status_code=403, detail="Không có quyền điểm danh. Vui lòng đăng nhập lại hoặc quét lại QR.")
+        raise HTTPException(status_code=403, detail="Không có quyền điểm danh.")
 
-    active_branch = request.session.get("active_branch") or user.get("branch", "")
     raw_data = await request.json()
-
     if not isinstance(raw_data, list):
         raise HTTPException(status_code=400, detail="Payload phải là danh sách")
 
-    # Chuẩn hóa key và thêm trường người điểm danh
     nguoi_diem_danh_code = user.get("code")
     normalized_data = []
     for rec in raw_data:
@@ -1099,10 +1100,11 @@ async def attendance_checkin_bulk(request: Request, db: Session = Depends(get_db
             "nguoi_diem_danh": nguoi_diem_danh_code
         })
 
-    result = push_bulk_checkin(normalized_data)
-    inserted = result.get("inserted", 0)
-    print(f"[AUDIT] {user['code']} đã lưu điểm danh {inserted} bản ghi cho branch {active_branch}")
-    return {"status": "success", "inserted": inserted}
+    # ✅ chạy push_bulk_checkin ở background
+    background_tasks.add_task(push_bulk_checkin, normalized_data)
+
+    print(f"[AUDIT] {user['code']} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
+    return {"status": "queued", "inserted": len(normalized_data)}
 
 # --- QR Checkin APIs ---
 
