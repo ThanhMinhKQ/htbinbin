@@ -5,7 +5,7 @@ from datetime import datetime
 from pytz import timezone
 
 # ================== CONFIG ==================
-SERVICE_ACCOUNT_FILE = "config/credentials.json"
+# SERVICE_ACCOUNT_FILE = "config/credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1R-5t90lNY22MUfkdv3YUHtKOzW7fjIIgjSYtCisDLqA"
 
