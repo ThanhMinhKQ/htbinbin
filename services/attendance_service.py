@@ -1,22 +1,26 @@
-# attendance_service.py - fixed column mapping & header sync for BP/TC only
+# attendance_service.py - tách riêng DV sheet (không có cột Số công)
 from collections import defaultdict
 from typing import List
 from datetime import datetime
 from pytz import timezone
 
 # ================== CONFIG ==================
-# SERVICE_ACCOUNT_FILE = "config/credentials.json"
+SERVICE_ACCOUNT_FILE = "config/credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1R-5t90lNY22MUfkdv3YUHtKOzW7fjIIgjSYtCisDLqA"
 
-# Header mặc định (cho tất cả sheet khác ngoài BP/TC)
+# Header mặc định (cho tất cả sheet điểm danh)
 BASE_HEADERS = [
     "Ngày", "Giờ", "Người điểm danh", "Mã NV", "Tên NV", "Chi nhánh chính",
     "Chi nhánh làm", "Tăng ca", "Số công", "Ghi chú"
 ]
 
-# Header cho BP & TC (thêm 3 cột dịch vụ)
-SERVICE_HEADERS = BASE_HEADERS + ["Dịch vụ", "Số phòng", "Số lượng đồ"]
+# Header cho DV (không có Số công, thêm 3 cột dịch vụ)
+DV_HEADERS = [
+    "Ngày", "Giờ", "Người điểm danh", "Mã NV", "Tên NV", "Chi nhánh chính",
+    "Chi nhánh làm", "Tăng ca",
+    "Dịch vụ", "Số phòng", "Số lượng đồ", "Ghi chú"
+]
 
 # Cache sheet_id
 _sheet_id_cache = {}
@@ -33,15 +37,13 @@ def get_sheets_service():
 
     creds_json = os.getenv("GOOGLE_CREDENTIALS")
     if creds_json:
-        # ✅ Đọc credentials từ biến môi trường (Render)
         creds_dict = json.loads(creds_json)
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=SCOPES
         )
     else:
-        # ✅ Fallback cho local development: dùng file credentials.json
         creds = service_account.Credentials.from_service_account_file(
-            "config/credentials.json", scopes=SCOPES
+            SERVICE_ACCOUNT_FILE, scopes=SCOPES
         )
     return build("sheets", "v4", credentials=creds)
 
@@ -58,9 +60,13 @@ def get_sheet_id_by_name(service, sheet_name: str) -> int:
     raise ValueError(f"Không tìm thấy sheet: {sheet_name}")
 
 def _ensure_sheet_header(values_service, sheet_name: str):
-    # Use correct range format for header row
     header_range = f"{sheet_name}!1:1"
-    expected_headers = SERVICE_HEADERS if sheet_name.upper() in ("BP", "TC") else BASE_HEADERS
+    sheet_upper = sheet_name.upper()
+    if sheet_upper == "DV":
+        expected_headers = DV_HEADERS
+    else:
+        expected_headers = BASE_HEADERS
+
     try:
         result = values_service.get(spreadsheetId=SPREADSHEET_ID, range=header_range).execute()
         current_headers = result.get("values", [[]])[0]
@@ -81,7 +87,6 @@ def _ensure_sheet_header(values_service, sheet_name: str):
         ).execute()
 
 def create_sheet_if_not_exists(service, sheet_name: str, headers: list):
-    """Tạo sheet mới nếu chưa tồn tại."""
     spreadsheet = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
     sheet_titles = [s["properties"]["title"] for s in spreadsheet.get("sheets", [])]
     if sheet_name not in sheet_titles:
@@ -103,16 +108,13 @@ def create_sheet_if_not_exists(service, sheet_name: str, headers: list):
                 ]
             }
         ).execute()
-        # Ghi header cho sheet mới
         values_service = service.spreadsheets().values()
-        header_range = f"{sheet_name}!1:1"
         values_service.update(
             spreadsheetId=SPREADSHEET_ID,
-            range=header_range,
+            range=f"{sheet_name}!1:1",
             valueInputOption="USER_ENTERED",
             body={"values": [headers]}
         ).execute()
-        # Xóa cache sheet_id nếu có
         _sheet_id_cache.pop(sheet_name, None)
 
 # ================== MAIN SAVE FUNCTIONS ==================
@@ -120,36 +122,39 @@ def push_single_checkin(data: dict) -> dict:
     return push_bulk_checkin([data])
 
 def push_bulk_checkin(records: List[dict]) -> dict:
+    """
+    Hybrid: Nếu trùng mã NV + ngày thì update, nếu chưa có thì append.
+    Đọc sheet 1 lần duy nhất cho mỗi sheet -> nhanh hơn nhiều.
+    """
     import traceback
     if not records:
         print("[attendance_service] Không có bản ghi để ghi lên Google Sheets.")
         return {"status": "no_records", "inserted": 0}
 
     try:
-        print(f"[attendance_service] Bắt đầu ghi {len(records)} bản ghi lên Google Sheets...")
+        print(f"[attendance_service] [HYBRID] Bắt đầu xử lý {len(records)} bản ghi...")
         service = get_sheets_service()
         values_service = service.spreadsheets().values()
 
         grouped_by_sheet = defaultdict(list)
         for rec in records:
+            ma_nv = (rec.get("ma_nv") or "").upper()
             sheet_name = rec.get("sheet") or "Default"
+            if ma_nv.startswith("BP") or "BPTC" in ma_nv:
+                sheet_name = "DV"
+            rec["sheet"] = sheet_name
             grouped_by_sheet[sheet_name].append(rec)
 
-        inserted_total = 0
+        inserted_total, updated_total = 0, 0
 
         for sheet_name, recs in grouped_by_sheet.items():
-            print(f"[attendance_service] Đang ghi sheet: {sheet_name}, số bản ghi: {len(recs)}")
             sheet_upper = sheet_name.strip().upper()
-            is_service_sheet = sheet_upper in ("BP", "TC")
-            headers = SERVICE_HEADERS if is_service_sheet else BASE_HEADERS
+            headers = DV_HEADERS if sheet_upper == "DV" else BASE_HEADERS
 
-            # Tạo sheet nếu chưa có
             create_sheet_if_not_exists(service, sheet_name, headers)
-
-            # Đảm bảo header đúng cho sheet
             _ensure_sheet_header(values_service, sheet_name)
 
-            # Lấy dữ liệu hiện tại
+            # Đọc sheet 1 lần duy nhất
             try:
                 existing = values_service.get(
                     spreadsheetId=SPREADSHEET_ID,
@@ -166,16 +171,9 @@ def push_bulk_checkin(records: List[dict]) -> dict:
             else:
                 sheet_rows = existing_data[1:]
 
+            # Map để check trùng
             idx_code = headers.index("Mã NV")
             idx_date = headers.index("Ngày")
-            idx_note = headers.index("Ghi chú")
-            idx_nguoi_diem_danh = headers.index("Người điểm danh")
-            if is_service_sheet:
-                idx_dich_vu = headers.index("Dịch vụ")
-                idx_so_phong = headers.index("Số phòng")
-                idx_so_luong = headers.index("Số lượng đồ")
-
-            # Map (code, date) → index
             code_date_map = {}
             for i, row in enumerate(sheet_rows):
                 if len(row) > max(idx_code, idx_date):
@@ -183,67 +181,62 @@ def push_bulk_checkin(records: List[dict]) -> dict:
                     date = str(row[idx_date]).strip()
                     code_date_map[(code, date)] = i
 
-            appends = []
+            # Gom các bản ghi cần update / append
+            updates, appends = [], []
 
             for r in recs:
-                dich_vu = r.get("dich_vu") or ""
-                so_phong = r.get("so_phong") or ""
-                so_luong = r.get("so_luong") or ""
-
                 dt_raw = r.get("thoi_gian") or _now_vn_str()
-                # Đảm bảo ngày và giờ là chuỗi, thêm dấu nháy đơn để ép kiểu chuỗi
                 if " " in str(dt_raw):
                     ngay, gio = map(str, str(dt_raw).split(" ", 1))
                 else:
                     ngay, gio = str(dt_raw), ""
                 ngay = f"'{ngay}"
                 gio = f"'{gio}"
+
                 code = r.get("ma_nv")
                 nguoi_diem_danh = r.get("nguoi_diem_danh", "")
+                ghi_chu = r.get("ghi_chu", "")
+
+                if sheet_upper == "DV":
+                    row_data = [
+                        ngay, gio, nguoi_diem_danh, code, r.get("ten_nv"),
+                        r.get("chi_nhanh_chinh"), r.get("chi_nhanh_lam"),
+                        "x" if r.get("la_tang_ca") else "",
+                        r.get("dich_vu") or "",
+                        r.get("so_phong") or "",
+                        r.get("so_luong") or "",
+                        ghi_chu
+                    ]
+                else:
+                    row_data = [
+                        ngay, gio, nguoi_diem_danh, code, r.get("ten_nv"),
+                        r.get("chi_nhanh_chinh"), r.get("chi_nhanh_lam"),
+                        "x" if r.get("la_tang_ca") else "",
+                        r.get("so_cong_nv") or "",
+                        ghi_chu
+                    ]
 
                 idx = code_date_map.get((code, ngay))
                 if idx is not None:
-                    # Cập nhật dòng cũ
-                    row_data = sheet_rows[idx]
-                    while len(row_data) < len(headers):
-                        row_data.append("")
-                    row_data[idx_date] = ngay
-                    row_data[headers.index("Giờ")] = gio if "Giờ" in headers else ""
-                    row_data[idx_nguoi_diem_danh] = nguoi_diem_danh
-                    if is_service_sheet:
-                        row_data[idx_dich_vu] = dich_vu
-                        row_data[idx_so_phong] = so_phong
-                        row_data[idx_so_luong] = so_luong
-                    row_data[idx_note] = r.get("ghi_chu", "")
-                    range_update = f"{sheet_name}!A{idx+2}:{chr(65+len(headers)-1)}{idx+2}"
-                    values_service.update(
-                        spreadsheetId=SPREADSHEET_ID,
-                        range=range_update,
-                        valueInputOption="USER_ENTERED",
-                        body={"values": [row_data]}
-                    ).execute()
-                    inserted_total += 1
+                    # record đã có -> update
+                    updates.append((idx + 2, row_data))  # +2 vì header + base 1
                 else:
-                    # Append mới
-                    if is_service_sheet:
-                        row_data = [
-                            ngay, gio, nguoi_diem_danh, code, r.get("ten_nv"),
-                            r.get("chi_nhanh_chinh"), r.get("chi_nhanh_lam"),
-                            "x" if r.get("la_tang_ca") else "",
-                            r.get("so_cong_nv"), r.get("ghi_chu", ""),
-                            dich_vu, so_phong, so_luong
-                        ]
-                    else:
-                        row_data = [
-                            ngay, gio, nguoi_diem_danh, code, r.get("ten_nv"),
-                            r.get("chi_nhanh_chinh"), r.get("chi_nhanh_lam"),
-                            "x" if r.get("la_tang_ca") else "",
-                            r.get("so_cong_nv"), r.get("ghi_chu", "")
-                        ]
                     appends.append(row_data)
 
+            # Batch update 1 lần
+            if updates:
+                data = []
+                for row_num, row_data in updates:
+                    rng = f"{sheet_name}!A{row_num}:{chr(65+len(headers)-1)}{row_num}"
+                    data.append({"range": rng, "values": [row_data]})
+                values_service.batchUpdate(
+                    spreadsheetId=SPREADSHEET_ID,
+                    body={"valueInputOption": "USER_ENTERED", "data": data}
+                ).execute()
+                updated_total += len(updates)
+
+            # Batch append 1 lần
             if appends:
-                print(f"[attendance_service] Đang append {len(appends)} dòng mới vào sheet {sheet_name}")
                 values_service.append(
                     spreadsheetId=SPREADSHEET_ID,
                     range=f"{sheet_name}!A:A",
@@ -253,31 +246,10 @@ def push_bulk_checkin(records: List[dict]) -> dict:
                 ).execute()
                 inserted_total += len(appends)
 
-            # Auto resize
-            try:
-                sheet_id = get_sheet_id_by_name(service, sheet_name)
-                service.spreadsheets().batchUpdate(
-                    spreadsheetId=SPREADSHEET_ID,
-                    body={
-                        "requests": [{
-                            "autoResizeDimensions": {
-                                "dimensions": {
-                                    "sheetId": sheet_id,
-                                    "dimension": "COLUMNS",
-                                    "startIndex": 0,
-                                    "endIndex": len(headers)
-                                }
-                            }
-                        }]
-                    }
-                ).execute()
-            except Exception as e:
-                print(f"[attendance_service] Lỗi auto resize: {e}")
-
-        print(f"[attendance_service] Đã ghi xong. Tổng số dòng ghi: {inserted_total}")
-        return {"status": "success", "inserted": inserted_total}
+        print(f"[attendance_service] [HYBRID] Đã xử lý xong. Update: {updated_total}, Append: {inserted_total}")
+        return {"status": "success", "inserted": inserted_total, "updated": updated_total}
 
     except Exception as e:
-        print(f"[attendance_service] Lỗi Google API: {e}")
+        print(f"[attendance_service] Lỗi Google API (HYBRID): {e}")
         traceback.print_exc()
-        raise  # raise để API trả lỗi về frontend
+        return {"status": "error", "inserted": 0, "updated": 0, "error": str(e)}
