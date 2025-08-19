@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết Quả Điểm Danh - {{ user.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .table-auto th, .table-auto td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+        }
+        .table-auto th {
+            background-color: #f7fafc;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Lịch sử Điểm Danh</h1>
+                    <p class="text-gray-600">Các bản ghi do bạn (<strong class="text-blue-600">{{ user.name }}</strong>) thực hiện.</p>
+                </div>
+                <a href="/choose-function" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
+                    &#8592; Quay lại
+                </a>
+            </div>
+
+            <div id="loading" class="text-center py-10">
+                <p class="text-gray-500">Đang tải dữ liệu, vui lòng chờ...</p>
+            </div>
+
+            <div id="error" class="hidden text-center py-10 bg-red-100 text-red-700 rounded-md">
+                <p>Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.</p>
+            </div>
+
+            <div id="results-table" class="hidden overflow-x-auto">
+                <table class="min-w-full table-auto text-sm text-left text-gray-700">
+                    <thead class="bg-gray-50 text-xs text-gray-700 uppercase">
+                        <tr>
+                            <th class="px-4 py-3">Ngày</th>
+                            <th class="px-4 py-3">Giờ</th>
+                            <th class="px-4 py-3">Mã NV</th>
+                            <th class="px-4 py-3">Tên NV</th>
+                            <th class="px-4 py-3">Bộ phận</th>
+                            <th class="px-4 py-3">CN Làm</th>
+                            <th class="px-4 py-3">Số công/Dịch vụ</th>
+                            <th class="px-4 py-3">Chi tiết</th>
+                            <th class="px-4 py-3">Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody" class="bg-white">
+                        <!-- Dữ liệu sẽ được chèn vào đây bằng JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const tableEl = document.getElementById('results-table');
+            const tbodyEl = document.getElementById('results-tbody');
+
+            fetch('/api/attendance/results-by-checker')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    loadingEl.classList.add('hidden');
+                    if (data && data.length > 0) {
+                        tableEl.classList.remove('hidden');
+                        data.forEach(rec => {
+                            const isService = rec.sheet_name === 'DV';
+                            
+                            const serviceOrWork = isService 
+                                ? rec['Dịch vụ'] || 'N/A'
+                                : rec['Số công'] || 'N/A';
+
+                            const details = isService
+                                ? `Phòng: ${rec['Số phòng'] || 0}, Đồ: ${rec['Số lượng đồ'] || 0}`
+                                : (rec['Tăng ca'] ? 'Tăng ca' : 'Ca chính');
+
+                            const department = rec.sheet_name || 'Không rõ';
+
+                            const row = `
+                                <tr class="border-b hover:bg-gray-50">
+                                    <td class="px-4 py-2">${rec['Ngày'] ? rec['Ngày'].replace(/'/g, '') : ''}</td>
+                                    <td class="px-4 py-2">${rec['Giờ'] ? rec['Giờ'].replace(/'/g, '') : ''}</td>
+                                    <td class="px-4 py-2 font-medium text-gray-900">${rec['Mã NV'] || ''}</td>
+                                    <td class="px-4 py-2">${rec['Tên NV'] || ''}</td>
+                                    <td class="px-4 py-2">${department}</td>
+                                    <td class="px-4 py-2">${rec['Chi nhánh làm'] || ''}</td>
+                                    <td class="px-4 py-2">${serviceOrWork}</td>
+                                    <td class="px-4 py-2">${details}</td>
+                                    <td class="px-4 py-2">${rec['Ghi chú'] || ''}</td>
+                                </tr>
+                            `;
+                            tbodyEl.innerHTML += row;
+                        });
+                    } else {
+                        errorEl.classList.remove('hidden');
+                        errorEl.innerHTML = '<p>Không tìm thấy bản ghi nào do bạn thực hiện.</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching attendance data:', error);
+                    loadingEl.classList.add('hidden');
+                    errorEl.classList.remove('hidden');
+                });
+        });
+    </script>
+</body>
+</html>
