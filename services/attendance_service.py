@@ -5,7 +5,7 @@ from datetime import datetime
 from pytz import timezone
 
 # ================== CONFIG ==================
-SERVICE_ACCOUNT_FILE = "config/credentials.json"
+# SERVICE_ACCOUNT_FILE = "config/credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1R-5t90lNY22MUfkdv3YUHtKOzW7fjIIgjSYtCisDLqA"
 
@@ -253,3 +253,57 @@ def push_bulk_checkin(records: List[dict]) -> dict:
         print(f"[attendance_service] Lỗi Google API (HYBRID): {e}")
         traceback.print_exc()
         return {"status": "error", "inserted": 0, "updated": 0, "error": str(e)}
+
+def get_attendance_by_checker(checker_code: str) -> list:
+    """
+    Lấy tất cả các bản ghi điểm danh (bao gồm cả DV) được thực hiện bởi một người.
+    """
+    try:
+        service = get_sheets_service()
+        spreadsheet_meta = service.spreadsheets().get(spreadsheetId=SPREADSHEET_ID).execute()
+        sheets = spreadsheet_meta.get('sheets', [])
+        
+        all_records = []
+        
+        # Lấy danh sách tên các sheet
+        sheet_titles = [s['properties']['title'] for s in sheets]
+
+        for sheet_name in sheet_titles:
+            # Bỏ qua các sheet không liên quan nếu có
+            if sheet_name.lower() in ['config', 'summary']:
+                continue
+
+            print(f"[get_attendance_by_checker] Đang đọc sheet: {sheet_name}")
+            try:
+                result = service.spreadsheets().values().get(
+                    spreadsheetId=SPREADSHEET_ID,
+                    range=f"{sheet_name}!A:Z"
+                ).execute()
+                
+                values = result.get('values', [])
+                if not values:
+                    continue
+
+                headers = values[0]
+                if "Người điểm danh" not in headers:
+                    continue
+                
+                checker_col_idx = headers.index("Người điểm danh")
+
+                for row in values[1:]:
+                    if len(row) > checker_col_idx and row[checker_col_idx] == checker_code:
+                        record = dict(zip(headers, row))
+                        record['sheet_name'] = sheet_name # Thêm thông tin sheet
+                        all_records.append(record)
+
+            except Exception as e:
+                print(f"[get_attendance_by_checker] Lỗi khi xử lý sheet '{sheet_name}': {e}")
+                continue
+        
+        # Sắp xếp kết quả theo ngày giờ mới nhất lên đầu
+        all_records.sort(key=lambda x: (x.get('Ngày', ''), x.get('Giờ', '')), reverse=True)
+        return all_records
+
+    except Exception as e:
+        print(f"[get_attendance_by_checker] Lỗi nghiêm trọng: {e}")
+        return []
