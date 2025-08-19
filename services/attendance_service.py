@@ -27,11 +27,22 @@ def _now_vn_str():
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
 
 def get_sheets_service():
+    import os, json
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
-    creds = service_account.Credentials.from_service_account_file(
-        SERVICE_ACCOUNT_FILE, scopes=SCOPES
-    )
+
+    creds_json = os.getenv("GOOGLE_CREDENTIALS")
+    if creds_json:
+        # ✅ Đọc credentials từ biến môi trường (Render)
+        creds_dict = json.loads(creds_json)
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=SCOPES
+        )
+    else:
+        # ✅ Fallback cho local development: dùng file credentials.json
+        creds = service_account.Credentials.from_service_account_file(
+            "config/credentials.json", scopes=SCOPES
+        )
     return build("sheets", "v4", credentials=creds)
 
 def get_sheet_id_by_name(service, sheet_name: str) -> int:
