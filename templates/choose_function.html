@@ -35,7 +35,13 @@
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen text-gray-800 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] dark:text-gray-100">
-
+  <a href="/logout" onclick="return confirm('Bạn có chắc muốn đăng xuất?')" title="Đăng xuất"
+    class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-red-100 dark:hover:bg-red-900 transition">
+    <!-- Icon SVG cho Đăng xuất -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-log-out">
+      <path d="M14 2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V14m-5-4l4 4-4 4m7-4H10"></path>
+    </svg>
+  </a>
   <div class="text-center space-y-8">
     <!-- Logo -->
     <div>
@@ -53,12 +59,13 @@
         <span class="font-semibold text-lg">Phần mềm Quản lý</span>
       </a>
 
-      <!-- Điểm danh -->
-      <a href="/attendance/ui" class="card p-6 bg-white/80 dark:bg-[#23243a] rounded-xl shadow-lg flex flex-col items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-green-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2l4-4m6 2a9 9 0 11-18 0a9 9 0 0118 0z" />
+      <!-- Chấm dịch vụ -->
+      <a href="/attendance/service" class="card p-6 bg-white/80 dark:bg-[#23243a] rounded-xl shadow-lg flex flex-col items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-purple-500 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 6v6h4m6 0a9 9 0 11-18 0a9 9 0 0118 0z" />
         </svg>
-        <span class="font-semibold text-lg">Điểm Danh</span>
+        <span class="font-semibold text-lg">Chấm Dịch Vụ</span>
       </a>
     </div>
   </div>
