@@ -397,28 +397,23 @@ def search_employees(
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
     - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
-    - Giới hạn 20 kết quả. Đã loại trừ lễ tân khỏi kết quả.
+    - Giới hạn 20 kết quả.
     """
     if not q:
         return JSONResponse(content=[], status_code=400)
 
     search_pattern = f"%{q}%"
-    query = db.query(User).filter(
+    employees = db.query(User).filter(
         or_(
             User.code.ilike(search_pattern),
             User.name.ilike(search_pattern)
         )
-    )
-
-    # Yêu cầu: Loại trừ nhân viên lễ tân khỏi kết quả tìm kiếm để tránh điểm danh nhầm
-    query = query.filter(User.role != 'letan')
+    ).limit(50).all()
 
     if only_bp:
-        # Lọc nhân viên buồng phòng (có 'BP' trong mã) ở cấp DB cho hiệu quả
-        query = query.filter(User.code.ilike('%BP%'))
+        employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
 
-    # Giới hạn 20 kết quả
-    employees = query.limit(20).all()
+    employees = employees[:20]
 
     employee_list = [
         {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
