@@ -74,11 +74,10 @@
 
 <script>
   let currentBranch="{{ branch_id }}"; const csrfToken="{{ csrf_token }}";
-  let serviceRows=[];
+  let serviceRows = JSON.parse('{{ initial_employees | tojson | safe }}'); // Bọc trong dấu nháy đơn để đảm bảo là string literal
   const statusEl=document.getElementById("status");
   const serviceList=document.getElementById("serviceList");
   const serviceTableBody=document.getElementById("serviceTableBody");
-
   function showStatus(t){statusEl.textContent=t;}
 
   // Render
@@ -168,7 +167,8 @@
   document.getElementById("addEmployeeBtn").onclick=()=>{addSheet.classList.remove("hidden");document.getElementById("searchInput").focus();};
   document.getElementById("searchInput").oninput=async(e)=>{
     const q=e.target.value.trim(); if(!q){document.getElementById("searchResults").innerHTML="";return;}
-    const data=await fetch(`/attendance/api/employees/search?q=${encodeURIComponent(q)}&only_bp=true`).then(r=>r.json());
+    const url = `/attendance/api/employees/search?q=${encodeURIComponent(q)}&only_bp=true&branch_id=${encodeURIComponent(currentBranch)}`;
+    const data=await fetch(url).then(r=>r.json());
     const c=document.getElementById("searchResults"); c.innerHTML="";
     if(data.length===0){c.innerHTML="<div class='text-gray-400 text-sm px-3 py-2'>Không tìm thấy</div>";}
     data.forEach(emp=>{
@@ -179,27 +179,39 @@
         if(serviceRows.some(r=>r.code===emp.code)){alert("Nhân viên này đã có trong danh sách");return;}
         serviceRows.push({code:emp.code,name:emp.name,branch:emp.branch,so_phong:"",so_luong:"",dich_vu:"",ghi_chu:""});
         renderService(); addSheet.classList.add("hidden");
+        document.getElementById("searchInput").value = ""; // Clear search input
+        c.innerHTML = ""; // Clear results
       };
       c.appendChild(btn);
     });
   };
 
-  // Nút tải lại
-  document.getElementById("reloadBtn").onclick=async()=>{
+  async function loadInitialEmployees() {
+    // Hàm này được gọi bởi nút "Tải lại".
+    // Nó sẽ reset danh sách về trạng thái ban đầu: chỉ những nhân viên BP đã được điểm danh lần cuối.
     try{
-      const init=await fetch(`/attendance/api/employees/by-branch/${encodeURIComponent(currentBranch)}`).then(r=>r.json());
-      serviceRows=init.filter(e=>e.department.toLowerCase()==="buongphong").map(e=>({code:e.code,name:e.name,branch:e.branch,so_phong:"",so_luong:"",dich_vu:"",ghi_chu:""}));
-      renderService(); showStatus("Đã tải lại");
-    }catch(e){alert("❌ Lỗi tải lại: "+e.message);}
-  };
+      showStatus("Đang tải lại danh sách đã điểm danh...");
+      const data = await fetch('/api/attendance/last-checked-in-bp').then(r => {
+        if (!r.ok) throw new Error('Lỗi máy chủ khi tải lại.');
+        return r.json();
+      });
+      
+      if (!Array.isArray(data)) throw new Error("API không trả về dữ liệu mảng.");
+
+      serviceRows = data; // Dữ liệu từ API đã có cấu trúc chuẩn
+      renderService(); showStatus("Sẵn sàng");
+    }catch(e){alert("❌ Lỗi tải lại: "+e.message); showStatus("Lỗi tải dữ liệu");}
+  }
 
   // Load initial
-  window.addEventListener("DOMContentLoaded", async()=>{
-    try{
-      const init=await fetch(`/attendance/api/employees/by-branch/${encodeURIComponent(currentBranch)}`).then(r=>r.json());
-      serviceRows=init.filter(e=>e.department.toLowerCase()==="buongphong").map(e=>({code:e.code,name:e.name,branch:e.branch,so_phong:"",so_luong:"",dich_vu:"",ghi_chu:""}));
-      renderService();
-    }catch(e){console.error(e);}
+  document.getElementById("reloadBtn").onclick = loadInitialEmployees;
+  window.addEventListener("DOMContentLoaded", () => {
+    // Luôn render danh sách ban đầu, dù nó rỗng hay không.
+    // `serviceRows` đã chứa danh sách nhân viên được điểm danh lần cuối (nếu có).
+    // Nếu `serviceRows` rỗng, `renderService()` sẽ tự động hiển thị thông báo "Chưa có nhân viên nào.".
+    // Nút "Tải lại" cũng sẽ reset về danh sách này.
+    renderService();
+    showStatus("Sẵn sàng");
   });
 </script>
 </body>
