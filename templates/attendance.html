@@ -136,7 +136,7 @@
       const csrfToken = "{{ csrf_token }}";
 
       const byBranchUrl = (b) => `/attendance/api/employees/by-branch/${encodeURIComponent(b)}`;
-      const searchUrl = (q) => `/attendance/api/employees/search?q=${encodeURIComponent(q)}`;
+      const searchUrl = (q) => `/attendance/api/employees/search?q=${encodeURIComponent(q)}&loginCode=${encodeURIComponent(loginCode)}`;
       const saveUrl = () => `/attendance/checkin_bulk`;
 
       let employees = []; // danh sách row đang hiển thị
@@ -448,26 +448,17 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.redirect_to) {
-                    window.location.href = data.redirect_to;  // frontend chủ động redirect
+                    // Chuyển hướng trang trên thiết bị di động sau khi điểm danh thành công
+                    window.location.href = data.redirect_to;
                 } else {
-                    alert("Điểm danh thất bại. Vui lòng thử lại!");
+                    // Nếu có lỗi từ server, hiển thị thông báo
+                    alert("Điểm danh thất bại: " + (data.error || "Lỗi không xác định."));
                 }
             })
-            .catch(err => console.error("Checkin error:", err));
-
-
-                  // nếu chưa có thì fallback check status như cũ
-                  let ok = false, tries = 0;
-                  while (!ok && tries < 5) {
-                    await new Promise(r => setTimeout(r, 1000));
-                    const resp = await fetch("/attendance/checkin_status?token=" + encodeURIComponent(token));
-                    const data = await resp.json();
-                    if (data.checked_in) {
-                      ok = true;
-                      window.location.href = data.redirect_to ? ("/" + data.redirect_to) : "/choose-function";
-                    }
-                    tries++;
-                  };
+            .catch(err => {
+                console.error("Checkin error:", err);
+                alert("Lỗi kết nối khi xác nhận điểm danh: " + err.message);
+            });
             }
           } else {
             showStatus("Lưu xong (không có phản hồi JSON hợp lệ)");
