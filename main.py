@@ -325,9 +325,9 @@ def attendance_csrf_token(request: Request):
 
 # --- Employees by branch (include 'all') ---
 @app.get("/attendance/api/employees/by-branch/{branch_id}", response_class=JSONResponse)
-def get_employees_by_branch(request: Request, branch_id: str, db: Session = Depends(get_db)):
+def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), request: Request = None):
     try:
-        user = request.session.get("user")
+        user = request.session.get("user") if request else None
         now_hour = datetime.now(VN_TZ).hour
         current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
@@ -348,23 +348,24 @@ def get_employees_by_branch(request: Request, branch_id: str, db: Session = Depe
         employees = []
 
         if user and user.get("role") == "letan":
-            # Luôn lấy thông tin của chính lễ tân đang đăng nhập, bất kể đang xem chi nhánh nào
+            # Lễ tân đăng nhập: Luôn hiển thị chính họ và các nhân viên khác (không phải lễ tân).
+            # 1. Luôn lấy thông tin của chính lễ tân đang đăng nhập, bất kể họ xem chi nhánh nào.
             lt_self_list = db.query(User).filter(User.code == user.get("code")).all()
 
-            # Lấy các nhân viên khác tại chi nhánh đang chọn (bỏ ql, ktv, và tất cả lễ tân)
+            # 2. Lấy các nhân viên khác tại chi nhánh đang chọn (loại trừ tất cả lễ tân).
             others = db.query(User).filter(
                 User.branch == branch_id,
                 ~User.role.in_(["quanly", "ktv", "letan"])
             ).all()
 
-            # Lọc ca cho các nhân viên khác, lễ tân đăng nhập thì giữ nguyên
+            # 3. Lọc ca cho các nhân viên khác.
             others = [emp for emp in others if match_shift(emp.code)]
 
-            # Gộp lại và sắp xếp, đưa lễ tân đăng nhập lên đầu
+            # 4. Gộp và sắp xếp, đưa lễ tân đăng nhập lên đầu.
             employees = sorted(lt_self_list + others, key=lambda e: (e.code != user.get("code"), e.name))
 
         else:
-            # Role khác: lấy toàn bộ (trừ quản lý, ktv), rồi lọc theo ca
+            # Các vai trò khác (Quản lý,...) hoặc khi session lỗi: Hiển thị tất cả nhân viên tại chi nhánh theo ca.
             employees = db.query(User).filter(
                 User.branch == branch_id,
                 ~User.role.in_(["quanly", "ktv"])
@@ -381,12 +382,7 @@ def get_employees_by_branch(request: Request, branch_id: str, db: Session = Depe
             }
             for emp in employees
         ]
-
-        response = JSONResponse(content=employee_list)
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
+        return JSONResponse(content=employee_list)
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
@@ -394,36 +390,25 @@ def get_employees_by_branch(request: Request, branch_id: str, db: Session = Depe
 # --- Employee search ---
 @app.get("/attendance/api/employees/search", response_class=JSONResponse)
 def search_employees(
-    request: Request,
     q: str = "",
     only_bp: bool = False,
     db: Session = Depends(get_db)
 ):
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
-    - `only_bp=True`: chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
-    - Nếu người dùng là lễ tân, sẽ tự động loại bỏ các lễ tân khác khỏi kết quả.
+    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
     - Giới hạn 20 kết quả.
     """
     if not q:
         return JSONResponse(content=[], status_code=400)
 
-    user = request.session.get("user")
-    is_receptionist = user and user.get("role") == "letan"
-
     search_pattern = f"%{q}%"
-    query = db.query(User).filter(
+    employees = db.query(User).filter(
         or_(
             User.code.ilike(search_pattern),
             User.name.ilike(search_pattern)
         )
-    )
-
-    # Lễ tân tìm kiếm sẽ không thấy các nhân viên lễ tân khác
-    if is_receptionist:
-        query = query.filter(User.role != "letan")
-
-    employees = query.limit(50).all()
+    ).limit(50).all()
 
     if only_bp:
         employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
