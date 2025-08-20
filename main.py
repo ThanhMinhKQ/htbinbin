@@ -357,20 +357,19 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # ✅ Luôn chỉ hiển thị đúng lễ tân đăng nhập
+            # ✅ Chỉ lễ tân đăng nhập, không kiểm tra ca/chi nhánh
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
-            if lt_self:
-                employees.append(lt_self)
+            employees = [lt_self] if lt_self else []
 
-            # ✅ Thêm nhân viên khác theo chi nhánh hiệu lực (nếu có) – loại hết lễ tân/quanly/ktv
+            # ✅ Nhân viên khác trong chi nhánh hiệu lực (áp dụng match_shift)
             if effective_branch:
                 others = db.query(User).filter(
                     User.branch == effective_branch,
-                    User.role != "letan",  # Điều kiện cốt lõi: Loại bỏ TẤT CẢ lễ tân khác
-                    ~User.role.in_(["quanly", "ktv"]) # Sau đó loại bỏ các vai trò không điểm danh khác
+                    ~User.role.in_(["letan", "quanly", "ktv"])
                 ).all()
                 employees.extend([emp for emp in others if match_shift(emp.code)])
 
+            # Sắp xếp: lễ tân đăng nhập luôn đứng đầu
             employees.sort(key=lambda e: (e.code != user.get("code"), e.name))
 
         else:
