@@ -1162,6 +1162,12 @@ def attendance_checkin(request: Request, token: str, db: Session = Depends(get_d
     log = db.query(AttendanceLog).filter_by(token=token).first()
     if not log:
         return HTMLResponse("Token không hợp lệ!", status_code=400)
+
+    # Kiểm tra xem token này đã được sử dụng để check-in thành công chưa.
+    # Nếu rồi, link QR sẽ không còn hợp lệ.
+    if log.checked_in:
+        return templates.TemplateResponse("qr_invalid.html", {"request": request, "message": "Mã QR này đã được sử dụng để điểm danh và không còn hợp lệ."}, status_code=403)
+
     user = db.query(User).filter_by(code=log.user_code).first()
     if not user:
         return HTMLResponse("Không tìm thấy user!", status_code=400)
