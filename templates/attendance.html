@@ -328,10 +328,29 @@
             ghi_chu: ""
           }));
 
-          // ❌ Bỏ đoạn này vì gây lỗi hiển thị thêm LT khác:
-          // if (loginCode && !employees.some(e => e.code === loginCode)) {
-          //   ...
-          // }
+          // Tự thêm người đăng nhập nếu chưa có
+          if (loginCode && !employees.some(e => e.code === loginCode)) {
+            let found = employees.find(e => e.code === loginCode);
+            if (!found) {
+              try {
+                const searchData = await safeFetchJson(searchUrl(loginCode));
+                if (Array.isArray(searchData) && searchData.length > 0) {
+                  found = {
+                    code: searchData[0].code,
+                    name: searchData[0].name,
+                    department: searchData[0].department,
+                    branch: searchData[0].branch,
+                    branch_today: currentBranch,
+                    la_tang_ca: false,
+                    so_cong_nv: 1,
+                    service: [],
+                    ghi_chu: ""
+                  };
+                }
+              } catch(e) {}
+            }
+            if (found) employees.unshift(found);
+          }
 
           renderAttendanceList();
           showStatus("Đã tải xong");
@@ -341,7 +360,6 @@
           alert("Lỗi khi tải danh sách nhân viên: " + err.message);
         }
       }
-
 
       async function addBySearchQuery(q){
         if(!q) return;
