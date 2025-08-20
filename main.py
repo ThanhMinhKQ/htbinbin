@@ -397,23 +397,28 @@ def search_employees(
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
     - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
-    - Giới hạn 20 kết quả.
+    - Giới hạn 20 kết quả. Đã loại trừ lễ tân khỏi kết quả.
     """
     if not q:
         return JSONResponse(content=[], status_code=400)
 
     search_pattern = f"%{q}%"
-    employees = db.query(User).filter(
+    query = db.query(User).filter(
         or_(
             User.code.ilike(search_pattern),
             User.name.ilike(search_pattern)
         )
-    ).limit(50).all()
+    )
+
+    # Yêu cầu: Loại trừ nhân viên lễ tân khỏi kết quả tìm kiếm để tránh điểm danh nhầm
+    query = query.filter(User.role != 'letan')
 
     if only_bp:
-        employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
+        # Lọc nhân viên buồng phòng (có 'BP' trong mã) ở cấp DB cho hiệu quả
+        query = query.filter(User.code.ilike('%BP%'))
 
-    employees = employees[:20]
+    # Giới hạn 20 kết quả
+    employees = query.limit(20).all()
 
     employee_list = [
         {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
@@ -1194,19 +1199,29 @@ def attendance_checkin(request: Request, token: str, db: Session = Depends(get_d
 async def checkin_success(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
     token = data.get("token")
-    if not token:
-        return JSONResponse({"success": False, "error": "Thiếu token"}, status_code=400)
+    user_code = None
 
-    log = db.query(AttendanceLog).filter_by(token=token).first()
-    if not log:
-        return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=404)
+    # Luồng 1: Điểm danh qua QR code (có token)
+    if token:
+        log = db.query(AttendanceLog).filter_by(token=token).first()
+        if not log:
+            return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=404)
 
-    log.checked_in = True
-    db.commit()
+        log.checked_in = True
+        db.commit()
+        user_code = log.user_code
+    # Luồng 2: Điểm danh trực tiếp trên mobile (không có token)
+    # Trong luồng này, user đã được đăng nhập và log.checked_in=True từ trước.
+    # Endpoint này chỉ cần xác nhận và trả về redirect.
+    else:
+        user_session = request.session.get("user")
+        if not user_session or not user_session.get("code"):
+            return JSONResponse({"success": False, "error": "Yêu cầu không hợp lệ, không tìm thấy session người dùng."}, status_code=403)
+        user_code = user_session.get("code")
 
-    user = db.query(User).filter_by(code=log.user_code).first()
+    # Logic chung: tìm user, cập nhật session và trả về redirect
+    user = db.query(User).filter_by(code=user_code).first()
     if user:
-        # Cập nhật session cho thiết bị di động
         request.session["user"] = {
             "code": user.code,
             "role": user.role,
