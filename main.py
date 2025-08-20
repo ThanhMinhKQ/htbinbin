@@ -357,9 +357,25 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # ✅ DỨT ĐIỂM: chỉ hiển thị duy nhất lễ tân đăng nhập, không ca, không thêm ai khác
+            # Logic cho Lễ tân:
+            # 1. Luôn luôn bao gồm chính lễ tân đang đăng nhập.
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
-            employees = [lt_self] if lt_self else []
+            if lt_self:
+                employees.append(lt_self)
+
+            # 2. Lấy các nhân viên khác tại chi nhánh hiệu lực (chi nhánh đang xem, hoặc chi nhánh của lễ tân nếu GPS lỗi).
+            if effective_branch:
+                # Truy vấn các nhân viên khác, loại trừ tất cả lễ tân và các vai trò không điểm danh.
+                others = db.query(User).filter(
+                    User.branch == effective_branch,
+                    User.role != 'letan',  # Quan trọng: Không bao gồm các lễ tân khác.
+                    ~User.role.in_(["quanly", "ktv"]) # Loại trừ quản lý, ktv.
+                ).all()
+
+                # 3. Lọc các nhân viên này theo ca làm việc hiện tại, sắp xếp và thêm vào danh sách.
+                filtered_others = [emp for emp in others if match_shift(emp.code)]
+                filtered_others.sort(key=lambda e: e.name)
+                employees.extend(filtered_others)
 
         else:
             # ✅ Role khác: giữ logic cũ (theo branch + lọc ca)
