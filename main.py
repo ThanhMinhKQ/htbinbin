@@ -357,22 +357,12 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # ✅ Chỉ lễ tân đăng nhập, không kiểm tra ca/chi nhánh
+            # ✅ DỨT ĐIỂM: chỉ hiển thị duy nhất lễ tân đăng nhập, không ca, không thêm ai khác
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
             employees = [lt_self] if lt_self else []
 
-            # ✅ Nhân viên khác trong chi nhánh hiệu lực (áp dụng match_shift)
-            if effective_branch:
-                others = db.query(User).filter(
-                    User.branch == effective_branch,
-                    ~User.role.in_(["letan", "quanly", "ktv"])
-                ).all()
-                employees.extend([emp for emp in others if match_shift(emp.code)])
-
-            # Sắp xếp: lễ tân đăng nhập luôn đứng đầu
-            employees.sort(key=lambda e: (e.code != user.get("code"), e.name))
-
         else:
+            # ✅ Role khác: giữ logic cũ (theo branch + lọc ca)
             if effective_branch:
                 employees = db.query(User).filter(
                     User.branch == effective_branch,
@@ -391,10 +381,10 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
                 "department": emp.role,
                 "branch": emp.branch,
             }
-            for emp in employees
+            for emp in employees if emp is not None
         ]
 
-        # ✅ ép browser + proxy không cache
+        # ✅ no-cache headers
         response = JSONResponse(content=employee_list)
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
@@ -402,6 +392,7 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         return response
 
     except Exception as e:
+        print(f"[ERROR] get_employees_by_branch failed: {e}")
         response = JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
         response.headers["Cache-Control"] = "no-store"
         return response
