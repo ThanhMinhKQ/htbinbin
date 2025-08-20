@@ -328,8 +328,10 @@
             ghi_chu: ""
           }));
 
-          // ❌ Bỏ hẳn đoạn auto-search loginCode để tránh nhân bản lễ tân khác
-          // if (loginCode && !employees.some(...)) { ... }
+          // ❌ Bỏ đoạn này vì gây lỗi hiển thị thêm LT khác:
+          // if (loginCode && !employees.some(e => e.code === loginCode)) {
+          //   ...
+          // }
 
           renderAttendanceList();
           showStatus("Đã tải xong");
