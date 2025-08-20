@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean
+from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON
 from database import Base
 
 class User(Base):
@@ -9,6 +9,7 @@ class User(Base):
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
     branch = Column(String, nullable=False)
+    last_checked_in_bp = Column(JSON, nullable=True) 
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -31,5 +32,6 @@ class AttendanceLog(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_code = Column(String, index=True)
     date = Column(Date, index=True)
+    shift = Column(String, index=True) # Ca làm việc: 'day' hoặc 'night'
     token = Column(String, unique=True, index=True)
     checked_in = Column(Boolean, default=False)
