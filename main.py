@@ -1096,11 +1096,13 @@ async def attendance_checkin_bulk(
         raise HTTPException(status_code=400, detail="Payload phải là danh sách")
 
     nguoi_diem_danh_code = user.get("code")
+    thoi_gian_submit = datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M")
     normalized_data = []
     for rec in raw_data:
         normalized_data.append({
             "sheet": rec.get("sheet"),
-            "thoi_gian": rec.get("thoi_gian"),
+            # Luôn sử dụng thời gian từ server để đảm bảo đúng múi giờ
+            "thoi_gian": thoi_gian_submit,
             "ma_nv": rec.get("ma_nv"),
             "ten_nv": rec.get("ten_nv"),
             "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
