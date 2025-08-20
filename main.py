@@ -34,6 +34,25 @@ def get_db():
 # Định nghĩa múi giờ Việt Nam (UTC+7)
 VN_TZ = timezone(timedelta(hours=7))
 
+def get_current_work_shift():
+    """
+    Xác định ngày và ca làm việc hiện tại.
+    - Ca ngày: 07:00 - 18:59
+    - Ca đêm: 19:00 - 06:59
+    - Thời gian từ 00:00 đến 06:59 được tính là ca đêm của ngày hôm trước.
+    """
+    now = datetime.now(VN_TZ)
+    if now.hour < 7:
+        work_date = now.date() - timedelta(days=1)
+        shift = "night"
+    elif 7 <= now.hour < 19:
+        work_date = now.date()
+        shift = "day"
+    else:  # 19:00 trở đi
+        work_date = now.date()
+        shift = "night"
+    return work_date, shift
+
 from urllib.parse import parse_qs, urlencode
 
 def clean_query_string(query: str) -> str:
@@ -106,17 +125,37 @@ async def detect_branch(request: Request):
     return {"branch": nearest_branch, "distance_km": round(min_distance, 3)}
     
 @app.get("/attendance/service", response_class=HTMLResponse)
-def attendance_service_ui(request: Request):
+def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user")
     if not user_data:
         return RedirectResponse("/login", status_code=303)
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
+
+    initial_employees = []
+    # Lấy danh sách nhân viên BP đã được điểm danh lần cuối từ DB của lễ tân
+    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
+    if checker_user and checker_user.last_checked_in_bp:
+        service_checkin_codes = checker_user.last_checked_in_bp
+
+        if service_checkin_codes:
+            # Lấy thông tin chi tiết của các nhân viên đó
+            employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
+            # Sắp xếp lại theo đúng thứ tự đã điểm danh
+            emp_map = {emp.code: emp for emp in employees_from_db}
+            sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
+            
+            initial_employees = [
+                {"code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""}
+                for emp in sorted_employees
+            ]
+
     response = templates.TemplateResponse("attendance_service.html", {
         "request": request,
         "branch_id": active_branch,
         "csrf_token": csrf_token,
         "user": user_data,
+        "initial_employees": initial_employees,
     })
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -196,8 +235,12 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
     ).first()
 
     if user:
-        today = date.today()
-        log = db.query(AttendanceLog).filter_by(user_code=user.code, date=today).first()
+        work_date, shift = get_current_work_shift()
+        log = db.query(AttendanceLog).filter(
+            AttendanceLog.user_code == user.code,
+            AttendanceLog.date == work_date,
+            AttendanceLog.shift == shift
+        ).first()
         if log and log.checked_in:
             request.session["user"] = {
                 "code": user.code,
@@ -217,8 +260,7 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
                 if log:
                     log.checked_in = True
                 else:
-                    # Nếu chưa có log, tạo mới và đánh dấu đã check-in
-                    log = AttendanceLog(user_code=user.code, date=today, checked_in=True, token=secrets.token_urlsafe(16))
+                    log = AttendanceLog(user_code=user.code, date=work_date, shift=shift, checked_in=True, token=secrets.token_urlsafe(16))
                     db.add(log)
                 db.commit()
 
@@ -228,12 +270,14 @@ def login_submit(request: Request, username: str = Form(...), password: str = Fo
                 # Chuyển hướng đến trang điểm danh
                 return RedirectResponse("/attendance/ui", status_code=303)
             else:
-                # Luồng desktop: Hiển thị QR code như cũ
-                token = secrets.token_urlsafe(24)
-                db.query(AttendanceLog).filter_by(user_code=user.code, date=today).delete()
-                log = AttendanceLog(user_code=user.code, date=today, token=token, checked_in=False)
-                db.add(log)
-                db.commit()
+                # Luồng desktop: Tạo token cho ca làm việc hiện tại
+                if log and not log.checked_in:
+                    token = log.token
+                else: # Chưa có log cho ca này, tạo mới
+                    token = secrets.token_urlsafe(24)
+                    new_log = AttendanceLog(user_code=user.code, date=work_date, shift=shift, token=token, checked_in=False)
+                    db.add(new_log)
+                    db.commit()
                 request.session["pending_user"] = { "code": user.code, "role": user.role, "branch": user.branch, "name": user.name }
                 request.session["qr_token"] = token
                 return RedirectResponse("/show_qr", status_code=303)
@@ -260,17 +304,18 @@ def require_checked_in_user(request: Request):
     if not user:
         return False
 
-    today = date.today()
+    work_date, _ = get_current_work_shift()
     db = SessionLocal()
     try:
-        log = db.query(AttendanceLog).filter_by(
-            user_code=user["code"],
-            date=today
+        # Kiểm tra xem có bất kỳ log nào đã check-in trong ngày làm việc hiện tại không
+        # (ca ngày hoặc ca đêm).
+        log = db.query(AttendanceLog).filter(
+            AttendanceLog.user_code == user["code"],
+            AttendanceLog.date == work_date,
+            AttendanceLog.checked_in == True
         ).first()
 
-        # ✅ Cho phép vào nếu:
-        # - Có log checked_in trong DB
-        # - Hoặc session có flag after_checkin = "choose_function"
+        # Cho phép vào nếu có log checked_in trong DB hoặc vừa quét QR xong
         if (log and log.checked_in) or request.session.get("after_checkin") == "choose_function":
             return True
     finally:
@@ -365,11 +410,14 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             employees = sorted(lt_self + others, key=lambda e: e.name)
 
         else:
-            # Role khác: lấy toàn bộ (trừ quản lý, ktv), rồi lọc theo ca
+            # Logic chung cho các role khác (VD: quản lý) hoặc khi không có user
+            # Lấy tất cả nhân viên có thể điểm danh tại chi nhánh
             employees = db.query(User).filter(
                 User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv"])
+                ~User.role.in_(["quanly", "ktv", "admin", "boss"])  # Bỏ các role quản lý/kỹ thuật
             ).all()
+
+            # Lọc theo ca làm việc hiện tại
             employees = [emp for emp in employees if match_shift(emp.code)]
             employees.sort(key=lambda e: e.name)
 
@@ -391,26 +439,40 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 @app.get("/attendance/api/employees/search", response_class=JSONResponse)
 def search_employees(
     q: str = "",
+    branch_id: str = None,  # Thêm tham số để lọc theo chi nhánh
     only_bp: bool = False,
     loginCode: str = None,   # ✅ thêm tham số loginCode để phân biệt lễ tân đăng nhập
     db: Session = Depends(get_db)
 ):
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
+    - Nếu branch_id được cung cấp, chỉ tìm trong chi nhánh đó.
     - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
     - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode).
     - Giới hạn 20 kết quả.
     """
     if not q:
-        return JSONResponse(content=[], status_code=400)
+        # Sửa lỗi: Nếu không có query 'q' nhưng 'only_bp' là true,
+        # cho phép tiếp tục để lấy toàn bộ nhân viên (thường là BP) của một chi nhánh.
+        if not only_bp:
+            return JSONResponse(content=[], status_code=400)
+        search_pattern = "%"
+    else:
+        search_pattern = f"%{q}%"
 
-    search_pattern = f"%{q}%"
-    employees = db.query(User).filter(
+    # Xây dựng query cơ bản
+    query = db.query(User).filter(
         or_(
             User.code.ilike(search_pattern),
             User.name.ilike(search_pattern)
         )
-    ).limit(50).all()
+    )
+
+    # Thêm bộ lọc chi nhánh nếu được cung cấp
+    if branch_id:
+        query = query.filter(User.branch == branch_id)
+
+    employees = query.limit(50).all()
 
     # ✅ Nếu chỉ tìm buồng phòng
     if only_bp:
@@ -1063,9 +1125,13 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login", status_code=303)
 
-    today = date.today()
-    # Kiểm tra xem đã có log cho hôm nay chưa
-    log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+    work_date, shift = get_current_work_shift()
+    log = db.query(AttendanceLog).filter(
+        AttendanceLog.user_code == user["code"], # user là dict, nên dùng user["code"]
+        AttendanceLog.date == work_date,
+        AttendanceLog.shift == shift # user là dict, nên dùng user["code"]
+    ).first()
+
     if log:
         if log.checked_in:
             # Nếu đã check-in thì không cần show_qr nữa → đi thẳng trang chọn chức năng
@@ -1073,15 +1139,10 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
         else:
             qr_token = log.token
     else:
-        # Nếu chưa có log thì tạo mới
+        # Trường hợp này không nên xảy ra nếu luồng đăng nhập đúng, nhưng là fallback
         import uuid
         qr_token = str(uuid.uuid4())
-        log = AttendanceLog(
-            user_code=user["code"],
-            date=today,
-            token=qr_token,
-            checked_in=False
-        )
+        log = AttendanceLog(user_code=user["code"], date=work_date, shift=shift, token=qr_token, checked_in=False)
         db.add(log)
         db.commit()
 
@@ -1157,11 +1218,56 @@ async def attendance_checkin_bulk(
             "nguoi_diem_danh": nguoi_diem_danh_code
         })
 
+    # Lấy danh sách mã nhân viên BP vừa được điểm danh
+    bp_codes = [
+        rec.get("ma_nv") for rec in raw_data
+        if "BP" in rec.get("ma_nv", "").upper()
+    ]
+
+    # Cập nhật danh sách này vào DB cho lễ tân đang đăng nhập.
+    # Danh sách này sẽ được dùng để đề xuất ở trang "Chấm dịch vụ" và sẽ tồn tại
+    # cho đến lần điểm danh tiếp theo của lễ tân này.
+    if nguoi_diem_danh_code:
+        checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
+        if checker_user:
+            checker_user.last_checked_in_bp = bp_codes
+            db.commit()
+
     # ✅ chạy push_bulk_checkin ở background
     background_tasks.add_task(push_bulk_checkin, normalized_data)
 
     print(f"[AUDIT] {nguoi_diem_danh_code} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
     return {"status": "queued", "inserted": len(normalized_data)}
+
+@app.get("/api/attendance/last-checked-in-bp", response_class=JSONResponse)
+def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
+    """
+    API trả về danh sách nhân viên buồng phòng mà lễ tân đã điểm danh lần cuối.
+    Dùng cho nút "Tải lại" trên trang Chấm dịch vụ.
+    """
+    user_data = request.session.get("user")
+    if not user_data:
+        raise HTTPException(status_code=403, detail="Không có quyền truy cập.")
+
+    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
+    if not checker_user or not checker_user.last_checked_in_bp:
+        return JSONResponse(content=[])
+
+    service_checkin_codes = checker_user.last_checked_in_bp
+    
+    if not service_checkin_codes:
+        return JSONResponse(content=[])
+
+    employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
+    # Sắp xếp lại theo đúng thứ tự đã điểm danh
+    emp_map = {emp.code: emp for emp in employees_from_db}
+    sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
+    
+    employee_list = [
+        { "code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": "" }
+        for emp in sorted_employees
+    ]
+    return JSONResponse(content=employee_list)
 
 @app.get("/api/attendance/results-by-checker")
 async def api_get_attendance_results(request: Request):
@@ -1230,10 +1336,8 @@ async def checkin_success(request: Request, db: Session = Depends(get_db)):
     if token:
         log = db.query(AttendanceLog).filter_by(token=token).first()
         if not log:
-            return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=404)
-
-        log.checked_in = True
-        db.commit()
+            # Frontend mong đợi JSON, không phải HTML
+            return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=400)
         user_code = log.user_code
     # Luồng 2: Điểm danh trực tiếp trên mobile (không có token)
     # Trong luồng này, user đã được đăng nhập và log.checked_in=True từ trước.
@@ -1243,6 +1347,13 @@ async def checkin_success(request: Request, db: Session = Depends(get_db)):
         if not user_session or not user_session.get("code"):
             return JSONResponse({"success": False, "error": "Yêu cầu không hợp lệ, không tìm thấy session người dùng."}, status_code=403)
         user_code = user_session.get("code")
+        work_date, shift = get_current_work_shift()
+        log = db.query(AttendanceLog).filter_by(user_code=user_code, date=work_date, shift=shift).first()
+
+    if not log:
+        return JSONResponse({"success": False, "error": "Không tìm thấy bản ghi điểm danh."}, status_code=404)
+    log.checked_in = True
+    db.commit()
 
     # Logic chung: tìm user, cập nhật session và trả về redirect
     user = db.query(User).filter_by(code=user_code).first()
