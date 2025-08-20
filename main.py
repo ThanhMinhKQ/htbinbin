@@ -332,43 +332,64 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
         def match_shift(emp_code: str):
-            emp_code = emp_code.upper()
-            if "CS" in emp_code and current_shift != "CS":
+            code = (emp_code or "").upper()
+            if "CS" in code and current_shift != "CS":
                 return False
-            if "CT" in emp_code and current_shift != "CT":
+            if "CT" in code and current_shift != "CT":
                 return False
             return True
+
+        # --- Xác định branch hiệu lực ---
+        valid_branches = set(BRANCHES)
+        raw = (branch_id or "").strip().upper()
+        # Các giá trị xem như "không hợp lệ" khi frontend gửi linh tinh
+        bad_values = {"", "ALL", "NULL", "NONE", "UNDEFINED"}
+        effective_branch = None
+        if raw and raw not in bad_values and raw in valid_branches:
+            effective_branch = raw
+        else:
+            # fallback: session.active_branch -> user.branch
+            sess_branch = (request.session.get("active_branch") or "").strip().upper() if request else ""
+            usr_branch = (user.get("branch") or "").strip().upper() if user else ""
+            if sess_branch in valid_branches:
+                effective_branch = sess_branch
+            elif usr_branch in valid_branches:
+                effective_branch = usr_branch
+            # nếu sau tất cả vẫn None -> coi như không xác định được chi nhánh
 
         employees = []
 
         if user and user.get("role") == "letan":
-            # ✅ Lấy chính lễ tân đăng nhập (duy nhất)
+            # ✅ Luôn chỉ có duy nhất lễ tân đăng nhập
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
             if lt_self:
                 employees.append(lt_self)
 
-            # ✅ Lấy nhân viên khác trong chi nhánh chọn (KHÔNG bao giờ lấy lễ tân khác)
-            others = db.query(User).filter(
-                User.branch == branch_id,
-                User.role != "letan",  # Tường minh loại bỏ TẤT CẢ lễ tân
-                ~User.role.in_(["quanly", "ktv"])  # Sau đó loại bỏ các vai trò không điểm danh khác
-            ).all()
+            # ✅ Thêm NV khác theo branch hiệu lực (nếu có). Không bao giờ lấy lễ tân/quanly/ktv
+            if effective_branch:
+                others = db.query(User).filter(
+                    User.branch == effective_branch,
+                    ~User.role.in_(["letan", "quanly", "ktv"])
+                ).all()
+                employees.extend([emp for emp in others if match_shift(emp.code)])
+            # Nếu không xác định được branch -> chỉ trả về lt_self như yêu cầu
 
-            # Lọc ca cho nhân viên khác
-            employees.extend([emp for emp in others if match_shift(emp.code)])
-
-            # Đưa lễ tân đăng nhập lên đầu danh sách
+            # Sắp xếp: lễ tân đăng nhập đứng đầu
             employees.sort(key=lambda e: (e.code != user.get("code"), e.name))
 
         else:
-            # ✅ Các vai trò khác: giữ logic cũ
-            employees = db.query(User).filter(
-                User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv"])
-            ).all()
-            employees = [emp for emp in employees if match_shift(emp.code)]
-            employees.sort(key=lambda e: e.name)
+            # ✅ Role khác: giữ logic cũ; nếu không có branch thì trả về rỗng
+            if effective_branch:
+                employees = db.query(User).filter(
+                    User.branch == effective_branch,
+                    ~User.role.in_(["quanly", "ktv"])
+                ).all()
+                employees = [emp for emp in employees if match_shift(emp.code)]
+                employees.sort(key=lambda e: e.name)
+            else:
+                employees = []
 
+        # Xuất danh sách
         employee_list = [
             {
                 "code": emp.code,
