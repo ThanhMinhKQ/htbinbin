@@ -392,11 +392,13 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 def search_employees(
     q: str = "",
     only_bp: bool = False,
+    loginCode: str = None,   # ✅ thêm tham số loginCode để phân biệt lễ tân đăng nhập
     db: Session = Depends(get_db)
 ):
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
     - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
+    - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode).
     - Giới hạn 20 kết quả.
     """
     if not q:
@@ -410,10 +412,19 @@ def search_employees(
         )
     ).limit(50).all()
 
+    # ✅ Nếu chỉ tìm buồng phòng
     if only_bp:
         employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
 
-    employees = employees[:20]
+    # ✅ Loại bỏ tất cả lễ tân khác, chỉ giữ lại đúng loginCode (nếu có)
+    filtered = []
+    for emp in employees:
+        if (emp.role or "").lower() == "letan":
+            if loginCode and emp.code == loginCode:
+                filtered.append(emp)  # giữ lại chính lễ tân đăng nhập
+        else:
+            filtered.append(emp)
+    employees = filtered[:20]
 
     employee_list = [
         {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
@@ -1097,6 +1108,9 @@ from services.attendance_service import push_bulk_checkin, get_attendance_by_che
 
 from fastapi import BackgroundTasks
 
+from datetime import datetime
+from pytz import timezone
+
 @app.post("/attendance/checkin_bulk")
 async def attendance_checkin_bulk(
     request: Request,
@@ -1115,27 +1129,38 @@ async def attendance_checkin_bulk(
 
     nguoi_diem_danh_code = user.get("code")
     normalized_data = []
+    now_vn = datetime.now(timezone("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d %H:%M:%S")
+
     for rec in raw_data:
         normalized_data.append({
+            # sheet target (nếu client gửi)
             "sheet": rec.get("sheet"),
-            "thoi_gian": rec.get("thoi_gian"),
+
+            # thời gian: ưu tiên client, fallback giờ VN
+            "thoi_gian": rec.get("thoi_gian") or now_vn,
+
+            # nhân viên được điểm danh
             "ma_nv": rec.get("ma_nv"),
             "ten_nv": rec.get("ten_nv"),
             "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
             "chi_nhanh_lam": rec.get("chi_nhanh_lam"),
+
+            # field bổ sung
             "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
-            "so_cong_nv": rec.get("so_cong_nv"),
+            "so_cong_nv": rec.get("so_cong_nv") or 1,
             "ghi_chu": rec.get("ghi_chu", ""),
             "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
             "so_phong": rec.get("so_phong") or rec.get("room_count") or "",
             "so_luong": rec.get("so_luong") or rec.get("item_count") or "",
+
+            # người đang login
             "nguoi_diem_danh": nguoi_diem_danh_code
         })
 
     # ✅ chạy push_bulk_checkin ở background
     background_tasks.add_task(push_bulk_checkin, normalized_data)
 
-    print(f"[AUDIT] {user['code']} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
+    print(f"[AUDIT] {nguoi_diem_danh_code} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
     return {"status": "queued", "inserted": len(normalized_data)}
 
 @app.get("/api/attendance/results-by-checker")
@@ -1178,6 +1203,11 @@ def attendance_checkin(request: Request, token: str, db: Session = Depends(get_d
         "branch": user.branch,
         "name": user.name
     }
+
+    # Xóa session 'user' cũ (nếu có) để tránh ghi nhầm người điểm danh
+    # khi một thiết bị được dùng để quét QR cho nhiều tài khoản khác nhau.
+    # Một lượt quét QR mới sẽ bắt đầu một phiên điểm danh mới.
+    request.session.pop("user", None)
     request.session["pending_user"] = user_data
 
     # Render the attendance page
