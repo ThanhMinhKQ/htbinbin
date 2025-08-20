@@ -366,7 +366,8 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             if effective_branch:
                 others = db.query(User).filter(
                     User.branch == effective_branch,
-                    ~User.role.in_(["letan", "quanly", "ktv"])
+                    User.role != "letan",  # Điều kiện cốt lõi: Loại bỏ TẤT CẢ lễ tân khác
+                    ~User.role.in_(["quanly", "ktv"]) # Sau đó loại bỏ các vai trò không điểm danh khác
                 ).all()
                 employees.extend([emp for emp in others if match_shift(emp.code)])
 
