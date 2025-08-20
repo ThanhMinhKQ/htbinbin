@@ -356,40 +356,35 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 
         employees = []
 
+        # --- Logic cho lễ tân ---
         if user and user.get("role") == "letan":
-            # Logic cho Lễ tân:
-            # 1. Luôn luôn bao gồm chính lễ tân đang đăng nhập.
+            # ✅ Luôn giữ chính lễ tân đang đăng nhập
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
             if lt_self:
                 employees.append(lt_self)
 
-            # 2. Lấy các nhân viên khác tại chi nhánh hiệu lực (chi nhánh đang xem, hoặc chi nhánh của lễ tân nếu GPS lỗi).
+            # ✅ Thêm các nhân viên khác trong chi nhánh (không bao gồm lễ tân khác)
             if effective_branch:
-                # Truy vấn các nhân viên khác, loại trừ tất cả lễ tân và các vai trò không điểm danh.
                 others = db.query(User).filter(
                     User.branch == effective_branch,
-                    User.role != 'letan',  # Quan trọng: Không bao gồm các lễ tân khác.
-                    ~User.role.in_(["quanly", "ktv"]) # Loại trừ quản lý, ktv.
+                    User.role != "letan",   # loại bỏ tất cả lễ tân khác
+                    ~User.role.in_(["quanly", "ktv"])  # loại trừ quản lý, ktv
                 ).all()
-
-                # 3. Lọc các nhân viên này theo ca làm việc hiện tại, sắp xếp và thêm vào danh sách.
                 filtered_others = [emp for emp in others if match_shift(emp.code)]
                 filtered_others.sort(key=lambda e: e.name)
                 employees.extend(filtered_others)
 
+        # --- Logic cho các vai trò khác ---
         else:
-            # ✅ Role khác: giữ logic cũ (theo branch + lọc ca)
             if effective_branch:
-                employees = db.query(User).filter(
+                all_attendees = db.query(User).filter(
                     User.branch == effective_branch,
                     ~User.role.in_(["quanly", "ktv"])
                 ).all()
-                employees = [emp for emp in employees if match_shift(emp.code)]
+                employees = [emp for emp in all_attendees if match_shift(emp.code)]
                 employees.sort(key=lambda e: e.name)
-            else:
-                employees = []
 
-        # format output
+        # --- format output ---
         employee_list = [
             {
                 "code": emp.code,
