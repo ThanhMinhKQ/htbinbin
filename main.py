@@ -348,41 +348,26 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # Lễ tân đăng nhập: Luôn hiển thị chính họ và các nhân viên khác (không phải lễ tân).
-            # 1. Luôn lấy thông tin của chính lễ tân đang đăng nhập, bất kể họ xem chi nhánh nào.
+            # ✅ Lễ tân đăng nhập: chỉ hiển thị chính họ + nhân viên khác (ngoại trừ tất cả lễ tân khác)
+            # 1. Lấy chính lễ tân đăng nhập
             lt_self_list = db.query(User).filter(User.code == user.get("code")).all()
 
-            # 2. Lấy các nhân viên khác tại chi nhánh đang chọn (loại trừ tất cả lễ tân).
+            # 2. Lấy các nhân viên khác tại chi nhánh (loại trừ toàn bộ lễ tân, giữ nguyên lọc shift)
             others = db.query(User).filter(
                 User.branch == branch_id,
-                User.role != "letan",
-                ~User.role.in_(["quanly", "ktv"])
+                User.role != "letan",              # bỏ hết lễ tân khác
+                ~User.role.in_(["quanly", "ktv"])  # loại bỏ quản lý + ktv như trước
             ).all()
 
-            # 3. Lọc ca cho các nhân viên khác.
+            # 3. Lọc theo ca cho nhân viên khác
             others = [emp for emp in others if match_shift(emp.code)]
 
-            # 4. Gộp và sắp xếp, đưa lễ tân đăng nhập lên đầu.
-            employees = sorted(lt_self_list + others, key=lambda e: (e.code != user.get("code"), e.name))
+            # 4. Gộp danh sách, lễ tân đăng nhập sẽ nằm đầu tiên
+            employees = sorted(
+                lt_self_list + others,
+                key=lambda e: (e.code != user.get("code"), e.name)
+            )
 
-        else:
-            # Các vai trò khác (Quản lý,...) hoặc khi session lỗi: Hiển thị tất cả nhân viên tại chi nhánh theo ca.
-            employees = db.query(User).filter(
-                User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv"])
-            ).all()
-            employees = [emp for emp in employees if match_shift(emp.code)]
-            employees.sort(key=lambda e: e.name)
-
-        employee_list = [
-            {
-                "code": emp.code,
-                "name": emp.name,
-                "department": emp.role,
-                "branch": emp.branch,
-            }
-            for emp in employees
-        ]
         return JSONResponse(content=employee_list)
 
     except Exception as e:
