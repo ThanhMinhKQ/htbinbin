@@ -348,27 +348,23 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # ✅ Lễ tân đăng nhập: chỉ hiển thị chính họ + các nhân viên khác (không phải lễ tân).
-            # 1. Lấy chính lễ tân đăng nhập
-            lt_self_list = db.query(User).filter(User.code == user.get("code")).all()
+            # ✅ Lễ tân đăng nhập: chỉ hiển thị chính họ, tuyệt đối không hiển thị lễ tân khác
+            lt_self = db.query(User).filter(User.code == user.get("code")).first()
+            if lt_self:
+                employees.append(lt_self)
 
-            # 2. Lấy các nhân viên khác trong chi nhánh (loại trừ toàn bộ lễ tân + quản lý + ktv)
+            # ✅ Thêm các nhân viên khác (không phải lễ tân, không phải quản lý/ktv) theo chi nhánh + đúng ca
             others = db.query(User).filter(
                 User.branch == branch_id,
-                User.role.notin_(["letan", "quanly", "ktv"])
+                ~User.role.in_(["letan", "quanly", "ktv"])
             ).all()
+            employees.extend([emp for emp in others if match_shift(emp.code)])
 
-            # 3. Lọc ca cho nhân viên khác
-            others = [emp for emp in others if match_shift(emp.code)]
-
-            # 4. Gộp danh sách, lễ tân đăng nhập nằm đầu tiên
-            employees = sorted(
-                lt_self_list + others,
-                key=lambda e: (e.code != user.get("code"), e.name)
-            )
+            # sắp xếp: lễ tân đăng nhập lên đầu
+            employees.sort(key=lambda e: (e.code != user.get("code"), e.name))
 
         else:
-            # ✅ Các vai trò khác: hiển thị tất cả nhân viên tại chi nhánh theo ca
+            # ✅ Các vai trò khác: hiển thị toàn bộ nhân viên chi nhánh (trừ quản lý/ktv) theo ca
             employees = db.query(User).filter(
                 User.branch == branch_id,
                 ~User.role.in_(["quanly", "ktv"])
@@ -376,6 +372,7 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             employees = [emp for emp in employees if match_shift(emp.code)]
             employees.sort(key=lambda e: e.name)
 
+        # format output
         employee_list = [
             {
                 "code": emp.code,
