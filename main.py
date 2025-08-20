@@ -355,7 +355,8 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             # 2. Lấy các nhân viên khác tại chi nhánh đang chọn (loại trừ tất cả lễ tân).
             others = db.query(User).filter(
                 User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv", "letan"])
+                User.role != "letan",
+                ~User.role.in_(["quanly", "ktv"])
             ).all()
 
             # 3. Lọc ca cho các nhân viên khác.
