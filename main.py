@@ -1118,7 +1118,7 @@ async def attendance_checkin_bulk(
     background_tasks.add_task(push_bulk_checkin, normalized_data)
 
     print(f"[AUDIT] {user['code']} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
-    return {"status": "queued", "inserted": len(normalized_data)}
+    return JSONResponse(content={"success": True, "status": "queued", "inserted": len(normalized_data)})
 
 @app.get("/api/attendance/results-by-checker")
 async def api_get_attendance_results(request: Request):
