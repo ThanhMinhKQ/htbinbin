@@ -358,21 +358,9 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 
         # --- Logic cho lễ tân ---
         if user and user.get("role") == "letan":
-            # ✅ Luôn giữ chính lễ tân đang đăng nhập
+            # ✅ Chỉ trả về đúng lễ tân đăng nhập
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
-            if lt_self:
-                employees.append(lt_self)
-
-            # ✅ Thêm các nhân viên khác trong chi nhánh (không bao gồm lễ tân khác)
-            if effective_branch:
-                others = db.query(User).filter(
-                    User.branch == effective_branch,
-                    User.role != "letan",   # loại bỏ tất cả lễ tân khác
-                    ~User.role.in_(["quanly", "ktv"])  # loại trừ quản lý, ktv
-                ).all()
-                filtered_others = [emp for emp in others if match_shift(emp.code)]
-                filtered_others.sort(key=lambda e: e.name)
-                employees.extend(filtered_others)
+            employees = [lt_self] if lt_self else []
 
         # --- Logic cho các vai trò khác ---
         else:
