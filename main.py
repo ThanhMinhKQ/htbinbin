@@ -348,25 +348,27 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # Lễ tân đăng nhập: Luôn hiển thị chính họ và các nhân viên khác (không phải lễ tân).
-            # 1. Luôn lấy thông tin của chính lễ tân đang đăng nhập, bất kể họ xem chi nhánh nào.
+            # ✅ Lễ tân đăng nhập: chỉ hiển thị chính họ + các nhân viên khác (không phải lễ tân).
+            # 1. Lấy chính lễ tân đăng nhập
             lt_self_list = db.query(User).filter(User.code == user.get("code")).all()
 
-            # 2. Lấy các nhân viên khác tại chi nhánh đang chọn (loại trừ tất cả lễ tân).
+            # 2. Lấy các nhân viên khác trong chi nhánh (loại trừ toàn bộ lễ tân + quản lý + ktv)
             others = db.query(User).filter(
                 User.branch == branch_id,
-                User.role != "letan",
-                ~User.role.in_(["quanly", "ktv"])
+                User.role.notin_(["letan", "quanly", "ktv"])
             ).all()
 
-            # 3. Lọc ca cho các nhân viên khác.
+            # 3. Lọc ca cho nhân viên khác
             others = [emp for emp in others if match_shift(emp.code)]
 
-            # 4. Gộp và sắp xếp, đưa lễ tân đăng nhập lên đầu.
-            employees = sorted(lt_self_list + others, key=lambda e: (e.code != user.get("code"), e.name))
+            # 4. Gộp danh sách, lễ tân đăng nhập nằm đầu tiên
+            employees = sorted(
+                lt_self_list + others,
+                key=lambda e: (e.code != user.get("code"), e.name)
+            )
 
         else:
-            # Các vai trò khác (Quản lý,...) hoặc khi session lỗi: Hiển thị tất cả nhân viên tại chi nhánh theo ca.
+            # ✅ Các vai trò khác: hiển thị tất cả nhân viên tại chi nhánh theo ca
             employees = db.query(User).filter(
                 User.branch == branch_id,
                 ~User.role.in_(["quanly", "ktv"])
