@@ -323,7 +323,6 @@ def attendance_csrf_token(request: Request):
     token = get_csrf_token(request)
     return {"csrf_token": token}
 
-# --- Employees by branch (include 'all') ---
 @app.get("/attendance/api/employees/by-branch/{branch_id}", response_class=JSONResponse)
 def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), request: Request = None):
     try:
@@ -332,47 +331,48 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
         def match_shift(emp_code: str):
-            code = (emp_code or "").upper()
-            if "CS" in code and current_shift != "CS":
+            """
+            Trả về True nếu mã nhân viên hợp lệ với ca hiện tại.
+            - Nếu có 'CS' trong mã → chỉ hợp lệ ca sáng
+            - Nếu có 'CT' trong mã → chỉ hợp lệ ca tối
+            - Nếu không có CS/CT → luôn hợp lệ
+            """
+            emp_code = emp_code.upper()
+            if "CS" in emp_code and current_shift != "CS":
                 return False
-            if "CT" in code and current_shift != "CT":
+            if "CT" in emp_code and current_shift != "CT":
                 return False
             return True
 
-        # --- Xác định branch hiệu lực ---
-        valid_branches = set(BRANCHES)
-        raw = (branch_id or "").strip().upper()
-        bad_values = {"", "ALL", "NULL", "NONE", "UNDEFINED"}
-        effective_branch = None
-        if raw and raw not in bad_values and raw in valid_branches:
-            effective_branch = raw
-        else:
-            sess_branch = (request.session.get("active_branch") or "").strip().upper() if request else ""
-            usr_branch = (user.get("branch") or "").strip().upper() if user else ""
-            if sess_branch in valid_branches:
-                effective_branch = sess_branch
-            elif usr_branch in valid_branches:
-                effective_branch = usr_branch
-
         employees = []
 
-        # --- Logic cho lễ tân ---
         if user and user.get("role") == "letan":
-            # ✅ Chỉ trả về đúng lễ tân đăng nhập
-            lt_self = db.query(User).filter(User.code == user.get("code")).first()
-            employees = [lt_self] if lt_self else []
+            # Luôn thêm chính lễ tân đang đăng nhập (bất kể ca nào)
+            lt_self = db.query(User).filter(
+                User.code == user.get("code"),
+                User.branch == branch_id
+            ).all()
 
-        # --- Logic cho các vai trò khác ---
+            # Các bộ phận khác cùng chi nhánh (bỏ quản lý, ktv, lễ tân khác)
+            others = db.query(User).filter(
+                User.branch == branch_id,
+                ~User.role.in_(["quanly", "ktv", "letan"])
+            ).all()
+
+            # Chỉ lọc ca cho others, lễ tân đăng nhập giữ nguyên
+            others = [emp for emp in others if match_shift(emp.code)]
+
+            employees = sorted(lt_self + others, key=lambda e: e.name)
+
         else:
-            if effective_branch:
-                all_attendees = db.query(User).filter(
-                    User.branch == effective_branch,
-                    ~User.role.in_(["quanly", "ktv"])
-                ).all()
-                employees = [emp for emp in all_attendees if match_shift(emp.code)]
-                employees.sort(key=lambda e: e.name)
+            # Role khác: lấy toàn bộ (trừ quản lý, ktv), rồi lọc theo ca
+            employees = db.query(User).filter(
+                User.branch == branch_id,
+                ~User.role.in_(["quanly", "ktv"])
+            ).all()
+            employees = [emp for emp in employees if match_shift(emp.code)]
+            employees.sort(key=lambda e: e.name)
 
-        # --- format output ---
         employee_list = [
             {
                 "code": emp.code,
@@ -380,21 +380,12 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
                 "department": emp.role,
                 "branch": emp.branch,
             }
-            for emp in employees if emp is not None
+            for emp in employees
         ]
-
-        # ✅ no-cache headers
-        response = JSONResponse(content=employee_list)
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
+        return JSONResponse(content=employee_list)
 
     except Exception as e:
-        print(f"[ERROR] get_employees_by_branch failed: {e}")
-        response = JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
-        response.headers["Cache-Control"] = "no-store"
-        return response
+        return JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
 
 # --- Employee search ---
 @app.get("/attendance/api/employees/search", response_class=JSONResponse)
