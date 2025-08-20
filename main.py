@@ -17,6 +17,7 @@ from sqlalchemy import or_, cast, Date
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
 import os, re
+import socket
 from email.message import EmailMessage 
 from datetime import datetime, timedelta, timezone, date
 from services.email_service import send_alert_email
@@ -1033,11 +1034,18 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
-# Hàm lấy IP LAN để tạo base_url
-def get_base_url(request: Request):
-    host = request.client.host
-    port = request.url.port or 8000
-    return f"http://{host}:{port}"
+def get_lan_ip():
+    """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Không cần phải kết nối được, chỉ là một mẹo để lấy IP
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1' # Fallback nếu không lấy được IP
+    finally:
+        s.close()
+    return IP
 
 @app.get("/show_qr", response_class=HTMLResponse)
 async def show_qr(request: Request, db: Session = Depends(get_db)):
@@ -1068,7 +1076,18 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
         db.commit()
 
     request.session["qr_token"] = qr_token
-    base_url = str(request.base_url).strip("/")
+    
+    # Lấy host và port từ request
+    request_host = request.url.hostname
+    port = request.url.port
+    scheme = request.url.scheme
+
+    # Nếu host là localhost, thay thế bằng IP LAN để điện thoại có thể truy cập
+    if request_host in ["localhost", "127.0.0.1"]:
+        lan_ip = get_lan_ip()
+        base_url = f"{scheme}://{lan_ip}:{port}"
+    else:
+        base_url = str(request.base_url).strip("/")
     return templates.TemplateResponse("show_qr.html", {
         "request": request,
         "qr_token": qr_token,
@@ -1096,13 +1115,11 @@ async def attendance_checkin_bulk(
         raise HTTPException(status_code=400, detail="Payload phải là danh sách")
 
     nguoi_diem_danh_code = user.get("code")
-    thoi_gian_submit = datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M")
     normalized_data = []
     for rec in raw_data:
         normalized_data.append({
             "sheet": rec.get("sheet"),
-            # Luôn sử dụng thời gian từ server để đảm bảo đúng múi giờ
-            "thoi_gian": thoi_gian_submit,
+            "thoi_gian": rec.get("thoi_gian"),
             "ma_nv": rec.get("ma_nv"),
             "ten_nv": rec.get("ten_nv"),
             "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
@@ -1120,7 +1137,7 @@ async def attendance_checkin_bulk(
     background_tasks.add_task(push_bulk_checkin, normalized_data)
 
     print(f"[AUDIT] {user['code']} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
-    return JSONResponse(content={"success": True, "status": "queued", "inserted": len(normalized_data)})
+    return {"status": "queued", "inserted": len(normalized_data)}
 
 @app.get("/api/attendance/results-by-checker")
 async def api_get_attendance_results(request: Request):
