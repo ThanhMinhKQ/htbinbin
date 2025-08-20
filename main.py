@@ -332,12 +332,6 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
         def match_shift(emp_code: str):
-            """
-            Trả về True nếu mã nhân viên hợp lệ với ca hiện tại.
-            - Nếu có 'CS' trong mã → chỉ hợp lệ ca sáng
-            - Nếu có 'CT' trong mã → chỉ hợp lệ ca tối
-            - Nếu không có CS/CT → luôn hợp lệ
-            """
             emp_code = emp_code.upper()
             if "CS" in emp_code and current_shift != "CS":
                 return False
@@ -348,23 +342,25 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # ✅ Lễ tân đăng nhập: chỉ hiển thị chính họ, tuyệt đối không hiển thị lễ tân khác
+            # ✅ Lấy chính lễ tân đăng nhập (duy nhất)
             lt_self = db.query(User).filter(User.code == user.get("code")).first()
             if lt_self:
                 employees.append(lt_self)
 
-            # ✅ Thêm các nhân viên khác (không phải lễ tân, không phải quản lý/ktv) theo chi nhánh + đúng ca
+            # ✅ Lấy nhân viên khác trong chi nhánh chọn (KHÔNG bao giờ lấy lễ tân khác)
             others = db.query(User).filter(
                 User.branch == branch_id,
-                ~User.role.in_(["letan", "quanly", "ktv"])
+                ~User.role.in_(["letan", "quanly", "ktv"])   # loại toàn bộ lễ tân + quản lý + ktv
             ).all()
+
+            # Lọc ca cho nhân viên khác
             employees.extend([emp for emp in others if match_shift(emp.code)])
 
-            # sắp xếp: lễ tân đăng nhập lên đầu
+            # Đưa lễ tân đăng nhập lên đầu danh sách
             employees.sort(key=lambda e: (e.code != user.get("code"), e.name))
 
         else:
-            # ✅ Các vai trò khác: hiển thị toàn bộ nhân viên chi nhánh (trừ quản lý/ktv) theo ca
+            # ✅ Các vai trò khác: giữ logic cũ
             employees = db.query(User).filter(
                 User.branch == branch_id,
                 ~User.role.in_(["quanly", "ktv"])
@@ -372,7 +368,6 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             employees = [emp for emp in employees if match_shift(emp.code)]
             employees.sort(key=lambda e: e.name)
 
-        # format output
         employee_list = [
             {
                 "code": emp.code,
