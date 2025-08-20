@@ -1,627 +1,1271 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Điểm danh</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root {
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-      --safe-top: env(safe-area-inset-top, 0px);
-    }
+import secrets
+from fastapi import FastAPI, Request, Form, HTTPException, Depends
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+from utils import parse_datetime_input, format_datetime_display, is_overdue
+from fastapi import Request
 
-    /* ===== Animations ===== */
-    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-    @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
-    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+from database import SessionLocal
+from models import User, Task, AttendanceLog
+from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
+from database import init_db
 
-    .animate-fadeIn { animation: fadeIn .35s ease-out both; }
-    .animate-slideUp { animation: slideUp .35s ease-out both; }
-    .animate-sheetUp { animation: sheetUp .32s cubic-bezier(.22,.61,.36,1) both; }
+from sqlalchemy.orm import Session
+from sqlalchemy import or_, cast, Date
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func
+import os, re
+import socket
+from email.message import EmailMessage 
+from datetime import datetime, timedelta, timezone, date
+from services.email_service import send_alert_email
 
-    /* ===== Card swipe-to-delete (iOS-like) ===== */
-    .swipe-container {
-      position: relative;
-      overflow: hidden;
-      touch-action: pan-y;
-    }
-    .swipe-actions {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      justify-content: flex-end;
-      align-items: stretch;
-      background: #fee2e2; /* red-100 */
-      padding-right: .5rem;
-    }
-    .swipe-actions button {
-      min-width: 72px;
-      border-radius: 12px;
-      margin: auto .25rem;
-      height: 44px;
-    }
-    .swipe-content {
-      position: relative;
-      background: white;
-      transform: translateX(0);
-      transition: transform .18s ease-out;
-      border-radius: 16px;
-      box-shadow: 0 6px 22px rgba(0,0,0,.06);
-    }
+from employees import employees  # import danh sách nhân viên tĩnh
 
-    /* ===== Bottom bar glass ===== */
-    .glass {
-      background: rgba(255,255,255,.82);
-      -webkit-backdrop-filter: saturate(180%) blur(16px);
-      backdrop-filter: saturate(180%) blur(16px);
-    }
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-    /* ===== Bottom sheet ===== */
-    .sheet {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      background: #fff;
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      box-shadow: 0 -10px 30px rgba(0,0,0,.12);
-      max-height: 78vh;
-      padding-bottom: calc(16px + var(--safe-bottom));
-    }
-    .sheet-handle {
-      width: 44px; height: 5px; border-radius: 999px;
-      background: #e5e7eb; /* gray-200 */
-      margin: 8px auto 12px;
-    }
+# Định nghĩa múi giờ Việt Nam (UTC+7)
+VN_TZ = timezone(timedelta(hours=7))
 
-    /* Hide native scrollbars on mobile for cleaner look */
-    ::-webkit-scrollbar { width: 0; height: 0; }
-  </style>
-</head>
+from urllib.parse import parse_qs, urlencode
 
-<body class="bg-gray-50 min-h-screen pb-28">
-  <div class="max-w-xl mx-auto px-4 pt-3 space-y-3 animate-fadeIn">
-    <!-- Header -->
-    <header class="pt-[var(--safe-top)] flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">📋 Điểm danh</h1>
-      <span class="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600">GPS xác định</span>
-    </header>
+def clean_query_string(query: str) -> str:
+    parsed = parse_qs(query)
+    # Loại bỏ các key không mong muốn
+    parsed.pop("success", None)
+    parsed.pop("action", None)
+    return urlencode(parsed, doseq=True)
 
-    <!-- Branch info -->
-    <section id="branchInfo" class="bg-gradient-to-r from-sky-50 to-blue-50 p-3 rounded-2xl text-[13px] text-gray-700 shadow-sm flex items-center gap-2">
-      <span>📍</span>
-      <span class="font-medium">Chi nhánh làm:</span>
-      <span id="branchName" class="text-blue-700">(đang xác định...)</span>
-    </section>
+app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key="binbin-hotel-secret")
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
-    <!-- Top status / helper -->
-    <div id="topInfo" class="text-[13px] text-gray-600"></div>
+BRANCHES = [
+    "B1", "B2", "B3",
+    "B5", "B6", "B7",
+    "B8", "B9", "B10",
+    "B11", "B12", "B14",
+    "B15"
+]
 
-    <!-- Quick search -->
-    <div class="flex gap-2">
-      <button id="refreshBtn" class="px-3 rounded-xl bg-gray-100 text-[13px] hover:bg-gray-200">Tải lại</button>
-      <button id="addEmployeeBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">+ Thêm nhân viên</button>
-    </div>
+from math import radians, cos, sin, sqrt, atan2
 
-    <!-- Attendance list (cards) -->
-    <div id="attendanceList" class="space-y-3"></div>
+branchCoordinates = {
+    "B1": [10.727298831515066,106.6967154830272],
+    "B2": [10.740600,106.695797],
+    "B3": [10.733902,106.708781],
+    "B5": [10.73780906347085,106.70517496567874],
+    "B6": [10.729986861681768,106.70690372549372],
+    "B7": [10.744230207012244,106.6965025304644],
+    "B8": [10.741408,106.699883],
+    "B9": [10.740970,106.699825],
+    "B10": [10.814503,106.670873],
+    "B11": [10.77497650247788,106.75134333045331],
+    "B12": [10.778874744587053,106.75266727478706],
+    "B14": [10.742557513695218,106.69945313180673],
+    "B15": [10.775572501574938,106.75167172807936],
+}
 
-    <!-- Empty hint -->
-    <div id="emptyHint" class="hidden text-center text-gray-500 text-sm py-12">
-      Danh sách trống. Hãy thêm nhân viên bằng ô tìm kiếm hoặc nút <span class="font-medium text-gray-700">+ Thêm ca</span> bên dưới.
-    </div>
-  </div>
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371  # bán kính trái đất km
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1-a))
+    return R * c
 
-  <!-- Bottom action bar -->
-  <div class="fixed left-0 right-0 bottom-0 glass border-t border-gray-200 shadow-lg">
-    <div class="max-w-xl mx-auto px-4 py-2.5 flex gap-2 items-center" style="padding-bottom: calc(10px + var(--safe-bottom));">
-      <button id="saveBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold active:scale-[.99] transition-colors">💾 Lưu</button>
-    </div>
-    <div class="max-w-xl mx-auto px-4 pb-2 -mt-2 text-[12px] text-gray-600">
-      <span id="status">Chưa lưu</span>
-    </div>
-  </div>
+@app.post("/attendance/api/detect-branch")
+async def detect_branch(request: Request):
+    data = await request.json()
+    lat, lng = data.get("lat"), data.get("lng")
+    if lat is None or lng is None:
+        return JSONResponse({"error": "Thiếu tọa độ"}, status_code=400)
 
-  <script>
-    /*
-      UI iOS 2025 – Giữ logic cũ:
-      - getSheetName, safeFetchJson, loadEmployeesForBranch, addBySearchQuery, saveAttendance
-      - GPS detect → /attendance/api/detect-branch
-      - Dữ liệu ẩn: branch, branch_today, la_tang_ca vẫn gửi khi lưu
-    */
+    nearest_branch = None
+    min_distance = float("inf")
+    for branch, coords in branchCoordinates.items():
+        dist = haversine(lat, lng, coords[0], coords[1])
+        if dist < min_distance:
+            min_distance = dist
+            nearest_branch = branch
 
-    /* ---------- Config & helpers ---------- */
-    let currentBranch = "{{ branch_id }}" || "";
-    const loginCode = "{{ login_code }}"; // mã nhân viên đăng nhập
-    const csrfToken = "{{ csrf_token }}";
+    # Nếu khoảng cách quá xa (>1km) thì coi như không hợp lệ
+    if min_distance > 1:
+        return JSONResponse({"error": "Không xác định được chi nhánh"}, status_code=404)
 
-    const byBranchUrl = (b) => `/attendance/api/employees/by-branch/${encodeURIComponent(b)}`;
-    const searchUrl = (q) => `/attendance/api/employees/search?q=${encodeURIComponent(q)}`;
-    const saveUrl = () => `/attendance/checkin_bulk`;
+    # Lưu vào session để UI tự nhận
+    request.session["active_branch"] = nearest_branch
+    return {"branch": nearest_branch, "distance_km": round(min_distance, 3)}
+    
+@app.get("/attendance/service", response_class=HTMLResponse)
+def attendance_service_ui(request: Request):
+    user_data = request.session.get("user")
+    if not user_data:
+        return RedirectResponse("/login", status_code=303)
+    active_branch = request.session.get("active_branch") or user_data.get("branch", "")
+    csrf_token = get_csrf_token(request)
+    response = templates.TemplateResponse("attendance_service.html", {
+        "request": request,
+        "branch_id": active_branch,
+        "csrf_token": csrf_token,
+        "user": user_data,
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
-    let employees = []; // danh sách row đang hiển thị
+@app.get("/", response_class=HTMLResponse)
+def root(request: Request):
+    """Route gốc, chuyển hướng người dùng dựa trên trạng thái đăng nhập."""
+    if request.session.get("user"):
+        return RedirectResponse("/login", status_code=303) 
+    return RedirectResponse("/login", status_code=303)
 
-    function log(...args){ console.log("[attendance]", ...args); }
-    function showStatus(text){ document.getElementById("status").textContent = text; }
+# --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
+@app.get("/choose-function", response_class=HTMLResponse)
+async def choose_function(request: Request):
+    if not require_checked_in_user(request):
+        return RedirectResponse("/login", status_code=303)
 
-    // Sheet mapping – giữ nguyên logic cũ
-    function getSheetName(code){
-      if(!code) return "Khac";
-      if (code.includes("BPTC") || code.includes("LTTC")) return "TC";
-      if (code.includes("BP")) return "BP";
-      if (code.includes("LT")) return "LT";
-      if (code.includes("BV")) return "BV";
-      if (code.includes("QL")) return "QL";
-      if (code === "KTV") return "KTV";
-      return "Khac";
-    }
+    # Nếu có flag after_checkin thì xóa để tránh dùng lại
+    if request.session.get("after_checkin") == "choose_function":
+        request.session.pop("after_checkin", None)
 
-    async function safeFetchJson(url, options){
-      const res = await fetch(url, options);
-      if (!res.ok){
-        const text = await res.text().catch(()=>"(no body)");
-        throw new Error(`HTTP ${res.status}: ${text}`);
-      }
-      const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) return await res.json();
-      return await res.text();
-    }
+    response = templates.TemplateResponse("choose_function.html", {"request": request})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
-    function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
-    function escapeAttr(s){ return String(s).replaceAll('"','&quot;'); }
+@app.get("/attendance/results", response_class=HTMLResponse)
+def view_attendance_results(request: Request):
+    """
+    Route để hiển thị trang xem kết quả điểm danh.
+    """
+    if not require_checked_in_user(request):
+        return RedirectResponse("/login", status_code=303)
 
-    function departmentDisplay(dep) {
-      const map = {
-        letan: "Lễ tân",
-        buongphong: "Buồng phòng",
-        baove: "Bảo vệ"
-        // thêm các bộ phận khác nếu có
-      };
-      return map[dep?.toLowerCase()] || dep || "";
-    }
+    user_data = request.session.get("user")
+    return templates.TemplateResponse("attendance_results.html", {
+        "request": request,
+        "user": user_data
+    })
 
-    /* ---------- UI: render Card list + Swipe-to-delete ---------- */
-    function renderAttendanceList(){
-      const wrap = document.getElementById("attendanceList");
-      wrap.innerHTML = "";
-      const empty = document.getElementById("emptyHint");
-      empty.classList.toggle("hidden", employees.length > 0);
+@app.get("/login", response_class=HTMLResponse)
+def login_form(request: Request):
+    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chọn chức năng
+    user = request.session.get("user")
+    if user:
+        today = date.today()
+        db = SessionLocal()
+        try:
+            log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+            if log and log.checked_in:
+                    return RedirectResponse(url="/choose-function", status_code=303)
+        finally:
+            db.close()
+    error = request.query_params.get("error", "")
+    role = request.query_params.get("role", "")
+    response = templates.TemplateResponse("login.html", {
+        "request": request,
+        "error": error,
+        "role": role
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
-      employees.forEach((emp, idx) => {
-        // tính tăng ca
-        const isTangCa = (emp.branch_today || currentBranch) !== (emp.branch || "");
-        emp.la_tang_ca = !!isTangCa;
+@app.post("/login", response_class=HTMLResponse)
+def login_submit(request: Request, username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+    request.session.clear()
+    allowed_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+    user = db.query(User).filter(
+        User.code == username,
+        User.password == password,
+        User.role.in_(allowed_roles)
+    ).first()
 
-        const container = document.createElement("div");
-        container.className = "swipe-container animate-slideUp";
-
-        // actions (delete)
-        const actions = document.createElement("div");
-        actions.className = "swipe-actions";
-        actions.innerHTML = `
-          <button class="bg-red-600 text-white text-sm px-3" data-idx="${idx}">Xóa</button>
-        `;
-
-        const card = document.createElement("div");
-        card.className = "swipe-content p-3";
-
-        card.innerHTML = `
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="font-semibold text-[15px] truncate">${escapeHtml(emp.name || "")}</div>
-              <div class="text-[12px] text-gray-500 mt-0.5">
-                Bộ phận: ${escapeHtml(departmentDisplay(emp.department))}
-              </div>
-              ${emp.la_tang_ca ? `<div class="inline-flex items-center text-[11px] mt-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full border border-amber-100">Tăng ca</div>` : ``}
-            </div>
-            <button class="text-gray-400 active:scale-95" title="Xóa" data-idx="${idx}" data-action="delete">✕</button>
-          </div>
-
-          <div class="mt-3 flex items-center gap-2">
-            <label class="text-[12px] text-gray-600">Số công</label>
-            <select class="border border-gray-200 rounded-lg text-sm px-2 py-1 h-9 min-w-[72px]" data-idx="${idx}" data-field="so_cong_nv">
-              <option value="0.5" ${emp.so_cong_nv===0.5?"selected":""}>0.5</option>
-              <option value="1" ${!emp.so_cong_nv || emp.so_cong_nv===1?"selected":""}>1</option>
-              <option value="1.5" ${emp.so_cong_nv===1.5?"selected":""}>1.5</option>
-              <option value="2" ${emp.so_cong_nv===2?"selected":""}>2</option>
-              <option value="2.5" ${emp.so_cong_nv===2.5?"selected":""}>2.5</option>
-            </select>
-
-            <input class="flex-1 border border-gray-200 rounded-lg text-sm px-3 py-2" placeholder="Ghi chú"
-                   value="${escapeAttr(emp.ghi_chu||"")}" data-idx="${idx}" data-field="ghi_chu"/>
-          </div>
-
-          <!-- Dữ liệu ẩn giữ đúng payload khi lưu -->
-          <div class="hidden">
-            <span data-field="branch">${escapeHtml(emp.branch || "")}</span>
-            <span data-field="branch_today">${escapeHtml(emp.branch_today || currentBranch)}</span>
-            <span data-field="la_tang_ca">${emp.la_tang_ca ? "1":"0"}</span>
-          </div>
-        `;
-
-        // Swipe-to-delete logic
-        let startX = 0, currentX = 0, dragged = false;
-        const threshold = 68; // mở actions khi kéo > threshold
-        const maxTranslate = 84; // giới hạn kéo
-
-        function onTouchStart(e){
-          const touch = e.touches[0];
-          startX = touch.clientX;
-          currentX = startX;
-          dragged = true;
-          card.style.transition = "none";
-        }
-        function onTouchMove(e){
-          if(!dragged) return;
-          const touch = e.touches[0];
-          currentX = touch.clientX;
-          let dx = currentX - startX;
-          if (dx > 0) dx = 0; // chỉ kéo sang trái
-          if (dx < -maxTranslate) dx = -maxTranslate;
-          card.style.transform = `translateX(${dx}px)`;
-        }
-        function onTouchEnd(){
-          if(!dragged) return;
-          dragged = false;
-          card.style.transition = "transform .18s ease-out";
-          const dx = currentX - startX;
-          if (dx < -threshold) {
-            card.style.transform = `translateX(${-maxTranslate}px)`; // giữ mở
-          } else {
-            card.style.transform = "translateX(0)";
-          }
-        }
-
-        card.addEventListener("touchstart", onTouchStart, {passive:true});
-        card.addEventListener("touchmove", onTouchMove, {passive:true});
-        card.addEventListener("touchend", onTouchEnd);
-
-        // Wire events
-        actions.querySelector("button").onclick = () => {
-          employees.splice(idx,1);
-          renderAttendanceList();
-          showStatus("Chưa lưu");
-        };
-        card.querySelector('[data-action="delete"]').onclick = () => {
-          employees.splice(idx,1);
-          renderAttendanceList();
-          showStatus("Chưa lưu");
-        };
-        card.querySelector('select[data-field="so_cong_nv"]').onchange = (e)=>{
-          employees[idx].so_cong_nv = parseFloat(e.target.value);
-          showStatus("Chưa lưu");
-        };
-        card.querySelector('input[data-field="ghi_chu"]').oninput = (e)=>{
-          employees[idx].ghi_chu = e.target.value;
-          showStatus("Chưa lưu");
-        };
-
-        container.appendChild(actions);
-        container.appendChild(card);
-        wrap.appendChild(container);
-      });
-
-      document.getElementById("topInfo").textContent =
-        `Đang điểm danh cho chi nhánh: ${currentBranch || "(chưa xác định)"} — Tổng: ${employees.length}`;
-    }
-
-    /* ---------- Data loading & search ---------- */
-    async function loadEmployeesForBranch(){
-      if(!currentBranch){
-        document.getElementById("topInfo").textContent = "Lỗi: currentBranch chưa xác định.";
-        return;
-      }
-      showStatus("Đang tải danh sách...");
-      try {
-        const data = await safeFetchJson(byBranchUrl(currentBranch));
-        if (!Array.isArray(data)) throw new Error("API trả về không phải mảng");
-
-        employees = data.map(emp => ({
-          code: emp.code || "",
-          name: emp.name || "",
-          department: emp.department || "",
-          branch: emp.branch || "",
-          branch_today: currentBranch,
-          la_tang_ca: false,
-          so_cong_nv: 1,
-          service: [],
-          ghi_chu: ""
-        }));
-
-        // Tự thêm người đăng nhập nếu chưa có
-        if (loginCode && !employees.some(e => e.code === loginCode)) {
-          let found = employees.find(e => e.code === loginCode);
-          if (!found) {
-            try {
-              const searchData = await safeFetchJson(searchUrl(loginCode));
-              if (Array.isArray(searchData) && searchData.length > 0) {
-                found = {
-                  code: searchData[0].code,
-                  name: searchData[0].name,
-                  department: searchData[0].department,
-                  branch: searchData[0].branch,
-                  branch_today: currentBranch,
-                  la_tang_ca: false,
-                  so_cong_nv: 1,
-                  service: [],
-                  ghi_chu: ""
-                };
-              }
-            } catch(e) {}
-          }
-          if (found) employees.unshift(found);
-        }
-
-        renderAttendanceList();
-        showStatus("Đã tải xong");
-      } catch (err){
-        console.error(err);
-        showStatus("Lỗi khi tải: " + err.message);
-        alert("Lỗi khi tải danh sách nhân viên: " + err.message);
-      }
-    }
-
-    async function addBySearchQuery(q){
-      if(!q) return;
-      showStatus("Tìm nhân viên...");
-      try {
-        const data = await safeFetchJson(searchUrl(q));
-        if (typeof data === "string"){ throw new Error("Server trả về: " + data); }
-        if (!Array.isArray(data) || data.length === 0){
-          alert("Không tìm thấy nhân viên");
-          showStatus("Không tìm thấy");
-          return;
-        }
-        const emp = data[0];
-        const exists = employees.some(e => e.code === emp.code && e.branch_today === currentBranch);
-        if (exists){
-          alert("Nhân viên đã có trong danh sách");
-          showStatus("Đã tồn tại");
-          return;
-        }
-        employees.push({
-          code: emp.code,
-          name: emp.name,
-          department: emp.department,
-          branch: emp.branch,
-          branch_today: currentBranch,
-          la_tang_ca: (emp.branch !== currentBranch),
-          so_cong_nv: 1,
-          service: [],
-          ghi_chu: "Tăng ca"
-        });
-        renderAttendanceList();
-        showStatus("Đã thêm nhân viên");
-      } catch(err){
-        console.error(err);
-        showStatus("Lỗi tìm kiếm: " + err.message);
-        alert("Lỗi tìm kiếm: " + err.message);
-      }
-    }
-
-    /* ---------- Save ---------- */
-    async function saveAttendance(){
-      if (employees.length === 0){
-        alert("Danh sách trống, không có gì để lưu.");
-        return;
-      }
-      const payload = employees.map(emp => ({
-        sheet: getSheetName(emp.code),
-        thoi_gian: "", // để server tự sinh
-        ma_nv: emp.code,
-        ten_nv: emp.name,
-        chi_nhanh_chinh: emp.branch,
-        chi_nhanh_lam: emp.branch_today || currentBranch,
-        la_tang_ca: !!emp.la_tang_ca,
-        so_cong_nv: emp.so_cong_nv,
-        ghi_chu: (emp.ghi_chu || "").slice(0,200),
-        nguoi_diem_danh: loginCode //
-      }));
-
-      showStatus("Đang lưu...");
-      try {
-        const res = await fetch(saveUrl(), {
-          method: "POST",
-          headers: {
-            "Content-Type":"application/json",
-            "X-CSRF-Token": csrfToken
-          },
-          body: JSON.stringify(payload)
-        });
-        if (!res.ok){
-          const txt = await res.text().catch(()=>"(no body)");
-          throw new Error(`HTTP ${res.status}: ${txt}`);
-        }
-        const doc = await res.json().catch(()=>null);
-        if (doc && doc.status){
-          showStatus("Lưu thành công (" + doc.inserted + " bản ghi)");
-          alert("Lưu thành công");
-          // --- QR: Nếu có token trên URL, báo về server và xác nhận ---
-          const urlParams = new URLSearchParams(window.location.search);
-          const token = urlParams.get("token");
-          if (token) {
-            fetch("/attendance/checkin_success", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token })
-          })
-          .then(res => res.json())
-          .then(data => {
-              if (data.success && data.redirect_to) {
-                  window.location.href = data.redirect_to;  // frontend chủ động redirect
-              } else {
-                  alert("Điểm danh thất bại. Vui lòng thử lại!");
-              }
-          })
-          .catch(err => console.error("Checkin error:", err));
-
-
-                // nếu chưa có thì fallback check status như cũ
-                let ok = false, tries = 0;
-                while (!ok && tries < 5) {
-                  await new Promise(r => setTimeout(r, 1000));
-                  const resp = await fetch("/attendance/checkin_status?token=" + encodeURIComponent(token));
-                  const data = await resp.json();
-                  if (data.checked_in) {
-                    ok = true;
-                    window.location.href = data.redirect_to ? ("/" + data.redirect_to) : "/choose-function";
-                  }
-                  tries++;
-                };
-          }
-        } else {
-          showStatus("Lưu xong (không có phản hồi JSON hợp lệ)");
-          alert("Lưu xong");
-        }
-      } catch(err){
-        console.error(err);
-        showStatus("Lỗi khi lưu: " + err.message);
-        alert("Lỗi khi lưu điểm danh: " + err.message);
-      }
-    }
-
-    /* ---------- GPS detect → set currentBranch ---------- */
-    async function detectBranchByGPS(){
-      let retry = 0;
-      return new Promise((resolve) => {
-        function tryGetGPS() {
-          if (currentBranch && currentBranch !== "{{ branch_id }}") {
-            resolve(currentBranch);
-            return;
-          }
-          if (!navigator.geolocation){
-            alert("Thiết bị của bạn không hỗ trợ GPS! Bạn vẫn có thể điểm danh thủ công.");
-            resolve(null);
-            return;
-          }
-          // Luôn yêu cầu quyền vị trí chính xác
-          navigator.geolocation.getCurrentPosition(async (pos) => {
-            try {
-              const lat = pos.coords.latitude;
-              const lng = pos.coords.longitude;
-              // Hiển thị vị trí lấy được để debug
-              console.log("GPS:", lat, lng);
-              const data = await safeFetchJson("/attendance/api/detect-branch", {
-                method: "POST",
-                headers: { "Content-Type":"application/json" },
-                body: JSON.stringify({ lat, lng })
-              });
-              if (data && data.branch){
-                currentBranch = data.branch;
-                resolve(currentBranch);
-              } else {
-                alert("❌ Không thể xác định chi nhánh qua GPS! Bạn vẫn có thể điểm danh thủ công.");
-                resolve(null);
-              }
-            } catch (err) {
-              if (++retry < 3) {
-                setTimeout(tryGetGPS, 1200);
-              } else {
-                alert("Lỗi lấy GPS: " + err.message + ". Bạn vẫn có thể điểm danh thủ công.");
-                resolve(null);
-              }
+    if user:
+        today = date.today()
+        log = db.query(AttendanceLog).filter_by(user_code=user.code, date=today).first()
+        if log and log.checked_in:
+            request.session["user"] = {
+                "code": user.code,
+                "role": user.role,
+                "branch": user.branch,
+                "name": user.name
             }
-          }, (err) => {
-            // Hiển thị lỗi chi tiết để debug
-            alert("Không lấy được GPS: " + err.message + ". Hãy kiểm tra quyền truy cập vị trí, bật GPS và thử lại trên Chrome/Safari.");
-            resolve(null);
-          }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-        }
-        tryGetGPS();
-      });
+            request.session.pop("pending_user", None)
+            return RedirectResponse("/choose-function", status_code=303)
+        else:
+            # Phân luồng cho mobile và desktop
+            user_agent = request.headers.get("user-agent", "").lower()
+            is_mobile = any(k in user_agent for k in ["mobi", "android", "iphone", "ipad"])
+
+            if is_mobile:
+                # Luồng mobile: Bỏ qua QR, coi như đã check-in và vào thẳng trang điểm danh
+                if log:
+                    log.checked_in = True
+                else:
+                    # Nếu chưa có log, tạo mới và đánh dấu đã check-in
+                    log = AttendanceLog(user_code=user.code, date=today, checked_in=True, token=secrets.token_urlsafe(16))
+                    db.add(log)
+                db.commit()
+
+                # Đăng nhập cho user
+                request.session["user"] = { "code": user.code, "role": user.role, "branch": user.branch, "name": user.name }
+                request.session.pop("pending_user", None)
+                # Chuyển hướng đến trang điểm danh
+                return RedirectResponse("/attendance/ui", status_code=303)
+            else:
+                # Luồng desktop: Hiển thị QR code như cũ
+                token = secrets.token_urlsafe(24)
+                db.query(AttendanceLog).filter_by(user_code=user.code, date=today).delete()
+                log = AttendanceLog(user_code=user.code, date=today, token=token, checked_in=False)
+                db.add(log)
+                db.commit()
+                request.session["pending_user"] = { "code": user.code, "role": user.role, "branch": user.branch, "name": user.name }
+                request.session["qr_token"] = token
+                return RedirectResponse("/show_qr", status_code=303)
+    else:
+        guessed_role = ""
+        if username.lower().startswith("b") and "lt" in username.lower():
+            guessed_role = "letan"
+        elif username.lower().startswith("ktv"):
+            guessed_role = "ktv"
+        elif username.lower() in ["ql", "admin"]:
+            guessed_role = "quanly"
+
+        query = urlencode({
+            "error": "Mã nhân viên hoặc mật khẩu sai",
+            "role": guessed_role
+        })
+        return RedirectResponse(f"/login?{query}", status_code=303)
+
+# --- Middleware kiểm tra trạng thái điểm danh QR ---
+from datetime import date
+
+def require_checked_in_user(request: Request):
+    user = request.session.get("user")
+    if not user:
+        return False
+
+    today = date.today()
+    db = SessionLocal()
+    try:
+        log = db.query(AttendanceLog).filter_by(
+            user_code=user["code"],
+            date=today
+        ).first()
+
+        # ✅ Cho phép vào nếu:
+        # - Có log checked_in trong DB
+        # - Hoặc session có flag after_checkin = "choose_function"
+        if (log and log.checked_in) or request.session.get("after_checkin") == "choose_function":
+            return True
+    finally:
+        db.close()
+
+    return False
+
+# --- CSRF Token Management ---
+def generate_csrf_token():
+    return secrets.token_urlsafe(32)
+
+def get_csrf_token(request: Request):
+    token = request.session.get("csrf_token")
+    if not token:
+        token = generate_csrf_token()
+        request.session["csrf_token"] = token
+    return token
+
+def validate_csrf(request: Request):
+    token = request.headers.get("X-CSRF-Token") or request.query_params.get("csrf_token")
+    session_token = request.session.get("csrf_token")
+    if not session_token or token != session_token:
+        raise HTTPException(status_code=403, detail="CSRF token không hợp lệ")
+
+# --- Attendance UI ---
+@app.get("/attendance/ui", response_class=HTMLResponse)
+def attendance_ui(request: Request):
+    user_data = request.session.get("user")
+    if not user_data:
+        return RedirectResponse("/login", status_code=303)
+    active_branch = request.session.get("active_branch") or user_data.get("branch", "")
+    csrf_token = get_csrf_token(request)
+    # Truyền mã nhân viên đăng nhập cho frontend để luôn hiển thị trong danh sách điểm danh
+    response = templates.TemplateResponse("attendance.html", {
+        "request": request,
+        "branch_id": active_branch,
+        "csrf_token": csrf_token,
+        # "branches": BRANCHES,
+        "user": user_data,
+        "login_code": user_data.get("code", ""),  # thêm dòng này
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+# --- Get CSRF token ---
+@app.get("/attendance/csrf-token")
+def attendance_csrf_token(request: Request):
+    token = get_csrf_token(request)
+    return {"csrf_token": token}
+
+# --- Employees by branch (include 'all') ---
+@app.get("/attendance/api/employees/by-branch/{branch_id}", response_class=JSONResponse)
+def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), request: Request = None):
+    try:
+        user = request.session.get("user") if request else None
+        now_hour = datetime.now(VN_TZ).hour
+        current_shift = "CS" if 7 <= now_hour < 19 else "CT"
+
+        def match_shift(emp_code: str):
+            code = (emp_code or "").upper()
+            if "CS" in code and current_shift != "CS":
+                return False
+            if "CT" in code and current_shift != "CT":
+                return False
+            return True
+
+        # --- Xác định branch hiệu lực ---
+        valid_branches = set(BRANCHES)
+        raw = (branch_id or "").strip().upper()
+        bad_values = {"", "ALL", "NULL", "NONE", "UNDEFINED"}
+        effective_branch = None
+        if raw and raw not in bad_values and raw in valid_branches:
+            effective_branch = raw
+        else:
+            sess_branch = (request.session.get("active_branch") or "").strip().upper() if request else ""
+            usr_branch = (user.get("branch") or "").strip().upper() if user else ""
+            if sess_branch in valid_branches:
+                effective_branch = sess_branch
+            elif usr_branch in valid_branches:
+                effective_branch = usr_branch
+
+        employees = []
+
+        if user and user.get("role") == "letan":
+            # ✅ Luôn chỉ hiển thị đúng lễ tân đăng nhập
+            lt_self = db.query(User).filter(User.code == user.get("code")).first()
+            if lt_self:
+                employees.append(lt_self)
+
+            # ✅ Thêm nhân viên khác theo chi nhánh hiệu lực (nếu có) – loại hết lễ tân/quanly/ktv
+            if effective_branch:
+                others = db.query(User).filter(
+                    User.branch == effective_branch,
+                    ~User.role.in_(["letan", "quanly", "ktv"])
+                ).all()
+                employees.extend([emp for emp in others if match_shift(emp.code)])
+
+            employees.sort(key=lambda e: (e.code != user.get("code"), e.name))
+
+        else:
+            if effective_branch:
+                employees = db.query(User).filter(
+                    User.branch == effective_branch,
+                    ~User.role.in_(["quanly", "ktv"])
+                ).all()
+                employees = [emp for emp in employees if match_shift(emp.code)]
+                employees.sort(key=lambda e: e.name)
+            else:
+                employees = []
+
+        # format output
+        employee_list = [
+            {
+                "code": emp.code,
+                "name": emp.name,
+                "department": emp.role,
+                "branch": emp.branch,
+            }
+            for emp in employees
+        ]
+
+        # ✅ ép browser + proxy không cache
+        response = JSONResponse(content=employee_list)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
+    except Exception as e:
+        response = JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+# --- Employee search ---
+@app.get("/attendance/api/employees/search", response_class=JSONResponse)
+def search_employees(
+    q: str = "",
+    only_bp: bool = False,
+    db: Session = Depends(get_db)
+):
+    """
+    API tìm kiếm nhân viên theo mã hoặc tên.
+    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
+    - Giới hạn 20 kết quả.
+    """
+    if not q:
+        return JSONResponse(content=[], status_code=400)
+
+    search_pattern = f"%{q}%"
+    employees = db.query(User).filter(
+        or_(
+            User.code.ilike(search_pattern),
+            User.name.ilike(search_pattern)
+        )
+    ).limit(50).all()
+
+    if only_bp:
+        employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
+
+    employees = employees[:20]
+
+    employee_list = [
+        {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
+        for emp in employees
+    ]
+    return JSONResponse(content=employee_list)
+
+def serialize_task(task: dict) -> dict:
+    def to_str(val):
+        if isinstance(val, datetime):
+            return val.isoformat()
+        return val or ""
+
+    return {
+        "id": task.get("id"),
+        "chi_nhanh": task.get("chi_nhanh"),
+        "phong": task.get("phong"),
+        "mo_ta": task.get("mo_ta"),
+        "ngay_tao": to_str(task.get("ngay_tao")),
+        "han_hoan_thanh": format_datetime_display(task.get("han_hoan_thanh"), with_time=False),
+        "han_hoan_thanh_raw": to_str(task.get("han_hoan_thanh")),
+        "trang_thai": task.get("trang_thai"),
+        "nguoi_tao": task.get("nguoi_tao"),
+        "ghi_chu": task.get("ghi_chu") or "",
+        "nguoi_thuc_hien": task.get("nguoi_thuc_hien", ""),
+        "ngay_hoan_thanh": to_str(task.get("ngay_hoan_thanh")),
+        "han_hoan_thanh": task.get("han_hoan_thanh"),
     }
 
-    /* ---------- Wiring ---------- */
-    // Tạo popup search khi bấm nút
-    document.getElementById("addEmployeeBtn").onclick = () => {
-      const searchBox = document.createElement("div");
-      searchBox.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50";
-      searchBox.innerHTML = `
-        <div class="bg-white p-4 rounded-xl shadow-lg w-80">
-          <input id="searchInput" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3 text-sm" placeholder="Nhập mã hoặc tên nhân viên..." />
-          <ul id="suggestList" class="max-h-40 overflow-y-auto divide-y divide-gray-200"></ul>
-          <div class="mt-3 text-right">
-            <button id="closeSearch" class="px-3 py-1 bg-gray-100 rounded-lg text-sm">Đóng</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(searchBox);
+@app.get("/home", response_class=HTMLResponse)
+def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: str = "", han_hoan_thanh: str = "", page: int = 1, per_page: int = 8, db: Session = Depends(get_db)):
+    user_data = request.session.get("user")
+    today = datetime.now(VN_TZ)
+    if page == 1 and not search and not trang_thai and not han_hoan_thanh:
+        overdue_tasks = db.query(Task).filter(
+            Task.trang_thai == "Đang chờ",
+            Task.han_hoan_thanh < today
+        ).all()
+        for t in overdue_tasks:
+            t.trang_thai = "Quá hạn"
+        if overdue_tasks:
+            db.commit()
 
-      const input = searchBox.querySelector("#searchInput");
-      const list = searchBox.querySelector("#suggestList");
+    if not user_data:
+        return RedirectResponse("/login", status_code=303)
 
-      input.oninput = async () => {
-        const q = input.value.trim();
-        if (!q) { list.innerHTML = ""; return; }
-        try {
-          const data = await safeFetchJson(searchUrl(q));
-          const top5 = data.slice(0, 5); // chỉ 5 kết quả
-          list.innerHTML = top5.map(emp => `
-            <li class="p-2 hover:bg-gray-100 cursor-pointer" data-code="${emp.code}">
-              <div class="font-medium">${escapeHtml(emp.name)}</div>
-              <div class="text-xs text-gray-500">${escapeHtml(emp.code)} — ${escapeHtml(emp.department || "")}</div>
-            </li>
-          `).join("");
-          list.querySelectorAll("li").forEach(li => {
-            li.onclick = () => {
-              addBySearchQuery(li.dataset.code);
-              document.body.removeChild(searchBox);
-            };
-          });
-        } catch(e) {
-          console.error(e);
+    # Tiếp tục xử lý nếu người dùng đã đăng nhập
+    username = user_data["code"]
+    role = user_data["role"]
+    user_branch = user_data["branch"]
+    user_name = user_data["name"]
+
+    tasks_query = db.query(Task)
+    if role != "quanly":
+        tasks_query = tasks_query.filter(Task.trang_thai != "Đã xoá")
+
+    if role == "letan":
+        chi_nhanh = user_branch
+        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
+    elif chi_nhanh:
+        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
+
+    if search:
+        clean_search = re.sub(r'\s+', ' ', search).strip()
+        search_pattern = f"%{clean_search}%"
+        tasks_query = tasks_query.filter(
+            Task.chi_nhanh.ilike(search_pattern) |
+            Task.phong.ilike(search_pattern) |
+            Task.mo_ta.ilike(search_pattern) |
+            Task.trang_thai.ilike(search_pattern) |
+            Task.nguoi_tao.ilike(search_pattern) |
+            Task.nguoi_thuc_hien.ilike(search_pattern) |
+            Task.ghi_chu.ilike(search_pattern)
+        )
+
+    if trang_thai:
+        tasks_query = tasks_query.filter(Task.trang_thai == trang_thai)
+
+    if han_hoan_thanh:
+        try:
+            han_date = datetime.strptime(han_hoan_thanh, "%Y-%m-%d").date()
+            tasks_query = tasks_query.filter(func.date(Task.han_hoan_thanh) == han_date)
+        except Exception as e:
+            print("Lỗi định dạng ngày lọc:", e)
+
+    rows_all = tasks_query.all()
+
+    order = {
+        "Quá hạn": 0,
+        "Đang chờ": 1,
+        "Hoàn thành": 2,
+        "Đã xoá": 3
+    }
+    rows_all.sort(key=lambda t: (
+        order.get(t.trang_thai, 99),
+        t.han_hoan_thanh or datetime.max
+    ))
+
+    total_tasks = len(rows_all)
+    total_pages = max(1, (total_tasks + per_page - 1) // per_page)
+    start = (page - 1) * per_page
+    rows = rows_all[start:start + per_page]
+
+    tasks = []
+    chi_nhanhs_set = set()
+    for t in rows:
+        chi_nhanhs_set.add(t.chi_nhanh)
+        task_data = {
+            "id": t.id,
+            "chi_nhanh": t.chi_nhanh,
+            "phong": t.phong,
+            "mo_ta": t.mo_ta,
+            "ngay_tao": format_datetime_display(t.ngay_tao, with_time=True),
+            "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
+            "han_hoan_thanh_raw": t.han_hoan_thanh,
+            "trang_thai": t.trang_thai,
+            "nguoi_tao": t.nguoi_tao,
+            "ghi_chu": t.ghi_chu or "",
+            "nguoi_thuc_hien": t.nguoi_thuc_hien,
+            "ngay_hoan_thanh": format_datetime_display(t.ngay_hoan_thanh, with_time=True) if t.ngay_hoan_thanh else "",
+            "is_overdue": is_overdue(t),
         }
-      };
+        tasks.append(task_data)
+    
+    def parse_display_datetime(s: str) -> datetime:
+        try:
+            return datetime.strptime(s, "%d/%m/%Y %H:%M")
+        except:
+            return datetime.min
 
-      searchBox.querySelector("#closeSearch").onclick = () => {
-        document.body.removeChild(searchBox);
-      };
-    };
-
-    function branchDisplay(branch) {
-      const map = {
-        B1: "Bin Bin Bin Hotel 1",
-        B2: "Bin Bin Bin Hotel 2",
-        B3: "Bin Bin Bin Hotel 3",
-        B5: "Bin Bin Bin Hotel 5",
-        B6: "Bin Bin Bin Hotel 6",
-        B7: "Bin Bin Bin Hotel 7",
-        B8: "Bin Bin Bin Hotel 8",
-        B9: "Bin Bin Bin Hotel 9",
-        B10: "Bin Bin Bin Hotel 10",
-        B11: "Bin Bin Bin Hotel 11",
-        B12: "Bin Bin Bin Hotel 12",
-        B14: "Bin Bin Bin Hotel 14",
-        B15: "Bin Bin Bin Hotel 15",
-        B16: "Bin Bin Bin Hotel 16",
-      };
-      return map[branch] || branch || "";
+    # ✅ Thống kê
+    today = datetime.now()
+    thong_ke = {
+        "tong_cong_viec": len(rows_all),
+        "hoan_thanh": sum(1 for t in rows_all if t.trang_thai == "Hoàn thành"),
+        "hoan_thanh_tuan": sum(
+            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
+            t.ngay_hoan_thanh and
+            t.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday())
+        ),
+        "hoan_thanh_thang": sum(
+            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
+            t.ngay_hoan_thanh and
+            t.ngay_hoan_thanh.month == today.month
+        ),
+        "dang_cho": sum(1 for t in rows_all if t.trang_thai == "Đang chờ"),
+        "qua_han": sum(1 for t in rows_all if t.trang_thai == "Quá hạn"),
     }
 
-    document.getElementById("saveBtn").onclick = saveAttendance;
-    document.getElementById("refreshBtn").onclick = () => loadEmployeesForBranch();
+    tasks_serialized = [serialize_task(t) for t in tasks]
 
-    /* ---------- Init ---------- */
-    window.addEventListener("DOMContentLoaded", async () => {
-      // // Nếu muốn enforce chỉ điện thoại, bỏ comment dòng dưới
-      // if (!/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      //   alert("⚠️ Hệ thống điểm danh chỉ dùng trên điện thoại!");
-      //   window.location.href = "/login";
-      //   return;
-      // }
+    from urllib.parse import urlencode
 
-      // GPS → branch
-      const detected = await detectBranchByGPS();
-      if (detected) {
-        document.getElementById("branchName").textContent = branchDisplay(detected);
-        await loadEmployeesForBranch();
-      } else if (currentBranch && currentBranch !== "{{ branch_id }}") {
-        document.getElementById("branchName").textContent = currentBranch;
-        await loadEmployeesForBranch();
-      } else {
-        document.getElementById("branchName").textContent = "(không xác định)";
-      }
-    });
-  </script>
-</body>
-</html>
+    query_params = {
+        "search": search,
+        "trang_thai": trang_thai,
+        "han_hoan_thanh": han_hoan_thanh,
+        "chi_nhanh": chi_nhanh,
+    }
+    query_string = "&" + urlencode({k: v for k, v in query_params.items() if v}) if any(query_params.values()) else ""
+
+    query_for_calendar = db.query(Task)
+    if role != "quanly":
+        query_for_calendar = query_for_calendar.filter(Task.trang_thai != "Đã xoá")
+
+
+    # Áp dụng bộ lọc nếu có
+    if role == "letan":
+        query_for_calendar = query_for_calendar.filter(Task.chi_nhanh == user_branch)
+    elif chi_nhanh:
+        query_for_calendar = query_for_calendar.filter(Task.chi_nhanh == chi_nhanh)
+
+    if search:
+        clean_search = re.sub(r'\s+', ' ', search).strip()
+        search_pattern = f"%{clean_search}%"
+        query_for_calendar = query_for_calendar.filter(
+            Task.chi_nhanh.ilike(search_pattern) |
+            Task.phong.ilike(search_pattern) |
+            Task.mo_ta.ilike(search_pattern) |
+            Task.trang_thai.ilike(search_pattern) |
+            Task.nguoi_tao.ilike(search_pattern) |
+            Task.nguoi_thuc_hien.ilike(search_pattern) |
+            Task.ghi_chu.ilike(search_pattern)
+        )
+
+    if trang_thai:
+        query_for_calendar = query_for_calendar.filter(Task.trang_thai == trang_thai)
+
+    if han_hoan_thanh:
+        try:
+            han_date = datetime.strptime(han_hoan_thanh, "%Y-%m-%d").date()
+            query_for_calendar = query_for_calendar.filter(func.date(Task.han_hoan_thanh) == han_date)
+        except Exception as e:
+            print("Lỗi định dạng ngày lọc (calendar):", e)
+
+    # Lấy toàn bộ tasks cho Calendar
+    all_tasks_for_calendar = query_for_calendar.all()
+
+
+    all_tasks_for_calendar_serialized = [
+        {
+            "id": t.id,
+            "phong": t.phong,
+            "mo_ta": t.mo_ta,
+            "han_hoan_thanh": t.han_hoan_thanh.strftime("%Y-%m-%d") if t.han_hoan_thanh else "",
+            "han_hoan_thanh_raw": t.han_hoan_thanh.strftime("%d/%m/%Y") if t.han_hoan_thanh else "",
+            "trang_thai": t.trang_thai
+        } for t in all_tasks_for_calendar
+    ]
+
+    # ✅ Trả về template
+    response = templates.TemplateResponse("home.html", {
+        "request": request,
+        "tasks": tasks_serialized,
+        "user": username,
+        "role": role,
+        "user_name": user_name,
+        "search": search,
+        "trang_thai": trang_thai,
+        "chi_nhanh": chi_nhanh,
+        "chi_nhanhs": sorted(chi_nhanhs_set),
+        "user_chi_nhanh": user_branch,
+        "branches": BRANCHES,
+        "now": today,
+        "thong_ke": thong_ke,
+        "page": page,
+        "total_pages": total_pages,
+        "per_page": per_page,
+        "query_string": query_string,
+        "all_tasks_for_calendar": all_tasks_for_calendar_serialized,
+    })
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+from typing import Optional
+
+@app.post("/add")
+def add_task(
+    request: Request,
+    chi_nhanh: Optional[str] = Form(None),
+    phong: str = Form(...),
+    mo_ta: str = Form(...),
+    han_hoan_thanh: str = Form(...),
+    nguoi_tao: str = Form(...),
+    ghi_chu: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    role = user.get("role")
+    user_branch = user.get("branch")
+
+    # ✅ Nếu không phải quản lý/ktv thì ép chi nhánh từ session
+    if role not in ["quanly", "ktv"]:
+        chi_nhanh = user_branch
+
+    if not chi_nhanh:
+        raise HTTPException(status_code=400, detail="Không xác định được chi nhánh")
+
+    han = parse_datetime_input(han_hoan_thanh)
+    now = datetime.now(VN_TZ)
+    trang_thai = "Quá hạn" if han < now else "Đang chờ"
+
+    new_task = Task(
+        chi_nhanh=chi_nhanh,
+        phong=phong,
+        mo_ta=mo_ta,
+        ngay_tao=now,
+        han_hoan_thanh=han,
+        trang_thai=trang_thai,
+        nguoi_tao=nguoi_tao,
+        ghi_chu=ghi_chu
+    )
+    db.add(new_task)
+    db.commit()
+
+    raw_query = request.scope.get("query_string", b"").decode()
+    clean_query = clean_query_string(raw_query)
+    redirect_url = f"/home?{clean_query}&success=1&action=add" if clean_query else "/home?success=1&action=add"
+
+    return RedirectResponse(redirect_url, status_code=303)
+
+@app.post("/complete/{task_id}")
+async def complete_task(task_id: int, request: Request, nguoi_thuc_hien: str = Form(...), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+
+    task.trang_thai = "Hoàn thành"
+    task.nguoi_thuc_hien = nguoi_thuc_hien
+    task.ngay_hoan_thanh = datetime.now(VN_TZ)
+    db.commit()
+
+    if request.query_params.get("json") == "1":
+        return JSONResponse({"success": True, "task_id": task_id})
+
+    raw_query = request.scope.get("query_string", b"").decode()
+    clean_query = clean_query_string(raw_query)
+    redirect_url = f"/home?{clean_query}&success=1&action=complete" if clean_query else "/home?success=1&action=complete"
+    return RedirectResponse(redirect_url, status_code=303)
+
+@app.post("/delete/{task_id}")
+async def delete_task(task_id: int, request: Request, db: Session = Depends(get_db)):
+    user_code = request.session.get("user", {}).get("code", "")
+    user = db.query(User).filter(User.code == user_code).first()
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+
+    if user.role == "quanly":
+        db.delete(task)
+    else:
+        task.trang_thai = "Đã xoá"
+    db.commit()
+
+    if request.query_params.get("json") == "1":
+        return JSONResponse({"success": True, "task_id": task_id})
+
+    raw_query = request.scope.get("query_string", b"").decode()
+    clean_query = clean_query_string(raw_query)
+    redirect_url = f"/home?{clean_query}&success=1&action=delete" if clean_query else "/home?success=1&action=delete"
+    return RedirectResponse(redirect_url, status_code=303)
+
+
+from typing import Optional
+
+@app.post("/edit/{task_id}")
+async def edit_submit(
+    request: Request,
+    task_id: int,
+    chi_nhanh: Optional[str] = Form(None),
+    phong: str = Form(...),
+    mo_ta: str = Form(...),
+    han_hoan_thanh: str = Form(...),
+    ghi_chu: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    # Lấy session user
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    role = user.get("role")
+    user_branch = user.get("branch")
+
+    # Nếu không phải quản lý hoặc kỹ thuật viên thì ép chi nhánh từ session
+    if role not in ["quanly", "ktv"]:
+        chi_nhanh = user_branch
+
+    if not chi_nhanh:
+        raise HTTPException(status_code=400, detail="Không xác định được chi nhánh")
+
+    # Tìm công việc cần sửa
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
+
+    # Parse hạn hoàn thành
+    han = parse_datetime_input(han_hoan_thanh)
+    now = datetime.now(VN_TZ)
+
+    # Cập nhật dữ liệu
+    task.chi_nhanh = chi_nhanh
+    task.phong = phong
+    task.mo_ta = mo_ta
+    task.han_hoan_thanh = han
+    task.ghi_chu = ghi_chu
+    task.trang_thai = "Quá hạn" if han < now else "Đang chờ"
+
+    db.commit()
+
+    # Lấy query_string để redirect giữ lại filter
+    form_data = await request.form()
+    redirect_query = form_data.get("redirect_query", "")
+
+    return RedirectResponse(f"/home?success=1&action=update{('&' + redirect_query) if redirect_query else ''}", status_code=303)
+
+@app.get("/send-overdue-alerts")
+async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
+    try:
+        now = datetime.now(VN_TZ)
+
+        # Cập nhật trạng thái "Quá hạn"
+        overdue_to_update = db.query(Task).filter(
+            Task.trang_thai == "Đang chờ",
+            Task.han_hoan_thanh < now
+        ).all()
+        for task in overdue_to_update:
+            task.trang_thai = "Quá hạn"
+        if overdue_to_update:
+            db.commit()
+
+        # Lấy công việc quá hạn
+        tasks = db.query(Task).filter(
+            Task.trang_thai == "Quá hạn"
+        ).order_by(Task.chi_nhanh.asc(), Task.phong.asc()).all()
+
+        if not tasks:
+            return JSONResponse({"message": "Không có công việc quá hạn."})
+
+        from collections import defaultdict
+        grouped = defaultdict(list)
+        for t in tasks:
+            grouped[t.chi_nhanh].append(t)
+
+        base_url = str(request.base_url).rstrip("/")
+        total_sent = 0
+
+        for chi_nhanh, task_list in grouped.items():
+            # Bảng HTML có kẻ dòng, căn giữa tiêu đề, chữ căn đều
+            rows_html = "\n".join([
+                f"""
+                <tr style="border-bottom:1px solid #e5e7eb;">
+                    <td style="padding:10px;">{t.phong}</td>
+                    <td style="padding:10px;">
+                        <a href="{base_url}/edit/{t.id}" target="_blank" style="color:#2563eb; text-decoration:none;">
+                            {t.mo_ta}
+                        </a>
+                    </td>
+                    <td style="padding:10px;">{t.ghi_chu or ''}</td>
+                </tr>
+                """ for t in task_list
+            ])
+
+            subject = f"🕹 CẢNH BÁO: {len(task_list)} công việc quá hạn tại {chi_nhanh}"
+
+            body = f"""
+            <html>
+            <body style="font-family:Segoe UI, sans-serif; font-size:15px; color:#1f2937; background-color:#f9fafb; padding:24px;">
+                <div style="max-width:700px; margin:auto; background:white; padding:24px; border-radius:8px; border:1px solid #e5e7eb; text-align:justify;">
+                    <h2 style="color:#dc2626; font-weight:600; margin-bottom:16px; font-size:20px; text-align:center;">
+                        {chi_nhanh} CẢNH BÁO CÔNG VIỆC QUÁ HẠN
+                    </h2>
+
+                    <p style="font-size:15px; line-height:1.6;">
+                        🍀 Hệ thống ghi nhận có <strong>{len(task_list)} công việc</strong> tại chi nhánh <strong>{chi_nhanh}</strong> đang quá hạn xử lý.<br></p>
+                    
+                    <table style="
+                        width:100%;
+                        border-collapse:collapse;
+                        margin-top:20px;
+                        font-size:14px;
+                        background-color:white;
+                        box-shadow:0 0 8px rgba(0,0,0,0.04);
+                    ">
+                        <thead style="background-color: #f3f4f6;">
+                            <tr style="border-bottom:1px solid #d1d5db;">
+                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Phòng</th>
+                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Mô tả</th>
+                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows_html}
+                        </tbody>
+                    </table>
+
+                    <p style="font-size:15px; line-height:1.6;"> ❗️ Vui lòng kiểm tra và xử lý kịp thời để đảm bảo tiến độ công việc. </p>
+
+                    <p style="margin-top:16px; font-size:13px; color:#9ca3af;">
+                        (Email tự động từ hệ thống quản lý công việc Bin Bin Hotel.)
+                    </p>
+                </div>
+            </body>
+            </html>
+            """
+
+            await send_alert_email(ALERT_EMAIL, subject, body, html=True)
+            total_sent += len(task_list)
+
+        return JSONResponse({"sent_total": total_sent, "branches": list(grouped.keys())})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+def seed_users():
+    allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+    db = SessionLocal()
+    try:
+        seen_codes = set()
+        for emp in employees:
+            code = emp.get("code", "")
+            if not code or code in seen_codes:
+                continue  # bỏ qua nhân viên trùng mã
+            seen_codes.add(code)
+            name = emp.get("name", "")
+            branch = emp.get("branch", "")
+            role = emp.get("role", "")
+            if not role:
+                # fallback logic nếu thiếu trường role
+                if "LT" in code:
+                    role = "letan"
+                elif "BP" in code:
+                    role = "buongphong"
+                elif "BV" in code:
+                    role = "baove"
+                elif "QL" in code:
+                    role = "quanly"
+                elif "KTV" in code:
+                    role = "ktv"
+                elif code.lower() in ["admin", "boss"]:
+                    role = code.lower()
+                else:
+                    role = "khac"
+            password = "999" if role in allowed_login_roles else ""
+            existing = db.query(User).filter(User.code == code).first()
+            if existing:
+                if existing.password != password:
+                    existing.password = password
+                existing.name = name
+                existing.role = role
+                existing.branch = branch
+            else:
+                db.add(User(code=code, name=name, password=password, role=role, branch=branch))
+        db.commit()
+    finally:
+        db.close()
+
+def sync_employees_to_db():
+    """
+    Xóa toàn bộ bảng User và thêm lại từ danh sách employees.py.
+    Đảm bảo dữ liệu luôn đồng bộ với employees.py.
+    """
+    db = SessionLocal()
+    try:
+        db.query(User).delete()
+        allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+        for emp in employees:
+            code = emp.get("code", "")
+            if not code:
+                continue
+            name = emp.get("name", "")
+            branch = emp.get("branch", "")
+            role = emp.get("role", "")
+            # Nếu thiếu role thì tự động nhận diện
+            if not role:
+                if "LT" in code:
+                    role = "letan"
+                elif "BP" in code:
+                    role = "buongphong"
+                elif "BV" in code:
+                    role = "baove"
+                elif "QL" in code:
+                    role = "quanly"
+                elif "KTV" in code:
+                    role = "ktv"
+                elif code.lower() in ["admin", "boss"]:
+                    role = code.lower()
+                else:
+                    role = "khac"
+            password = emp.get("password") or (
+                "999" if role in allowed_login_roles else ""
+            )
+
+            db.add(User(code=code, name=name, password=password, role=role, branch=branch))
+        db.commit()
+    finally:
+        db.close()
+
+@app.get("/sync-employees")
+def sync_employees_endpoint(request: Request):
+    """
+    Endpoint để đồng bộ lại dữ liệu nhân viên từ employees.py vào database.
+    Chỉ cho phép admin hoặc boss thực hiện.
+    """
+    user = request.session.get("user")
+    if not user or user.get("role") not in ["admin", "boss"]:
+        raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
+    sync_employees_to_db()
+    return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py"}
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse("/login", status_code=303)
+
+@app.on_event("startup")
+def startup():
+    init_db()
+    sync_employees_to_db()
+    # Nếu cần theo dõi file employees.py thì khởi động thread ở đây
+    import threading
+    import time
+    EMPLOYEES_FILE = os.path.join(os.path.dirname(__file__), "employees.py")
+    _last_mtime = None
+    def watch_employees_file():
+        nonlocal _last_mtime
+        while True:
+            try:
+                mtime = os.path.getmtime(EMPLOYEES_FILE)
+                if _last_mtime is None:
+                    _last_mtime = mtime
+                elif mtime != _last_mtime:
+                    _last_mtime = mtime
+                    print("[SYNC] employees.py thay đổi → đồng bộ DB...")
+                    sync_employees_to_db()
+                    print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
+            except FileNotFoundError:
+                print("[SYNC] Không tìm thấy file employees.py")
+            except Exception as e:
+                print("[SYNC] Lỗi khi theo dõi employees.py:", e)
+            time.sleep(5)
+    threading.Thread(target=watch_employees_file, daemon=True).start()
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
+
+def get_lan_ip():
+    """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Không cần phải kết nối được, chỉ là một mẹo để lấy IP
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1' # Fallback nếu không lấy được IP
+    finally:
+        s.close()
+    return IP
+
+@app.get("/show_qr", response_class=HTMLResponse)
+async def show_qr(request: Request, db: Session = Depends(get_db)):
+    user = request.session.get("pending_user") or request.session.get("user")
+    if not user:
+        return RedirectResponse("/login", status_code=303)
+
+    today = date.today()
+    # Kiểm tra xem đã có log cho hôm nay chưa
+    log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+    if log:
+        if log.checked_in:
+            # Nếu đã check-in thì không cần show_qr nữa → đi thẳng trang chọn chức năng
+            return RedirectResponse("/choose-function", status_code=303)
+        else:
+            qr_token = log.token
+    else:
+        # Nếu chưa có log thì tạo mới
+        import uuid
+        qr_token = str(uuid.uuid4())
+        log = AttendanceLog(
+            user_code=user["code"],
+            date=today,
+            token=qr_token,
+            checked_in=False
+        )
+        db.add(log)
+        db.commit()
+
+    request.session["qr_token"] = qr_token
+    
+    # Lấy host và port từ request
+    request_host = request.url.hostname
+    port = request.url.port
+    scheme = request.url.scheme
+
+    # Nếu host là localhost, thay thế bằng IP LAN để điện thoại có thể truy cập
+    if request_host in ["localhost", "127.0.0.1"]:
+        lan_ip = get_lan_ip()
+        base_url = f"{scheme}://{lan_ip}:{port}"
+    else:
+        base_url = str(request.base_url).strip("/")
+    return templates.TemplateResponse("show_qr.html", {
+        "request": request,
+        "qr_token": qr_token,
+        "base_url": base_url
+    })
+
+from services.attendance_service import push_bulk_checkin, get_attendance_by_checker
+
+from fastapi import BackgroundTasks
+
+@app.post("/attendance/checkin_bulk")
+async def attendance_checkin_bulk(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    validate_csrf(request)
+
+    user = request.session.get("user") or request.session.get("pending_user")
+    if not user:
+        raise HTTPException(status_code=403, detail="Không có quyền điểm danh.")
+
+    raw_data = await request.json()
+    if not isinstance(raw_data, list):
+        raise HTTPException(status_code=400, detail="Payload phải là danh sách")
+
+    nguoi_diem_danh_code = user.get("code")
+    normalized_data = []
+    for rec in raw_data:
+        normalized_data.append({
+            "sheet": rec.get("sheet"),
+            "thoi_gian": rec.get("thoi_gian"),
+            "ma_nv": rec.get("ma_nv"),
+            "ten_nv": rec.get("ten_nv"),
+            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
+            "chi_nhanh_lam": rec.get("chi_nhanh_lam"),
+            "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
+            "so_cong_nv": rec.get("so_cong_nv"),
+            "ghi_chu": rec.get("ghi_chu", ""),
+            "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
+            "so_phong": rec.get("so_phong") or rec.get("room_count") or "",
+            "so_luong": rec.get("so_luong") or rec.get("item_count") or "",
+            "nguoi_diem_danh": nguoi_diem_danh_code
+        })
+
+    # ✅ chạy push_bulk_checkin ở background
+    background_tasks.add_task(push_bulk_checkin, normalized_data)
+
+    print(f"[AUDIT] {user['code']} gửi {len(normalized_data)} record điểm danh (ghi Sheets async)")
+    return {"status": "queued", "inserted": len(normalized_data)}
+
+@app.get("/api/attendance/results-by-checker")
+async def api_get_attendance_results(request: Request):
+    """
+    API trả về kết quả điểm danh của lễ tân đang đăng nhập.
+    """
+    user = request.session.get("user")
+    if not user or user.get("role") != 'letan':
+        raise HTTPException(status_code=403, detail="Chỉ lễ tân mới có quyền truy cập.")
+
+    checker_code = user.get("code")
+    if not checker_code:
+        raise HTTPException(status_code=403, detail="Không tìm thấy mã người dùng.")
+
+    results = get_attendance_by_checker(checker_code)
+    return JSONResponse(content=results)
+
+# --- QR Checkin APIs ---
+
+@app.get("/attendance/checkin")
+def attendance_checkin(request: Request, token: str, db: Session = Depends(get_db)):
+    log = db.query(AttendanceLog).filter_by(token=token).first()
+    if not log:
+        return HTMLResponse("Token không hợp lệ!", status_code=400)
+
+    # Kiểm tra xem token này đã được sử dụng để check-in thành công chưa.
+    # Nếu rồi, link QR sẽ không còn hợp lệ.
+    if log.checked_in:
+        return templates.TemplateResponse("qr_invalid.html", {"request": request, "message": "Mã QR này đã được sử dụng để điểm danh và không còn hợp lệ."}, status_code=403)
+
+    user = db.query(User).filter_by(code=log.user_code).first()
+    if not user:
+        return HTMLResponse("Không tìm thấy user!", status_code=400)
+
+    # FIX: Store user in session to authenticate subsequent API calls
+    user_data = {
+        "code": user.code,
+        "role": user.role,
+        "branch": user.branch,
+        "name": user.name
+    }
+    request.session["pending_user"] = user_data
+
+    # Render the attendance page
+    return templates.TemplateResponse("attendance.html", {
+        "request": request,
+        "branch_id": user.branch,
+        "csrf_token": get_csrf_token(request),
+        "user": user_data,
+        "login_code": user.code,
+        "token": token
+    })
+
+@app.post("/attendance/checkin_success")
+async def checkin_success(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    token = data.get("token")
+    if not token:
+        return JSONResponse({"success": False, "error": "Thiếu token"}, status_code=400)
+
+    log = db.query(AttendanceLog).filter_by(token=token).first()
+    if not log:
+        return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=404)
+
+    log.checked_in = True
+    db.commit()
+
+    user = db.query(User).filter_by(code=log.user_code).first()
+    if user:
+        # Cập nhật session cho thiết bị di động
+        request.session["user"] = {
+            "code": user.code,
+            "role": user.role,
+            "branch": user.branch,
+            "name": user.name
+        }
+        request.session["after_checkin"] = "choose_function"
+        request.session.pop("pending_user", None)
+        return JSONResponse({"success": True, "redirect_to": "/choose-function"})
+    
+    return JSONResponse({"success": False, "error": "Không tìm thấy người dùng"}, status_code=404)
+
+
+@app.get("/attendance/checkin_status")
+async def checkin_status(request: Request, token: str, db: Session = Depends(get_db)):
+    log = db.query(AttendanceLog).filter_by(token=token).first()
+    if not log:
+        return JSONResponse(content={"checked_in": False})
+
+    if log.checked_in:
+        user = db.query(User).filter_by(code=log.user_code).first()
+        if user:
+            # Đăng nhập cho user ở session của máy tính
+            request.session["user"] = {
+                "code": user.code,
+                "role": user.role,
+                "branch": user.branch,
+                "name": user.name,
+            }
+            request.session.pop("pending_user", None)
+            return JSONResponse(content={"checked_in": True, "redirect_to": "choose-function"})
+
+    return JSONResponse(content={"checked_in": False})
+
+@app.get("/favicon.ico")
+def favicon():
+    # Nếu có file favicon.ico trong static thì trả về file đó
+    favicon_path = os.path.join("static", "favicon.ico")
+    if os.path.exists(favicon_path):
+        return FileResponse(favicon_path)
+    # Nếu không có, trả về 1x1 PNG trắng
+    png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\xdac\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b\x0c\x00\x00\x00\x00IEND\xaeB`\x82'
+    return Response(content=png_data, media_type="image/png")
