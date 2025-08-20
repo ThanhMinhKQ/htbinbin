@@ -5,7 +5,7 @@ from datetime import datetime
 from pytz import timezone
 
 # ================== CONFIG ==================
-# SERVICE_ACCOUNT_FILE = "config/credentials.json"
+SERVICE_ACCOUNT_FILE = "config/credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1R-5t90lNY22MUfkdv3YUHtKOzW7fjIIgjSYtCisDLqA"
 
@@ -26,6 +26,34 @@ DV_HEADERS = [
 _sheet_id_cache = {}
 
 # ================== UTILS ==================
+def get_sheet_name(code: str) -> str:
+    """
+    Xác định sheet ghi điểm danh dựa trên mã nhân viên.
+    - BP (Buồng phòng) và BPTC (Buồng phòng tăng ca) -> sheet "DV"
+    - Các bộ phận khác có sheet riêng theo vai trò.
+    """
+    code_upper = (code or "").upper()
+
+    # Buồng phòng luôn vào sheet DV vì tính công theo dịch vụ
+    if "BP" in code_upper:
+        return "BP"
+
+    # Lễ tân
+    if "LTTC" in code_upper: # Hỗ trợ tăng ca
+        return "TC"
+    if "LT" in code_upper:
+        return "LT"
+
+    # Các vai trò khác
+    if "BV" in code_upper:
+        return "BV"
+    if "QL" in code_upper:
+        return "QL"
+    if "KTV" in code_upper:
+        return "KTV"
+
+    return "Default" # Fallback cho các trường hợp khác
+
 def _now_vn_str():
     tz = timezone("Asia/Ho_Chi_Minh")
     return datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S")
