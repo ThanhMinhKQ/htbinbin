@@ -172,14 +172,16 @@ def root(request: Request):
 # --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
 @app.get("/choose-function", response_class=HTMLResponse)
 async def choose_function(request: Request):
-    if not require_checked_in_user(request):
+    if not require_checked_in_user(request): # This check also ensures user is in session
         return RedirectResponse("/login", status_code=303)
 
     # Nếu có flag after_checkin thì xóa để tránh dùng lại
     if request.session.get("after_checkin") == "choose_function":
         request.session.pop("after_checkin", None)
 
-    response = templates.TemplateResponse("choose_function.html", {"request": request})
+    response = templates.TemplateResponse(
+        "choose_function.html", {"request": request, "user": request.session.get("user")}
+    )
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -376,12 +378,6 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
         def match_shift(emp_code: str):
-            """
-            Trả về True nếu mã nhân viên hợp lệ với ca hiện tại.
-            - Nếu có 'CS' trong mã → chỉ hợp lệ ca sáng
-            - Nếu có 'CT' trong mã → chỉ hợp lệ ca tối
-            - Nếu không có CS/CT → luôn hợp lệ
-            """
             emp_code = emp_code.upper()
             if "CS" in emp_code and current_shift != "CS":
                 return False
@@ -392,42 +388,36 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
         employees = []
 
         if user and user.get("role") == "letan":
-            # Luôn thêm chính lễ tân đang đăng nhập (bất kể ca nào)
+            # ✅ Luôn thêm chính lễ tân đang đăng nhập
             lt_self = db.query(User).filter(
                 User.code == user.get("code"),
                 User.branch == branch_id
             ).all()
-
             # Các bộ phận khác cùng chi nhánh (bỏ quản lý, ktv, lễ tân khác)
             others = db.query(User).filter(
                 User.branch == branch_id,
                 ~User.role.in_(["quanly", "ktv", "letan"])
             ).all()
-
-            # Chỉ lọc ca cho others, lễ tân đăng nhập giữ nguyên
             others = [emp for emp in others if match_shift(emp.code)]
-
             employees = sorted(lt_self + others, key=lambda e: e.name)
 
-        else:
-            # Logic chung cho các role khác (VD: quản lý) hoặc khi không có user
-            # Lấy tất cả nhân viên có thể điểm danh tại chi nhánh
+        elif user and user.get("role") in ["quanly", "ktv"]:
+            # ✅ Quản lý và KTV chỉ được thấy chính mình
             employees = db.query(User).filter(
-                User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv", "admin", "boss"])  # Bỏ các role quản lý/kỹ thuật
+                User.code == user.get("code")
             ).all()
 
-            # Lọc theo ca làm việc hiện tại
+        else:
+            # ✅ Logic chung cho các role khác
+            employees = db.query(User).filter(
+                User.branch == branch_id,
+                ~User.role.in_(["quanly", "ktv", "admin", "boss"])
+            ).all()
             employees = [emp for emp in employees if match_shift(emp.code)]
             employees.sort(key=lambda e: e.name)
 
         employee_list = [
-            {
-                "code": emp.code,
-                "name": emp.name,
-                "department": emp.role,
-                "branch": emp.branch,
-            }
+            {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
             for emp in employees
         ]
         return JSONResponse(content=employee_list)
