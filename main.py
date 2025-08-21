@@ -387,12 +387,22 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 
         employees = []
 
-        if user and user.get("role") == "letan":
+        if not user:
+            return JSONResponse(content=[])
+
+        # ✅ Ưu tiên xử lý quản lý & KTV
+        if user.get("role") in ["quanly", "ktv"]:
+            employees = db.query(User).filter(
+                User.code == user.get("code")
+            ).all()
+
+        elif user.get("role") == "letan":
             # ✅ Luôn thêm chính lễ tân đang đăng nhập
             lt_self = db.query(User).filter(
                 User.code == user.get("code"),
                 User.branch == branch_id
             ).all()
+
             # Các bộ phận khác cùng chi nhánh (bỏ quản lý, ktv, lễ tân khác)
             others = db.query(User).filter(
                 User.branch == branch_id,
@@ -400,12 +410,6 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             ).all()
             others = [emp for emp in others if match_shift(emp.code)]
             employees = sorted(lt_self + others, key=lambda e: e.name)
-
-        elif user and user.get("role") in ["quanly", "ktv"]:
-            # ✅ Quản lý và KTV chỉ được thấy chính mình
-            employees = db.query(User).filter(
-                User.code == user.get("code")
-            ).all()
 
         else:
             # ✅ Logic chung cho các role khác
