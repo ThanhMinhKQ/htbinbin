@@ -371,21 +371,13 @@ def attendance_csrf_token(request: Request):
     return {"csrf_token": token}
 
 @app.get("/attendance/api/employees/by-branch/{branch_id}", response_class=JSONResponse)
-def get_employees_by_branch(
-    branch_id: str,
-    db: Session = Depends(get_db),
-    request: Request = None
-):
+def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), request: Request = None):
     try:
         user = request.session.get("user") if request else None
-        if not user:
-            return JSONResponse(content=[])
-
-        # Xác định ca hiện tại
         now_hour = datetime.now(VN_TZ).hour
         current_shift = "CS" if 7 <= now_hour < 19 else "CT"
 
-        def match_shift(emp_code: str) -> bool:
+        def match_shift(emp_code: str):
             emp_code = emp_code.upper()
             if "CS" in emp_code and current_shift != "CS":
                 return False
@@ -393,42 +385,42 @@ def get_employees_by_branch(
                 return False
             return True
 
-        role = user.get("role")
-        code = user.get("code")
-
         employees = []
 
-        # ✅ Quản lý & KTV: chỉ chính họ
-        if role in ["quanly", "ktv"]:
-            employees = db.query(User).filter(User.code == code).all()
+        if user and user.get("role") == "letan":
+            # ✅ Luôn thêm chính lễ tân đang đăng nhập
+            lt_self = db.query(User).filter(
+                User.code == user.get("code"),
+                User.branch == branch_id
+            ).all()
+            # Các bộ phận khác cùng chi nhánh (bỏ quản lý, ktv, lễ tân khác)
+            others = db.query(User).filter(
+                User.branch == branch_id,
+                ~User.role.in_(["quanly", "ktv", "letan"])
+            ).all()
+            others = [emp for emp in others if match_shift(emp.code)]
+            employees = sorted(lt_self + others, key=lambda e: e.name)
 
-        # ✅ Lễ tân
-        elif role == "letan":
-            # Chính lễ tân đăng nhập
-            self_user = db.query(User).filter(User.code == code).all()
+        elif user and user.get("role") in ["quanly", "ktv"]:
+            # ✅ Quản lý và KTV chỉ thấy chính họ (bỏ lọc chi nhánh, bỏ shift)
+            employees = db.query(User).filter(
+                User.code == user.get("code")
+            ).all()
 
-            # Nhân viên thường (lọc ca)
-            query = db.query(User).filter(~User.role.in_(["quanly", "ktv", "letan"]))
-            if branch_id and branch_id != "none":
-                query = query.filter(User.branch == branch_id)
-
-            others = [emp for emp in query.all() if match_shift(emp.code)]
-            employees = sorted(self_user + others, key=lambda e: e.name)
-
-        # ✅ Các role khác
         else:
-            query = db.query(User).filter(~User.role.in_(["quanly", "ktv", "admin", "boss"]))
-            if branch_id and branch_id != "none":
-                query = query.filter(User.branch == branch_id)
-
-            employees = [emp for emp in query.all() if match_shift(emp.code)]
+            # ✅ Logic chung cho các role khác
+            employees = db.query(User).filter(
+                User.branch == branch_id,
+                ~User.role.in_(["quanly", "ktv", "admin", "boss"])
+            ).all()
+            employees = [emp for emp in employees if match_shift(emp.code)]
             employees.sort(key=lambda e: e.name)
 
-        # Trả về JSON
-        return JSONResponse(content=[
+        employee_list = [
             {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
             for emp in employees
-        ])
+        ]
+        return JSONResponse(content=employee_list)
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
