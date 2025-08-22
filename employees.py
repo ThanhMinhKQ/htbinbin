@@ -5,7 +5,7 @@ employees = [
 
     {"code": "B2LTCS", "name": "Phan Phương Thúy", "department": "Lễ tân", "branch": "B2", "role": "letan"},
     {"code": "B2LTCT", "name": "Ngô Bảo Trân", "department": "Lễ tân", "branch": "B2", "role": "letan"},
-    {"code": "B2BPCS01", "name": "Nguyễn Thị Ngọc Linh", "department": "Buồng phòng", "branch": "B2", "role": "buongphong"},
+    {"code": "B2BPCS", "name": "Nguyễn Thị Ngọc Linh", "department": "Buồng phòng", "branch": "B2", "role": "buongphong"},
     {"code": "B2BPCT", "name": "Cao Đức Thẫm", "department": "Buồng phòng", "branch": "B2", "role": "buongphong"},
 
     {"code": "B3LTCS", "name": "Võ Thị Ngọc Trân", "department": "Lễ tân", "branch": "B3", "role": "letan"},
@@ -64,21 +64,21 @@ employees = [
 
     {"code": "B15LTCS", "name": "Lê Thị Yến Oanh", "department": "Lễ tân", "branch": "B15", "role": "letan"},
     {"code": "B15LTCT", "name": "Lê Trường Giang", "department": "Lễ tân", "branch": "B15", "role": "letan"},
-    {"code": "B15BPCS01", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
-    {"code": "B15BPCS02", "name": "Trần Thị Thanh Nhãn", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
+    {"code": "B15BPCS", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
+    {"code": "B15BPCT", "name": "Trần Thị Thanh Nhãn", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BVCS", "name": "Bùi Minh Nghĩa", "department": "Bảo vệ", "branch": "B15", "role": "baove"},
 
-    {"code": "KTV", "name": "Lê Trọng Phúc", "department": "Kỹ Thuật Viên", "branch": "all", "role": "ktv"},
-    {"code": "QL01", "name": "Trần Phát Nguyên", "department": "Quản Lý", "branch": "all", "role": "quanly"},
-    {"code": "QL02", "name": "Trần Ngọc Ánh", "department": "Quản Lý", "branch": "all", "role": "quanly"},
-    {"code": "QL03", "name": "Nguyễn Đỗ Minh Luân", "department": "Quản Lý", "branch": "all", "role": "quanly"},
+    {"code": "KTV", "name": "Lê Trọng Phúc", "department": "Kỹ Thuật Viên", "branch": "ktv", "role": "ktv"},
+    {"code": "QL01", "name": "Trần Phát Nguyên", "department": "Quản Lý", "branch": "quanly1", "role": "quanly"},
+    {"code": "QL02", "name": "Trần Ngọc Ánh", "department": "Quản Lý", "branch": "quanly2", "role": "quanly"},
+    {"code": "QL03", "name": "Nguyễn Đỗ Minh Luân", "department": "Quản Lý", "branch": "quanly3", "role": "quanly"},
 
-    {"code": "LTTC01", "name": "Lê Minh Trung", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
-    {"code": "LTTC02", "name": "Nguyễn Hoàng Thanh Minh", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
-    {"code": "LTTC03", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
-    {"code": "LTTC04", "name": "Trần Thiện Tín", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
+    {"code": "LTTC01", "name": "Lê Minh Trung", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc1", "role": "letan"},
+    {"code": "LTTC02", "name": "Nguyễn Hoàng Thanh Minh", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc2", "role": "letan"},
+    {"code": "LTTC03", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc3", "role": "letan"},
+    {"code": "LTTC04", "name": "Trần Thiện Tín", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc4", "role": "letan"},
     
-    {"code": "BPTC01", "name": "Lê Trọng Phúc", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
-    {"code": "BPTC02", "name": "Trần Ngọc Ánh", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
-    {"code": "BPTC03", "name": "Võ Thị Diệu Lý", "department": "Hỗ Trợ Tăng Ca", "branch": "all", "role": "hotro"},
+    {"code": "BPTC01", "name": "Lê Trọng Phúc", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc1", "role": "buongphong"},
+    {"code": "BPTC02", "name": "Trần Ngọc Ánh", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc2", "role": "buongphong"},
+    {"code": "BPTC03", "name": "Võ Thị Diệu Lý", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc3", "role": "buongphong"},
 ]
