@@ -418,7 +418,7 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             others = [emp for emp in others if match_shift(emp.code)]
             employees = sorted(lt_self + others, key=lambda e: e.name)
 
-        elif user and user.get("role") in ["quanly", "ktv"]:
+        elif user and user.get("role") in ["quanly", "ktv", "admin", "boss"]:
             # ✅ Quản lý và KTV chỉ thấy chính họ (bỏ lọc chi nhánh, bỏ shift)
             employees = db.query(User).filter(
                 User.code == user.get("code")
@@ -1210,6 +1210,15 @@ async def attendance_checkin_bulk(
         active_branch_from_payload = raw_data[0].get("chi_nhanh_lam")
 
     nguoi_diem_danh_code = user.get("code")
+    user_role = user.get("role")
+    user_branch = user.get("branch")
+    special_roles = ["quanly", "ktv", "admin", "boss"]
+
+    # Đối với các vai trò đặc biệt (QL, KTV, admin, boss), họ chỉ điểm danh cho chính mình.
+    # Chi nhánh làm việc sẽ được tự động gán bằng chi nhánh chính của họ, không cần chọn từ UI.
+    if user_role in special_roles:
+        active_branch_from_payload = user_branch
+
     normalized_data = []
     now_vn = datetime.now(timezone("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1217,16 +1226,13 @@ async def attendance_checkin_bulk(
         normalized_data.append({
             # sheet target (nếu client gửi)
             "sheet": rec.get("sheet"),
-
             # thời gian: ưu tiên client, fallback giờ VN
             "thoi_gian": rec.get("thoi_gian") or now_vn,
-
             # nhân viên được điểm danh
             "ma_nv": rec.get("ma_nv"),
             "ten_nv": rec.get("ten_nv"),
             "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
-            "chi_nhanh_lam": rec.get("chi_nhanh_lam"),
-
+            "chi_nhanh_lam": active_branch_from_payload,
             # field bổ sung
             "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
             "so_cong_nv": rec.get("so_cong_nv") or 1,
