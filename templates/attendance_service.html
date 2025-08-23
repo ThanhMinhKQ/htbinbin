@@ -1,218 +1,371 @@
-<!-- templates/attendance_service.html -->
+<!-- templates/attendance_service.html | 2025 EU-modern redesign
+Notes:
+- Keep same backend endpoints & payload shape.
+- No icon fonts/emoji → inline SVG only.
+- Tailwind only, no extra deps. 
+- Desktop-first with graceful mobile.
+- Smooth micro-interactions & animations.
+-->
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full scroll-smooth">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Chấm dịch vụ buồng phòng</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root { --safe-bottom: env(safe-area-inset-bottom, 0px); --safe-top: env(safe-area-inset-top, 0px); }
-    .animate-sheetUp { animation: sheetUp .3s cubic-bezier(.22,.61,.36,1) both; }
-    @keyframes sheetUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
-    .sheet { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top-left-radius:18px; border-top-right-radius:18px; box-shadow:0 -10px 30px rgba(0,0,0,.15); max-height:75vh; }
-    .sheet-handle { width:40px; height:5px; border-radius:999px; background:#e5e7eb; margin:10px auto; }
-    @media (min-width:900px){
-      body{background:linear-gradient(120deg,#f0f4ff 0%,#f9fafb 100%);}
-      .desktop-container{max-width:760px;margin:28px auto;background:#fff;border-radius:18px;box-shadow:0 8px 32px rgba(0,0,0,.1);padding:32px;}
-      .desktop-table{width:100%;border-collapse:separate;border-spacing:0;background:#f8fafc;border-radius:12px;overflow:hidden;}
-      .desktop-table th,.desktop-table td{padding:10px;text-align:left;font-size:15px;}
-      .desktop-table th{background:#f1f5f9;font-weight:600;color:#2563eb;border-bottom:1.5px solid #e5e7eb;}
-      .desktop-table td{border-bottom:1px solid #e5e7eb;}
-      .desktop-table tr:hover{background:#eef2ff;}
-      .desktop-btn{padding:11px 28px;border-radius:10px;background:linear-gradient(90deg,#2563eb,#60a5fa);color:#fff;font-weight:600;}
-      .desktop-btn:hover{background:linear-gradient(90deg,#1d4ed8,#3b82f6);}
+    :root {
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
     }
+    /* Modal animation */
+    #addModal { transition: opacity 200ms ease-in-out; }
+    #addModal > div { transition: transform 200ms ease-in-out, opacity 200ms ease-in-out; }
+    #addModal.hidden { opacity: 0; pointer-events: none; }
+    #addModal.hidden > div { transform: translateY(1rem) scale(0.98); opacity: 0; }
+
+    /* Gradient button animation */
+    .btn-gradient {
+      /* Tailwind: from-blue-600 via-cyan-500 to-blue-600 */
+      background-image: linear-gradient(to right, #2563eb 0%, #06b6d4 50%, #2563eb 100%);
+      background-size: 200% auto;
+      transition: background-position 0.3s cubic-bezier(.4,0,.2,1);
+    }
+    .btn-gradient:hover {
+      background-position: right center;
+    }
+    /* Elevation + rounded for desktop card */
+    @media (min-width: 960px){
+      body{background:linear-gradient(120deg,#eef2ff 0%,#f9fafb 100%);} 
+      .desktop-shell{max-width:960px;margin:40px auto;background:#fff;border-radius:22px;box-shadow:0 10px 40px rgba(0,0,0,.08);}
+    }
+
+    /* Fancy focus ring */
+    .focus-ring:focus{ outline: none; box-shadow: 0 0 0 3px rgba(3,105,161,.18), 0 0 0 1px rgba(3,105,161,.35) inset; }
+
+    /* Subtle appear */
+    .fade-in{animation:fi .2s ease-out both}
+    @keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Table zebra */
+    .tbl tr:nth-child(even) td{ background: #fafafa; }
+
+    /* Slide-in toast */
+    .toast-in{animation:toast .25s ease-out both}
+    @keyframes toast{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen pb-28">
-  <div class="max-w-xl mx-auto px-4 pt-3 desktop-container">
-    <header class="pt-[var(--safe-top)] flex items-center justify-between mb-3">
-      <h1 class="text-2xl font-bold">🛎 Chấm dịch vụ buồng phòng</h1>
-      <span class="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600">Chi nhánh: <span id="branchName">{{ branch_id }}</span></span>
+<body class="bg-gray-50 min-h-screen pb-[calc(76px+var(--safe-bottom))] antialiased">
+  <div class="desktop-shell">
+    <!-- Header -->
+    <header class="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-white/70 bg-white/90 border-b border-slate-200 pt-[var(--safe-top)]">
+      <div class="mx-auto max-w-screen-lg px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded-xl bg-blue-50 border border-blue-100 shadow-sm">
+            <!-- Bell concierge SVG -->
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <path d="M12 6a4 4 0 0 0-4 4v1H6a4 4 0 0 0-4 4v1h20v-1a4 4 0 0 0-4-4h-2v-1a4 4 0 0 0-4-4Z"/>
+              <path d="M12 3v2"/>
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-xl md:text-2xl font-semibold tracking-tight text-slate-800">Chấm dịch vụ buồng phòng</h1>
+            
+          </div>
+        </div>
+        <span class="text-[11px] px-2.5 py-1.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+          Chi nhánh: {{ branch_id }}
+        </span>
+      </div>
     </header>
 
-    <!-- Service list -->
-    <div class="flex items-center justify-between mb-2">
-      <h2 class="text-lg font-semibold">Danh sách nhân viên</h2>
-      <div class="flex gap-2">
-        <button id="reloadBtn" class="text-sm px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200">🔄 Tải lại</button>
-        <button id="addEmployeeBtn" class="text-sm px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700 font-medium hover:bg-blue-200">+ Thêm nhân viên</button>
+    <!-- Main -->
+    <main class="mx-auto max-w-screen-lg px-4 py-4 space-y-4">
+      <!-- Toolbar -->
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-base md:text-lg font-semibold text-slate-800">Danh sách nhân viên</h2>
+        <div class="flex items-center gap-2">
+          <button id="reloadBtn" class="group inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 transition active:scale-[.98] focus-ring" title="Tải lại danh sách">
+            <svg class="w-4 h-4 group-active:rotate-90 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v6h-6"/></svg>
+            <span>Tải lại</span>
+          </button>
+          <button id="addEmployeeBtn" class="btn-gradient group inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl text-white shadow-md hover:shadow-lg transition active:scale-[.98] focus-ring" title="Thêm nhân viên">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Thêm nhân viên</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Desktop table -->
+      <div class="hidden md:block">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <table class="w-full tbl" id="serviceTable">
+            <thead class="bg-slate-100/80">
+              <tr class="text-left text-slate-600 text-xs uppercase tracking-wider">
+                <th class="font-semibold px-3 py-3">Nhân viên</th>
+                <th class="font-semibold px-3 py-3">Số phòng</th>
+                <th class="font-semibold px-3 py-3">Số lượng</th>
+                <th class="font-semibold px-3 py-3">Dịch vụ</th>
+                <th class="font-semibold px-3 py-3">Ghi chú</th>
+                <th class="w-20"></th>
+              </tr>
+            </thead>
+            <tbody id="serviceTableBody" class="text-[13px] text-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mobile cards -->
+      <div id="serviceList" class="space-y-3 md:hidden"></div>
+      <div id="emptyHint" class="hidden text-center text-slate-500 text-sm py-12">Chưa có nhân viên nào.</div>
+    </main>
+  </div>
+
+  <!-- Bottom action bar -->
+  <div class="fixed left-0 right-0 bottom-0 border-t border-slate-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/75 shadow-2xl">
+    <div class="mx-auto max-w-screen-lg px-4 py-3 flex flex-col gap-1">
+      <div class="flex items-center gap-2 justify-end">
+        <button id="serviceSaveBtn" class="btn-gradient flex-1 md:flex-none inline-flex items-center justify-center gap-2 text-white px-4 py-3 rounded-2xl font-semibold shadow-md hover:shadow-lg active:scale-[.99] transition focus-ring">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7Z"/><path d="M7 7h7v6H7z"/></svg>
+          <span>Lưu dịch vụ</span>
+        </button>
       </div>
     </div>
-
-    <div class="hidden md:block">
-      <table class="desktop-table w-full" id="serviceTable">
-        <thead>
-          <tr>
-            <th>Nhân viên</th><th>Số phòng</th><th>Số lượng</th><th>Dịch vụ</th><th>Ghi chú</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="serviceTableBody"></tbody>
-      </table>
-    </div>
-    <div id="serviceList" class="space-y-3 md:hidden"></div>
-    <div id="emptyHint" class="hidden text-center text-gray-500 text-sm py-10">Chưa có nhân viên nào.</div>
   </div>
 
-  <!-- Bottom bar -->
-  <div class="fixed left-0 right-0 bottom-0 border-t border-gray-200 bg-white shadow-lg">
-    <div class="max-w-xl mx-auto px-4 py-2 flex gap-2 justify-end">
-      <button id="serviceSaveBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold desktop-btn">💾 Lưu dịch vụ</button>
+  <!-- Add employee Modal (Glassmorphism) -->
+  <div id="addModal" class="fixed inset-0 z-40 hidden flex items-center justify-center p-4 bg-black/25 backdrop-blur-sm">
+    <div class="w-full max-w-md">
+      <div class="bg-white/70 backdrop-blur-xl rounded-2xl border border-white/20 shadow-lg p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-semibold text-slate-800">Thêm nhân viên</h3>
+          <button id="closeModalBtn" class="p-1 rounded-full text-slate-500 hover:bg-slate-400/20 transition-colors" aria-label="Đóng">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div class="relative">
+          <input id="searchInput" type="text" inputmode="search" placeholder="Tìm nhân viên BP..." class="w-full border border-slate-300 bg-white/80 rounded-2xl px-4 py-3 text-sm focus-ring" aria-label="Tìm nhân viên" />
+          <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+        </div>
+        <div id="searchResults" class="space-y-2 max-h-[50vh] overflow-y-auto -mr-2 pr-2"></div>
+      </div>
     </div>
-    <div class="max-w-xl mx-auto px-4 pb-1 text-xs text-gray-600 text-right"><span id="status">Chưa lưu</span></div>
   </div>
-
-  <!-- Popup add employee -->
-  <div id="addSheet" class="sheet hidden animate-sheetUp">
-    <div class="sheet-handle"></div>
-    <div class="px-4 pb-4">
-      <input id="searchInput" type="text" placeholder="🔍 Tìm nhân viên BP..." class="w-full border rounded-lg px-3 py-2 text-sm mb-3">
-      <div id="searchResults" class="space-y-2 max-h-[55vh] overflow-y-auto"></div>
-    </div>
-  </div>
+  <!-- Lightweight toast container -->
+  <div id="toastHost" class="fixed top-[calc(16px+var(--safe-top))] right-4 z-50 space-y-2"></div>
 
 <script>
-  let currentBranch="{{ branch_id }}"; const csrfToken="{{ csrf_token }}";
-  let serviceRows = JSON.parse('{{ initial_employees | tojson | safe }}'); // Bọc trong dấu nháy đơn để đảm bảo là string literal
-  const statusEl=document.getElementById("status");
-  const serviceList=document.getElementById("serviceList");
-  const serviceTableBody=document.getElementById("serviceTableBody");
-  function showStatus(t){statusEl.textContent=t;}
+  // ------- State & constants -------
+  let currentBranch = "{{ branch_id }}";
+  const csrfToken = "{{ csrf_token }}";
+  let serviceRows = JSON.parse('{{ initial_employees | tojson | safe }}');
 
-  // Render
+  const serviceList = document.getElementById("serviceList");
+  const serviceTableBody = document.getElementById("serviceTableBody");
+  const addModal = document.getElementById("addModal");
+  const toastHost = document.getElementById("toastHost");
+
+  const SERVICES = ["Giặt","Ủi"]; // giữ nguyên danh mục để không phá backend mapping
+
+  const fmt = (v)=> v==null? "" : String(v);
+
+  // ------- UI helpers -------
+  const toast = (msg, type="info")=>{
+    const base = document.createElement("div");
+    base.className = `toast-in rounded-xl border px-3 py-2 text-sm shadow-lg bg-white ${type==='error'?'border-red-200':'border-slate-200'}`;
+    base.innerHTML = `<div class="flex items-start gap-2">
+      ${type==='success' ? `<svg class='w-4 h-4 mt-[2px]' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><path d='M20 7 9 18l-5-5'/></svg>`: type==='error'? `<svg class='w-4 h-4 mt-[2px]' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><path d='M12 8v4m0 4h.01'/><circle cx='12' cy='12' r='9'/></svg>`: `<svg class='w-4 h-4 mt-[2px]' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><circle cx='12' cy='12' r='9'/></svg>`}
+      <span class="text-slate-800">${msg}</span>
+    </div>`;
+    toastHost.appendChild(base);
+    setTimeout(()=> base.remove(), 2500);
+  };
+
+  const openModal = () => {
+    addModal.classList.remove("hidden");
+    setTimeout(() => document.getElementById("searchInput").focus(), 50);
+  };
+
+  const closeModal = () => {
+    addModal.classList.add("hidden");
+    document.getElementById("searchInput").value = "";
+    document.getElementById("searchResults").innerHTML = "";
+  };
+
+  // Event listeners for modal
+  document.getElementById("addEmployeeBtn").onclick = openModal;
+  document.getElementById("closeModalBtn").onclick = closeModal;
+  addModal.addEventListener('click', (e) => {
+    if (e.target === addModal) closeModal();
+  });
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !addModal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  const inputBase = "border border-slate-300 rounded-xl px-2.5 py-1.5 text-sm focus-ring";
+  const selectBase = inputBase + " bg-white";
+  const btnLink = "text-[12px] text-red-600 hover:text-red-700 underline underline-offset-2";
+
+  // ------- Render (Mobile cards + Desktop table) -------
   function renderService(){
-    if(serviceRows.length===0){document.getElementById("emptyHint").classList.remove("hidden");}
-    else{document.getElementById("emptyHint").classList.add("hidden");}
+    // Empty hint
+    const hasData = Array.isArray(serviceRows) && serviceRows.length>0;
+    document.getElementById("emptyHint").classList.toggle("hidden", hasData);
 
-    serviceList.innerHTML="";
+    // Mobile
+    serviceList.innerHTML = "";
     serviceRows.forEach((r,i)=>{
-      const el=document.createElement("div");
-      el.className="bg-white border rounded-xl p-3 shadow-sm";
-      el.innerHTML=`
-        <div class="flex justify-between items-center">
-          <div class="font-medium">${r.name}</div>
-          <button onclick="removeRow(${i})" class="text-red-500 text-xs">✕ Xóa</button>
+      const wrap = document.createElement("div");
+      wrap.className = "fade-in bg-white border border-slate-200 rounded-2xl p-3 shadow-sm";
+      wrap.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div class="font-medium text-slate-800">${fmt(r.name)}</div>
+          <button type="button" class="${btnLink}" onclick="removeRow(${i})" aria-label="Xóa dòng">
+            <span class="inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 7h12M9 7v12m6-12v12M10 7l1-2h2l1 2"/></svg>
+              Xóa
+            </span>
+          </button>
         </div>
         <div class="mt-2 grid grid-cols-3 gap-2">
-          <input placeholder="Phòng" class="border rounded px-2 py-1 text-sm" data-i="${i}" data-f="so_phong" value="${r.so_phong||""}">
-          <input type="number" placeholder="SL" class="border rounded px-2 py-1 text-sm" data-i="${i}" data-f="so_luong" value="${r.so_luong||""}">
-          <select class="border rounded px-2 py-1 text-sm" data-i="${i}" data-f="dich_vu">
-            <option value="">Dịch vụ</option>
-            <option value="Giặt" ${r.dich_vu==="Giặt"?"selected":""}>Giặt</option>
-            <option value="Ủi" ${r.dich_vu==="Ủi"?"selected":""}>Ủi</option>
-          </select>
+          <input placeholder="Phòng" class="${inputBase}" data-i="${i}" data-f="so_phong" value="${fmt(r.so_phong)}">
+          <input type="number" placeholder="SL" class="${inputBase}" data-i="${i}" data-f="so_luong" value="${fmt(r.so_luong)}">
+          <select class="${selectBase}" data-i="${i}" data-f="dich_vu">${serviceOptions(r.dich_vu)}</select>
         </div>
-        <input placeholder="Ghi chú" class="mt-2 w-full border rounded px-2 py-1 text-sm" data-i="${i}" data-f="ghi_chu" value="${r.ghi_chu||""}">
+        <input placeholder="Ghi chú" class="mt-2 w-full ${inputBase}" data-i="${i}" data-f="ghi_chu" value="${fmt(r.ghi_chu)}">
       `;
-      serviceList.appendChild(el);
-    });
-    serviceList.querySelectorAll("input,select").forEach(el=>{
-      el.oninput=()=>{serviceRows[el.dataset.i][el.dataset.f]=el.value; showStatus("Chưa lưu");};
+      serviceList.appendChild(wrap);
     });
 
-    serviceTableBody.innerHTML="";
+    // Desktop table
+    serviceTableBody.innerHTML = "";
     serviceRows.forEach((r,i)=>{
-      const tr=document.createElement("tr");
-      tr.innerHTML=`
-        <td>${r.name}</td>
-        <td><input class="border rounded px-2 py-1 text-sm w-20" data-i="${i}" data-f="so_phong" value="${r.so_phong||""}"></td>
-        <td><input type="number" class="border rounded px-2 py-1 text-sm w-16" data-i="${i}" data-f="so_luong" value="${r.so_luong||""}"></td>
-        <td>
-          <select class="border rounded px-2 py-1 text-sm" data-i="${i}" data-f="dich_vu">
-            <option value="">Chọn</option>
-            <option value="Giặt" ${r.dich_vu==="Giặt"?"selected":""}>Giặt</option>
-            <option value="Ủi" ${r.dich_vu==="Ủi"?"selected":""}>Ủi</option>
-          </select>
+      const tr = document.createElement("tr");
+      tr.className = "hover:bg-slate-50 transition-colors";
+      tr.innerHTML = `
+        <td class="px-3 py-2">${fmt(r.name)}</td>
+        <td class="px-3 py-2"><input class="${inputBase} w-24" data-i="${i}" data-f="so_phong" value="${fmt(r.so_phong)}"></td>
+        <td class="px-3 py-2"><input type="number" class="${inputBase} w-20" data-i="${i}" data-f="so_luong" value="${fmt(r.so_luong)}"></td>
+        <td class="px-3 py-2"><select class="${selectBase}" data-i="${i}" data-f="dich_vu">${serviceOptions(r.dich_vu)}</select></td>
+        <td class="px-3 py-2"><input class="${inputBase} w-40" data-i="${i}" data-f="ghi_chu" value="${fmt(r.ghi_chu)}"></td>
+        <td class="px-3 py-2 text-right">
+          <button type="button" onclick="removeRow(${i})" class="text-[12px] text-red-600 hover:text-red-700 inline-flex items-center gap-1">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 7h12M9 7v12m6-12v12M10 7l1-2h2l1 2"/></svg>
+            Xóa
+          </button>
         </td>
-        <td><input class="border rounded px-2 py-1 text-sm w-28" data-i="${i}" data-f="ghi_chu" value="${r.ghi_chu||""}"></td>
-        <td><button onclick="removeRow(${i})" class="text-red-500 text-xs">Xóa</button></td>
       `;
       serviceTableBody.appendChild(tr);
     });
-    serviceTableBody.querySelectorAll("input,select").forEach(el=>{
-      el.oninput=()=>{serviceRows[el.dataset.i][el.dataset.f]=el.value; showStatus("Chưa lưu");};
+
+    // Bind change handlers
+    document.querySelectorAll("#serviceList input,#serviceList select,#serviceTableBody input,#serviceTableBody select").forEach(el=>{
+      el.oninput = ()=>{ serviceRows[el.dataset.i][el.dataset.f] = el.type==='number'? (el.value===''? '' : Number(el.value)) : el.value; unsaved = true; };
     });
   }
-  function removeRow(i){serviceRows.splice(i,1); renderService(); showStatus("Chưa lưu");}
 
-  // Save
-  async function saveService(){
-    const payload=serviceRows.filter(r=>r.dich_vu&&r.so_phong&&r.so_luong);
-    if(payload.length===0){alert("Chưa có dữ liệu hợp lệ");return;}
-    showStatus("Đang lưu...");
-    const now=new Date().toISOString().slice(0,19).replace("T"," ");
-    const normalized=payload.map(r=>({
-        sheet:"DV",
-        thoi_gian:now,
-        ma_nv:r.code,
-        ten_nv:r.name,
-        chi_nhanh_chinh:r.branch || currentBranch,
-        chi_nhanh_lam:currentBranch,
-        la_tang_ca: (r.branch || currentBranch) !== currentBranch,
-        ghi_chu:r.ghi_chu||"",
-        dich_vu:r.dich_vu,
-        so_phong:r.so_phong,
-        so_luong:r.so_luong
-    }));
-    try{
-      const res=await fetch("/attendance/checkin_bulk",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify(normalized)});
-      if(!res.ok) throw new Error("Lỗi lưu"); alert("✅ Lưu thành công"); showStatus("Đã lưu");
-    }catch(e){alert("❌ "+e.message); showStatus("Lỗi");}
+  function serviceOptions(selected){
+    let html = '<option value="">Chọn</option>';
+    for(const s of SERVICES){ html += `<option value="${s}" ${selected===s? 'selected':''}>${s}</option>`; }
+    return html;
   }
-  document.getElementById("serviceSaveBtn").onclick=saveService;
 
-  // Popup add employee
-  const addSheet=document.getElementById("addSheet");
-  document.getElementById("addEmployeeBtn").onclick=()=>{addSheet.classList.remove("hidden");document.getElementById("searchInput").focus();};
-  document.getElementById("searchInput").oninput=async(e)=>{
-    const q=e.target.value.trim(); if(!q){document.getElementById("searchResults").innerHTML="";return;}
-    const url = `/attendance/api/employees/search?q=${encodeURIComponent(q)}&only_bp=true&branch_id=${encodeURIComponent(currentBranch)}`;
-    const data=await fetch(url).then(r=>r.json());
-    const c=document.getElementById("searchResults"); c.innerHTML="";
-    if(data.length===0){c.innerHTML="<div class='text-gray-400 text-sm px-3 py-2'>Không tìm thấy</div>";}
+  function removeRow(i){ serviceRows.splice(i,1); renderService(); unsaved = true; }
+
+  // ------- Save (keep original payload structure/endpoint) -------
+  let unsaved = false;
+  window.addEventListener('beforeunload', (e)=>{ if(unsaved){ e.preventDefault(); e.returnValue = ''; }});
+
+  async function saveService(){
+    const payload = serviceRows.filter(r=> r.dich_vu && r.so_phong && r.so_luong!=='' && r.so_luong!=null);
+    if(payload.length===0){ toast("Chưa có dữ liệu hợp lệ", 'error'); return; }
+
+    // build payload matching backend expectation
+    const now = new Date().toISOString().slice(0,19).replace("T"," ");
+    const normalized = payload.map(r=>({
+      sheet:"DV",
+      thoi_gian: now,
+      ma_nv: r.code,
+      ten_nv: r.name,
+      chi_nhanh_chinh: r.branch || currentBranch,
+      chi_nhanh_lam: currentBranch,
+      la_tang_ca: (r.branch || currentBranch) !== currentBranch,
+      ghi_chu: r.ghi_chu || "",
+      dich_vu: r.dich_vu,
+      so_phong: r.so_phong,
+      so_luong: r.so_luong
+    }));
+
+    try{
+      const res = await fetch("/attendance/checkin_bulk",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},
+        body: JSON.stringify(normalized)
+      });
+      if(!res.ok) throw new Error("Lỗi lưu");
+      toast("Đã lưu thành công", 'success');
+      unsaved = false;
+    }catch(e){
+      toast("Lỗi: "+e.message, 'error');
+    }
+  }
+
+  document.getElementById("serviceSaveBtn").onclick = saveService;
+
+  // Debounce helper
+  const debounce = (fn, d=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; };
+
+  const renderSearchResults = (data)=>{
+    const c = document.getElementById("searchResults"); c.innerHTML = "";
+    if(!Array.isArray(data) || data.length===0){
+      c.innerHTML = "<div class='text-slate-400 text-sm px-3 py-2'>Không tìm thấy</div>"; return;
+    }
     data.forEach(emp=>{
-      const btn=document.createElement("button");
-      btn.className="w-full text-left px-3 py-2 border rounded-lg hover:bg-blue-50";
-      btn.textContent=`${emp.name} (${emp.code})`;
-      btn.onclick=()=>{
-        if(serviceRows.some(r=>r.code===emp.code)){alert("Nhân viên này đã có trong danh sách");return;}
-        serviceRows.push({code:emp.code,name:emp.name,branch:emp.branch,so_phong:"",so_luong:"",dich_vu:"",ghi_chu:""});
-        renderService(); addSheet.classList.add("hidden");
-        document.getElementById("searchInput").value = ""; // Clear search input
-        c.innerHTML = ""; // Clear results
+      const btn = document.createElement("button");
+      btn.className = "w-full text-left px-3 py-2 border border-slate-200 rounded-xl hover:bg-blue-50 active:scale-[.99] transition";
+      btn.innerHTML = `<div class='flex items-center justify-between'>
+        <span class='font-medium text-slate-800'>${emp.name}</span>
+        <span class='text-xs text-slate-500'>${emp.code}</span>
+      </div>`;
+      btn.onclick = ()=>{
+        if(serviceRows.some(r=> r.code===emp.code)) { toast("Nhân viên đã có trong danh sách", 'info'); return; }
+        serviceRows.push({ code: emp.code, name: emp.name, branch: emp.branch, so_phong:"", so_luong:"", dich_vu:"", ghi_chu:"" });
+        renderService(); closeModal();
+        document.getElementById("searchInput").value = "";
+        c.innerHTML = "";
+        unsaved = true;
       };
       c.appendChild(btn);
     });
   };
 
-  async function loadInitialEmployees() {
-    // Hàm này được gọi bởi nút "Tải lại".
-    // Nó sẽ reset danh sách về trạng thái ban đầu: chỉ những nhân viên BP đã được điểm danh lần cuối.
+  const doSearch = debounce(async(q)=>{
+    if(!q){ renderSearchResults([]); return; }
+    const url = `/attendance/api/employees/search?q=${encodeURIComponent(q)}&only_bp=true&branch_id=${encodeURIComponent(currentBranch)}`;
     try{
-      showStatus("Đang tải lại danh sách đã điểm danh...");
-      const data = await fetch('/api/attendance/last-checked-in-bp').then(r => {
-        if (!r.ok) throw new Error('Lỗi máy chủ khi tải lại.');
-        return r.json();
-      });
-      
-      if (!Array.isArray(data)) throw new Error("API không trả về dữ liệu mảng.");
+      const data = await fetch(url).then(r=> r.json());
+      renderSearchResults(data);
+    }catch{ renderSearchResults([]); }
+  }, 260);
 
-      serviceRows = data; // Dữ liệu từ API đã có cấu trúc chuẩn
-      renderService(); showStatus("Sẵn sàng");
-    }catch(e){alert("❌ Lỗi tải lại: "+e.message); showStatus("Lỗi tải dữ liệu");}
+  document.getElementById("searchInput").addEventListener('input', (e)=> doSearch(e.target.value.trim()));
+
+  // ------- Reload initial checked-in list -------
+  async function loadInitialEmployees(){
+    try{
+      const data = await fetch('/api/attendance/last-checked-in-bp').then(r=>{ if(!r.ok) throw new Error('Lỗi máy chủ khi tải lại.'); return r.json(); });
+      if(!Array.isArray(data)) throw new Error('API không trả về mảng.');
+      serviceRows = data;
+      renderService(); unsaved = false; toast("Đã tải danh sách", 'success');
+    }catch(e){ toast("Lỗi tải lại: "+e.message, 'error'); }
   }
 
-  // Load initial
   document.getElementById("reloadBtn").onclick = loadInitialEmployees;
-  window.addEventListener("DOMContentLoaded", () => {
-    // Luôn render danh sách ban đầu, dù nó rỗng hay không.
-    // `serviceRows` đã chứa danh sách nhân viên được điểm danh lần cuối (nếu có).
-    // Nếu `serviceRows` rỗng, `renderService()` sẽ tự động hiển thị thông báo "Chưa có nhân viên nào.".
-    // Nút "Tải lại" cũng sẽ reset về danh sách này.
-    renderService();
-    showStatus("Sẵn sàng");
-  });
+
+  // ------- Init -------
+  window.addEventListener('DOMContentLoaded', ()=>{ renderService(); });
 </script>
 </body>
 </html>
