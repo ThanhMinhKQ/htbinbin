@@ -1364,11 +1364,12 @@ def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/attendance/results-by-checker")
 async def api_get_attendance_results(request: Request):
     """
-    API trả về kết quả điểm danh của lễ tân đang đăng nhập.
+    API trả về kết quả điểm danh do người dùng đang đăng nhập thực hiện.
     """
     user = request.session.get("user")
-    if not user or user.get("role") != 'letan':
-        raise HTTPException(status_code=403, detail="Chỉ lễ tân mới có quyền truy cập.")
+    allowed_roles = ['letan', 'quanly', 'ktv', 'admin', 'boss']
+    if not user or user.get("role") not in allowed_roles:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     checker_code = user.get("code")
     if not checker_code:
