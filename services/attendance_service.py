@@ -5,7 +5,7 @@ from datetime import datetime
 from pytz import timezone
 
 # ================== CONFIG ==================
-SERVICE_ACCOUNT_FILE = "config/credentials.json"
+#SERVICE_ACCOUNT_FILE = "config/credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1R-5t90lNY22MUfkdv3YUHtKOzW7fjIIgjSYtCisDLqA"
 
@@ -29,18 +29,21 @@ _sheet_id_cache = {}
 def get_sheet_name(code: str) -> str:
     """
     Xác định sheet ghi điểm danh dựa trên mã nhân viên.
-    - BP (Buồng phòng) và BPTC (Buồng phòng tăng ca) -> sheet "DV"
+    - Mã có "TC" (Tăng ca) -> sheet "TC"
+    - Mã có "BP" (Buồng phòng) không tăng ca -> sheet "DV"
     - Các bộ phận khác có sheet riêng theo vai trò.
     """
     code_upper = (code or "").upper()
 
-    # Buồng phòng luôn vào sheet DV vì tính công theo dịch vụ
-    if "BP" in code_upper:
-        return "BP"
-
-    # Lễ tân
-    if "LTTC" in code_upper: # Hỗ trợ tăng ca
+    # Ưu tiên 1: Mã tăng ca ("TC") luôn vào sheet "TC"
+    if "TC" in code_upper:
         return "TC"
+
+    # Ưu tiên 2: Buồng phòng (không tăng ca) vào sheet "DV"
+    if "BP" in code_upper:
+        return "DV"
+
+    # Lễ tân (không tăng ca)
     if "LT" in code_upper:
         return "LT"
 
@@ -166,10 +169,9 @@ def push_bulk_checkin(records: List[dict]) -> dict:
 
         grouped_by_sheet = defaultdict(list)
         for rec in records:
-            ma_nv = (rec.get("ma_nv") or "").upper()
-            sheet_name = rec.get("sheet") or "Default"
-            if ma_nv.startswith("BP") or "BPTC" in ma_nv:
-                sheet_name = "DV"
+            ma_nv = rec.get("ma_nv") or ""
+            # Sử dụng hàm get_sheet_name để xác định sheet một cách nhất quán
+            sheet_name = get_sheet_name(ma_nv)
             rec["sheet"] = sheet_name
             grouped_by_sheet[sheet_name].append(rec)
 
