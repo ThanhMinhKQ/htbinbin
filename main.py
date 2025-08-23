@@ -102,7 +102,7 @@ def haversine(lat1, lon1, lat2, lon2):
     return R * c
 
 @app.post("/attendance/api/detect-branch")
-async def detect_branch(request: Request):
+async def detect_branch(request: Request, db: Session = Depends(get_db)):
     data = await request.json()
     lat, lng = data.get("lat"), data.get("lng")
     if lat is None or lng is None:
@@ -122,6 +122,16 @@ async def detect_branch(request: Request):
 
     # Lưu vào session để UI tự nhận
     request.session["active_branch"] = nearest_branch
+
+    # Lưu vào DB để ghi nhớ cho lần đăng nhập sau
+    user_data = request.session.get("user")
+    if user_data:
+        user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
+        if user_in_db:
+            # Giả định cột last_active_branch đã tồn tại trong model User
+            user_in_db.last_active_branch = nearest_branch
+            db.commit()
+
     return {"branch": nearest_branch, "distance_km": round(min_distance, 3)}
     
 @app.get("/attendance/service", response_class=HTMLResponse)
@@ -129,12 +139,19 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user")
     if not user_data:
         return RedirectResponse("/login", status_code=303)
-    active_branch = request.session.get("active_branch") or user_data.get("branch", "")
+    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
+    active_branch = request.session.get("active_branch")
+    # Nếu trong session không có, thử lấy từ DB (lần đăng nhập trước)
+    if not active_branch and checker_user and hasattr(checker_user, 'last_active_branch') and checker_user.last_active_branch:
+        active_branch = checker_user.last_active_branch
+        request.session["active_branch"] = active_branch # Lưu lại vào session cho lần tải trang sau trong cùng phiên
+    # Nếu vẫn không có, dùng chi nhánh mặc định của user
+    if not active_branch:
+        active_branch = user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
 
     initial_employees = []
     # Lấy danh sách nhân viên BP đã được điểm danh lần cuối từ DB của lễ tân
-    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
     if checker_user and checker_user.last_checked_in_bp:
         service_checkin_codes = checker_user.last_checked_in_bp
 
