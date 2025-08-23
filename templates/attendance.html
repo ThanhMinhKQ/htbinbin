@@ -3,517 +3,447 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Điểm danh — Mobile (App style)</title>
+  <title>Điểm danh — Mobile (EU)</title>
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
     :root {
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-top: env(safe-area-inset-top, 0px);
-      --brand: #355bd6;
-      --glass: rgba(255,255,255,0.9);
     }
+    /* Modal animation */
+    .modal { transition: opacity 200ms ease-in-out; }
+    .modal > div { transition: transform 200ms ease-in-out, opacity 200ms ease-in-out; }
+    .modal.hidden { opacity: 0; pointer-events: none; }
+    .modal.hidden > div { transform: translateY(1rem) scale(0.98); opacity: 0; }
 
-    /* Mobile-first modern EU style */
-    body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(180deg,#f6f8fb,#eef3fb); color:#0f172a; margin:0; -webkit-tap-highlight-color: transparent; }
-
-    .max-mobile { max-width:420px; margin-left:auto; margin-right:auto; padding-left:16px; padding-right:16px; }
-
-    /* small header card */
-    .header-card { display:flex; gap:12px; align-items:center; padding-top:calc(var(--safe-top) + 10px); padding-bottom:8px; }
-    .logo-blob { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--brand), #2b49c8); display:grid; place-items:center; box-shadow: 0 8px 28px rgba(53,91,214,0.12); }
-
-    /* branch card */
-    .branch-card { margin-top:12px; background: linear-gradient(180deg, rgba(53,91,214,0.06), rgba(53,91,214,0.02)); padding:12px; border-radius:14px; display:flex; gap:12px; align-items:flex-start; box-shadow: 0 6px 20px rgba(18,24,40,0.04); }
-
-    /* actions row */
-    .actions-row { display:flex; gap:10px; margin-top:12px; }
-
-    /* list */
-    #attendanceList { margin-top:14px; display:flex; flex-direction:column; gap:12px; }
-    .card { background:#fff; border-radius:14px; padding:12px; box-shadow: 0 10px 30px rgba(15,23,42,0.06); overflow:hidden; transform-origin:center; }
-    .card .meta { font-weight:600; font-size:15px; color:#0f172a; }
-    .card .sub { font-size:12px; color:#64748b; margin-top:4px; }
-
-    /* small badge */
-    .badge { display:inline-flex; align-items:center; gap:6px; background:#fff7ed; color:#92400e; padding:6px 8px; border-radius:999px; font-size:12px; border:1px solid rgba(245,158,11,0.12); }
-
-    /* swipe actions (hidden behind card on mobile) */
-    .swipe-container { position:relative; overflow:hidden; touch-action: pan-y; }
-    .swipe-actions { position:absolute; inset:0; display:flex; justify-content:flex-end; align-items:center; gap:8px; padding-right:8px; }
-    .swipe-actions button { min-width:72px; height:44px; border-radius:12px; font-weight:700; }
-
-    /* floating bottom bar */
-    .bottom-bar { position:fixed; left:0; right:0; bottom:0; padding-bottom:calc(10px + var(--safe-bottom)); background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.98)); border-top: 1px solid rgba(15,23,42,0.04); box-shadow: 0 -8px 30px rgba(2,6,23,0.04); }
-
-    /* modal / sheet */
-    .sheet { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top-left-radius:18px; border-top-right-radius:18px; box-shadow: 0 -12px 34px rgba(2,6,23,0.12); max-height:80vh; overflow:auto; padding-bottom:calc(12px + var(--safe-bottom)); }
-    .sheet-handle { width:44px; height:5px; border-radius:999px; background:#e6eefc; margin:10px auto; }
-
-    /* animations */
-    @keyframes enterUp { from { transform: translateY(10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
-    @keyframes exitSmall { from { transform: scale(1); opacity:1 } to { transform: scale(.97) translateY(-6px); opacity:0 } }
-
-    .enter-up { animation: enterUp .28s cubic-bezier(.22,.9,.28,1) both; }
-    .exit-small { animation: exitSmall .22s ease-in forwards; }
-
-    /* success overlay */
-    .success-overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(2,6,23,0.45); z-index:90; }
-    .success-card { width:220px; height:220px; border-radius:999px; background: linear-gradient(135deg, #ffffff, #f7fbff); display:grid; place-items:center; box-shadow: 0 18px 50px rgba(2,6,23,0.28); transform:scale(.8); opacity:0; animation: successPop .42s cubic-bezier(.2,.9,.3,1) forwards; }
-    @keyframes successPop {
-      0% { transform: scale(.7); opacity:0 }
-      60% { transform: scale(1.06); opacity:1 }
-      100% { transform: scale(1); opacity:1 }
+    /* Gradient button animation */
+    .btn-gradient {
+      background-image: linear-gradient(to right, #2563eb 0%, #06b6d4 50%, #2563eb 100%);
+      background-size: 200% auto;
+      transition: background-position 0.3s cubic-bezier(.4,0,.2,1);
     }
-    /* checkmark animation */
-    .check-svg { width:110px; height:110px; }
-    .path { stroke-dasharray: 200; stroke-dashoffset: 200; animation: dash 0.7s ease forwards 0.18s; }
-    @keyframes dash { to { stroke-dashoffset: 0; } }
-
-    /* subtle focus indicators for inputs */
-    input:focus, select:focus, button:focus { outline: none; box-shadow: 0 6px 20px rgba(53,91,214,0.08); }
-
-    /* adjust for safe area on small devices */
-    @media (max-width:420px) {
-      .max-mobile { padding-left:14px; padding-right:14px; }
-      .success-card { width:200px; height:200px; }
+    .btn-gradient:hover {
+      background-position: right center;
     }
+    /* Focus ring */
+    .focus-ring:focus{ outline:none; box-shadow: 0 0 0 3px rgba(59,130,246,.25); border-color: #60a5fa; }
+    /* Toast animation */
+    .animate-toastIn { animation: toastIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+    @keyframes toastIn { from { transform: translateY(100%) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+
+    @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
   </style>
 </head>
-
-<body>
-  <div class="max-mobile">
-
+<body class="bg-slate-50 font-sans text-slate-800 antialiased">
+  <div class="mx-auto max-w-lg px-4 pt-4 pb-28">
     <!-- Header -->
-    <div class="header-card">
-      <div class="logo-blob" aria-hidden="true">
-        <!-- SVG logo (100% SVG) -->
-        <svg viewBox="0 0 48 48" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="6" y="10" width="36" height="28" rx="6" fill="white" opacity="0.08"></rect>
-          <path d="M14 19h20M14 24h20M14 29h12" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
-        </svg>
+    <header class="flex items-center gap-3 py-2" style="padding-top: calc(var(--safe-top) + 8px)">
+      <div class="grid h-11 w-11 place-items-center rounded-2xl bg-blue-600 shadow-md">
+        <svg class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
       </div>
+      <div class="flex-1">
+        <h1 class="text-lg font-bold text-slate-900">Điểm danh</h1>
+        <p class="text-sm text-slate-500">Giao diện điểm danh nhân viên</p>
+      </div>
+    </header>
 
-      <div style="flex:1;">
-        <div style="font-weight:700; font-size:16px;">Điểm danh</div>
-        <div style="font-size:12px; color:#64748b;">Ứng dụng di động — Quét QR hoặc thêm thủ công</div>
+    <!-- Branch -->
+    <section class="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" role="region" aria-label="Chi nhánh">
+      <div class="flex items-center gap-3">
+        <div class="grid h-10 w-10 place-items-center rounded-lg bg-slate-100">
+          <svg class="h-5 w-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        </div>
+        <div class="flex-1">
+          <p class="text-xs text-slate-500">Chi nhánh làm việc</p>
+          <p id="branchName" class="mt-1 font-semibold text-slate-800">(đang xác định...)</p>
+        </div>
       </div>
-
-      <!-- GPS small badge (SVG only) -->
-      <div style="display:flex; align-items:center; gap:6px;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="10" stroke="#cfe0ff" stroke-width="1.6" fill="#eff7ff"/>
-          <path d="M12 7v5l3 3" stroke="#355bd6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-    </div>
-
-    <!-- Branch card -->
-    <div class="branch-card enter-up" role="region" aria-label="Chi nhánh">
-      <div style="width:44px; height:44px; border-radius:12px; background:#fff; display:grid; place-items:center;">
-        <!-- 100% SVG pin -->
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z" stroke="#355bd6" stroke-width="1.5" fill="#f0f6ff"/>
-          <circle cx="12" cy="9" r="2.2" fill="#355bd6"/>
-        </svg>
-      </div>
-      <div style="flex:1;">
-        <div style="font-size:12px; color:#64748b;">Chi nhánh làm</div>
-        <div id="branchName" style="font-weight:700; margin-top:6px; color:#0f172a;">(đang xác định...)</div>
-      </div>
-    </div>
+    </section>
 
     <!-- Actions -->
-    <div class="actions-row">
-      <button id="refreshBtn" class="enter-up" style="flex:1; background:#fff; border-radius:12px; padding:12px; font-weight:600; box-shadow:0 6px 18px rgba(2,6,23,0.04); border:1px solid rgba(15,23,42,0.03);">Tải lại</button>
-      <button id="addEmployeeBtn" class="enter-up" style="width:138px; background:var(--brand); color:#fff; border-radius:12px; padding:12px; font-weight:700;">+ Thêm</button>
+    <div class="mt-4 grid grid-cols-2 gap-3">
+      <button id="refreshBtn" class="group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition active:scale-[.98] focus-ring">
+        <svg class="h-4 w-4 text-slate-500 transition-transform group-active:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v6h-6"/></svg>
+        <span>Tải lại</span>
+      </button>
+      <button id="addEmployeeBtn" class="btn-gradient inline-flex items-center justify-center gap-2 rounded-xl text-white px-3 py-2.5 text-sm font-semibold shadow-md transition active:scale-[.98] focus-ring">
+        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg>
+        <span>Thêm</span>
+      </button>
     </div>
 
-    <!-- Attendance list -->
-    <div id="attendanceList" class="enter-up"></div>
-
-    <!-- Empty hint -->
-    <div id="emptyHint" class="enter-up" style="display:none; text-align:center; color:#64748b; margin-top:18px;">Danh sách trống. Bấm <strong>+ Thêm</strong> để bắt đầu.</div>
-  </div>
-
-  <!-- Bottom save bar -->
-  <div class="bottom-bar">
-    <div class="max-mobile" style="display:flex; gap:12px; align-items:center;">
-      <button id="saveBtn" style="flex:1; background:var(--brand); color:#fff; padding:14px; border-radius:12px; font-weight:800; font-size:16px; box-shadow:0 10px 30px rgba(53,91,214,0.18); border:none;">Điểm danh</button>
-      <!-- no status text shown as requested -->
+    <!-- List -->
+    <div id="attendanceList" class="mt-4 space-y-3"></div>
+    <div id="emptyHint" class="mt-6 hidden text-center text-sm text-slate-500">
+      Danh sách trống. Bấm <strong>+ Thêm</strong> để bắt đầu.
     </div>
   </div>
 
-  <!-- Branch chooser sheet -->
-  <div id="branchPopup" style="display:none; position:fixed; inset:0; z-index:70; background:rgba(2,6,23,0.4); align-items:flex-end; justify-content:center;">
-    <div class="sheet enter-up">
-      <div class="sheet-handle"></div>
-      <div style="padding:12px;">
-        <div style="font-weight:700; font-size:16px; margin-bottom:8px;">Chọn chi nhánh gần nhất</div>
-        <div id="branchChoices" style="display:flex; flex-direction:column; gap:8px;"></div>
-        <div style="margin-top:12px;"><button onclick="closeBranchPopup()" style="width:100%; padding:12px; border-radius:12px; background:#f1f5f9; font-weight:700;">Hủy</button></div>
+  <!-- Bottom bar -->
+  <div class="fixed bottom-0 left-0 right-0 border-t border-slate-200 bg-white/95 shadow-2xl backdrop-blur supports-[backdrop-filter]:bg-white/75">
+    <div class="mx-auto max-w-lg px-4 py-3" style="padding-bottom: calc(12px + var(--safe-bottom))">
+      <button id="saveBtn" class="btn-gradient w-full rounded-2xl px-4 py-3.5 text-base font-bold text-white shadow-lg transition active:scale-[.99] focus-ring">
+        LƯU ĐIỂM DANH
+      </button>
+    </div>
+  </div>
+
+  <!-- Branch chooser -->
+  <div id="branchPopup" class="modal fixed inset-0 z-40 hidden flex items-center justify-center p-4 bg-black/25 backdrop-blur-sm">
+    <div class="w-full max-w-md space-y-4 rounded-2xl border border-white/20 bg-white/70 p-6 shadow-lg backdrop-blur-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-slate-800">Chọn chi nhánh</h3>
+        <button onclick="closeModal('branchPopup')" class="rounded-full p-1 text-slate-500 transition-colors hover:bg-slate-400/20" aria-label="Đóng">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
+      <div id="branchChoices" class="max-h-[50vh] space-y-2 overflow-y-auto"></div>
     </div>
   </div>
 
-  <!-- Search modal (full screen bottom sheet) -->
-  <div id="searchModal" style="display:none; position:fixed; inset:0; z-index:80; background:rgba(2,6,23,0.4); align-items:flex-end;">
-    <div class="sheet enter-up" style="padding:12px;">
-      <div class="sheet-handle"></div>
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <input id="searchInputMain" type="text" placeholder="Nhập mã hoặc tên..." style="flex:1; padding:12px; border-radius:10px; border:1px solid #eef2ff;" />
-        <button id="closeSearchBtn" style="padding:12px 14px; border-radius:10px; background:#eef2ff; font-weight:700;">Đóng</button>
+  <!-- Search modal -->
+  <div id="searchModal" class="modal fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/25 backdrop-blur-sm">
+    <div class="w-full max-w-md space-y-4 rounded-2xl border border-white/20 bg-white/70 p-6 shadow-lg backdrop-blur-xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-semibold text-slate-800">Thêm nhân viên</h3>
+        <button onclick="closeModal('searchModal')" class="rounded-full p-1 text-slate-500 transition-colors hover:bg-slate-400/20" aria-label="Đóng">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
-      <ul id="suggestListMain" style="display:flex; flex-direction:column; gap:8px;"></ul>
+      <div class="relative">
+        <input id="searchInputMain" type="text" placeholder="Nhập mã hoặc tên..." class="focus-ring w-full rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-base" />
+        <svg class="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+      </div>
+      <div id="suggestListMain" class="max-h-[50vh] space-y-2 overflow-y-auto"></div>
     </div>
   </div>
 
-  <!-- Success overlay (hidden by default) -->
-  <div id="successOverlay" style="display:none;" class="success-overlay" role="dialog" aria-modal="true" aria-label="Thành công">
-    <div class="success-card" id="successCard" role="status">
-      <!-- Big circular checkmark (SVG animation) -->
-      <svg class="check-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="60" cy="60" r="54" fill="none" stroke="#e6f0ff" stroke-width="10"></circle>
-        <circle cx="60" cy="60" r="46" fill="none" stroke="#3bb07f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
-        <path class="path" d="M34 62 L52 80 L86 44" fill="none" stroke="#064e3b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
-  </div>
+  <!-- Lightweight toast container -->
+  <div id="toastHost" class="fixed top-[calc(16px+var(--safe-top))] right-4 z-50 space-y-2"></div>
 
-  <!-- Template variables (kept intact) -->
-  <script> const userRole = "{{ role | lower }}"; const loginCode = "{{ login_code }}"; const csrfToken = "{{ csrf_token }}"; let currentBranch = "{{ branch_id }}" || ""; </script>
+  <!-- Template variables (giữ nguyên) -->
+  <script>
+    const userRole = "{{ role | lower }}";
+    const loginCode = "{{ login_code }}";
+    const csrfToken = "{{ csrf_token }}";
+    let currentBranch = "{{ branch_id }}" || "";
+  </script>
 
   <script>
-    /* ========= Backend endpoints (unchanged) ========= */
+    /* ========= Endpoint backend (giữ nguyên) ========= */
     const byBranchUrl = (b) => `/attendance/api/employees/by-branch/${encodeURIComponent(b)}`;
-    const searchUrl = (q) => `/attendance/api/employees/search?q=${encodeURIComponent(q)}&loginCode=${encodeURIComponent(loginCode)}`;
-    const saveUrl = () => `/attendance/checkin_bulk`;
+    const searchUrl   = (q) => `/attendance/api/employees/search?q=${encodeURIComponent(q)}&loginCode=${encodeURIComponent(loginCode)}`;
+    const saveUrl     = () => `/attendance/checkin_bulk`;
 
     /* Local state */
     let employees = [];
 
-    /* Helper: escape */
+    /* Helpers */
     function escapeHtml(s){ return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
     function escapeAttr(s){ return String(s||"").replaceAll('"','&quot;'); }
+    function departmentDisplay(dep){ const map={ letan:"Lễ tân",buongphong:"Buồng phòng",baove:"Bảo vệ" }; return map[dep?.toLowerCase()] || dep || ""; }
+    function branchDisplay(branch){ const map={ B1:"Bin Bin 1", B2:"Bin Bin 2", B3:"Bin Bin 3", B5:"Bin Bin 5", B6:"Bin Bin 6", B7:"Bin Bin 7", B8:"Bin Bin 8", B9:"Bin Bin 9", B10:"Bin Bin 10", B11:"Bin Bin 11", B12:"Bin Bin 12", B14:"Bin Bin 14", B15:"Bin Bin 15", B16:"Bin Bin 16" }; return map[branch] || branch || ""; }
 
-    /* Disable form but show alert (user requested errors via alert) */
+    const toastHost = document.getElementById("toastHost");
+    const toast = (msg, type='info') => {
+        const icon = { success: '✓', info: 'ℹ', error: '✕' }[type];
+        const colors = { success: 'bg-green-600', info: 'bg-blue-600', error: 'bg-red-600' }[type];
+        const base = document.createElement("div");
+        base.className = `animate-toastIn ${colors} text-white text-sm font-medium rounded-full shadow-lg px-4 py-2`;
+        base.textContent = `${icon} ${msg}`;
+        toastHost.appendChild(base);
+        setTimeout(()=> base.remove(), 2500);
+    };
+
     function disableForm(message){
-      alert(message || "Không thể điểm danh");
-      // disable interactive controls
-      const saveBtn = document.getElementById("saveBtn");
-      if (saveBtn) { saveBtn.disabled = true; saveBtn.style.background = "#9aa6cc"; saveBtn.style.cursor = "not-allowed"; }
-      const addBtn = document.getElementById("addEmployeeBtn");
-      if (addBtn){ addBtn.disabled = true; addBtn.style.background = "#c7cbe0"; addBtn.style.cursor = "not-allowed"; }
-      const refresh = document.getElementById("refreshBtn");
-      if (refresh){ refresh.disabled = true; refresh.style.opacity = "0.45"; refresh.style.cursor="not-allowed"; }
-      // clear list
-      employees = [];
-      renderAttendanceList();
+      toast(message || "Không thể điểm danh", 'error');
+      ["saveBtn","addEmployeeBtn","refreshBtn"].forEach(id=>{
+        const el=document.getElementById(id); if(!el) return;
+        el.disabled=true; el.classList.add("opacity-50", "cursor-not-allowed");
+      });
+      employees=[]; renderAttendanceList();
     }
 
     async function safeFetchJson(url, options){
       const res = await fetch(url, options);
       if (!res.ok){
         let msg = `Lỗi kết nối server (mã ${res.status})`;
-        try { const data = await res.json(); if (data && data.error) msg = data.error; } catch(e){}
+        try{ const data = await res.json(); if (data && data.error) msg = data.error; }catch(e){}
         throw new Error(msg);
       }
       const ct = res.headers.get("content-type") || "";
-      if (ct.includes("application/json")) return await res.json();
-      return await res.text();
+      return ct.includes("application/json") ? res.json() : res.text();
     }
 
-    function departmentDisplay(dep){
-      const map = { letan:"Lễ tân", buongphong:"Buồng phòng", baove:"Bảo vệ" };
-      return map[dep?.toLowerCase()] || dep || "";
+    /* ===== Modal Handlers ===== */
+    function openModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.classList.remove('hidden');
+        const input = modal.querySelector('input[type="text"]');
+        if (input) setTimeout(() => input.focus(), 50);
+      }
     }
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.add('hidden');
+    }
+    ['searchModal', 'branchPopup'].forEach(id => {
+      const modal = document.getElementById(id);
+      if(modal) modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(id); });
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeModal('searchModal');
+        closeModal('branchPopup');
+      }
+    });
 
-    /* Render mobile cards */
+    /* ===== Render list ===== */
     function renderAttendanceList(){
       const wrap = document.getElementById("attendanceList");
       wrap.innerHTML = "";
-      const empty = document.getElementById("emptyHint");
-      empty.style.display = employees.length > 0 ? "none" : "block";
+      document.getElementById("emptyHint").style.display = employees.length > 0 ? "none" : "block";
 
       employees.forEach((emp, idx) => {
         emp.la_tang_ca = !!((emp.branch_today || currentBranch) !== (emp.branch || ""));
 
-        const container = document.createElement("div");
-        container.className = "swipe-container";
-
-        // swipe actions (Xóa)
-        const actions = document.createElement("div");
-        actions.className = "swipe-actions";
-        actions.innerHTML = `<button style="background:#ff6b6b;color:#fff;border:none;padding:12px 14px;border-radius:12px;" data-idx="${idx}">Xóa</button>`;
-
-        // card
-        const card = document.createElement("div");
-        card.className = "card enter-up";
-        card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
-            <div style="flex:1; min-width:0;">
-              <div class="meta">${escapeHtml(emp.name||"")}</div>
-              <div class="sub">Bộ phận: ${escapeHtml(departmentDisplay(emp.department))}</div>
-              ${emp.la_tang_ca ? `<div style="margin-top:8px;"><span class="badge">Tăng ca</span></div>` : ""}
+        const row = document.createElement("div");
+        row.className = "space-y-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm";
+        row.innerHTML = `
+          <div class="flex items-start gap-3">
+            <div class="flex-1">
+              <p class="font-semibold text-slate-800">${escapeHtml(emp.name)}</p>
+              <p class="mt-1 text-sm text-slate-500">
+                Mã: ${escapeHtml(emp.code)} &bull; ${escapeHtml(departmentDisplay(emp.department))}
+                ${emp.la_tang_ca ? '<span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Tăng ca</span>' : ''}
+              </p>
             </div>
-            <button aria-label="Xóa" data-action="delete" data-idx="${idx}" style="border:none;background:transparent;font-size:18px;color:#64748b;">✕</button>
+            <button data-idx="${idx}" class="btn-delete rounded-full p-1.5 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-500" aria-label="Xóa">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
           </div>
-          <div style="display:flex; gap:8px; margin-top:12px; align-items:center;">
-            <label style="font-size:12px;color:#64748b; min-width:56px;">Số công</label>
-            <select data-idx="${idx}" data-field="so_cong_nv" style="padding:10px; border-radius:10px; border:1px solid #eef2ff; min-width:84px;">
-              <option value="0.5" ${emp.so_cong_nv===0.5?"selected":""}>0.5</option>
-              <option value="1" ${!emp.so_cong_nv||emp.so_cong_nv===1?"selected":""}>1</option>
-              <option value="1.5" ${emp.so_cong_nv===1.5?"selected":""}>1.5</option>
-              <option value="2" ${emp.so_cong_nv===2?"selected":""}>2</option>
-              <option value="2.5" ${emp.so_cong_nv===2.5?"selected":""}>2.5</option>
-            </select>
-            <input data-idx="${idx}" data-field="ghi_chu" value="${escapeAttr(emp.ghi_chu||'')}" placeholder="Ghi chú" style="flex:1; padding:10px; border-radius:10px; border:1px solid #eef2ff;" />
+          <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div>
+              <label class="text-xs text-slate-500">Số công</label>
+              <select data-idx="${idx}" data-field="so_cong_nv" class="focus-ring mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base">
+                <option value="0.5" ${emp.so_cong_nv === 0.5 ? "selected" : ""}>0.5</option>
+                <option value="1" ${!emp.so_cong_nv || emp.so_cong_nv === 1 ? "selected" : ""}>1</option>
+                <option value="1.5" ${emp.so_cong_nv === 1.5 ? "selected" : ""}>1.5</option>
+                <option value="2" ${emp.so_cong_nv === 2 ? "selected" : ""}>2</option>
+                <option value="2.5" ${emp.so_cong_nv === 2.5 ? "selected" : ""}>2.5</option>
+              </select>
+            </div>
+            <div class="col-span-2">
+              <label class="text-xs text-slate-500">Ghi chú</label>
+              <input data-idx="${idx}" data-field="ghi_chu" value="${escapeAttr(emp.ghi_chu || '')}" placeholder="Nhập ghi chú..." class="focus-ring mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base">
+            </div>
           </div>
-          <div style="height:8px;"></div>
         `;
 
-        // touch swipe logic
-        let startX=0, currentX=0, dragging=false;
-        const threshold=64, maxTranslate=92;
-        function onTouchStart(e){ const t=e.touches[0]; startX=t.clientX; currentX=startX; dragging=true; card.style.transition="none"; }
-        function onTouchMove(e){ if(!dragging) return; const t=e.touches[0]; currentX=t.clientX; let dx=currentX-startX; if(dx>0) dx=0; if(dx < -maxTranslate) dx=-maxTranslate; card.style.transform=`translateX(${dx}px)`; }
-        function onTouchEnd(){ if(!dragging) return; dragging=false; card.style.transition="transform .18s ease-out"; const dx=currentX-startX; if(dx < -threshold) card.style.transform=`translateX(${-maxTranslate}px)`; else card.style.transform="translateX(0)"; }
-
-        card.addEventListener("touchstart", onTouchStart, {passive:true});
-        card.addEventListener("touchmove", onTouchMove, {passive:true});
-        card.addEventListener("touchend", onTouchEnd);
-
-        // delete handlers
-        actions.querySelector("button").onclick = () => {
-          card.classList.add("exit-small");
-          setTimeout(()=>{ employees.splice(idx,1); renderAttendanceList(); }, 220);
+        row.querySelector('.btn-delete').onclick = (e) => {
+            employees.splice(e.currentTarget.dataset.idx, 1);
+            renderAttendanceList();
         };
-        card.querySelector('[data-action="delete"]').onclick = () => {
-          card.classList.add("exit-small");
-          setTimeout(()=>{ employees.splice(idx,1); renderAttendanceList(); }, 220);
-        };
+        row.querySelector('select').onchange = (e) => { employees[e.currentTarget.dataset.idx].so_cong_nv = parseFloat(e.target.value); };
+        row.querySelector('input').oninput = (e) => { employees[e.currentTarget.dataset.idx].ghi_chu = e.target.value.slice(0,200); };
 
-        // field handlers
-        card.querySelector('select[data-field="so_cong_nv"]').onchange = (e) => { employees[idx].so_cong_nv = parseFloat(e.target.value); };
-        card.querySelector('input[data-field="ghi_chu"]').oninput = (e) => { employees[idx].ghi_chu = e.target.value; };
-
-        container.appendChild(actions);
-        container.appendChild(card);
-        wrap.appendChild(container);
+        wrap.appendChild(row);
       });
     }
 
-    /* Load data for branch */
+    /* ===== Data load by branch ===== */
     async function loadEmployeesForBranch(){
-      if(!currentBranch){ alert("Chi nhánh chưa được xác định."); return; }
-      try {
+      if(!currentBranch){ toast("Chi nhánh chưa được xác định.", 'error'); return; }
+      try{
         const data = await safeFetchJson(byBranchUrl(currentBranch));
         if (!Array.isArray(data)) throw new Error("API trả về không phải mảng");
         employees = data.map(emp => ({
-          code: emp.code||"", name: emp.name||"", department: emp.department||"", branch: emp.branch||"", branch_today: currentBranch,
-          la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:""
+          code: emp.code||"", name: emp.name||"", department: emp.department||"", branch: emp.branch||"",
+          branch_today: currentBranch, la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:""
         }));
 
-        // add current login if missing
         if (loginCode && !employees.some(e => e.code === loginCode)){
-          try {
+          try{
             const searchData = await safeFetchJson(searchUrl(loginCode));
             if (Array.isArray(searchData) && searchData.length>0){
               const s = searchData[0];
               employees.unshift({ code:s.code, name:s.name, department:s.department, branch:s.branch, branch_today:currentBranch, la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:"" });
             }
-          } catch(e){}
+          }catch(e){}
         }
-
         renderAttendanceList();
-      } catch(err){
-        alert("Lỗi khi tải danh sách: " + (err?.message || err));
+      }catch(err){
+        toast("Lỗi khi tải danh sách: " + (err?.message || err), 'error');
       }
     }
 
-    /* Add by search */
+    /* ===== Search & add ===== */
     async function addBySearchQuery(q){
       if(!q) return;
-      try {
+      try{
         const data = await safeFetchJson(searchUrl(q));
-        if (!Array.isArray(data) || data.length === 0) { alert("Không tìm thấy nhân viên"); return; }
+        if (!Array.isArray(data) || data.length === 0){ toast("Không tìm thấy nhân viên", 'info'); return; }
         const emp = data[0];
         const exists = employees.some(e => e.code === emp.code && e.branch_today === currentBranch);
-        if (exists) { alert("Nhân viên đã có trong danh sách"); return; }
-        employees.unshift({ code:emp.code, name:emp.name, department:emp.department, branch:emp.branch, branch_today:currentBranch, la_tang_ca:(emp.branch !== currentBranch), so_cong_nv:1, service:[], ghi_chu:"Tăng ca" });
+        if (exists){ toast("Nhân viên đã có trong danh sách", 'info'); return; }
+        employees.unshift({
+          code:emp.code, name:emp.name, department:emp.department, branch:emp.branch,
+          branch_today:currentBranch, la_tang_ca:(emp.branch !== currentBranch), so_cong_nv:1, service:[], ghi_chu:"Tăng ca"
+        });
         renderAttendanceList();
-      } catch(err){
-        alert("Lỗi tìm kiếm: " + (err?.message || err));
+        closeModal('searchModal');
+      }catch(err){
+        toast("Lỗi tìm kiếm: " + (err?.message || err), 'error');
       }
     }
 
-    /* Save attendance — on success show big popup */
+    /* ===== Save attendance (giữ nguyên payload/endpoint) ===== */
     async function saveAttendance(){
-      if (employees.length === 0){ alert("Danh sách trống, không có gì để lưu."); return; }
+      if (employees.length === 0){ toast("Danh sách trống, không có gì để lưu.", 'info'); return; }
       const payload = employees.map(emp => ({
-        sheet: (function(code){ if(!code) return "Khac"; if (code.includes("BPTC")||code.includes("LTTC")) return "TC"; if (code.includes("BP")) return "BP"; if (code.includes("LT")) return "LT"; if (code.includes("BV")) return "BV"; if (code.includes("QL")) return "QL"; if (code==="KTV") return "KTV"; return "Khac"; })(emp.code),
-        thoi_gian:"", ma_nv:emp.code, ten_nv:emp.name, chi_nhanh_chinh:emp.branch, chi_nhanh_lam: emp.branch_today||currentBranch, la_tang_ca:!!emp.la_tang_ca, so_cong_nv:emp.so_cong_nv, ghi_chu:(emp.ghi_chu||"").slice(0,200), nguoi_diem_danh: loginCode
+        sheet:(function(code){
+          if(!code) return "Khac";
+          if (code.includes("BPTC")||code.includes("LTTC")) return "TC";
+          if (code.includes("BP")) return "BP";
+          if (code.includes("LT")) return "LT";
+          if (code.includes("BV")) return "BV";
+          if (code.includes("QL")) return "QL";
+          if (code==="KTV") return "KTV";
+          return "Khac";
+        })(emp.code),
+        thoi_gian:"", ma_nv:emp.code, ten_nv:emp.name,
+        chi_nhanh_chinh:emp.branch, chi_nhanh_lam: emp.branch_today||currentBranch,
+        la_tang_ca:!!emp.la_tang_ca, so_cong_nv:emp.so_cong_nv,
+        ghi_chu:(emp.ghi_chu||"").slice(0,200), nguoi_diem_danh: loginCode
       }));
 
-      try {
+      try{
         const res = await fetch(saveUrl(), {
-          method: "POST",
-          headers: { "Content-Type":"application/json", "X-CSRF-Token": csrfToken },
+          method:"POST",
+          headers:{ "Content-Type":"application/json", "X-CSRF-Token": csrfToken },
           body: JSON.stringify(payload)
         });
-        if (!res.ok) {
-          const txt = await res.text().catch(()=>"(no body)");
-          throw new Error(`HTTP ${res.status}: ${txt}`);
-        }
+        if (!res.ok) throw new Error(`Lỗi server: ${res.status}`);
         const doc = await res.json().catch(()=>null);
-        if (doc && doc.status) {
-          // show big success popup with animation
-          showSuccessPopup();
-          // if QR token present, notify server (QR flow)
+        if (doc && doc.status === 'queued'){
+          toast("Điểm danh thành công!", 'success');
           const token = new URLSearchParams(window.location.search).get("token");
           if (token){
             fetch("/attendance/checkin_success", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ token }) })
-              .then(r=>r.json()).then(data => {
+              .then(r=>r.json()).then(data=>{
                 if (data && data.success && data.redirect_to) window.location.href = data.redirect_to;
-                else if (data && !data.success) alert("Điểm danh thất bại: " + (data.error || "Lỗi không xác định"));
-              }).catch(err => { alert("Lỗi khi xác nhận điểm danh: " + (err?.message || err)); });
+                else if (data && !data.success) toast("Điểm danh thất bại: " + (data.error || "Lỗi"), 'error');
+              }).catch(err=> toast("Lỗi xác nhận điểm danh: " + err.message, 'error'));
           }
-        } else {
-          alert("Lưu xong nhưng server trả về không chuẩn.");
+        }else{
+          toast("Lưu xong nhưng server trả về không chuẩn.", 'error');
         }
-      } catch(err){
-        alert("Lỗi khi lưu điểm danh: " + (err?.message || err));
+      }catch(err){
+        toast("Lỗi khi lưu điểm danh: " + (err?.message || err), 'error');
       }
     }
 
-    /* Success popup */
-    function showSuccessPopup(){
-      const overlay = document.getElementById("successOverlay");
-      overlay.style.display = "flex";
-      // auto-hide after 1.8s
-      setTimeout(()=> {
-        // hide with small exit
-        overlay.style.opacity = "0";
-        setTimeout(()=> overlay.style.display = "none", 300);
-      }, 1600);
-    }
-
-    /* Detect branch by GPS (errors via alert) */
+    /* ===== Branch detect (giữ logic cũ) ===== */
     async function detectBranchByGPS(){
-      return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-          disableForm("Trình duyệt không hỗ trợ GPS. Vui lòng dùng điện thoại để điểm danh.");
-          return resolve(null);
-        }
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      return new Promise((resolve)=>{
+        if (!navigator.geolocation){ disableForm("Trình duyệt không hỗ trợ GPS."); return resolve(null); }
+        navigator.geolocation.getCurrentPosition(async (pos)=>{
+          try{
             const data = await safeFetchJson("/attendance/api/detect-branch", {
-              method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ lat, lng })
+              method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ lat:pos.coords.latitude, lng:pos.coords.longitude })
             });
-            if (data && data.error) { disableForm(data.error); return resolve(null); }
-            if (data && data.choices) { showBranchSelectionPopup(data.choices); return resolve(null); }
-            if (data && data.branch) { currentBranch = data.branch; document.getElementById("branchName").textContent = branchDisplay(currentBranch); await loadEmployeesForBranch(); return resolve(currentBranch); }
-            disableForm("Không thể xác định chi nhánh từ GPS. Vui lòng thử lại.");
-            resolve(null);
-          } catch(err){ disableForm(err?.message || "Lỗi kết nối server."); resolve(null); }
-        }, (err) => {
+            if (data && data.error){ disableForm(data.error); return resolve(null); }
+            if (data && data.choices){ showBranchSelectionPopup(data.choices); return resolve(null); }
+            if (data && data.branch){
+              currentBranch = data.branch;
+              document.getElementById("branchName").textContent = branchDisplay(currentBranch);
+              return resolve(currentBranch);
+            }
+            disableForm("Không thể xác định chi nhánh từ GPS."); resolve(null);
+          }catch(err){ disableForm(err?.message || "Lỗi kết nối server."); resolve(null); }
+        }, (err)=>{
           let message = "Không thể lấy vị trí GPS.";
-          if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt và thử lại.";
-          else if (err.code === 2) message = "Không xác định được vị trí. Vui lòng thử lại.";
-          else if (err.code === 3) message = "Hết thời gian lấy vị trí. Vui lòng thử lại.";
-          disableForm(message);
-          resolve(null);
-        }, { enableHighAccuracy: true, timeout:12000, maximumAge:0 });
+          if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí.";
+          disableForm(message); resolve(null);
+        }, { enableHighAccuracy:true, timeout:12000, maximumAge:0 });
       });
     }
 
-    /* Wiring: buttons & search modal with debounce */
-    document.getElementById("saveBtn").addEventListener("click", saveAttendance);
-    document.getElementById("refreshBtn").addEventListener("click", () => loadEmployeesForBranch());
-    document.getElementById("addEmployeeBtn").addEventListener("click", () => {
-      document.getElementById("searchModal").style.display = "flex";
-      document.getElementById("searchInputMain").value = "";
-      document.getElementById("suggestListMain").innerHTML = "";
-      setTimeout(()=> document.getElementById("searchInputMain").focus(), 80);
-    });
-    document.getElementById("closeSearchBtn").addEventListener("click", () => {
-      document.getElementById("searchModal").style.display = "none";
-    });
-
-    // search debounce
-    let searchTimer = null;
-    document.getElementById("searchInputMain").addEventListener("input", (e) => {
-      const q = e.target.value.trim();
-      const list = document.getElementById("suggestListMain");
-      clearTimeout(searchTimer);
-      if (!q) { list.innerHTML = ""; return; }
-      searchTimer = setTimeout(async () => {
-        try {
-          const data = await safeFetchJson(searchUrl(q));
-          const top = Array.isArray(data) ? data.slice(0,6) : [];
-          list.innerHTML = top.map(emp => `<li style="padding:10px;border-bottom:1px solid #f1f5f9;" data-code="${emp.code}"><div style="font-weight:700;">${escapeHtml(emp.name)}</div><div style="font-size:12px;color:#64748b;margin-top:6px;">${escapeHtml(emp.code)} — ${escapeHtml(emp.department||"")}</div></li>`).join("");
-          list.querySelectorAll("li").forEach(li => { li.onclick = () => { addBySearchQuery(li.dataset.code); document.getElementById("searchModal").style.display = "none"; }; });
-        } catch(err){
-          alert("Lỗi tìm kiếm: " + (err?.message || err));
-        }
-      }, 300);
-    });
-
-    /* Branch popup functions */
+    /* ===== Branch popup ===== */
     function showBranchSelectionPopup(choices){
       const container = document.getElementById("branchChoices");
       container.innerHTML = "";
-      choices.forEach(ch => {
-        const btn = document.createElement("button");
-        btn.style.padding = "12px"; btn.style.borderRadius = "10px"; btn.style.width = "100%"; btn.style.border = "1px solid #eef2ff"; btn.style.background = "#fff"; btn.style.fontWeight="700"; btn.style.textAlign="left";
-        btn.textContent = `${branchDisplay(ch.branch)} — ${Math.round(ch.distance_km*1000)} m`;
-        btn.onclick = async () => {
+      choices.forEach(ch=>{
+        const btn=document.createElement("button");
+        btn.className = "w-full text-left rounded-lg border border-slate-300 bg-white p-3 text-sm font-semibold transition-colors hover:bg-slate-100 focus-ring";
+        btn.innerHTML = `${branchDisplay(ch.branch)} <span class="font-normal text-slate-500">— ${Math.round(ch.distance_km*1000)} m</span>`;
+        btn.onclick = async ()=>{
           currentBranch = ch.branch;
           document.getElementById("branchName").textContent = branchDisplay(currentBranch);
-          try {
+          try{
             await safeFetchJson("/attendance/api/select-branch", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ branch: ch.branch }) });
-            closeBranchPopup();
-            await loadEmployeesForBranch();
-          } catch(err){ alert("Lỗi chọn chi nhánh: " + (err?.message || err)); }
+            closeModal('branchPopup'); await loadEmployeesForBranch();
+          }catch(err){ toast("Lỗi chọn chi nhánh: " + (err?.message || err), 'error'); }
         };
         container.appendChild(btn);
       });
-      document.getElementById("branchPopup").style.display = "flex";
-    }
-    function closeBranchPopup(){ document.getElementById("branchPopup").style.display = "none"; }
-
-    function branchDisplay(branch) {
-      const map = { B1:"Bin Bin Hotel 1", B2:"Bin Bin Hotel 2", B3:"Bin Bin Hotel 3", B5:"Bin Bin Hotel 5", B6:"Bin Bin Hotel 6", B7:"Bin Bin Hotel 7", B8:"Bin Bin Hotel 8", B9:"Bin Bin Hotel 9", B10:"Bin Bin Hotel 10", B11:"Bin Bin Hotel 11", B12:"Bin Bin Hotel 12", B14:"Bin Bin Hotel 14", B15:"Bin Bin Hotel 15", B16:"Bin Bin Hotel 16" };
-      return map[branch] || branch || "";
+      openModal('branchPopup');
     }
 
-    /* Init: role special-case and GPS flow */
-    window.addEventListener("DOMContentLoaded", async () => {
+    /* ===== Search wiring ===== */
+    document.getElementById("addEmployeeBtn").addEventListener("click", () => {
+      openModal('searchModal');
+      document.getElementById("searchInputMain").value="";
+      document.getElementById("suggestListMain").innerHTML="";
+    });
+
+    let searchTimer=null;
+    document.getElementById("searchInputMain").addEventListener("input",(e)=>{
+      const q=e.target.value.trim(); const list=document.getElementById("suggestListMain");
+      clearTimeout(searchTimer);
+      if (!q){ list.innerHTML=""; return; }
+      searchTimer=setTimeout(async ()=>{
+        try{
+          const data = await safeFetchJson(searchUrl(q));
+          const top = Array.isArray(data) ? data.slice(0,6) : [];
+          list.innerHTML = top.map(emp=>`
+            <div class="cursor-pointer rounded-lg p-3 transition-colors hover:bg-slate-400/20" data-code="${emp.code}">
+              <p class="font-semibold text-slate-800">${escapeHtml(emp.name)}</p>
+              <p class="mt-1 text-sm text-slate-500">${escapeHtml(emp.code)} &bull; ${escapeHtml(emp.department||"")}</p>
+            </div>`).join("");
+          list.querySelectorAll("div[data-code]").forEach(li=>{
+            li.onclick = ()=>{ addBySearchQuery(li.dataset.code); };
+          });
+        }catch(err){ toast("Lỗi tìm kiếm: " + (err?.message || err), 'error'); }
+      }, 300);
+    });
+
+    /* ===== Buttons ===== */
+    document.getElementById("saveBtn").addEventListener("click", saveAttendance);
+    document.getElementById("refreshBtn").addEventListener("click", ()=> loadEmployeesForBranch());
+
+    /* ===== Init ===== */
+    window.addEventListener("DOMContentLoaded", async ()=>{
       const role = (userRole||"").toLowerCase();
       if (["quanly","ktv","boss","admin"].includes(role)){
-        try {
+        try{
           const data = await safeFetchJson("/attendance/api/detect-branch", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({}) });
-          if (data && data.branch) {
+          if (data && data.branch){
             currentBranch = data.branch;
             document.getElementById("branchName").textContent = branchDisplay(currentBranch);
             await loadEmployeesForBranch();
-            return;
-          } else {
+          }else{
             disableForm("Không tìm thấy chi nhánh chính cho tài khoản.");
-            return;
           }
-        } catch(err){ disableForm("Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị."); return; }
+        }catch(err){ disableForm("Không thể lấy chi nhánh chính."); }
+        return;
       }
-
-      // normal users -> GPS
       const detected = await detectBranchByGPS();
-      if (detected) {
-        document.getElementById("branchName").textContent = branchDisplay(detected);
+      if (detected){
         await loadEmployeesForBranch();
       }
     });
-
   </script>
 </body>
 </html>
