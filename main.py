@@ -1088,7 +1088,8 @@ def startup():
     init_db()  # tạo bảng nếu chưa có
 
     try:
-        sync_employees_to_db_safe()  # hàm này phải check bảng tồn tại trước khi DELETE/INSERT
+        seed_users()  # ✅ dùng seed thay vì sync xoá hết
+        print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
     except Exception as e:
         print("[STARTUP] Không thể đồng bộ nhân viên:", e)
 
