@@ -174,8 +174,8 @@
         thoi_gian: now,
         ma_nv: r.code,
         ten_nv: r.name,
-        chi_nhanh_chinh: r.branch || currentBranch,
-        chi_nhanh_lam: r.branch || currentBranch,   // ✅ fix: dùng chi nhánh lúc điểm danh thay vì user.branch
+        chi_nhanh_chinh: r.main_branch || currentBranch,   // chi nhánh chính từ hồ sơ nhân viên
+        chi_nhanh_lam: r.branch || currentBranch,         // chi nhánh lúc điểm danh
         la_tang_ca: (r.branch || currentBranch) !== currentBranch,
         ghi_chu: r.ghi_chu || "",
         dich_vu: r.dich_vu,
