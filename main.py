@@ -173,6 +173,25 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
 
     return {"branch": chosen_branch, "distance_km": round(min_distance, 3)}
 
+@app.post("/attendance/api/select-branch")
+async def select_branch(request: Request, db: Session = Depends(get_db)):
+    data = await request.json()
+    branch = data.get("branch")
+
+    user_data = request.session.get("user") or request.session.get("pending_user")
+    if not user_data:
+        return JSONResponse({"error": "User chưa đăng nhập"}, status_code=403)
+
+    request.session["active_branch"] = branch
+
+    # Lưu DB
+    user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
+    if user_in_db:
+        user_in_db.last_active_branch = branch
+        db.commit()
+
+    return {"branch": branch}
+
 @app.get("/attendance/service", response_class=HTMLResponse)
 def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user")
