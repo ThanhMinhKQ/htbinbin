@@ -509,63 +509,68 @@
     }
 
     /* ---------- GPS detect → set currentBranch ---------- */
-    async function detectBranchByGPS() {
-      return new Promise((resolve) => {
-        if (!navigator.geolocation) {
-          disableForm("Trình duyệt không hỗ trợ GPS. Vui lòng dùng điện thoại để điểm danh.");
-          return resolve(null);
-        }
+   async function detectBranchByGPS() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        disableForm("Trình duyệt không hỗ trợ GPS. Vui lòng dùng điện thoại để điểm danh.");
+        return resolve(null);
+      }
 
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          console.log("[GPS] lat,lng =", lat, lng);
 
-            const data = await safeFetchJson("/attendance/api/detect-branch", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ lat, lng })
-            });
+          const data = await safeFetchJson("/attendance/api/detect-branch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat, lng })
+          });
 
-            // Nếu backend trả về lỗi
-            if (data.error) {
-              disableForm(data.error);
-              return resolve(null);
-            }
-
-            // Nếu nhiều chi nhánh gần → popup cho user chọn
-            if (data.choices) {
-              showBranchSelectionPopup(data.choices);
-              return resolve(null);
-            }
-
-            // Nếu chỉ có 1 chi nhánh
-            if (data.branch) {
-              currentBranch = data.branch;
-              document.getElementById("branchName").textContent = branchDisplay(currentBranch);
-              await loadEmployeesForBranch();
-              return resolve(currentBranch);
-            }
-
-            // Fallback
-            disableForm("Không thể xác định chi nhánh từ GPS. Vui lòng thử lại.");
-            resolve(null);
-
-          } catch (err) {
-            console.error("detectBranchByGPS error:", err);
-            disableForm("Lỗi khi lấy vị trí. Vui lòng thử lại.");
-            resolve(null);
+          // Server trả lỗi chuẩn dạng {error: "..."}
+          if (data && data.error) {
+            console.warn("[detect-branch:error]", data.error);
+            disableForm(data.error);
+            return resolve(null);
           }
-        }, (err) => {
-          let message = "Không thể lấy vị trí GPS.";
-          if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt và tải lại trang.";
-          else if (err.code === 2) message = "Không xác định được vị trí. Vui lòng thử lại.";
-          else if (err.code === 3) message = "Hết thời gian lấy vị trí. Vui lòng thử lại.";
-          disableForm(message);
+
+          // Có nhiều chi nhánh gần → cho chọn
+          if (data && data.choices) {
+            console.log("[detect-branch] choices:", data.choices);
+            showBranchSelectionPopup(data.choices);
+            return resolve(null);
+          }
+
+          // 1 chi nhánh
+          if (data && data.branch) {
+            currentBranch = data.branch;
+            document.getElementById("branchName").textContent = branchDisplay(currentBranch);
+            await loadEmployeesForBranch();
+            return resolve(currentBranch);
+          }
+
+          // Fallback
+          disableForm("Không thể xác định chi nhánh từ GPS. Vui lòng thử lại.");
           resolve(null);
-        }, { enableHighAccuracy: true, timeout: 10000 });
-      });
-    }
+
+        } catch (err) {
+          console.error("[detect-branch] fetch error:", err);
+          // 👉 Quan trọng: đưa thông điệp cụ thể từ server ra UI
+          disableForm(err?.message || "Có lỗi kết nối server. Vui lòng thử lại.");
+          resolve(null);
+        }
+      }, (err) => {
+        console.warn("[GPS] geolocation error:", err);
+        let message = "Không thể lấy vị trí GPS.";
+        if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt và tải lại trang.";
+        else if (err.code === 2) message = "Không xác định được vị trí. Vui lòng thử lại.";
+        else if (err.code === 3) message = "Hết thời gian lấy vị trí. Vui lòng thử lại.";
+        disableForm(message);
+        resolve(null);
+      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+    });
+  }
 
     /* ---------- Wiring ---------- */
     // Tạo popup search khi bấm nút
