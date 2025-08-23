@@ -29,7 +29,7 @@
   <div class="max-w-xl mx-auto px-4 pt-3 desktop-container">
     <header class="pt-[var(--safe-top)] flex items-center justify-between mb-3">
       <h1 class="text-2xl font-bold">🛎 Chấm dịch vụ buồng phòng</h1>
-      <span class="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600">Chi nhánh: <span id="branchName">{{ last_branch or branch_id }}</span>
+      <span class="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600">Chi nhánh: <span id="branchName">{{ branch_id }}</span></span>
     </header>
 
     <!-- Service list -->
@@ -137,73 +137,29 @@
   function removeRow(i){serviceRows.splice(i,1); renderService(); showStatus("Chưa lưu");}
 
   // Save
- async function saveService() {
-    const rows = document.querySelectorAll("#employeeTable tbody tr");
-    const payload = [];
-
-    rows.forEach(row => {
-        const code = row.getAttribute("data-code");
-        const name = row.cells[1].innerText;
-        const branch = row.getAttribute("data-branch"); // ✅ branch được gắn từ initial_employees
-
-        const so_phong = row.querySelector("input[name=so_phong]").value;
-        const so_luong = row.querySelector("input[name=so_luong]").value;
-        const dich_vu = row.querySelector("input[name=dich_vu]").value;
-        const ghi_chu = row.querySelector("input[name=ghi_chu]").value;
-
-        payload.push({
-            code,
-            name,
-            branch,       // giữ lại để backend biết chi nhánh
-            so_phong,
-            so_luong,
-            dich_vu,
-            ghi_chu
-        });
-    });
-
-    if (!payload.length) {
-        alert("Không có dữ liệu để lưu");
-        return;
-    }
-
-    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
-
-    const normalized = payload.map(r => ({
-        sheet: "DV",
-        thoi_gian: now,
-        ma_nv: r.code,
-        ten_nv: r.name,
-        chi_nhanh_chinh: r.main_branch || currentBranch,   // chi nhánh chính từ hồ sơ nhân viên
-        chi_nhanh_lam: r.branch || currentBranch,         // chi nhánh lúc điểm danh
+  async function saveService(){
+    const payload=serviceRows.filter(r=>r.dich_vu&&r.so_phong&&r.so_luong);
+    if(payload.length===0){alert("Chưa có dữ liệu hợp lệ");return;}
+    showStatus("Đang lưu...");
+    const now=new Date().toISOString().slice(0,19).replace("T"," ");
+    const normalized=payload.map(r=>({
+        sheet:"DV",
+        thoi_gian:now,
+        ma_nv:r.code,
+        ten_nv:r.name,
+        chi_nhanh_chinh:r.branch || currentBranch,
+        chi_nhanh_lam:currentBranch,
         la_tang_ca: (r.branch || currentBranch) !== currentBranch,
-        ghi_chu: r.ghi_chu || "",
-        dich_vu: r.dich_vu,
-        so_phong: r.so_phong,
-        so_luong: r.so_luong
+        ghi_chu:r.ghi_chu||"",
+        dich_vu:r.dich_vu,
+        so_phong:r.so_phong,
+        so_luong:r.so_luong
     }));
-
-    try {
-        const resp = await fetch("/attendance/checkin_bulk", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRF-Token": csrfToken
-            },
-            body: JSON.stringify(normalized)
-        });
-
-        const result = await resp.json();
-        if (resp.ok) {
-            alert("Đã lưu thành công!");
-        } else {
-            alert("Lỗi: " + result.detail);
-        }
-    } catch (err) {
-        alert("Có lỗi khi gọi API: " + err);
-    }
-}
-
+    try{
+      const res=await fetch("/attendance/checkin_bulk",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify(normalized)});
+      if(!res.ok) throw new Error("Lỗi lưu"); alert("✅ Lưu thành công"); showStatus("Đã lưu");
+    }catch(e){alert("❌ "+e.message); showStatus("Lỗi");}
+  }
   document.getElementById("serviceSaveBtn").onclick=saveService;
 
   // Popup add employee
@@ -221,13 +177,7 @@
       btn.textContent=`${emp.name} (${emp.code})`;
       btn.onclick=()=>{
         if(serviceRows.some(r=>r.code===emp.code)){alert("Nhân viên này đã có trong danh sách");return;}
-        serviceRows.push({
-          code: emp.code,
-          name: emp.name,
-          main_branch: emp.main_branch, // ✅ thêm chi nhánh chính
-          branch: emp.branch,           // ✅ chi nhánh làm theo GPS
-          so_phong: "", so_luong: "", dich_vu: "", ghi_chu: ""
-        });
+        serviceRows.push({code:emp.code,name:emp.name,branch:emp.branch,so_phong:"",so_luong:"",dich_vu:"",ghi_chu:""});
         renderService(); addSheet.classList.add("hidden");
         document.getElementById("searchInput").value = ""; // Clear search input
         c.innerHTML = ""; // Clear results
