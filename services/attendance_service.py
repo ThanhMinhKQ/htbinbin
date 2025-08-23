@@ -26,11 +26,11 @@ DV_HEADERS = [
 _sheet_id_cache = {}
 
 # ================== UTILS ==================
-def get_sheet_name(code: str) -> str:
+def get_sheet_name(code: str, is_service: bool = False) -> str:
     """
-    Xác định sheet ghi điểm danh dựa trên mã nhân viên.
+    Xác định sheet ghi điểm danh dựa trên mã nhân viên và loại điểm danh.
     - Mã có "TC" (Tăng ca) -> sheet "TC"
-    - Mã có "BP" (Buồng phòng) không tăng ca -> sheet "DV"
+    - Mã có "BP" (Buồng phòng) VÀ là chấm dịch vụ -> sheet "DV"
     - Các bộ phận khác có sheet riêng theo vai trò.
     """
     code_upper = (code or "").upper()
@@ -42,7 +42,7 @@ def get_sheet_name(code: str) -> str:
     if "BPTC" in code_upper or "LTTC" in code_upper:
         return "TC"
 
-    # Ưu tiên 2: Buồng phòng (không tăng ca) vào sheet "DV"
+    # Ưu tiên 2: Buồng phòng (không phải dịch vụ)
     if "BP" in code_upper:
         return "BP"
 
@@ -175,7 +175,7 @@ def push_bulk_checkin(records: List[dict]) -> dict:
             ma_nv = rec.get("ma_nv") or ""
             is_service = bool(rec.get("dich_vu"))
             # Sử dụng hàm get_sheet_name để xác định sheet một cách nhất quán
-            sheet_name = get_sheet_name(ma_nv)
+            sheet_name = get_sheet_name(ma_nv, is_service=is_service)
             rec["sheet"] = sheet_name
             grouped_by_sheet[sheet_name].append(rec)
 
