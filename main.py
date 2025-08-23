@@ -165,7 +165,6 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
                         "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
                     })
 
-
     response = templates.TemplateResponse("attendance_service.html", {
         "request": request,
         "branch_id": active_branch,
@@ -1211,14 +1210,38 @@ async def attendance_checkin_bulk(
     normalized_data = []
     now_vn = datetime.now(timezone("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d %H:%M:%S")
 
+    def get_nearest_branch(lat, lon, threshold_km=0.2):
+        """Tìm chi nhánh gần nhất theo GPS (nếu nằm trong threshold_km)."""
+        nearest_branch, min_dist = None, float("inf")
+        for branch, coords in branchCoordinates.items():
+            dist = haversine(lat, lon, coords[0], coords[1])
+            if dist < min_dist:
+                min_dist = dist
+                nearest_branch = branch
+        return nearest_branch if min_dist <= threshold_km else None
+
+    bp_checkin_data = []
+
     for rec in raw_data:
+        # === Xác định chi nhánh làm theo GPS (ưu tiên GPS) ===
+        lat, lon = rec.get("lat"), rec.get("lon")
+        branch_lam = rec.get("chi_nhanh_lam")  # fallback nếu không có GPS
+
+        if lat and lon:
+            try:
+                branch_from_gps = get_nearest_branch(float(lat), float(lon))
+                if branch_from_gps:
+                    branch_lam = branch_from_gps
+            except Exception as e:
+                print("[WARN] GPS parse error:", e)
+
         normalized_data.append({
             "sheet": rec.get("sheet"),
             "thoi_gian": rec.get("thoi_gian") or now_vn,
             "ma_nv": rec.get("ma_nv"),
             "ten_nv": rec.get("ten_nv"),
-            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
-            "chi_nhanh_lam": rec.get("chi_nhanh_lam"),
+            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),  # từ hồ sơ nhân viên
+            "chi_nhanh_lam": branch_lam,                    # ✅ GPS xác định
             "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
             "so_cong_nv": rec.get("so_cong_nv") or 1,
             "ghi_chu": rec.get("ghi_chu", ""),
@@ -1228,24 +1251,15 @@ async def attendance_checkin_bulk(
             "nguoi_diem_danh": nguoi_diem_danh_code
         })
 
-    # ✅ Lấy danh sách nhân viên BP vừa điểm danh
-    bp_checkin_data = [
-        {"code": rec.get("ma_nv"), "branch": rec.get("chi_nhanh_lam")}
-        for rec in raw_data
-        if "BP" in rec.get("ma_nv", "").upper() and rec.get("chi_nhanh_lam")
-    ]
+        # Nếu là nhân viên BP thì lưu lại để dùng cho chấm dịch vụ
+        if "BP" in rec.get("ma_nv", "").upper() and branch_lam:
+            bp_checkin_data.append({"code": rec.get("ma_nv"), "branch": branch_lam})
 
-    # ✅ Lấy chi nhánh active tại thời điểm điểm danh (ưu tiên session)
-    active_branch = request.session.get("active_branch") or user.get("branch")
-
-    # ✅ Lưu thông tin này lại vào DB
+    # === Lưu danh sách BP vào DB cho lễ tân ===
     if nguoi_diem_danh_code and bp_checkin_data:
         checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
         if checker_user:
-            checker_user.last_checked_in_bp = {
-                "branch_id": active_branch,
-                "employees": bp_checkin_data
-            }
+            checker_user.last_checked_in_bp = bp_checkin_data
             db.commit()
 
     # ✅ chạy push_bulk_checkin ở background
