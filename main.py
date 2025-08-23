@@ -103,6 +103,20 @@ def haversine(lat1, lon1, lat2, lon2):
 
 @app.post("/attendance/api/detect-branch")
 async def detect_branch(request: Request, db: Session = Depends(get_db)):
+    user_data = request.session.get("user")
+    special_roles = ["quanly", "ktv", "boss", "admin"]
+
+    # ✅ Bỏ qua phát hiện GPS cho các vai trò đặc biệt, dùng chi nhánh mặc định
+    if user_data and user_data.get("role") in special_roles:
+        user_branch = user_data.get("branch")
+        if user_branch:
+            request.session["active_branch"] = user_branch
+            user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
+            if user_in_db:
+                user_in_db.last_active_branch = user_branch
+                db.commit()
+            return {"branch": user_branch, "distance_km": 0}
+
     data = await request.json()
     lat, lng = data.get("lat"), data.get("lng")
     if lat is None or lng is None:
@@ -124,7 +138,6 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
     request.session["active_branch"] = nearest_branch
 
     # Lưu vào DB để ghi nhớ cho lần đăng nhập sau
-    user_data = request.session.get("user")
     if user_data:
         user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
         if user_in_db:
