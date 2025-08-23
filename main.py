@@ -135,20 +135,29 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     initial_employees = []
     # Lấy danh sách nhân viên BP đã được điểm danh lần cuối từ DB của lễ tân
     checker_user = db.query(User).filter(User.code == user_data["code"]).first()
-    if checker_user and checker_user.last_checked_in_bp:
-        service_checkin_codes = checker_user.last_checked_in_bp
+    if checker_user and checker_user.last_checked_in_bp and isinstance(checker_user.last_checked_in_bp, list):
+        service_checkin_data = checker_user.last_checked_in_bp
 
-        if service_checkin_codes:
-            # Lấy thông tin chi tiết của các nhân viên đó
-            employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
-            # Sắp xếp lại theo đúng thứ tự đã điểm danh
+        # Lấy tất cả mã nhân viên để truy vấn một lần
+        employee_codes = [item.get("code") for item in service_checkin_data if item.get("code")]
+
+        if employee_codes:
+            employees_from_db = db.query(User).filter(User.code.in_(employee_codes)).all()
             emp_map = {emp.code: emp for emp in employees_from_db}
-            sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
-            
-            initial_employees = [
-                {"code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""}
-                for emp in sorted_employees
-            ]
+
+            # Dựng lại danh sách với chi nhánh đã được lưu tại thời điểm điểm danh
+            for item in service_checkin_data:
+                emp_code = item.get("code")
+                checkin_branch = item.get("branch")
+                emp_details = emp_map.get(emp_code)
+
+                if emp_details and checkin_branch:
+                    initial_employees.append({
+                        "code": emp_details.code,
+                        "name": emp_details.name,
+                        "branch": checkin_branch, # ✅ Sử dụng chi nhánh lúc điểm danh
+                        "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
+                    })
 
     response = templates.TemplateResponse("attendance_service.html", {
         "request": request,
@@ -1065,11 +1074,18 @@ def logout(request: Request):
 
 @app.on_event("startup")
 def startup():
-    init_db()
-    sync_employees_to_db()
-    # Nếu cần theo dõi file employees.py thì khởi động thread ở đây
-    import threading
-    import time
+    from database import init_db
+    from utils import sync_employees_to_db_safe
+
+    init_db()  # tạo bảng nếu chưa có
+
+    try:
+        sync_employees_to_db_safe()  # hàm này phải check bảng tồn tại trước khi DELETE/INSERT
+    except Exception as e:
+        print("[STARTUP] Không thể đồng bộ nhân viên:", e)
+
+    # Thread watch employees.py
+    import threading, time, os
     EMPLOYEES_FILE = os.path.join(os.path.dirname(__file__), "employees.py")
     _last_mtime = None
     def watch_employees_file():
@@ -1082,7 +1098,7 @@ def startup():
                 elif mtime != _last_mtime:
                     _last_mtime = mtime
                     print("[SYNC] employees.py thay đổi → đồng bộ DB...")
-                    sync_employees_to_db()
+                    sync_employees_to_db_safe()
                     print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
             except FileNotFoundError:
                 print("[SYNC] Không tìm thấy file employees.py")
@@ -1209,18 +1225,20 @@ async def attendance_checkin_bulk(
         })
 
     # Lấy danh sách mã nhân viên BP vừa được điểm danh
-    bp_codes = [
-        rec.get("ma_nv") for rec in raw_data
-        if "BP" in rec.get("ma_nv", "").upper()
+    # ✅ Lưu cả mã và chi nhánh làm việc để dùng cho trang chấm dịch vụ
+    bp_checkin_data = [
+        {"code": rec.get("ma_nv"), "branch": rec.get("chi_nhanh_lam")}
+        for rec in raw_data
+        if "BP" in rec.get("ma_nv", "").upper() and rec.get("chi_nhanh_lam")
     ]
 
     # Cập nhật danh sách này vào DB cho lễ tân đang đăng nhập.
     # Danh sách này sẽ được dùng để đề xuất ở trang "Chấm dịch vụ" và sẽ tồn tại
     # cho đến lần điểm danh tiếp theo của lễ tân này.
-    if nguoi_diem_danh_code:
+    if nguoi_diem_danh_code and bp_checkin_data:
         checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
         if checker_user:
-            checker_user.last_checked_in_bp = bp_codes
+            checker_user.last_checked_in_bp = bp_checkin_data
             db.commit()
 
     # ✅ chạy push_bulk_checkin ở background
@@ -1243,20 +1261,31 @@ def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
     if not checker_user or not checker_user.last_checked_in_bp:
         return JSONResponse(content=[])
 
-    service_checkin_codes = checker_user.last_checked_in_bp
-    
-    if not service_checkin_codes:
+    # Dữ liệu giờ là list of dicts: [{'code': 'BP01', 'branch': 'B1'}, ...]
+    service_checkin_data = checker_user.last_checked_in_bp
+    if not service_checkin_data or not isinstance(service_checkin_data, list):
         return JSONResponse(content=[])
 
-    employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
-    # Sắp xếp lại theo đúng thứ tự đã điểm danh
+    employee_codes = [item.get("code") for item in service_checkin_data if item.get("code")]
+    if not employee_codes:
+        return JSONResponse(content=[])
+
+    employees_from_db = db.query(User).filter(User.code.in_(employee_codes)).all()
     emp_map = {emp.code: emp for emp in employees_from_db}
-    sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
-    
-    employee_list = [
-        { "code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": "" }
-        for emp in sorted_employees
-    ]
+
+    employee_list = []
+    for item in service_checkin_data:
+        emp_code = item.get("code")
+        checkin_branch = item.get("branch")
+        emp_details = emp_map.get(emp_code)
+
+        if emp_details and checkin_branch:
+            employee_list.append({
+                "code": emp_details.code, "name": emp_details.name,
+                "branch": checkin_branch, # ✅ Sử dụng chi nhánh lúc điểm danh
+                "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
+            })
+
     return JSONResponse(content=employee_list)
 
 @app.get("/api/attendance/results-by-checker")
