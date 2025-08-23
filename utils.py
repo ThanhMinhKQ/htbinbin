@@ -5,17 +5,15 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from models import Task as TaskModel
-from database import Base, engine
+from database import Base, SessionLocal, engine
+
+from sqlalchemy import inspect
+from models import User
+
+from employees import employees
 
 # Định nghĩa múi giờ Việt Nam (UTC+7) để sử dụng nhất quán
 VN_TZ = timezone(timedelta(hours=7))
-
-
-# === Khởi tạo DB (tạo bảng nếu chưa có) ===
-def init_db() -> None:
-    """Tạo bảng trong database nếu chưa tồn tại."""
-    Base.metadata.create_all(bind=engine)
-
 
 # === Lấy thống kê công việc ===
 def get_task_stats(
@@ -139,3 +137,37 @@ def is_overdue(task: Union[Task, TaskModel]) -> bool:
         han = han.replace(tzinfo=timezone.utc)
 
     return han < now_vn
+
+allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+
+def sync_employees_to_db_safe():
+    db = SessionLocal()
+    try:
+        if not inspect(db.bind).has_table("users"):
+            print("[SYNC] Bảng 'users' chưa tồn tại → bỏ qua đồng bộ")
+            return
+
+        db.query(User).delete()
+
+        for emp in employees:
+            # Lọc các key trùng với cột của User
+            allowed_keys = {c.name for c in User.__table__.columns}
+            emp_filtered = {k: v for k, v in emp.items() if k in allowed_keys}
+
+            # Xử lý password theo role
+            role = emp_filtered.get("role", "")
+            if role in allowed_login_roles:
+                emp_filtered["password"] = "999"
+            else:
+                emp_filtered["password"] = ""   # hoặc None nếu cột cho phép NULL
+
+            db.add(User(**emp_filtered))
+
+        db.commit()
+        print("[SYNC] Đồng bộ nhân viên thành công")
+
+    except Exception as e:
+        db.rollback()
+        print("[SYNC] Lỗi khi đồng bộ nhân viên:", e)
+    finally:
+        db.close()
