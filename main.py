@@ -103,50 +103,75 @@ def haversine(lat1, lon1, lat2, lon2):
 
 @app.post("/attendance/api/detect-branch")
 async def detect_branch(request: Request, db: Session = Depends(get_db)):
-    user_data = request.session.get("user")
     special_roles = ["quanly", "ktv", "boss", "admin"]
 
+    # Lấy user từ session (ưu tiên user, fallback pending_user)
+    user_data = request.session.get("user") or request.session.get("pending_user")
+    user_in_db = None
     if user_data:
         user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
 
-        # ✅ Với role đặc biệt → bỏ qua GPS, gán luôn chi nhánh chính
-        if user_data.get("role") in special_roles:
-            if user_in_db and user_in_db.branch:
-                main_branch = user_in_db.branch
-                request.session["active_branch"] = main_branch
-                user_in_db.last_active_branch = main_branch
-                db.commit()
-                return {"branch": main_branch, "distance_km": 0}
-            else:
-                return JSONResponse({"error": "Không tìm thấy chi nhánh chính của user"}, status_code=404)
+    # ===============================
+    # 1. Role đặc biệt → bỏ qua GPS
+    # ===============================
+    if user_data and user_data.get("role") in special_roles:
+        if user_in_db and user_in_db.branch:
+            main_branch = user_in_db.branch
+            request.session["active_branch"] = main_branch
+            user_in_db.last_active_branch = main_branch
+            db.commit()
+            return {"branch": main_branch, "distance_km": 0}
 
-    # ✅ Các role còn lại → xử lý GPS như cũ
-    data = await request.json()
+        return JSONResponse(
+            {"error": "Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị."},
+            status_code=400,
+        )
+
+    # ===============================
+    # 2. Role thường → dùng GPS
+    # ===============================
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
     lat, lng = data.get("lat"), data.get("lng")
     if lat is None or lng is None:
-        return JSONResponse({"error": "Bạn vui lòng mở định vị trên điện thoại để lấy vị trí"}, status_code=400)
+        return JSONResponse(
+            {"error": "Bạn vui lòng mở định vị trên điện thoại để lấy vị trí"},
+            status_code=400,
+        )
 
-    nearest_branch = None
-    min_distance = float("inf")
+    # Tìm chi nhánh trong bán kính 200m
+    nearby_branches = []
     for branch, coords in branchCoordinates.items():
         dist = haversine(lat, lng, coords[0], coords[1])
-        if dist < min_distance:
-            min_distance = dist
-            nearest_branch = branch
+        if dist <= 0.2:  # trong 200m
+            nearby_branches.append((branch, dist))
 
-    # ✅ Giới hạn khoảng cách điểm danh là 200m (0.2km)
-    if min_distance > 0.2:
-        distance_in_meters = round(min_distance * 1000)
-        error_message = f"Bạn đang cách khách sạn {distance_in_meters}m. Vui lòng điểm danh tại khách sạn."
-        return JSONResponse({"error": error_message}, status_code=403)
+    if not nearby_branches:
+        return JSONResponse(
+            {"error": "Bạn đang ở quá xa khách sạn (ngoài 200m). Vui lòng điểm danh tại khách sạn."},
+            status_code=403,
+        )
 
-    request.session["active_branch"] = nearest_branch
+    # Nếu có nhiều chi nhánh gần → cho frontend chọn
+    if len(nearby_branches) > 1:
+        choices = [
+            {"branch": b, "distance_km": round(d, 3)}
+            for b, d in sorted(nearby_branches, key=lambda x: x[1])
+        ]
+        return {"choices": choices}
 
-    if user_data and user_in_db:
-        user_in_db.last_active_branch = nearest_branch
+    # Nếu chỉ có 1 chi nhánh gần → chọn luôn
+    chosen_branch, min_distance = nearby_branches[0]
+
+    request.session["active_branch"] = chosen_branch
+    if user_in_db:
+        user_in_db.last_active_branch = chosen_branch
         db.commit()
 
-    return {"branch": nearest_branch, "distance_km": round(min_distance, 3)}
+    return {"branch": chosen_branch, "distance_km": round(min_distance, 3)}
 
 @app.get("/attendance/service", response_class=HTMLResponse)
 def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
@@ -1340,16 +1365,17 @@ def attendance_checkin(request: Request, token: str, db: Session = Depends(get_d
     if not log:
         return HTMLResponse("Token không hợp lệ!", status_code=400)
 
-    # Kiểm tra xem token này đã được sử dụng để check-in thành công chưa.
-    # Nếu rồi, link QR sẽ không còn hợp lệ.
     if log.checked_in:
-        return templates.TemplateResponse("qr_invalid.html", {"request": request, "message": "Mã QR này đã được sử dụng để điểm danh và không còn hợp lệ."}, status_code=403)
+        return templates.TemplateResponse(
+            "qr_invalid.html",
+            {"request": request, "message": "Mã QR này đã được sử dụng để điểm danh và không còn hợp lệ."},
+            status_code=403
+        )
 
     user = db.query(User).filter_by(code=log.user_code).first()
     if not user:
         return HTMLResponse("Không tìm thấy user!", status_code=400)
 
-    # FIX: Store user in session to authenticate subsequent API calls
     user_data = {
         "code": user.code,
         "role": user.role,
@@ -1357,15 +1383,13 @@ def attendance_checkin(request: Request, token: str, db: Session = Depends(get_d
         "name": user.name
     }
 
-    # Xóa session 'user' cũ (nếu có) để tránh ghi nhầm người điểm danh
-    # khi một thiết bị được dùng để quét QR cho nhiều tài khoản khác nhau.
-    # Một lượt quét QR mới sẽ bắt đầu một phiên điểm danh mới.
     request.session.pop("user", None)
     request.session["pending_user"] = user_data
+    role = user_data.get("role", "")
 
-    # Render the attendance page
     return templates.TemplateResponse("attendance.html", {
         "request": request,
+        "role": role,
         "branch_id": user.branch,
         "csrf_token": get_csrf_token(request),
         "user": user_data,
