@@ -148,6 +148,31 @@
     function log(...args){ console.log("[attendance]", ...args); }
     function showStatus(text){ document.getElementById("status").textContent = text; }
 
+    function disableForm(message) {
+      document.getElementById('branchName').textContent = 'Không thể điểm danh';
+      document.getElementById('branchName').classList.remove('text-blue-700');
+      document.getElementById('branchName').classList.add('text-red-700');
+
+      const topInfo = document.getElementById('topInfo');
+      topInfo.textContent = message;
+      topInfo.classList.add('text-red-600', 'font-semibold', 'p-3', 'bg-red-50', 'rounded-xl');
+
+      // Vô hiệu hóa các nút
+      document.getElementById('saveBtn').disabled = true;
+      document.getElementById('saveBtn').classList.add('bg-gray-400', 'cursor-not-allowed');
+      document.getElementById('saveBtn').classList.remove('bg-blue-600');
+
+      document.getElementById('addEmployeeBtn').disabled = true;
+      document.getElementById('addEmployeeBtn').classList.add('bg-gray-400', 'cursor-not-allowed');
+      document.getElementById('addEmployeeBtn').classList.remove('bg-indigo-600');
+
+      document.getElementById('refreshBtn').disabled = true;
+      document.getElementById('refreshBtn').classList.add('cursor-not-allowed', 'opacity-50');
+
+      document.getElementById('attendanceList').innerHTML = '';
+      document.getElementById('emptyHint').classList.add('hidden');
+    }
+
     // Sheet mapping – giữ nguyên logic cũ
     function getSheetName(code){
       if(!code) return "Khac";
@@ -163,8 +188,16 @@
     async function safeFetchJson(url, options){
       const res = await fetch(url, options);
       if (!res.ok){
-        const text = await res.text().catch(()=>"(no body)");
-        throw new Error(`HTTP ${res.status}: ${text}`);
+        let errorMessage = `Lỗi kết nối server (mã ${res.status})`;
+        try {
+          const errorData = await res.json();
+          if (errorData && errorData.error) {
+            errorMessage = errorData.error;
+          }
+        } catch (e) {
+          // Response không phải JSON, giữ lỗi mặc định.
+        }
+        throw new Error(errorMessage);
       }
       const ct = res.headers.get("content-type") || "";
       if (ct.includes("application/json")) return await res.json();
@@ -477,50 +510,48 @@
 
     /* ---------- GPS detect → set currentBranch ---------- */
     async function detectBranchByGPS(){
-      let retry = 0;
       return new Promise((resolve) => {
         function tryGetGPS() {
-          if (currentBranch && currentBranch !== "{{ branch_id }}") {
-            resolve(currentBranch);
-            return;
-          }
           if (!navigator.geolocation){
-            alert("Thiết bị của bạn không hỗ trợ GPS! Bạn vẫn có thể điểm danh thủ công.");
+            disableForm("Trình duyệt hoặc thiết bị của bạn không hỗ trợ định vị (GPS).");
             resolve(null);
             return;
           }
+
           // Luôn yêu cầu quyền vị trí chính xác
           navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
               const lat = pos.coords.latitude;
               const lng = pos.coords.longitude;
-              // Hiển thị vị trí lấy được để debug
               console.log("GPS:", lat, lng);
               const data = await safeFetchJson("/attendance/api/detect-branch", {
                 method: "POST",
                 headers: { "Content-Type":"application/json" },
                 body: JSON.stringify({ lat, lng })
               });
+
               if (data && data.branch){
                 currentBranch = data.branch;
                 resolve(currentBranch);
               } else {
-                alert("❌ Không thể xác định chi nhánh qua GPS! Bạn vẫn có thể điểm danh thủ công.");
+                disableForm("Không thể xác định chi nhánh từ GPS. Vui lòng thử lại.");
                 resolve(null);
               }
             } catch (err) {
-              if (++retry < 3) {
-                setTimeout(tryGetGPS, 1200);
-              } else {
-                alert("Lỗi lấy GPS: " + err.message + ". Bạn vẫn có thể điểm danh thủ công.");
-                resolve(null);
-              }
+              // Bắt lỗi từ safeFetchJson (ví dụ: quá xa, server lỗi)
+              disableForm(err.message);
+              resolve(null);
             }
           }, (err) => {
-            // Hiển thị lỗi chi tiết để debug
-            alert("Không lấy được GPS: " + err.message + ". Hãy kiểm tra quyền truy cập vị trí, bật GPS và thử lại trên Chrome/Safari.");
+            // Bắt lỗi khi trình duyệt không lấy được tọa độ
+            console.error("GPS Error:", err);
+            let message = "Không lấy được vị trí GPS. Vui lòng kiểm tra cài đặt và cấp quyền truy cập vị trí cho trình duyệt.";
+            if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt và tải lại trang.";
+            if (err.code === 2) message = "Không thể lấy vị trí. Vui lòng đảm bảo bạn đang ở khu vực có tín hiệu GPS tốt.";
+            if (err.code === 3) message = "Yêu cầu vị trí hết hạn. Vui lòng thử lại.";
+            disableForm(message);
             resolve(null);
-          }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+          }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         }
         tryGetGPS();
       });
@@ -622,12 +653,8 @@
     if (detected) {
       document.getElementById("branchName").textContent = branchDisplay(detected);
       await loadEmployeesForBranch();
-    } else if (currentBranch && currentBranch !== "{{ branch_id }}") {
-      document.getElementById("branchName").textContent = currentBranch;
-      await loadEmployeesForBranch();
-    } else {
-      document.getElementById("branchName").textContent = "(không xác định)";
     }
+    // Không cần 'else'. Nếu 'detected' là null, UI đã bị khóa bởi hàm detectBranchByGPS.
   });
   </script>
 </body>
