@@ -1,14 +1,15 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()  # load biến từ .env
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-# fallback cho local development
 if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./test.db"
+    raise ValueError("DATABASE_URL not set!")
 
-# Fix prefix nếu copy nhầm postgres://
+# Fix prefix nếu copy nhầm postgres:// -> postgresql://
 if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 SMTP_CONFIG = {
     "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
