@@ -1,727 +1,519 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Điểm danh</title>
+  <title>Điểm danh — Mobile (App style)</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
     :root {
       --safe-bottom: env(safe-area-inset-bottom, 0px);
       --safe-top: env(safe-area-inset-top, 0px);
+      --brand: #355bd6;
+      --glass: rgba(255,255,255,0.9);
     }
 
-    /* ===== Animations ===== */
-    @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-    @keyframes slideUp { from { transform: translateY(16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
-    @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    /* Mobile-first modern EU style */
+    body { -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background: linear-gradient(180deg,#f6f8fb,#eef3fb); color:#0f172a; margin:0; -webkit-tap-highlight-color: transparent; }
 
-    .animate-fadeIn { animation: fadeIn .35s ease-out both; }
-    .animate-slideUp { animation: slideUp .35s ease-out both; }
-    .animate-sheetUp { animation: sheetUp .32s cubic-bezier(.22,.61,.36,1) both; }
+    .max-mobile { max-width:420px; margin-left:auto; margin-right:auto; padding-left:16px; padding-right:16px; }
 
-    /* ===== Card swipe-to-delete (iOS-like) ===== */
-    .swipe-container {
-      position: relative;
-      overflow: hidden;
-      touch-action: pan-y;
-    }
-    .swipe-actions {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      justify-content: flex-end;
-      align-items: stretch;
-      background: #fee2e2; /* red-100 */
-      padding-right: .5rem;
-    }
-    .swipe-actions button {
-      min-width: 72px;
-      border-radius: 12px;
-      margin: auto .25rem;
-      height: 44px;
-    }
-    .swipe-content {
-      position: relative;
-      background: white;
-      transform: translateX(0);
-      transition: transform .18s ease-out;
-      border-radius: 16px;
-      box-shadow: 0 6px 22px rgba(0,0,0,.06);
-    }
+    /* small header card */
+    .header-card { display:flex; gap:12px; align-items:center; padding-top:calc(var(--safe-top) + 10px); padding-bottom:8px; }
+    .logo-blob { width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--brand), #2b49c8); display:grid; place-items:center; box-shadow: 0 8px 28px rgba(53,91,214,0.12); }
 
-    /* ===== Bottom bar glass ===== */
-    .glass {
-      background: rgba(255,255,255,.82);
-      -webkit-backdrop-filter: saturate(180%) blur(16px);
-      backdrop-filter: saturate(180%) blur(16px);
-    }
+    /* branch card */
+    .branch-card { margin-top:12px; background: linear-gradient(180deg, rgba(53,91,214,0.06), rgba(53,91,214,0.02)); padding:12px; border-radius:14px; display:flex; gap:12px; align-items:flex-start; box-shadow: 0 6px 20px rgba(18,24,40,0.04); }
 
-    /* ===== Bottom sheet ===== */
-    .sheet {
-      position: fixed;
-      left: 0; right: 0; bottom: 0;
-      background: #fff;
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      box-shadow: 0 -10px 30px rgba(0,0,0,.12);
-      max-height: 78vh;
-      padding-bottom: calc(16px + var(--safe-bottom));
-    }
-    .sheet-handle {
-      width: 44px; height: 5px; border-radius: 999px;
-      background: #e5e7eb; /* gray-200 */
-      margin: 8px auto 12px;
-    }
+    /* actions row */
+    .actions-row { display:flex; gap:10px; margin-top:12px; }
 
-    /* Hide native scrollbars on mobile for cleaner look */
-    ::-webkit-scrollbar { width: 0; height: 0; }
+    /* list */
+    #attendanceList { margin-top:14px; display:flex; flex-direction:column; gap:12px; }
+    .card { background:#fff; border-radius:14px; padding:12px; box-shadow: 0 10px 30px rgba(15,23,42,0.06); overflow:hidden; transform-origin:center; }
+    .card .meta { font-weight:600; font-size:15px; color:#0f172a; }
+    .card .sub { font-size:12px; color:#64748b; margin-top:4px; }
+
+    /* small badge */
+    .badge { display:inline-flex; align-items:center; gap:6px; background:#fff7ed; color:#92400e; padding:6px 8px; border-radius:999px; font-size:12px; border:1px solid rgba(245,158,11,0.12); }
+
+    /* swipe actions (hidden behind card on mobile) */
+    .swipe-container { position:relative; overflow:hidden; touch-action: pan-y; }
+    .swipe-actions { position:absolute; inset:0; display:flex; justify-content:flex-end; align-items:center; gap:8px; padding-right:8px; }
+    .swipe-actions button { min-width:72px; height:44px; border-radius:12px; font-weight:700; }
+
+    /* floating bottom bar */
+    .bottom-bar { position:fixed; left:0; right:0; bottom:0; padding-bottom:calc(10px + var(--safe-bottom)); background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.98)); border-top: 1px solid rgba(15,23,42,0.04); box-shadow: 0 -8px 30px rgba(2,6,23,0.04); }
+
+    /* modal / sheet */
+    .sheet { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top-left-radius:18px; border-top-right-radius:18px; box-shadow: 0 -12px 34px rgba(2,6,23,0.12); max-height:80vh; overflow:auto; padding-bottom:calc(12px + var(--safe-bottom)); }
+    .sheet-handle { width:44px; height:5px; border-radius:999px; background:#e6eefc; margin:10px auto; }
+
+    /* animations */
+    @keyframes enterUp { from { transform: translateY(10px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+    @keyframes exitSmall { from { transform: scale(1); opacity:1 } to { transform: scale(.97) translateY(-6px); opacity:0 } }
+
+    .enter-up { animation: enterUp .28s cubic-bezier(.22,.9,.28,1) both; }
+    .exit-small { animation: exitSmall .22s ease-in forwards; }
+
+    /* success overlay */
+    .success-overlay { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(2,6,23,0.45); z-index:90; }
+    .success-card { width:220px; height:220px; border-radius:999px; background: linear-gradient(135deg, #ffffff, #f7fbff); display:grid; place-items:center; box-shadow: 0 18px 50px rgba(2,6,23,0.28); transform:scale(.8); opacity:0; animation: successPop .42s cubic-bezier(.2,.9,.3,1) forwards; }
+    @keyframes successPop {
+      0% { transform: scale(.7); opacity:0 }
+      60% { transform: scale(1.06); opacity:1 }
+      100% { transform: scale(1); opacity:1 }
+    }
+    /* checkmark animation */
+    .check-svg { width:110px; height:110px; }
+    .path { stroke-dasharray: 200; stroke-dashoffset: 200; animation: dash 0.7s ease forwards 0.18s; }
+    @keyframes dash { to { stroke-dashoffset: 0; } }
+
+    /* subtle focus indicators for inputs */
+    input:focus, select:focus, button:focus { outline: none; box-shadow: 0 6px 20px rgba(53,91,214,0.08); }
+
+    /* adjust for safe area on small devices */
+    @media (max-width:420px) {
+      .max-mobile { padding-left:14px; padding-right:14px; }
+      .success-card { width:200px; height:200px; }
+    }
   </style>
 </head>
 
-<body class="bg-gray-50 min-h-screen pb-28">
-  <div class="max-w-xl mx-auto px-4 pt-3 space-y-3 animate-fadeIn">
+<body>
+  <div class="max-mobile">
+
     <!-- Header -->
-    <header class="pt-[var(--safe-top)] flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">📋 Điểm danh</h1>
-      <span class="text-[11px] px-2 py-1 rounded-full bg-blue-50 text-blue-600">GPS xác định</span>
-    </header>
+    <div class="header-card">
+      <div class="logo-blob" aria-hidden="true">
+        <!-- SVG logo (100% SVG) -->
+        <svg viewBox="0 0 48 48" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="10" width="36" height="28" rx="6" fill="white" opacity="0.08"></rect>
+          <path d="M14 19h20M14 24h20M14 29h12" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
 
-    <!-- Branch info -->
-    <section id="branchInfo" class="bg-gradient-to-r from-sky-50 to-blue-50 p-3 rounded-2xl text-[13px] text-gray-700 shadow-sm flex items-center gap-2">
-      <span>📍</span>
-      <span class="font-medium">Chi nhánh làm:</span>
-      <span id="branchName" class="text-blue-700">(đang xác định...)</span>
-    </section>
+      <div style="flex:1;">
+        <div style="font-weight:700; font-size:16px;">Điểm danh</div>
+        <div style="font-size:12px; color:#64748b;">Ứng dụng di động — Quét QR hoặc thêm thủ công</div>
+      </div>
 
-    <!-- Top status / helper -->
-    <div id="topInfo" class="text-[13px] text-gray-600"></div>
-
-    <!-- Quick search -->
-    <div class="flex gap-2">
-      <button id="refreshBtn" class="px-3 rounded-xl bg-gray-100 text-[13px] hover:bg-gray-200">Tải lại</button>
-      <button id="addEmployeeBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">+ Thêm nhân viên</button>
+      <!-- GPS small badge (SVG only) -->
+      <div style="display:flex; align-items:center; gap:6px;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="#cfe0ff" stroke-width="1.6" fill="#eff7ff"/>
+          <path d="M12 7v5l3 3" stroke="#355bd6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
     </div>
 
-    <!-- Attendance list (cards) -->
-    <div id="attendanceList" class="space-y-3"></div>
+    <!-- Branch card -->
+    <div class="branch-card enter-up" role="region" aria-label="Chi nhánh">
+      <div style="width:44px; height:44px; border-radius:12px; background:#fff; display:grid; place-items:center;">
+        <!-- 100% SVG pin -->
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C8.1 2 5 5.1 5 9c0 5.3 7 13 7 13s7-7.7 7-13c0-3.9-3.1-7-7-7z" stroke="#355bd6" stroke-width="1.5" fill="#f0f6ff"/>
+          <circle cx="12" cy="9" r="2.2" fill="#355bd6"/>
+        </svg>
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:12px; color:#64748b;">Chi nhánh làm</div>
+        <div id="branchName" style="font-weight:700; margin-top:6px; color:#0f172a;">(đang xác định...)</div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-row">
+      <button id="refreshBtn" class="enter-up" style="flex:1; background:#fff; border-radius:12px; padding:12px; font-weight:600; box-shadow:0 6px 18px rgba(2,6,23,0.04); border:1px solid rgba(15,23,42,0.03);">Tải lại</button>
+      <button id="addEmployeeBtn" class="enter-up" style="width:138px; background:var(--brand); color:#fff; border-radius:12px; padding:12px; font-weight:700;">+ Thêm</button>
+    </div>
+
+    <!-- Attendance list -->
+    <div id="attendanceList" class="enter-up"></div>
 
     <!-- Empty hint -->
-    <div id="emptyHint" class="hidden text-center text-gray-500 text-sm py-12">
-      Danh sách trống. Hãy thêm nhân viên bằng ô tìm kiếm hoặc nút <span class="font-medium text-gray-700">+ Thêm ca</span> bên dưới.
+    <div id="emptyHint" class="enter-up" style="display:none; text-align:center; color:#64748b; margin-top:18px;">Danh sách trống. Bấm <strong>+ Thêm</strong> để bắt đầu.</div>
+  </div>
+
+  <!-- Bottom save bar -->
+  <div class="bottom-bar">
+    <div class="max-mobile" style="display:flex; gap:12px; align-items:center;">
+      <button id="saveBtn" style="flex:1; background:var(--brand); color:#fff; padding:14px; border-radius:12px; font-weight:800; font-size:16px; box-shadow:0 10px 30px rgba(53,91,214,0.18); border:none;">Điểm danh</button>
+      <!-- no status text shown as requested -->
     </div>
   </div>
 
-  <!-- Bottom action bar -->
-  <div class="fixed left-0 right-0 bottom-0 glass border-t border-gray-200 shadow-lg">
-    <div class="max-w-xl mx-auto px-4 py-2.5 flex gap-2 items-center" style="padding-bottom: calc(10px + var(--safe-bottom));">
-      <button id="saveBtn" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold active:scale-[.99] transition-colors">💾 Lưu</button>
-    </div>
-    <div class="max-w-xl mx-auto px-4 pb-2 -mt-2 text-[12px] text-gray-600">
-      <span id="status">Chưa lưu</span>
+  <!-- Branch chooser sheet -->
+  <div id="branchPopup" style="display:none; position:fixed; inset:0; z-index:70; background:rgba(2,6,23,0.4); align-items:flex-end; justify-content:center;">
+    <div class="sheet enter-up">
+      <div class="sheet-handle"></div>
+      <div style="padding:12px;">
+        <div style="font-weight:700; font-size:16px; margin-bottom:8px;">Chọn chi nhánh gần nhất</div>
+        <div id="branchChoices" style="display:flex; flex-direction:column; gap:8px;"></div>
+        <div style="margin-top:12px;"><button onclick="closeBranchPopup()" style="width:100%; padding:12px; border-radius:12px; background:#f1f5f9; font-weight:700;">Hủy</button></div>
+      </div>
     </div>
   </div>
 
-  <script>
-    const userRole = "{{ role | lower }}";
-  </script>
+  <!-- Search modal (full screen bottom sheet) -->
+  <div id="searchModal" style="display:none; position:fixed; inset:0; z-index:80; background:rgba(2,6,23,0.4); align-items:flex-end;">
+    <div class="sheet enter-up" style="padding:12px;">
+      <div class="sheet-handle"></div>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <input id="searchInputMain" type="text" placeholder="Nhập mã hoặc tên..." style="flex:1; padding:12px; border-radius:10px; border:1px solid #eef2ff;" />
+        <button id="closeSearchBtn" style="padding:12px 14px; border-radius:10px; background:#eef2ff; font-weight:700;">Đóng</button>
+      </div>
+      <ul id="suggestListMain" style="display:flex; flex-direction:column; gap:8px;"></ul>
+    </div>
+  </div>
+
+  <!-- Success overlay (hidden by default) -->
+  <div id="successOverlay" style="display:none;" class="success-overlay" role="dialog" aria-modal="true" aria-label="Thành công">
+    <div class="success-card" id="successCard" role="status">
+      <!-- Big circular checkmark (SVG animation) -->
+      <svg class="check-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="60" cy="60" r="54" fill="none" stroke="#e6f0ff" stroke-width="10"></circle>
+        <circle cx="60" cy="60" r="46" fill="none" stroke="#3bb07f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+        <path class="path" d="M34 62 L52 80 L86 44" fill="none" stroke="#064e3b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Template variables (kept intact) -->
+  <script> const userRole = "{{ role | lower }}"; const loginCode = "{{ login_code }}"; const csrfToken = "{{ csrf_token }}"; let currentBranch = "{{ branch_id }}" || ""; </script>
 
   <script>
-    /*
-      UI iOS 2025 – Giữ logic cũ:
-      - getSheetName, safeFetchJson, loadEmployeesForBranch, addBySearchQuery, saveAttendance
-      - GPS detect → /attendance/api/detect-branch
-      - Dữ liệu ẩn: branch, branch_today, la_tang_ca vẫn gửi khi lưu
-    */
-
-    /* ---------- Config & helpers ---------- */
-    let currentBranch = "{{ branch_id }}" || "";
-    const loginCode = "{{ login_code }}"; // mã nhân viên đăng nhập
-    const csrfToken = "{{ csrf_token }}";
-
+    /* ========= Backend endpoints (unchanged) ========= */
     const byBranchUrl = (b) => `/attendance/api/employees/by-branch/${encodeURIComponent(b)}`;
     const searchUrl = (q) => `/attendance/api/employees/search?q=${encodeURIComponent(q)}&loginCode=${encodeURIComponent(loginCode)}`;
     const saveUrl = () => `/attendance/checkin_bulk`;
 
-    let employees = []; // danh sách row đang hiển thị
+    /* Local state */
+    let employees = [];
 
-    function log(...args){ console.log("[attendance]", ...args); }
-    function showStatus(text){ document.getElementById("status").textContent = text; }
+    /* Helper: escape */
+    function escapeHtml(s){ return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+    function escapeAttr(s){ return String(s||"").replaceAll('"','&quot;'); }
 
-    function disableForm(message) {
-      document.getElementById('branchName').textContent = 'Không thể điểm danh';
-      document.getElementById('branchName').classList.remove('text-blue-700');
-      document.getElementById('branchName').classList.add('text-red-700');
-
-      const topInfo = document.getElementById('topInfo');
-      topInfo.textContent = message;
-      topInfo.classList.add('text-red-600', 'font-semibold', 'p-3', 'bg-red-50', 'rounded-xl');
-
-      // Vô hiệu hóa các nút
-      document.getElementById('saveBtn').disabled = true;
-      document.getElementById('saveBtn').classList.add('bg-gray-400', 'cursor-not-allowed');
-      document.getElementById('saveBtn').classList.remove('bg-blue-600');
-
-      document.getElementById('addEmployeeBtn').disabled = true;
-      document.getElementById('addEmployeeBtn').classList.add('bg-gray-400', 'cursor-not-allowed');
-      document.getElementById('addEmployeeBtn').classList.remove('bg-indigo-600');
-
-      document.getElementById('refreshBtn').disabled = true;
-      document.getElementById('refreshBtn').classList.add('cursor-not-allowed', 'opacity-50');
-
-      document.getElementById('attendanceList').innerHTML = '';
-      document.getElementById('emptyHint').classList.add('hidden');
-    }
-
-    // Sheet mapping – giữ nguyên logic cũ
-    function getSheetName(code){
-      if(!code) return "Khac";
-      if (code.includes("BPTC") || code.includes("LTTC")) return "TC";
-      if (code.includes("BP")) return "BP";
-      if (code.includes("LT")) return "LT";
-      if (code.includes("BV")) return "BV";
-      if (code.includes("QL")) return "QL";
-      if (code === "KTV") return "KTV";
-      return "Khac";
+    /* Disable form but show alert (user requested errors via alert) */
+    function disableForm(message){
+      alert(message || "Không thể điểm danh");
+      // disable interactive controls
+      const saveBtn = document.getElementById("saveBtn");
+      if (saveBtn) { saveBtn.disabled = true; saveBtn.style.background = "#9aa6cc"; saveBtn.style.cursor = "not-allowed"; }
+      const addBtn = document.getElementById("addEmployeeBtn");
+      if (addBtn){ addBtn.disabled = true; addBtn.style.background = "#c7cbe0"; addBtn.style.cursor = "not-allowed"; }
+      const refresh = document.getElementById("refreshBtn");
+      if (refresh){ refresh.disabled = true; refresh.style.opacity = "0.45"; refresh.style.cursor="not-allowed"; }
+      // clear list
+      employees = [];
+      renderAttendanceList();
     }
 
     async function safeFetchJson(url, options){
       const res = await fetch(url, options);
       if (!res.ok){
-        let errorMessage = `Lỗi kết nối server (mã ${res.status})`;
-        try {
-          const errorData = await res.json();
-          if (errorData && errorData.error) {
-            errorMessage = errorData.error;
-          }
-        } catch (e) {
-          // Response không phải JSON, giữ lỗi mặc định.
-        }
-        throw new Error(errorMessage);
+        let msg = `Lỗi kết nối server (mã ${res.status})`;
+        try { const data = await res.json(); if (data && data.error) msg = data.error; } catch(e){}
+        throw new Error(msg);
       }
       const ct = res.headers.get("content-type") || "";
       if (ct.includes("application/json")) return await res.json();
       return await res.text();
     }
 
-    function escapeHtml(s){ return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
-    function escapeAttr(s){ return String(s).replaceAll('"','&quot;'); }
-
-    function departmentDisplay(dep) {
-      const map = {
-        letan: "Lễ tân",
-        buongphong: "Buồng phòng",
-        baove: "Bảo vệ"
-        // thêm các bộ phận khác nếu có
-      };
+    function departmentDisplay(dep){
+      const map = { letan:"Lễ tân", buongphong:"Buồng phòng", baove:"Bảo vệ" };
       return map[dep?.toLowerCase()] || dep || "";
     }
 
-    /* ---------- UI: render Card list + Swipe-to-delete ---------- */
+    /* Render mobile cards */
     function renderAttendanceList(){
       const wrap = document.getElementById("attendanceList");
       wrap.innerHTML = "";
       const empty = document.getElementById("emptyHint");
-      empty.classList.toggle("hidden", employees.length > 0);
+      empty.style.display = employees.length > 0 ? "none" : "block";
 
       employees.forEach((emp, idx) => {
-        // tính tăng ca
-        const isTangCa = (emp.branch_today || currentBranch) !== (emp.branch || "");
-        emp.la_tang_ca = !!isTangCa;
+        emp.la_tang_ca = !!((emp.branch_today || currentBranch) !== (emp.branch || ""));
 
         const container = document.createElement("div");
-        container.className = "swipe-container animate-slideUp";
+        container.className = "swipe-container";
 
-        // actions (delete)
+        // swipe actions (Xóa)
         const actions = document.createElement("div");
         actions.className = "swipe-actions";
-        actions.innerHTML = `
-          <button class="bg-red-600 text-white text-sm px-3" data-idx="${idx}">Xóa</button>
-        `;
+        actions.innerHTML = `<button style="background:#ff6b6b;color:#fff;border:none;padding:12px 14px;border-radius:12px;" data-idx="${idx}">Xóa</button>`;
 
+        // card
         const card = document.createElement("div");
-        card.className = "swipe-content p-3";
-
+        card.className = "card enter-up";
         card.innerHTML = `
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="font-semibold text-[15px] truncate">${escapeHtml(emp.name || "")}</div>
-              <div class="text-[12px] text-gray-500 mt-0.5">
-                Bộ phận: ${escapeHtml(departmentDisplay(emp.department))}
-              </div>
-              ${emp.la_tang_ca ? `<div class="inline-flex items-center text-[11px] mt-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full border border-amber-100">Tăng ca</div>` : ``}
+          <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
+            <div style="flex:1; min-width:0;">
+              <div class="meta">${escapeHtml(emp.name||"")}</div>
+              <div class="sub">Bộ phận: ${escapeHtml(departmentDisplay(emp.department))}</div>
+              ${emp.la_tang_ca ? `<div style="margin-top:8px;"><span class="badge">Tăng ca</span></div>` : ""}
             </div>
-            <button class="text-gray-400 active:scale-95" title="Xóa" data-idx="${idx}" data-action="delete">✕</button>
+            <button aria-label="Xóa" data-action="delete" data-idx="${idx}" style="border:none;background:transparent;font-size:18px;color:#64748b;">✕</button>
           </div>
-
-          <div class="mt-3 flex items-center gap-2">
-            <label class="text-[12px] text-gray-600">Số công</label>
-            <select class="border border-gray-200 rounded-lg text-sm px-2 py-1 h-9 min-w-[72px]" data-idx="${idx}" data-field="so_cong_nv">
+          <div style="display:flex; gap:8px; margin-top:12px; align-items:center;">
+            <label style="font-size:12px;color:#64748b; min-width:56px;">Số công</label>
+            <select data-idx="${idx}" data-field="so_cong_nv" style="padding:10px; border-radius:10px; border:1px solid #eef2ff; min-width:84px;">
               <option value="0.5" ${emp.so_cong_nv===0.5?"selected":""}>0.5</option>
-              <option value="1" ${!emp.so_cong_nv || emp.so_cong_nv===1?"selected":""}>1</option>
+              <option value="1" ${!emp.so_cong_nv||emp.so_cong_nv===1?"selected":""}>1</option>
               <option value="1.5" ${emp.so_cong_nv===1.5?"selected":""}>1.5</option>
               <option value="2" ${emp.so_cong_nv===2?"selected":""}>2</option>
               <option value="2.5" ${emp.so_cong_nv===2.5?"selected":""}>2.5</option>
             </select>
-
-            <input class="flex-1 border border-gray-200 rounded-lg text-sm px-3 py-2" placeholder="Ghi chú"
-                  value="${escapeAttr(emp.ghi_chu||"")}" data-idx="${idx}" data-field="ghi_chu"/>
+            <input data-idx="${idx}" data-field="ghi_chu" value="${escapeAttr(emp.ghi_chu||'')}" placeholder="Ghi chú" style="flex:1; padding:10px; border-radius:10px; border:1px solid #eef2ff;" />
           </div>
-
-          <!-- Dữ liệu ẩn giữ đúng payload khi lưu -->
-          <div class="hidden">
-            <span data-field="branch">${escapeHtml(emp.branch || "")}</span>
-            <span data-field="branch_today">${escapeHtml(emp.branch_today || currentBranch)}</span>
-            <span data-field="la_tang_ca">${emp.la_tang_ca ? "1":"0"}</span>
-          </div>
+          <div style="height:8px;"></div>
         `;
 
-        // Swipe-to-delete logic
-        let startX = 0, currentX = 0, dragged = false;
-        const threshold = 68; // mở actions khi kéo > threshold
-        const maxTranslate = 84; // giới hạn kéo
-
-        function onTouchStart(e){
-          const touch = e.touches[0];
-          startX = touch.clientX;
-          currentX = startX;
-          dragged = true;
-          card.style.transition = "none";
-        }
-        function onTouchMove(e){
-          if(!dragged) return;
-          const touch = e.touches[0];
-          currentX = touch.clientX;
-          let dx = currentX - startX;
-          if (dx > 0) dx = 0; // chỉ kéo sang trái
-          if (dx < -maxTranslate) dx = -maxTranslate;
-          card.style.transform = `translateX(${dx}px)`;
-        }
-        function onTouchEnd(){
-          if(!dragged) return;
-          dragged = false;
-          card.style.transition = "transform .18s ease-out";
-          const dx = currentX - startX;
-          if (dx < -threshold) {
-            card.style.transform = `translateX(${-maxTranslate}px)`; // giữ mở
-          } else {
-            card.style.transform = "translateX(0)";
-          }
-        }
+        // touch swipe logic
+        let startX=0, currentX=0, dragging=false;
+        const threshold=64, maxTranslate=92;
+        function onTouchStart(e){ const t=e.touches[0]; startX=t.clientX; currentX=startX; dragging=true; card.style.transition="none"; }
+        function onTouchMove(e){ if(!dragging) return; const t=e.touches[0]; currentX=t.clientX; let dx=currentX-startX; if(dx>0) dx=0; if(dx < -maxTranslate) dx=-maxTranslate; card.style.transform=`translateX(${dx}px)`; }
+        function onTouchEnd(){ if(!dragging) return; dragging=false; card.style.transition="transform .18s ease-out"; const dx=currentX-startX; if(dx < -threshold) card.style.transform=`translateX(${-maxTranslate}px)`; else card.style.transform="translateX(0)"; }
 
         card.addEventListener("touchstart", onTouchStart, {passive:true});
         card.addEventListener("touchmove", onTouchMove, {passive:true});
         card.addEventListener("touchend", onTouchEnd);
 
-        // Wire events
+        // delete handlers
         actions.querySelector("button").onclick = () => {
-          employees.splice(idx,1);
-          renderAttendanceList();
-          showStatus("Chưa lưu");
+          card.classList.add("exit-small");
+          setTimeout(()=>{ employees.splice(idx,1); renderAttendanceList(); }, 220);
         };
         card.querySelector('[data-action="delete"]').onclick = () => {
-          employees.splice(idx,1);
-          renderAttendanceList();
-          showStatus("Chưa lưu");
+          card.classList.add("exit-small");
+          setTimeout(()=>{ employees.splice(idx,1); renderAttendanceList(); }, 220);
         };
-        card.querySelector('select[data-field="so_cong_nv"]').onchange = (e)=>{
-          employees[idx].so_cong_nv = parseFloat(e.target.value);
-          showStatus("Chưa lưu");
-        };
-        card.querySelector('input[data-field="ghi_chu"]').oninput = (e)=>{
-          employees[idx].ghi_chu = e.target.value;
-          showStatus("Chưa lưu");
-        };
+
+        // field handlers
+        card.querySelector('select[data-field="so_cong_nv"]').onchange = (e) => { employees[idx].so_cong_nv = parseFloat(e.target.value); };
+        card.querySelector('input[data-field="ghi_chu"]').oninput = (e) => { employees[idx].ghi_chu = e.target.value; };
 
         container.appendChild(actions);
         container.appendChild(card);
         wrap.appendChild(container);
       });
-
-      document.getElementById("topInfo").textContent =
-        `Đang điểm danh cho chi nhánh: ${currentBranch || "(chưa xác định)"} — Tổng: ${employees.length}`;
     }
 
-    /* ---------- Data loading & search ---------- */
+    /* Load data for branch */
     async function loadEmployeesForBranch(){
-      if(!currentBranch){
-        document.getElementById("topInfo").textContent = "Lỗi: currentBranch chưa xác định.";
-        return;
-      }
-      showStatus("Đang tải danh sách...");
+      if(!currentBranch){ alert("Chi nhánh chưa được xác định."); return; }
       try {
         const data = await safeFetchJson(byBranchUrl(currentBranch));
         if (!Array.isArray(data)) throw new Error("API trả về không phải mảng");
-
         employees = data.map(emp => ({
-          code: emp.code || "",
-          name: emp.name || "",
-          department: emp.department || "",
-          branch: emp.branch || "",
-          branch_today: currentBranch,
-          la_tang_ca: false,
-          so_cong_nv: 1,
-          service: [],
-          ghi_chu: ""
+          code: emp.code||"", name: emp.name||"", department: emp.department||"", branch: emp.branch||"", branch_today: currentBranch,
+          la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:""
         }));
 
-        // Tự thêm người đăng nhập nếu chưa có
-        if (loginCode && !employees.some(e => e.code === loginCode)) {
-          let found = employees.find(e => e.code === loginCode);
-          if (!found) {
-            try {
-              const searchData = await safeFetchJson(searchUrl(loginCode));
-              if (Array.isArray(searchData) && searchData.length > 0) {
-                found = {
-                  code: searchData[0].code,
-                  name: searchData[0].name,
-                  department: searchData[0].department,
-                  branch: searchData[0].branch,
-                  branch_today: currentBranch,
-                  la_tang_ca: false,
-                  so_cong_nv: 1,
-                  service: [],
-                  ghi_chu: ""
-                };
-              }
-            } catch(e) {}
-          }
-          if (found) employees.unshift(found);
+        // add current login if missing
+        if (loginCode && !employees.some(e => e.code === loginCode)){
+          try {
+            const searchData = await safeFetchJson(searchUrl(loginCode));
+            if (Array.isArray(searchData) && searchData.length>0){
+              const s = searchData[0];
+              employees.unshift({ code:s.code, name:s.name, department:s.department, branch:s.branch, branch_today:currentBranch, la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:"" });
+            }
+          } catch(e){}
         }
 
         renderAttendanceList();
-        showStatus("Đã tải xong");
-      } catch (err){
-        console.error(err);
-        showStatus("Lỗi khi tải: " + err.message);
-        alert("Lỗi khi tải danh sách nhân viên: " + err.message);
+      } catch(err){
+        alert("Lỗi khi tải danh sách: " + (err?.message || err));
       }
     }
 
+    /* Add by search */
     async function addBySearchQuery(q){
       if(!q) return;
-      showStatus("Tìm nhân viên...");
       try {
         const data = await safeFetchJson(searchUrl(q));
-        if (typeof data === "string"){ throw new Error("Server trả về: " + data); }
-        if (!Array.isArray(data) || data.length === 0){
-          alert("Không tìm thấy nhân viên");
-          showStatus("Không tìm thấy");
-          return;
-        }
+        if (!Array.isArray(data) || data.length === 0) { alert("Không tìm thấy nhân viên"); return; }
         const emp = data[0];
         const exists = employees.some(e => e.code === emp.code && e.branch_today === currentBranch);
-        if (exists){
-          alert("Nhân viên đã có trong danh sách");
-          showStatus("Đã tồn tại");
-          return;
-        }
-        employees.push({
-          code: emp.code,
-          name: emp.name,
-          department: emp.department,
-          branch: emp.branch,
-          branch_today: currentBranch,
-          la_tang_ca: (emp.branch !== currentBranch),
-          so_cong_nv: 1,
-          service: [],
-          ghi_chu: "Tăng ca"
-        });
+        if (exists) { alert("Nhân viên đã có trong danh sách"); return; }
+        employees.unshift({ code:emp.code, name:emp.name, department:emp.department, branch:emp.branch, branch_today:currentBranch, la_tang_ca:(emp.branch !== currentBranch), so_cong_nv:1, service:[], ghi_chu:"Tăng ca" });
         renderAttendanceList();
-        showStatus("Đã thêm nhân viên");
       } catch(err){
-        console.error(err);
-        showStatus("Lỗi tìm kiếm: " + err.message);
-        alert("Lỗi tìm kiếm: " + err.message);
+        alert("Lỗi tìm kiếm: " + (err?.message || err));
       }
     }
 
-    /* ---------- Save ---------- */
+    /* Save attendance — on success show big popup */
     async function saveAttendance(){
-      if (employees.length === 0){
-        alert("Danh sách trống, không có gì để lưu.");
-        return;
-      }
+      if (employees.length === 0){ alert("Danh sách trống, không có gì để lưu."); return; }
       const payload = employees.map(emp => ({
-        sheet: getSheetName(emp.code),
-        thoi_gian: "", // để server tự sinh
-        ma_nv: emp.code,
-        ten_nv: emp.name,
-        chi_nhanh_chinh: emp.branch,
-        chi_nhanh_lam: emp.branch_today || currentBranch,
-        la_tang_ca: !!emp.la_tang_ca,
-        so_cong_nv: emp.so_cong_nv,
-        ghi_chu: (emp.ghi_chu || "").slice(0,200),
-        nguoi_diem_danh: loginCode //
+        sheet: (function(code){ if(!code) return "Khac"; if (code.includes("BPTC")||code.includes("LTTC")) return "TC"; if (code.includes("BP")) return "BP"; if (code.includes("LT")) return "LT"; if (code.includes("BV")) return "BV"; if (code.includes("QL")) return "QL"; if (code==="KTV") return "KTV"; return "Khac"; })(emp.code),
+        thoi_gian:"", ma_nv:emp.code, ten_nv:emp.name, chi_nhanh_chinh:emp.branch, chi_nhanh_lam: emp.branch_today||currentBranch, la_tang_ca:!!emp.la_tang_ca, so_cong_nv:emp.so_cong_nv, ghi_chu:(emp.ghi_chu||"").slice(0,200), nguoi_diem_danh: loginCode
       }));
 
-      showStatus("Đang lưu...");
       try {
         const res = await fetch(saveUrl(), {
           method: "POST",
-          headers: {
-            "Content-Type":"application/json",
-            "X-CSRF-Token": csrfToken
-          },
+          headers: { "Content-Type":"application/json", "X-CSRF-Token": csrfToken },
           body: JSON.stringify(payload)
         });
-        if (!res.ok){
+        if (!res.ok) {
           const txt = await res.text().catch(()=>"(no body)");
           throw new Error(`HTTP ${res.status}: ${txt}`);
         }
         const doc = await res.json().catch(()=>null);
-        if (doc && doc.status){
-          showStatus("Lưu thành công (" + doc.inserted + " bản ghi)");
-          alert("Lưu thành công");
-          // --- QR: Nếu có token trên URL, báo về server và xác nhận ---
-          const urlParams = new URLSearchParams(window.location.search);
-          const token = urlParams.get("token");
-          if (token) {
-            fetch("/attendance/checkin_success", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token })
-          })
-          .then(res => res.json())
-          .then(data => {
-              if (data.success && data.redirect_to) {
-                  // Chuyển hướng trang trên thiết bị di động sau khi điểm danh thành công
-                  window.location.href = data.redirect_to;
-              } else {
-                  // Nếu có lỗi từ server, hiển thị thông báo
-                  alert("Điểm danh thất bại: " + (data.error || "Lỗi không xác định."));
-              }
-          })
-          .catch(err => {
-              console.error("Checkin error:", err);
-              alert("Lỗi kết nối khi xác nhận điểm danh: " + err.message);
-          });
+        if (doc && doc.status) {
+          // show big success popup with animation
+          showSuccessPopup();
+          // if QR token present, notify server (QR flow)
+          const token = new URLSearchParams(window.location.search).get("token");
+          if (token){
+            fetch("/attendance/checkin_success", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ token }) })
+              .then(r=>r.json()).then(data => {
+                if (data && data.success && data.redirect_to) window.location.href = data.redirect_to;
+                else if (data && !data.success) alert("Điểm danh thất bại: " + (data.error || "Lỗi không xác định"));
+              }).catch(err => { alert("Lỗi khi xác nhận điểm danh: " + (err?.message || err)); });
           }
         } else {
-          showStatus("Lưu xong (không có phản hồi JSON hợp lệ)");
-          alert("Lưu xong");
+          alert("Lưu xong nhưng server trả về không chuẩn.");
         }
       } catch(err){
-        console.error(err);
-        showStatus("Lỗi khi lưu: " + err.message);
-        alert("Lỗi khi lưu điểm danh: " + err.message);
+        alert("Lỗi khi lưu điểm danh: " + (err?.message || err));
       }
     }
 
-    /* ---------- GPS detect → set currentBranch ---------- */
-   async function detectBranchByGPS() {
-    return new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        disableForm("Trình duyệt không hỗ trợ GPS. Vui lòng dùng điện thoại để điểm danh.");
-        return resolve(null);
-      }
+    /* Success popup */
+    function showSuccessPopup(){
+      const overlay = document.getElementById("successOverlay");
+      overlay.style.display = "flex";
+      // auto-hide after 1.8s
+      setTimeout(()=> {
+        // hide with small exit
+        overlay.style.opacity = "0";
+        setTimeout(()=> overlay.style.display = "none", 300);
+      }, 1600);
+    }
 
-      navigator.geolocation.getCurrentPosition(async (pos) => {
+    /* Detect branch by GPS (errors via alert) */
+    async function detectBranchByGPS(){
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          disableForm("Trình duyệt không hỗ trợ GPS. Vui lòng dùng điện thoại để điểm danh.");
+          return resolve(null);
+        }
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            const lat = pos.coords.latitude, lng = pos.coords.longitude;
+            const data = await safeFetchJson("/attendance/api/detect-branch", {
+              method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ lat, lng })
+            });
+            if (data && data.error) { disableForm(data.error); return resolve(null); }
+            if (data && data.choices) { showBranchSelectionPopup(data.choices); return resolve(null); }
+            if (data && data.branch) { currentBranch = data.branch; document.getElementById("branchName").textContent = branchDisplay(currentBranch); await loadEmployeesForBranch(); return resolve(currentBranch); }
+            disableForm("Không thể xác định chi nhánh từ GPS. Vui lòng thử lại.");
+            resolve(null);
+          } catch(err){ disableForm(err?.message || "Lỗi kết nối server."); resolve(null); }
+        }, (err) => {
+          let message = "Không thể lấy vị trí GPS.";
+          if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt và thử lại.";
+          else if (err.code === 2) message = "Không xác định được vị trí. Vui lòng thử lại.";
+          else if (err.code === 3) message = "Hết thời gian lấy vị trí. Vui lòng thử lại.";
+          disableForm(message);
+          resolve(null);
+        }, { enableHighAccuracy: true, timeout:12000, maximumAge:0 });
+      });
+    }
+
+    /* Wiring: buttons & search modal with debounce */
+    document.getElementById("saveBtn").addEventListener("click", saveAttendance);
+    document.getElementById("refreshBtn").addEventListener("click", () => loadEmployeesForBranch());
+    document.getElementById("addEmployeeBtn").addEventListener("click", () => {
+      document.getElementById("searchModal").style.display = "flex";
+      document.getElementById("searchInputMain").value = "";
+      document.getElementById("suggestListMain").innerHTML = "";
+      setTimeout(()=> document.getElementById("searchInputMain").focus(), 80);
+    });
+    document.getElementById("closeSearchBtn").addEventListener("click", () => {
+      document.getElementById("searchModal").style.display = "none";
+    });
+
+    // search debounce
+    let searchTimer = null;
+    document.getElementById("searchInputMain").addEventListener("input", (e) => {
+      const q = e.target.value.trim();
+      const list = document.getElementById("suggestListMain");
+      clearTimeout(searchTimer);
+      if (!q) { list.innerHTML = ""; return; }
+      searchTimer = setTimeout(async () => {
         try {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          console.log("[GPS] lat,lng =", lat, lng);
+          const data = await safeFetchJson(searchUrl(q));
+          const top = Array.isArray(data) ? data.slice(0,6) : [];
+          list.innerHTML = top.map(emp => `<li style="padding:10px;border-bottom:1px solid #f1f5f9;" data-code="${emp.code}"><div style="font-weight:700;">${escapeHtml(emp.name)}</div><div style="font-size:12px;color:#64748b;margin-top:6px;">${escapeHtml(emp.code)} — ${escapeHtml(emp.department||"")}</div></li>`).join("");
+          list.querySelectorAll("li").forEach(li => { li.onclick = () => { addBySearchQuery(li.dataset.code); document.getElementById("searchModal").style.display = "none"; }; });
+        } catch(err){
+          alert("Lỗi tìm kiếm: " + (err?.message || err));
+        }
+      }, 300);
+    });
 
-          const data = await safeFetchJson("/attendance/api/detect-branch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat, lng })
-          });
+    /* Branch popup functions */
+    function showBranchSelectionPopup(choices){
+      const container = document.getElementById("branchChoices");
+      container.innerHTML = "";
+      choices.forEach(ch => {
+        const btn = document.createElement("button");
+        btn.style.padding = "12px"; btn.style.borderRadius = "10px"; btn.style.width = "100%"; btn.style.border = "1px solid #eef2ff"; btn.style.background = "#fff"; btn.style.fontWeight="700"; btn.style.textAlign="left";
+        btn.textContent = `${branchDisplay(ch.branch)} — ${Math.round(ch.distance_km*1000)} m`;
+        btn.onclick = async () => {
+          currentBranch = ch.branch;
+          document.getElementById("branchName").textContent = branchDisplay(currentBranch);
+          try {
+            await safeFetchJson("/attendance/api/select-branch", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ branch: ch.branch }) });
+            closeBranchPopup();
+            await loadEmployeesForBranch();
+          } catch(err){ alert("Lỗi chọn chi nhánh: " + (err?.message || err)); }
+        };
+        container.appendChild(btn);
+      });
+      document.getElementById("branchPopup").style.display = "flex";
+    }
+    function closeBranchPopup(){ document.getElementById("branchPopup").style.display = "none"; }
 
-          // Server trả lỗi chuẩn dạng {error: "..."}
-          if (data && data.error) {
-            console.warn("[detect-branch:error]", data.error);
-            disableForm(data.error);
-            return resolve(null);
-          }
+    function branchDisplay(branch) {
+      const map = { B1:"Bin Bin Hotel 1", B2:"Bin Bin Hotel 2", B3:"Bin Bin Hotel 3", B5:"Bin Bin Hotel 5", B6:"Bin Bin Hotel 6", B7:"Bin Bin Hotel 7", B8:"Bin Bin Hotel 8", B9:"Bin Bin Hotel 9", B10:"Bin Bin Hotel 10", B11:"Bin Bin Hotel 11", B12:"Bin Bin Hotel 12", B14:"Bin Bin Hotel 14", B15:"Bin Bin Hotel 15", B16:"Bin Bin Hotel 16" };
+      return map[branch] || branch || "";
+    }
 
-          // Có nhiều chi nhánh gần → cho chọn
-          if (data && data.choices) {
-            console.log("[detect-branch] choices:", data.choices);
-            showBranchSelectionPopup(data.choices);
-            return resolve(null);
-          }
-
-          // 1 chi nhánh
+    /* Init: role special-case and GPS flow */
+    window.addEventListener("DOMContentLoaded", async () => {
+      const role = (userRole||"").toLowerCase();
+      if (["quanly","ktv","boss","admin"].includes(role)){
+        try {
+          const data = await safeFetchJson("/attendance/api/detect-branch", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({}) });
           if (data && data.branch) {
             currentBranch = data.branch;
             document.getElementById("branchName").textContent = branchDisplay(currentBranch);
             await loadEmployeesForBranch();
-            return resolve(currentBranch);
-          }
-
-          // Fallback
-          disableForm("Không thể xác định chi nhánh từ GPS. Vui lòng thử lại.");
-          resolve(null);
-
-        } catch (err) {
-          console.error("[detect-branch] fetch error:", err);
-          // 👉 Quan trọng: đưa thông điệp cụ thể từ server ra UI
-          disableForm(err?.message || "Có lỗi kết nối server. Vui lòng thử lại.");
-          resolve(null);
-        }
-      }, (err) => {
-        console.warn("[GPS] geolocation error:", err);
-        let message = "Không thể lấy vị trí GPS.";
-        if (err.code === 1) message = "Bạn đã từ chối quyền truy cập vị trí. Vui lòng cấp quyền trong cài đặt trình duyệt và tải lại trang.";
-        else if (err.code === 2) message = "Không xác định được vị trí. Vui lòng thử lại.";
-        else if (err.code === 3) message = "Hết thời gian lấy vị trí. Vui lòng thử lại.";
-        disableForm(message);
-        resolve(null);
-      }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-    });
-  }
-
-    /* ---------- Wiring ---------- */
-    // Tạo popup search khi bấm nút
-    document.getElementById("addEmployeeBtn").onclick = () => {
-      const searchBox = document.createElement("div");
-      searchBox.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50";
-      searchBox.innerHTML = `
-        <div class="bg-white p-4 rounded-xl shadow-lg w-80">
-          <input id="searchInput" type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 mb-3 text-sm" placeholder="Nhập mã hoặc tên nhân viên..." />
-          <ul id="suggestList" class="max-h-40 overflow-y-auto divide-y divide-gray-200"></ul>
-          <div class="mt-3 text-right">
-            <button id="closeSearch" class="px-3 py-1 bg-gray-100 rounded-lg text-sm">Đóng</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(searchBox);
-
-      const input = searchBox.querySelector("#searchInput");
-      const list = searchBox.querySelector("#suggestList");
-
-      input.oninput = async () => {
-        const q = input.value.trim();
-        if (!q) { list.innerHTML = ""; return; }
-        try {
-          const data = await safeFetchJson(searchUrl(q));
-          const top5 = data.slice(0, 5); // chỉ 5 kết quả
-          list.innerHTML = top5.map(emp => `
-            <li class="p-2 hover:bg-gray-100 cursor-pointer" data-code="${emp.code}">
-              <div class="font-medium">${escapeHtml(emp.name)}</div>
-              <div class="text-xs text-gray-500">${escapeHtml(emp.code)} — ${escapeHtml(emp.department || "")}</div>
-            </li>
-          `).join("");
-          list.querySelectorAll("li").forEach(li => {
-            li.onclick = () => {
-              addBySearchQuery(li.dataset.code);
-              document.body.removeChild(searchBox);
-            };
-          });
-        } catch(e) {
-          console.error(e);
-        }
-      };
-
-      searchBox.querySelector("#closeSearch").onclick = () => {
-        document.body.removeChild(searchBox);
-      };
-    };
-
-    function branchDisplay(branch) {
-      const map = {
-        B1: "Bin Bin Bin Hotel 1",
-        B2: "Bin Bin Bin Hotel 2",
-        B3: "Bin Bin Bin Hotel 3",
-        B5: "Bin Bin Bin Hotel 5",
-        B6: "Bin Bin Bin Hotel 6",
-        B7: "Bin Bin Bin Hotel 7",
-        B8: "Bin Bin Bin Hotel 8",
-        B9: "Bin Bin Bin Hotel 9",
-        B10: "Bin Bin Bin Hotel 10",
-        B11: "Bin Bin Bin Hotel 11",
-        B12: "Bin Bin Bin Hotel 12",
-        B14: "Bin Bin Bin Hotel 14",
-        B15: "Bin Bin Bin Hotel 15",
-        B16: "Bin Bin Bin Hotel 16",
-      };
-      return map[branch] || branch || "";
-    }
-
-    document.getElementById("saveBtn").onclick = saveAttendance;
-    document.getElementById("refreshBtn").onclick = () => loadEmployeesForBranch();
-
-    /* ---------- Init ---------- */
-    window.addEventListener("DOMContentLoaded", async () => {
-      console.log("User role:", userRole);
-      // ✅ Role đặc biệt: bỏ qua GPS
-      // alert("User role: " + userRole);
-      if (["quanly", "ktv", "boss", "admin"].includes(userRole.toLowerCase())) {
-        try {
-          const data = await safeFetchJson("/attendance/api/detect-branch", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}) // rỗng → server trả về chi nhánh chính
-          });
-
-          if (data && data.branch) {
-            currentBranch = data.branch;
-            document.getElementById("branchName").textContent = branchDisplay(data.branch);
-            await loadEmployeesForBranch();
-            return; // ⚡ không chạy GPS nữa
+            return;
           } else {
-            disableForm("Không tìm thấy chi nhánh chính cho tài khoản này.");
+            disableForm("Không tìm thấy chi nhánh chính cho tài khoản.");
             return;
           }
-        } catch (e) {
-          console.error("Special role detect error:", e);
-          disableForm("Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị.");
-          return;
-        }
+        } catch(err){ disableForm("Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị."); return; }
       }
 
-      // ✅ Các role thường → dùng GPS
+      // normal users -> GPS
       const detected = await detectBranchByGPS();
       if (detected) {
         document.getElementById("branchName").textContent = branchDisplay(detected);
         await loadEmployeesForBranch();
       }
     });
-  </script>
-  <!-- Popup chọn chi nhánh -->
-  <div id="branchPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-lg p-6 w-80">
-      <h2 class="text-lg font-semibold mb-4">Chọn chi nhánh điểm danh</h2>
-      <div id="branchChoices" class="space-y-2"></div>
-      <button onclick="closeBranchPopup()" class="mt-4 w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded">
-        Hủy
-      </button>
-    </div>
-  </div>
 
-  <script>
-  function showBranchSelectionPopup(choices) {
-    const container = document.getElementById("branchChoices");
-    container.innerHTML = "";
-
-    choices.forEach(choice => {
-      const btn = document.createElement("button");
-      btn.className = "w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded";
-      btn.textContent = `${branchDisplay(choice.branch)} (${Math.round(choice.distance_km * 1000)}m)`;
-      btn.onclick = async () => {
-        currentBranch = choice.branch;
-        document.getElementById("branchName").textContent = branchDisplay(currentBranch);
-
-        // Cập nhật session trên server
-        await safeFetchJson("/attendance/api/select-branch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ branch: choice.branch })
-        });
-
-        closeBranchPopup();
-        await loadEmployeesForBranch();
-      };
-      container.appendChild(btn);
-    });
-
-    document.getElementById("branchPopup").classList.remove("hidden");
-  }
-
-  function closeBranchPopup() {
-    document.getElementById("branchPopup").classList.add("hidden");
-  }
   </script>
 </body>
 </html>
