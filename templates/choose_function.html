@@ -1,87 +1,170 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chọn Chức Năng</title>
+    <title>Bảng Chức Năng</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.lordicon.com/lordicon.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        primary: '#2563eb',
-                        accent: '#111827'
+                    fontFamily: {
+                        'display': ['Quicksand', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
     <style>
-        .card {
-            transition: transform 0.25s ease-out, box-shadow 0.25s ease-out;
-        }
-        .card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        [x-cloak] {
+            display: none !important;
         }
     </style>
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
-    <div class="min-h-screen flex flex-col items-center justify-center p-4">
-        <a href="/logout" onclick="return confirm('Bạn có chắc muốn đăng xuất?')" title="Đăng xuất"
-           class="absolute top-5 right-5 p-2 rounded-full bg-white/80 dark:bg-gray-800/80 shadow-md hover:bg-red-100 dark:hover:bg-red-900/50 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-600 dark:text-gray-300">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-        </a>
+<body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-200 antialiased">
+    <!-- Soft, blurred background aurora -->
+    <div class="absolute inset-0 -z-10 overflow-hidden">
+        <div class="absolute top-0 -left-4 h-full w-1/2 bg-gradient-to-br from-white via-sky-100 to-blue-200 opacity-60 filter blur-3xl dark:from-slate-950 dark:via-sky-900/40 dark:to-blue-900/30"></div>
+        <div class="absolute top-0 -right-4 h-full w-1/2 bg-gradient-to-bl from-white via-rose-100 to-purple-200 opacity-60 filter blur-3xl dark:from-slate-950 dark:via-rose-900/40 dark:to-purple-900/30"></div>
+    </div>
+    <div class="min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8">
+        <!-- Top Bar: Buttons -->
+        <div class="absolute top-0 left-0 right-0 w-full p-6 flex justify-between items-center z-10">
+            <button id="theme-toggle" type="button" title="Chuyển chế độ Sáng/Tối" class="h-10 w-10 grid place-items-center rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <svg id="theme-toggle-dark-icon" class="hidden h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden h-5 w-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            </button>
+            <a href="/logout" onclick="return confirm('Bạn có chắc muốn đăng xuất?')" title="Đăng xuất" class="h-10 w-10 grid place-items-center rounded-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+            </a>
+        </div>
 
-        <div class="text-center w-full max-w-4xl">
-            <!-- Logo -->
-            <div class="mb-8">
-                <img src="/static/logo.png" alt="Logo" class="mx-auto h-12 mb-3">
-                <h1 class="text-3xl font-bold tracking-tight">Bảng Chức Năng</h1>
-                <p class="text-gray-500 dark:text-gray-400 mt-1">Vui lòng chọn một tác vụ để tiếp tục</p>
-            </div>
+        <!-- Main Content -->
+        <main class="w-full max-w-7xl mx-auto text-center">
+            <img src="/static/logo.png" alt="Logo" class="mx-auto h-16 mb-4">
+            <h1 class="font-display text-4xl md:text-5xl font-bold tracking-tighter text-gray-800 dark:text-white [text-wrap:balance]">
+                Chào mừng trở lại, {{ user.name or 'bạn' }}!
+            </h1>
+            <p class="font-display text-gray-600 dark:text-slate-400 mt-4 text-lg max-w-2xl mx-auto [text-wrap:balance]">
+                Chọn một chức năng bên dưới để bắt đầu.
+            </p>
 
-            <!-- Cards -->
-            <div class="flex flex-wrap items-stretch justify-center gap-6">
-                <!-- Quản lý Công việc -->
-                <a href="/home" class="card p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col items-center justify-center w-full md:w-auto md:min-w-[280px] flex-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-blue-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
-                    <span class="font-semibold text-lg">Quản lý Công việc</span>
+            <!-- Feature Cards -->
+            <div class="mt-16 flex flex-wrap items-stretch justify-center gap-8">
+                <!-- Card: Quản lý Công việc -->
+                <a href="/home" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 hover:-translate-y-1">
+                    <div class="inline-block p-5 bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
+                        <lord-icon src="https://cdn.lordicon.com/oqaajvyl.json" trigger="hover" colors="primary:#3b82f6,secondary:#6366f1" style="width:40px;height:40px"></lord-icon>
+                    </div>
+                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Quản lý Công việc</h3>
+                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Theo dõi, phân công và quản lý các nhiệm vụ hằng ngày.</p>
                 </a>
 
-                <!-- Chấm Dịch vụ -->
+                <!-- Card: Chấm Dịch vụ -->
                 {% if user and user.role == 'letan' %}
-                <a href="/attendance/service" class="card p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col items-center justify-center w-full md:w-auto md:min-w-[280px] flex-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-purple-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span class="font-semibold text-lg">Chấm Dịch Vụ</span>
+                <a href="/attendance/service" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-500 hover:-translate-y-1">
+                    <div class="inline-block p-5 bg-gradient-to-br from-purple-100 to-fuchsia-200 dark:from-purple-900/50 dark:to-fuchsia-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
+                        <lord-icon src="https://cdn.lordicon.com/qznlhdss.json" trigger="hover" colors="primary:#a855f7,secondary:#d946ef" style="width:40px;height:40px"></lord-icon>
+                    </div>
+                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Chấm Dịch Vụ</h3>
+                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Ghi nhận các dịch vụ giặt ủi phát sinh cho nhân viên.</p>
                 </a>
                 {% endif %}
 
-                <!-- Xem Kết quả Điểm danh -->
-                <a href="/attendance/results" class="card p-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg flex flex-col items-center justify-center w-full md:w-auto md:min-w-[280px] flex-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-green-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span class="font-semibold text-lg">Xem Kết Quả</span>
+                <!-- Card: Xem Kết quả Điểm danh -->
+                <a href="/attendance/results" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 hover:-translate-y-1">
+                    <div class="inline-block p-5 bg-gradient-to-br from-emerald-100 to-teal-200 dark:from-emerald-900/50 dark:to-teal-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
+                        <lord-icon src="https://cdn.lordicon.com/jvucoldz.json" trigger="hover" colors="primary:#10b981,secondary:#14b8a6" style="width:40px;height:40px"></lord-icon>
+                    </div>
+                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Xem Kết Quả</h3>
+                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Tra cứu và xem lại lịch sử điểm danh đã được ghi nhận.</p>
                 </a>
+
+                <!-- Card: Đồng bộ Nhân viên -->
+                {% if user and user.role in ['admin', 'boss'] %}
+                <a href="/sync-employees" id="sync-employees-btn" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-rose-400 dark:hover:border-rose-500 hover:-translate-y-1">
+                    <div class="inline-block p-5 bg-gradient-to-br from-rose-100 to-pink-200 dark:from-rose-900/50 dark:to-pink-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
+                        <lord-icon src="https://cdn.lordicon.com/dklbhvrt.json" trigger="hover" colors="primary:#f43f5e,secondary:#ec4899" style="width:40px;height:40px"></lord-icon>
+                    </div>
+                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Đồng Bộ Nhân Viên</h3>
+                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Cập nhật danh sách nhân viên từ file cấu hình hệ thống.</p>
+                </a>
+                {% endif %}
             </div>
-        </div>
+        </main>
     </div>
 
     <script>
-        // Dark mode toggle sync
-        if (localStorage.theme === "dark" || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add("dark");
+        // Standard theme toggle script
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
         } else {
-            document.documentElement.classList.remove("dark");
+            document.documentElement.classList.remove('dark')
+        }
+
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+        const updateIcons = () => {
+            if (document.documentElement.classList.contains('dark')) {
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
+            } else {
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+            }
+        };
+
+        updateIcons();
+
+        themeToggleBtn.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+            updateIcons();
+        });
+
+        // Handle Sync Employees button
+        const syncBtn = document.getElementById('sync-employees-btn');
+        if (syncBtn) {
+            syncBtn.addEventListener('click', function(event) {
+                event.preventDefault(); // Ngăn chuyển hướng mặc định
+
+                if (confirm('Hành động này sẽ đồng bộ lại toàn bộ danh sách nhân viên vào hệ thống. Bạn có chắc chắn?')) {
+                    syncBtn.style.cursor = 'wait'; // Hiển thị trạng thái chờ
+                    
+                    fetch('/sync-employees')
+                        .then(response => {
+                            if (!response.ok) {
+                                // Ném lỗi nếu response không phải 2xx để catch xử lý
+                                return response.json().then(err => { throw new Error(err.detail || 'Có lỗi xảy ra từ server.') });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert('Đồng bộ nhân viên thành công!');
+                            } else {
+                                alert(data.message || 'Có lỗi xảy ra trong quá trình đồng bộ.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Sync error:', error);
+                            alert('Lỗi: ' + error.message);
+                        })
+                        .finally(() => {
+                            syncBtn.style.cursor = 'pointer'; // Trả lại con trỏ chuột
+                        });
+                }
+            });
         }
     </script>
 </body>
