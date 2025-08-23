@@ -5,7 +5,7 @@ from datetime import datetime
 from pytz import timezone
 
 # ================== CONFIG ==================
-#SERVICE_ACCOUNT_FILE = "config/credentials.json"
+SERVICE_ACCOUNT_FILE = "config/credentials.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 SPREADSHEET_ID = "1R-5t90lNY22MUfkdv3YUHtKOzW7fjIIgjSYtCisDLqA"
 
@@ -35,13 +35,16 @@ def get_sheet_name(code: str) -> str:
     """
     code_upper = (code or "").upper()
 
+    if "BP" in code_upper and is_service:
+        return "DV"
+
     # Ưu tiên 1: Mã tăng ca ("TC") luôn vào sheet "TC"
-    if "TC" in code_upper:
+    if "BPTC" in code_upper or "LTTC" in code_upper:
         return "TC"
 
     # Ưu tiên 2: Buồng phòng (không tăng ca) vào sheet "DV"
     if "BP" in code_upper:
-        return "DV"
+        return "BP"
 
     # Lễ tân (không tăng ca)
     if "LT" in code_upper:
@@ -170,6 +173,7 @@ def push_bulk_checkin(records: List[dict]) -> dict:
         grouped_by_sheet = defaultdict(list)
         for rec in records:
             ma_nv = rec.get("ma_nv") or ""
+            is_service = bool(rec.get("dich_vu"))
             # Sử dụng hàm get_sheet_name để xác định sheet một cách nhất quán
             sheet_name = get_sheet_name(ma_nv)
             rec["sheet"] = sheet_name
