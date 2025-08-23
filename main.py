@@ -147,12 +147,12 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
     nearby_branches = []
     for branch, coords in branchCoordinates.items():
         dist = haversine(lat, lng, coords[0], coords[1])
-        if dist >= 0.2:  # trong 200m
+        if dist <= 0.2:  # trong 200m
             nearby_branches.append((branch, dist))
 
     if not nearby_branches:
         return JSONResponse(
-            {"error": "Bạn đang ở quá xa khách sạn (ngoài 200m). Vui lòng điểm danh tại khách sạn."},
+            {"error": "Bạn đang ở quá xa khách sạn. Vui lòng điểm danh tại khách sạn."},
             status_code=403,
         )
 
