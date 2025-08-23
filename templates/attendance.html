@@ -664,5 +664,49 @@
       }
     });
   </script>
+  <!-- Popup chọn chi nhánh -->
+  <div id="branchPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg p-6 w-80">
+      <h2 class="text-lg font-semibold mb-4">Chọn chi nhánh điểm danh</h2>
+      <div id="branchChoices" class="space-y-2"></div>
+      <button onclick="closeBranchPopup()" class="mt-4 w-full bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded">
+        Hủy
+      </button>
+    </div>
+  </div>
+
+  <script>
+  function showBranchSelectionPopup(choices) {
+    const container = document.getElementById("branchChoices");
+    container.innerHTML = "";
+
+    choices.forEach(choice => {
+      const btn = document.createElement("button");
+      btn.className = "w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded";
+      btn.textContent = `${branchDisplay(choice.branch)} (${Math.round(choice.distance_km * 1000)}m)`;
+      btn.onclick = async () => {
+        currentBranch = choice.branch;
+        document.getElementById("branchName").textContent = branchDisplay(currentBranch);
+
+        // Cập nhật session trên server
+        await safeFetchJson("/attendance/api/select-branch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ branch: choice.branch })
+        });
+
+        closeBranchPopup();
+        await loadEmployeesForBranch();
+      };
+      container.appendChild(btn);
+    });
+
+    document.getElementById("branchPopup").classList.remove("hidden");
+  }
+
+  function closeBranchPopup() {
+    document.getElementById("branchPopup").classList.add("hidden");
+  }
+  </script>
 </body>
 </html>
