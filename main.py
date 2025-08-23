@@ -130,20 +130,23 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     if not user_data:
         return RedirectResponse("/login", status_code=303)
 
-    # Mặc định dùng branch từ session
+    # Mặc định dùng branch từ session (fallback)
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
 
     initial_employees = []
-    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
+    last_branch = None
 
+    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
     if checker_user and checker_user.last_checked_in_bp and isinstance(checker_user.last_checked_in_bp, dict):
         service_checkin_data = checker_user.last_checked_in_bp
 
-        # ✅ Ưu tiên lấy branch tại thời điểm điểm danh
+        # ✅ Lấy branch tại thời điểm điểm danh
         branch_at_checkin = service_checkin_data.get("branch_id") or active_branch
+        last_branch = branch_at_checkin
         active_branch = branch_at_checkin
 
+        # Danh sách nhân viên đã điểm danh
         employees_data = service_checkin_data.get("employees", [])
         employee_codes = [item.get("code") for item in employees_data if item.get("code")]
 
@@ -161,17 +164,19 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
                         "code": emp_details.code,
                         "name": emp_details.name,
                         "main_branch": emp_details.branch,   # ✅ chi nhánh chính từ DB
-                        "branch": checkin_branch,            # ✅ chi nhánh lúc điểm danh
+                        "branch": checkin_branch,            # ✅ chi nhánh làm (GPS lúc điểm danh)
                         "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
                     })
 
     response = templates.TemplateResponse("attendance_service.html", {
         "request": request,
-        "branch_id": active_branch,
+        "branch_id": active_branch,   # fallback
+        "last_branch": last_branch,   # chính xác từ GPS
         "csrf_token": csrf_token,
         "user": user_data,
         "initial_employees": initial_employees,
     })
+
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
