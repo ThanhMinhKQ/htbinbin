@@ -129,54 +129,34 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user")
     if not user_data:
         return RedirectResponse("/login", status_code=303)
-
-    # Mặc định dùng branch từ session (fallback)
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
     csrf_token = get_csrf_token(request)
 
     initial_employees = []
-    last_branch = None
-
+    # Lấy danh sách nhân viên BP đã được điểm danh lần cuối từ DB của lễ tân
     checker_user = db.query(User).filter(User.code == user_data["code"]).first()
-    if checker_user and checker_user.last_checked_in_bp and isinstance(checker_user.last_checked_in_bp, dict):
-        service_checkin_data = checker_user.last_checked_in_bp
+    if checker_user and checker_user.last_checked_in_bp:
+        service_checkin_codes = checker_user.last_checked_in_bp
 
-        # ✅ Lấy branch tại thời điểm điểm danh
-        branch_at_checkin = service_checkin_data.get("branch_id") or active_branch
-        last_branch = branch_at_checkin
-        active_branch = branch_at_checkin
-
-        # Danh sách nhân viên đã điểm danh
-        employees_data = service_checkin_data.get("employees", [])
-        employee_codes = [item.get("code") for item in employees_data if item.get("code")]
-
-        if employee_codes:
-            employees_from_db = db.query(User).filter(User.code.in_(employee_codes)).all()
+        if service_checkin_codes:
+            # Lấy thông tin chi tiết của các nhân viên đó
+            employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
+            # Sắp xếp lại theo đúng thứ tự đã điểm danh
             emp_map = {emp.code: emp for emp in employees_from_db}
-
-            for item in employees_data:
-                emp_code = item.get("code")
-                checkin_branch = item.get("branch")
-                emp_details = emp_map.get(emp_code)
-
-                if emp_details and checkin_branch:
-                    initial_employees.append({
-                        "code": emp_details.code,
-                        "name": emp_details.name,
-                        "main_branch": emp_details.branch,   # ✅ chi nhánh chính từ DB
-                        "branch": checkin_branch,            # ✅ chi nhánh làm (GPS lúc điểm danh)
-                        "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
-                    })
+            sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
+            
+            initial_employees = [
+                {"code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""}
+                for emp in sorted_employees
+            ]
 
     response = templates.TemplateResponse("attendance_service.html", {
         "request": request,
-        "branch_id": active_branch,   # fallback
-        "last_branch": last_branch,   # chính xác từ GPS
+        "branch_id": active_branch,
         "csrf_token": csrf_token,
         "user": user_data,
         "initial_employees": initial_employees,
     })
-
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -457,52 +437,46 @@ def search_employees(
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
     - Nếu branch_id được cung cấp, chỉ tìm trong chi nhánh đó.
-    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (role 'buongphong').
+    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
     - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode).
-    - Giới hạn kết quả trả về.
+    - Giới hạn 20 kết quả.
     """
-    query = db.query(User)
-
-    if only_bp:
-        # Dành cho trang Chấm Dịch Vụ: Lấy nhân viên buồng phòng.
-        # Lọc theo role 'buongphong' ngay trong DB để đảm bảo hiệu quả và chính xác.
-        query = query.filter(User.role == 'buongphong')
-        if branch_id:
-            query = query.filter(User.branch == branch_id)
-        
-        # Nếu có từ khóa tìm kiếm, lọc thêm theo tên hoặc mã.
-        # Nếu không có từ khóa, sẽ trả về tất cả nhân viên buồng phòng của chi nhánh.
-        if q:
-            search_pattern = f"%{q}%"
-            query = query.filter(or_(User.code.ilike(search_pattern), User.name.ilike(search_pattern)))
-        
-        # Lấy tối đa 50 BP để frontend có thể hiển thị danh sách đầy đủ trong popup
-        employees = query.order_by(User.name).limit(50).all()
-        
-    else:
-        # Dành cho trang Điểm Danh chung
-        if not q:
+    if not q:
+        # Sửa lỗi: Nếu không có query 'q' nhưng 'only_bp' là true,
+        # cho phép tiếp tục để lấy toàn bộ nhân viên (thường là BP) của một chi nhánh.
+        if not only_bp:
             return JSONResponse(content=[], status_code=400)
-        
+        search_pattern = "%"
+    else:
         search_pattern = f"%{q}%"
-        base_query = query.filter(or_(User.code.ilike(search_pattern), User.name.ilike(search_pattern)))
 
-        if branch_id:
-            base_query = base_query.filter(User.branch == branch_id)
+    # Xây dựng query cơ bản
+    query = db.query(User).filter(
+        or_(
+            User.code.ilike(search_pattern),
+            User.name.ilike(search_pattern)
+        )
+    )
 
-        all_matches = base_query.order_by(User.name).limit(50).all()
+    # Thêm bộ lọc chi nhánh nếu được cung cấp
+    if branch_id:
+        query = query.filter(User.branch == branch_id)
 
-        # Lọc bỏ các lễ tân khác, chỉ giữ lại lễ tân đang đăng nhập
-        filtered = []
-        for emp in all_matches:
-            if (emp.role or "").lower() == "letan":
-                if loginCode and emp.code == loginCode:
-                    filtered.append(emp)
-            else:
-                filtered.append(emp)
-        
-        # Giới hạn 20 kết quả cuối cùng để giữ nguyên hành vi cũ của trang điểm danh
-        employees = filtered[:20]
+    employees = query.limit(50).all()
+
+    # ✅ Nếu chỉ tìm buồng phòng
+    if only_bp:
+        employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
+
+    # ✅ Loại bỏ tất cả lễ tân khác, chỉ giữ lại đúng loginCode (nếu có)
+    filtered = []
+    for emp in employees:
+        if (emp.role or "").lower() == "letan":
+            if loginCode and emp.code == loginCode:
+                filtered.append(emp)  # giữ lại chính lễ tân đăng nhập
+        else:
+            filtered.append(emp)
+    employees = filtered[:20]
 
     employee_list = [
         {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
@@ -1215,56 +1189,45 @@ async def attendance_checkin_bulk(
     normalized_data = []
     now_vn = datetime.now(timezone("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d %H:%M:%S")
 
-    def get_nearest_branch(lat, lon, threshold_km=0.2):
-        """Tìm chi nhánh gần nhất theo GPS (nếu nằm trong threshold_km)."""
-        nearest_branch, min_dist = None, float("inf")
-        for branch, coords in branchCoordinates.items():
-            dist = haversine(lat, lon, coords[0], coords[1])
-            if dist < min_dist:
-                min_dist = dist
-                nearest_branch = branch
-        return nearest_branch if min_dist <= threshold_km else None
-
-    bp_checkin_data = []
-
     for rec in raw_data:
-        # === Xác định chi nhánh làm theo GPS (ưu tiên GPS) ===
-        lat, lon = rec.get("lat"), rec.get("lon")
-        branch_lam = rec.get("chi_nhanh_lam")  # fallback nếu không có GPS
-
-        if lat and lon:
-            try:
-                branch_from_gps = get_nearest_branch(float(lat), float(lon))
-                if branch_from_gps:
-                    branch_lam = branch_from_gps
-            except Exception as e:
-                print("[WARN] GPS parse error:", e)
-
         normalized_data.append({
+            # sheet target (nếu client gửi)
             "sheet": rec.get("sheet"),
+
+            # thời gian: ưu tiên client, fallback giờ VN
             "thoi_gian": rec.get("thoi_gian") or now_vn,
+
+            # nhân viên được điểm danh
             "ma_nv": rec.get("ma_nv"),
             "ten_nv": rec.get("ten_nv"),
-            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),  # từ hồ sơ nhân viên
-            "chi_nhanh_lam": branch_lam,                    # ✅ GPS xác định
+            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
+            "chi_nhanh_lam": rec.get("chi_nhanh_lam"),
+
+            # field bổ sung
             "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
             "so_cong_nv": rec.get("so_cong_nv") or 1,
             "ghi_chu": rec.get("ghi_chu", ""),
             "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
             "so_phong": rec.get("so_phong") or rec.get("room_count") or "",
             "so_luong": rec.get("so_luong") or rec.get("item_count") or "",
+
+            # người đang login
             "nguoi_diem_danh": nguoi_diem_danh_code
         })
 
-        # Nếu là nhân viên BP thì lưu lại để dùng cho chấm dịch vụ
-        if "BP" in rec.get("ma_nv", "").upper() and branch_lam:
-            bp_checkin_data.append({"code": rec.get("ma_nv"), "branch": branch_lam})
+    # Lấy danh sách mã nhân viên BP vừa được điểm danh
+    bp_codes = [
+        rec.get("ma_nv") for rec in raw_data
+        if "BP" in rec.get("ma_nv", "").upper()
+    ]
 
-    # === Lưu danh sách BP vào DB cho lễ tân ===
-    if nguoi_diem_danh_code and bp_checkin_data:
+    # Cập nhật danh sách này vào DB cho lễ tân đang đăng nhập.
+    # Danh sách này sẽ được dùng để đề xuất ở trang "Chấm dịch vụ" và sẽ tồn tại
+    # cho đến lần điểm danh tiếp theo của lễ tân này.
+    if nguoi_diem_danh_code:
         checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
         if checker_user:
-            checker_user.last_checked_in_bp = bp_checkin_data
+            checker_user.last_checked_in_bp = bp_codes
             db.commit()
 
     # ✅ chạy push_bulk_checkin ở background
@@ -1287,32 +1250,20 @@ def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
     if not checker_user or not checker_user.last_checked_in_bp:
         return JSONResponse(content=[])
 
-    service_checkin_data = checker_user.last_checked_in_bp
-    if not isinstance(service_checkin_data, dict):
+    service_checkin_codes = checker_user.last_checked_in_bp
+    
+    if not service_checkin_codes:
         return JSONResponse(content=[])
 
-    employees_data = service_checkin_data.get("employees", [])
-    if not employees_data:
-        return JSONResponse(content=[])
-
-    employee_codes = [item.get("code") for item in employees_data if item.get("code")]
-    employees_from_db = db.query(User).filter(User.code.in_(employee_codes)).all()
+    employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
+    # Sắp xếp lại theo đúng thứ tự đã điểm danh
     emp_map = {emp.code: emp for emp in employees_from_db}
-
-    employee_list = []
-    for item in employees_data:
-        emp_code = item.get("code")
-        checkin_branch = item.get("branch")
-        emp_details = emp_map.get(emp_code)
-
-        if emp_details and checkin_branch:
-            employee_list.append({
-                "code": emp_details.code,
-                "name": emp_details.name,
-                "branch": checkin_branch,  # ✅ chi nhánh lúc điểm danh
-                "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
-            })
-
+    sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
+    
+    employee_list = [
+        { "code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": "" }
+        for emp in sorted_employees
+    ]
     return JSONResponse(content=employee_list)
 
 @app.get("/api/attendance/results-by-checker")
