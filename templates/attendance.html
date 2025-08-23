@@ -123,7 +123,7 @@
   </div>
 
   <script>
-    const userRole = "{{ role }}";
+    const userRole = "{{ role | lower }}";
   </script>
 
   <script>
@@ -629,33 +629,40 @@
 
     /* ---------- Init ---------- */
     window.addEventListener("DOMContentLoaded", async () => {
-    if (["quanly", "ktv", "boss", "admin"].includes(userRole)) {
-      // Không cần GPS → gọi thẳng API, server sẽ trả về chi nhánh chính
-      try {
-        const data = await safeFetchJson("/attendance/api/detect-branch", {
-          method: "POST",
-          headers: { "Content-Type":"application/json" },
-          body: JSON.stringify({}) // gửi rỗng, server tự xử lý
-        });
-        if (data && data.branch) {
-          currentBranch = data.branch;
-          document.getElementById("branchName").textContent = branchDisplay(data.branch);
-          await loadEmployeesForBranch();
+      console.log("User role:", userRole);
+      // ✅ Role đặc biệt: bỏ qua GPS
+      alert("User role: " + userRole);
+      if (["quanly", "ktv", "boss", "admin"].includes(userRole.toLowerCase())) {
+        try {
+          const data = await safeFetchJson("/attendance/api/detect-branch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}) // rỗng → server trả về chi nhánh chính
+          });
+
+          if (data && data.branch) {
+            currentBranch = data.branch;
+            document.getElementById("branchName").textContent = branchDisplay(data.branch);
+            await loadEmployeesForBranch();
+            return; // ⚡ không chạy GPS nữa
+          } else {
+            disableForm("Không tìm thấy chi nhánh chính cho tài khoản này.");
+            return;
+          }
+        } catch (e) {
+          console.error("Special role detect error:", e);
+          disableForm("Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị.");
           return;
         }
-      } catch(e) {
-        console.error(e);
       }
-    }
 
-    // Mặc định: role thường → GPS
-    const detected = await detectBranchByGPS();
-    if (detected) {
-      document.getElementById("branchName").textContent = branchDisplay(detected);
-      await loadEmployeesForBranch();
-    }
-    // Không cần 'else'. Nếu 'detected' là null, UI đã bị khóa bởi hàm detectBranchByGPS.
-  });
+      // ✅ Các role thường → dùng GPS
+      const detected = await detectBranchByGPS();
+      if (detected) {
+        document.getElementById("branchName").textContent = branchDisplay(detected);
+        await loadEmployeesForBranch();
+      }
+    });
   </script>
 </body>
 </html>
