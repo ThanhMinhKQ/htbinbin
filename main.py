@@ -1202,6 +1202,12 @@ async def attendance_checkin_bulk(
     if not isinstance(raw_data, list):
         raise HTTPException(status_code=400, detail="Payload phải là danh sách")
 
+    # Lấy chi nhánh làm việc từ payload để cập nhật trạng thái.
+    # Giả định tất cả record trong 1 lần gửi đều thuộc cùng 1 chi nhánh làm việc.
+    active_branch_from_payload = None
+    if raw_data: # Đảm bảo raw_data không rỗng
+        active_branch_from_payload = raw_data[0].get("chi_nhanh_lam")
+
     nguoi_diem_danh_code = user.get("code")
     normalized_data = []
     now_vn = datetime.now(timezone("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d %H:%M:%S")
@@ -1238,13 +1244,19 @@ async def attendance_checkin_bulk(
         if "BP" in rec.get("ma_nv", "").upper()
     ]
 
-    # Cập nhật danh sách này vào DB cho lễ tân đang đăng nhập.
-    # Danh sách này sẽ được dùng để đề xuất ở trang "Chấm dịch vụ" và sẽ tồn tại
-    # cho đến lần điểm danh tiếp theo của lễ tân này.
+    # Cập nhật DB cho lễ tân đang đăng nhập.
     if nguoi_diem_danh_code:
         checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
         if checker_user:
+            # 1. Cập nhật danh sách BP đã điểm danh để gợi ý ở trang Chấm dịch vụ
             checker_user.last_checked_in_bp = bp_codes
+
+            # 2. Cập nhật chi nhánh làm việc cuối cùng
+            if active_branch_from_payload and hasattr(checker_user, 'last_active_branch'):
+                checker_user.last_active_branch = active_branch_from_payload
+                # Đồng thời cập nhật session để có hiệu lực ngay lập tức
+                request.session["active_branch"] = active_branch_from_payload
+
             db.commit()
 
     # ✅ chạy push_bulk_checkin ở background
