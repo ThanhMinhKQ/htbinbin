@@ -106,21 +106,25 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user")
     special_roles = ["quanly", "ktv", "boss", "admin"]
 
-    # ✅ Bỏ qua phát hiện GPS cho các vai trò đặc biệt, dùng chi nhánh mặc định
-    if user_data and user_data.get("role") in special_roles:
-        user_branch = user_data.get("branch")
-        if user_branch:
-            request.session["active_branch"] = user_branch
-            user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
-            if user_in_db:
-                user_in_db.last_active_branch = user_branch
-                db.commit()
-            return {"branch": user_branch, "distance_km": 0}
+    if user_data:
+        user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
 
+        # ✅ Với role đặc biệt → bỏ qua GPS, gán luôn chi nhánh chính
+        if user_data.get("role") in special_roles:
+            if user_in_db and user_in_db.branch:
+                main_branch = user_in_db.branch
+                request.session["active_branch"] = main_branch
+                user_in_db.last_active_branch = main_branch
+                db.commit()
+                return {"branch": main_branch, "distance_km": 0}
+            else:
+                return JSONResponse({"error": "Không tìm thấy chi nhánh chính của user"}, status_code=404)
+
+    # ✅ Các role còn lại → xử lý GPS như cũ
     data = await request.json()
     lat, lng = data.get("lat"), data.get("lng")
     if lat is None or lng is None:
-        return JSONResponse({"error": "Thiếu tọa độ"}, status_code=400)
+        return JSONResponse({"error": "Bạn vui lòng mở định vị trên điện thoại để lấy vị trí"}, status_code=400)
 
     nearest_branch = None
     min_distance = float("inf")
@@ -130,23 +134,20 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
             min_distance = dist
             nearest_branch = branch
 
-    # Nếu khoảng cách quá xa (>1km) thì coi như không hợp lệ
-    if min_distance > 1:
-        return JSONResponse({"error": "Không xác định được chi nhánh"}, status_code=404)
+    # ✅ Giới hạn khoảng cách điểm danh là 200m (0.2km)
+    if min_distance > 0.2:
+        distance_in_meters = round(min_distance * 1000)
+        error_message = f"Bạn đang cách khách sạn {distance_in_meters}m. Vui lòng điểm danh tại khách sạn."
+        return JSONResponse({"error": error_message}, status_code=403)
 
-    # Lưu vào session để UI tự nhận
     request.session["active_branch"] = nearest_branch
 
-    # Lưu vào DB để ghi nhớ cho lần đăng nhập sau
-    if user_data:
-        user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
-        if user_in_db:
-            # Giả định cột last_active_branch đã tồn tại trong model User
-            user_in_db.last_active_branch = nearest_branch
-            db.commit()
+    if user_data and user_in_db:
+        user_in_db.last_active_branch = nearest_branch
+        db.commit()
 
     return {"branch": nearest_branch, "distance_km": round(min_distance, 3)}
-    
+
 @app.get("/attendance/service", response_class=HTMLResponse)
 def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user")
