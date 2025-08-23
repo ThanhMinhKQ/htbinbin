@@ -12,6 +12,7 @@ class User(Base):
     role = Column(String(50), nullable=False)
     branch = Column(String(50), nullable=False)
     last_checked_in_bp = Column(JSONB, nullable=True)  # Dùng JSONB chuẩn PostgreSQL
+    last_active_branch = Column(String, nullable=True)
 
 class Task(Base):
     __tablename__ = "tasks"
