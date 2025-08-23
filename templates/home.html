@@ -250,6 +250,14 @@
     <div class="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
       <h1 class="text-2xl font-bold tracking-tight">Xin chào {{ user_name }}</h1>
       <div class="flex items-center gap-3">
+        <!-- Nút quay lại -->
+        <a href="/choose-function" title="Quay lại" class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-blue-100 dark:hover:bg-indigo-900 transition">
+          <!-- Icon SVG cho Quay lại -->
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-left">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+        </a>
         <!-- Nút ẩn/hiện dashboard dùng SVG thay cho animated-icon -->
         <button id="toggleDashboard" title="Ẩn/Hiện Dashboard" class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-blue-100 dark:hover:bg-indigo-900 transition">
           <!-- Icon SVG cho Dashboard -->
@@ -266,14 +274,6 @@
             <path d="M12 2a9.93 9.93 0 0 0-6.32 2.35A9.96 9.96 0 0 0 2 12a9.96 9.96 0 0 0 3.68 7.65A9.93 9.93 0 0 0 12 22a9.93 9.93 0 0 0 6.32-2.35A9.96 9.96 0 0 0 22 12a9.96 9.96 0 0 0-3.68-7.65A9.93 9.93 0 0 0 12 2z"></path>
           </svg>
         </button>
-
-        <a href="/logout" onclick="return confirm('Bạn có chắc muốn đăng xuất?')" title="Đăng xuất"
-          class="p-2 rounded-full bg-white/80 dark:bg-[#23243a] shadow hover:bg-red-100 dark:hover:bg-red-900 transition">
-          <!-- Icon SVG cho Đăng xuất -->
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-log-out">
-            <path d="M14 2H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2V14m-5-4l4 4-4 4m7-4H10"></path>
-          </svg>
-        </a>
       </div>
     </div>
 
