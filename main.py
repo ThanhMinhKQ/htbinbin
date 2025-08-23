@@ -91,6 +91,7 @@ branchCoordinates = {
     "B12": [10.778874744587053,106.75266727478706],
     "B14": [10.742557513695218,106.69945313180673],
     "B15": [10.775572501574938,106.75167172807936],
+    "B16": [10.760347394497392,106.69043939445082],
 }
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -146,7 +147,7 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
     nearby_branches = []
     for branch, coords in branchCoordinates.items():
         dist = haversine(lat, lng, coords[0], coords[1])
-        if dist >= 0.5:  # trong 200m
+        if dist >= 0.2:  # trong 200m
             nearby_branches.append((branch, dist))
 
     if not nearby_branches:
@@ -511,13 +512,13 @@ def search_employees(
 ):
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
-    - Nếu branch_id được cung cấp, chỉ tìm trong chi nhánh đó.
-    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP').
+    - Nếu branch_id được cung cấp, chỉ tìm trong chi nhánh đó (ngoại trừ khi only_bp=True).
+    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP') từ TẤT CẢ các chi nhánh.
     - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode).
     - Giới hạn 20 kết quả.
     """
     if not q:
-        # Sửa lỗi: Nếu không có query 'q' nhưng 'only_bp' là true,
+        # Nếu không có query 'q' nhưng 'only_bp' là true,
         # cho phép tiếp tục để lấy toàn bộ nhân viên (thường là BP) của một chi nhánh.
         if not only_bp:
             return JSONResponse(content=[], status_code=400)
@@ -533,8 +534,8 @@ def search_employees(
         )
     )
 
-    # Thêm bộ lọc chi nhánh nếu được cung cấp
-    if branch_id:
+    # Thêm bộ lọc chi nhánh nếu được cung cấp (bỏ qua nếu tìm BP)
+    if branch_id and not only_bp:
         query = query.filter(User.branch == branch_id)
 
     employees = query.limit(50).all()
