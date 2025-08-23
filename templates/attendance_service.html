@@ -143,18 +143,19 @@
     showStatus("Đang lưu...");
     const now=new Date().toISOString().slice(0,19).replace("T"," ");
     const normalized=payload.map(r=>({
-        sheet:"DV",
-        thoi_gian:now,
-        ma_nv:r.code,
-        ten_nv:r.name,
-        chi_nhanh_chinh:r.branch || currentBranch,
-        chi_nhanh_lam:currentBranch,
-        la_tang_ca: (r.branch || currentBranch) !== currentBranch,
-        ghi_chu:r.ghi_chu||"",
-        dich_vu:r.dich_vu,
-        so_phong:r.so_phong,
-        so_luong:r.so_luong
+      sheet:"DV",
+      thoi_gian:now,
+      ma_nv:r.code,
+      ten_nv:r.name,
+      chi_nhanh_chinh:r.branch || currentBranch,
+      chi_nhanh_lam:r.branch || currentBranch,   // ✅ Dùng chi nhánh của nhân viên lúc điểm danh
+      la_tang_ca: (r.branch || currentBranch) !== currentBranch,
+      ghi_chu:r.ghi_chu||"",
+      dich_vu:r.dich_vu,
+      so_phong:r.so_phong,
+      so_luong:r.so_luong
     }));
+
     try{
       const res=await fetch("/attendance/checkin_bulk",{method:"POST",headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},body:JSON.stringify(normalized)});
       if(!res.ok) throw new Error("Lỗi lưu"); alert("✅ Lưu thành công"); showStatus("Đã lưu");
