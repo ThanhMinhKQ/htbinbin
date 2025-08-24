@@ -683,20 +683,28 @@ def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: st
         except:
             return datetime.min
 
+    # ✅ Hàm chuẩn hoá timezone
+    def ensure_tz(dt):
+        if dt is None:
+            return None
+        return dt if dt.tzinfo else dt.replace(tzinfo=VN_TZ)
+
     # ✅ Thống kê
-    today = datetime.now()
+    today = datetime.now(VN_TZ)
+    start_of_week = today.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=today.weekday())
+
     thong_ke = {
         "tong_cong_viec": len(rows_all),
         "hoan_thanh": sum(1 for t in rows_all if t.trang_thai == "Hoàn thành"),
         "hoan_thanh_tuan": sum(
-            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
-            t.ngay_hoan_thanh and
-            t.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday())
+            1 for t in rows_all
+            if t.trang_thai == "Hoàn thành"
+            and ensure_tz(t.ngay_hoan_thanh) >= start_of_week
         ),
         "hoan_thanh_thang": sum(
-            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
-            t.ngay_hoan_thanh and
-            t.ngay_hoan_thanh.month == today.month
+            1 for t in rows_all
+            if t.trang_thai == "Hoàn thành"
+            and ensure_tz(t.ngay_hoan_thanh).month == today.month
         ),
         "dang_cho": sum(1 for t in rows_all if t.trang_thai == "Đang chờ"),
         "qua_han": sum(1 for t in rows_all if t.trang_thai == "Quá hạn"),
