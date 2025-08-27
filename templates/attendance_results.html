@@ -117,5 +117,27 @@
                 });
         });
     </script>
+    <script>
+        function checkAndLogoutForShiftChange() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+
+            // Tự động đăng xuất lúc 6:59 sáng
+            const isMorningLogout = (hours === 6 && minutes === 59); // Giữ nguyên hoặc thay đổi để test
+
+            // Tự động đăng xuất lúc 18:59 tối
+            const isEveningLogout = (hours === 18 && minutes === 59); // <-- THAY ĐỔI GIỜ VÀ PHÚT Ở ĐÂY
+
+            if (isMorningLogout || isEveningLogout) {
+                console.log("Đã đến giờ chuyển ca, tự động đăng xuất...");
+                // Chuyển hướng về trang đăng xuất để xóa session
+                window.location.href = '/logout';
+            }
+        }
+
+        // Kiểm tra thời gian mỗi 30 giây để đảm bảo không bỏ lỡ
+        setInterval(checkAndLogoutForShiftChange, 30000);
+    </script>
 </body>
 </html>
