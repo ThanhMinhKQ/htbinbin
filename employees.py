@@ -73,8 +73,8 @@ employees = [
     {"code": "B16BPCS", "name": "Trần Thanh Phú", "department": "Buồng phòng", "branch": "B16", "role": "buongphong"},
 
     {"code": "LTTC01", "name": "Lê Minh Trung", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc1", "role": "letan"},
-    {"code": "LTTC03", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc3", "role": "letan"},
-    {"code": "LTTC04", "name": "Trần Thiện Tín", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc4", "role": "letan"},
+    {"code": "LTTC02", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc3", "role": "letan"},
+    {"code": "LTTC03", "name": "Trần Thiện Tín", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc4", "role": "letan"},
     
     {"code": "BPTC01", "name": "Lê Trọng Phúc", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc1", "role": "buongphong"},
     {"code": "BPTC02", "name": "Trần Ngọc Ánh", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc2", "role": "buongphong"},
