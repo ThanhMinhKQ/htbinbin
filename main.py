@@ -1,10 +1,12 @@
 import secrets
-from fastapi import FastAPI, Request, Form, HTTPException, Depends
+from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from utils import parse_datetime_input, format_datetime_display, is_overdue
+import atexit
+from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Request
 
 from database import SessionLocal
@@ -17,9 +19,10 @@ from sqlalchemy import or_, cast, Date
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func
 import os, re
-import socket
-from email.message import EmailMessage 
-from datetime import datetime, timedelta, timezone, date
+import socket, threading, time
+from email.message import EmailMessage
+from datetime import datetime, timedelta, date
+from pytz import timezone
 from services.email_service import send_alert_email
 
 from employees import employees  # import danh sách nhân viên tĩnh
@@ -32,7 +35,7 @@ def get_db():
         db.close()
 
 # Định nghĩa múi giờ Việt Nam (UTC+7)
-VN_TZ = timezone(timedelta(hours=7))
+VN_TZ = timezone("Asia/Ho_Chi_Minh")
 
 def get_current_work_shift():
     """
@@ -152,7 +155,7 @@ async def detect_branch(request: Request, db: Session = Depends(get_db)):
 
     if not nearby_branches:
         return JSONResponse(
-            {"error": "Bạn đang ở quá xa khách sạn. Vui lòng điểm danh tại khách sạn."},
+            {"error": "Bạn đang ở quá xa khách sạn (ngoài 200m). Vui lòng điểm danh tại khách sạn."},
             status_code=403,
         )
 
@@ -683,28 +686,20 @@ def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: st
         except:
             return datetime.min
 
-    # ✅ Hàm chuẩn hoá timezone
-    def ensure_tz(dt):
-        if dt is None:
-            return None
-        return dt if dt.tzinfo else dt.replace(tzinfo=VN_TZ)
-
     # ✅ Thống kê
-    today = datetime.now(VN_TZ)
-    start_of_week = today.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=today.weekday())
-
+    today = datetime.now()
     thong_ke = {
         "tong_cong_viec": len(rows_all),
         "hoan_thanh": sum(1 for t in rows_all if t.trang_thai == "Hoàn thành"),
         "hoan_thanh_tuan": sum(
-            1 for t in rows_all
-            if t.trang_thai == "Hoàn thành"
-            and ensure_tz(t.ngay_hoan_thanh) >= start_of_week
+            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
+            t.ngay_hoan_thanh and
+            t.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday())
         ),
         "hoan_thanh_thang": sum(
-            1 for t in rows_all
-            if t.trang_thai == "Hoàn thành"
-            and ensure_tz(t.ngay_hoan_thanh).month == today.month
+            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
+            t.ngay_hoan_thanh and
+            t.ngay_hoan_thanh.month == today.month
         ),
         "dang_cho": sum(1 for t in rows_all if t.trang_thai == "Đang chờ"),
         "qua_han": sum(1 for t in rows_all if t.trang_thai == "Quá hạn"),
@@ -1161,7 +1156,6 @@ def startup():
         print("[STARTUP] Không thể đồng bộ nhân viên:", e)
 
     # Thread watch employees.py
-    import threading, time, os
     EMPLOYEES_FILE = os.path.join(os.path.dirname(__file__), "employees.py")
     _last_mtime = None
     def watch_employees_file():
@@ -1182,6 +1176,26 @@ def startup():
                 print("[SYNC] Lỗi khi theo dõi employees.py:", e)
             time.sleep(5)
     threading.Thread(target=watch_employees_file, daemon=True).start()
+
+    # --- Lập lịch tự động đăng xuất ---
+    def auto_logout_job():
+        """
+        Hàm này được kích hoạt vào các thời điểm đăng xuất đã lên lịch.
+
+        LƯU Ý: Do ứng dụng sử dụng session lưu trong cookie phía trình duyệt,
+        server không thể buộc trình duyệt đăng xuất. Hàm này đóng vai trò là
+        bộ kích hoạt phía server và ghi log. Việc đăng xuất thực tế phải
+        được thực hiện bằng JavaScript ở phía trình duyệt.
+        """
+        print(f"[{datetime.now(VN_TZ)}] Kích hoạt đăng xuất tự động. Các client cần thực hiện đăng xuất.")
+
+    scheduler = BackgroundScheduler(timezone=str(VN_TZ))
+    # Lập lịch chạy vào 6:59 và 18:59 mỗi ngày, theo múi giờ Việt Nam.
+    scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
+    scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
+    scheduler.start()
+    print("Đã khởi động lịch tự động đăng xuất lúc 06:59 và 18:59 (giờ Việt Nam).")
+    atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == "__main__":
     import uvicorn
@@ -1249,11 +1263,6 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
 
 from services.attendance_service import push_bulk_checkin, get_attendance_by_checker
 
-from fastapi import BackgroundTasks
-
-from datetime import datetime
-from pytz import timezone
-
 @app.post("/attendance/checkin_bulk")
 async def attendance_checkin_bulk(
     request: Request,
@@ -1287,7 +1296,7 @@ async def attendance_checkin_bulk(
         active_branch_from_payload = user_branch
 
     normalized_data = []
-    now_vn = datetime.now(timezone("Asia/Ho_Chi_Minh")).strftime("%Y-%m-%d %H:%M:%S")
+    now_vn = datetime.now(VN_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
     for rec in raw_data:
         normalized_data.append({
