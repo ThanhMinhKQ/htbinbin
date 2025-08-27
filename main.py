@@ -687,7 +687,7 @@ def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: st
             return datetime.min
 
     # ✅ Thống kê
-    today = datetime.now()
+    today = datetime.now(VN_TZ)
     thong_ke = {
         "tong_cong_viec": len(rows_all),
         "hoan_thanh": sum(1 for t in rows_all if t.trang_thai == "Hoàn thành"),
