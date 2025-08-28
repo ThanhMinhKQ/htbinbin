@@ -474,7 +474,7 @@ def validate_csrf(request: Request):
 # --- Attendance UI ---
 @app.get("/attendance/ui", response_class=HTMLResponse)
 def attendance_ui(request: Request):
-    user_data = request.session.get("user")
+    user_data = request.session.get("user") or request.session.get("pending_user")
     if not user_data:
         return RedirectResponse("/login", status_code=303)
     active_branch = request.session.get("active_branch") or user_data.get("branch", "")
