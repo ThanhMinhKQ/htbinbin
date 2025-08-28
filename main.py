@@ -314,108 +314,16 @@ def login_submit(
 ):
     request.session.clear()
     allowed_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+
+    # Tìm user
     user = db.query(User).filter(
         User.code == username,
         User.password == password,
         User.role.in_(allowed_roles)
     ).first()
 
-    if user:
-        # ✅ Boss & Admin: vào thẳng hệ thống, không cần điểm danh
-        if user.role in ["boss", "admin"]:
-            request.session["user"] = {
-                "code": user.code,
-                "role": user.role,
-                "branch": user.branch,
-                "name": user.name
-            }
-            request.session["after_checkin"] = "choose_function"
-            return RedirectResponse("/choose-function", status_code=303)
-
-        work_date, shift = get_current_work_shift()
-
-        # ✅ Với ktv, quanly: chỉ check log theo ngày (shift=None)
-        if user.role in ["ktv", "quanly"]:
-            log = db.query(AttendanceLog).filter(
-                AttendanceLog.user_code == user.code,
-                AttendanceLog.date == work_date
-            ).first()
-        else:
-            # Các role khác vẫn check theo ca
-            log = db.query(AttendanceLog).filter(
-                AttendanceLog.user_code == user.code,
-                AttendanceLog.date == work_date,
-                AttendanceLog.shift == shift
-            ).first()
-
-        # Nếu đã check-in thì vào thẳng hệ thống
-        if log and log.checked_in:
-            request.session["user"] = {
-                "code": user.code,
-                "role": user.role,
-                "branch": user.branch,
-                "name": user.name
-            }
-            request.session.pop("pending_user", None)
-            return RedirectResponse("/choose-function", status_code=303)
-
-        # Nếu chưa check-in → phân luồng mobile / desktop
-        user_agent = request.headers.get("user-agent", "").lower()
-        is_mobile = any(k in user_agent for k in ["mobi", "android", "iphone", "ipad"])
-
-        # Xác định shift để lưu log (ktv/quanly thì shift=None)
-        shift_value = None if user.role in ["ktv", "quanly"] else shift
-
-        if is_mobile:
-            if not log:
-                token = secrets.token_urlsafe(24)
-                new_log = AttendanceLog(
-                    user_code=user.code,
-                    date=work_date,
-                    shift=shift_value,
-                    token=token,
-                    checked_in=False
-                )
-                db.add(new_log)
-                db.commit()
-                log = new_log
-            token = log.token
-
-            request.session["pending_user"] = {
-                "code": user.code,
-                "role": user.role,
-                "branch": user.branch,
-                "name": user.name,
-            }
-            request.session["qr_token"] = token
-            return RedirectResponse("/attendance/ui", status_code=303)
-
-        else:
-            # Desktop
-            if log and not log.checked_in:
-                token = log.token
-            else:
-                token = secrets.token_urlsafe(24)
-                new_log = AttendanceLog(
-                    user_code=user.code,
-                    date=work_date,
-                    shift=shift_value,
-                    token=token,
-                    checked_in=False
-                )
-                db.add(new_log)
-                db.commit()
-            request.session["pending_user"] = {
-                "code": user.code,
-                "role": user.role,
-                "branch": user.branch,
-                "name": user.name,
-            }
-            request.session["qr_token"] = token
-            return RedirectResponse("/show_qr", status_code=303)
-
-    # Trường hợp login sai
-    else:
+    if not user:
+        # Nếu login sai → đoán role để hiển thị UI đúng
         guessed_role = ""
         if username.lower().startswith("b") and "lt" in username.lower():
             guessed_role = "letan"
@@ -429,6 +337,91 @@ def login_submit(
             "role": guessed_role
         })
         return RedirectResponse(f"/login?{query}", status_code=303)
+
+    # ✅ Boss & Admin: vào thẳng hệ thống, không cần điểm danh
+    if user.role in ["boss", "admin"]:
+        request.session["user"] = {
+            "code": user.code,
+            "role": user.role,
+            "branch": user.branch,
+            "name": user.name
+        }
+        request.session["after_checkin"] = "choose_function"
+        return RedirectResponse("/choose-function", status_code=303)
+
+    # ✅ Các role khác: kiểm tra log điểm danh
+    work_date, shift = get_current_work_shift()
+    shift_value = None if user.role in ["ktv", "quanly"] else shift
+
+    # Query log theo shift_value
+    log = db.query(AttendanceLog).filter_by(
+        user_code=user.code,
+        date=work_date,
+        shift=shift_value
+    ).first()
+
+    # Nếu đã check-in thì vào thẳng hệ thống
+    if log and log.checked_in:
+        request.session["user"] = {
+            "code": user.code,
+            "role": user.role,
+            "branch": user.branch,
+            "name": user.name
+        }
+        request.session.pop("pending_user", None)
+        return RedirectResponse("/choose-function", status_code=303)
+
+    # Nếu chưa check-in → phân luồng mobile / desktop
+    user_agent = request.headers.get("user-agent", "").lower()
+    is_mobile = any(k in user_agent for k in ["mobi", "android", "iphone", "ipad"])
+
+    if is_mobile:
+        if not log:
+            token = secrets.token_urlsafe(24)
+            log = AttendanceLog(
+                user_code=user.code,
+                date=work_date,
+                shift=shift_value,
+                token=token,
+                checked_in=False
+            )
+            db.add(log)
+            db.commit()
+        token = log.token
+
+        request.session["pending_user"] = {
+            "code": user.code,
+            "role": user.role,
+            "branch": user.branch,
+            "name": user.name,
+        }
+        request.session["qr_token"] = token
+        return RedirectResponse("/attendance/ui", status_code=303)
+
+    else:
+        # Desktop
+        if log and not log.checked_in:
+            token = log.token
+        else:
+            token = secrets.token_urlsafe(24)
+            log = AttendanceLog(
+                user_code=user.code,
+                date=work_date,
+                shift=shift_value,
+                token=token,
+                checked_in=False
+            )
+            db.add(log)
+            db.commit()
+
+        request.session["pending_user"] = {
+            "code": user.code,
+            "role": user.role,
+            "branch": user.branch,
+            "name": user.name,
+        }
+        request.session["qr_token"] = token
+        return RedirectResponse("/show_qr", status_code=303)
 
 # --- Middleware kiểm tra trạng thái điểm danh QR ---
 from datetime import date
@@ -1277,23 +1270,28 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
 
     work_date, shift = get_current_work_shift()
+    # Sửa lỗi: Áp dụng logic tương tự login_submit để xác định ca làm việc
+    # Đối với KTV/Quản lý, ca luôn là NULL để đảm bảo mỗi ngày chỉ có 1 record.
+    shift_value = None if user.get("role") in ["ktv", "quanly"] else shift
     log = db.query(AttendanceLog).filter(
         AttendanceLog.user_code == user["code"], # user là dict, nên dùng user["code"]
         AttendanceLog.date == work_date,
-        AttendanceLog.shift == shift # user là dict, nên dùng user["code"]
+        AttendanceLog.shift == shift_value
     ).first()
 
     if log:
         if log.checked_in:
             # Nếu đã check-in thì không cần show_qr nữa → đi thẳng trang chọn chức năng
-            return RedirectResponse("/choose-function", status_code=303)
+            request.session["user"] = user
+            request.session.pop("pending_user", None)
+            return RedirectResponse("/choose-function", status_code=303) # Thêm redirect ở đây
         else:
             qr_token = log.token
     else:
         # Trường hợp này không nên xảy ra nếu luồng đăng nhập đúng, nhưng là fallback
         import uuid
         qr_token = str(uuid.uuid4())
-        log = AttendanceLog(user_code=user["code"], date=work_date, shift=shift, token=qr_token, checked_in=False)
+        log = AttendanceLog(user_code=user["code"], date=work_date, shift=shift_value, token=qr_token, checked_in=False)
         db.add(log)
         db.commit()
 
@@ -1505,14 +1503,19 @@ async def checkin_success(request: Request, db: Session = Depends(get_db)):
     token = data.get("token")
     user_code = None
     work_date, shift = get_current_work_shift()
+    log = None
+    user = None
 
     # Luồng 1: Điểm danh qua QR code (desktop có token)
     if token:
         log = db.query(AttendanceLog).filter_by(token=token).first()
         if not log:
             return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=400)
+
         user_code = log.user_code
         user = db.query(User).filter_by(code=user_code).first()
+        # ✅ Xác định shift_value nhất quán theo role
+        shift_value = None if user and user.role in ["ktv", "quanly"] else log.shift
 
     # Luồng 2: Mobile (không có token)
     else:
@@ -1522,26 +1525,21 @@ async def checkin_success(request: Request, db: Session = Depends(get_db)):
                 {"success": False, "error": "Không tìm thấy pending_user trong session."},
                 status_code=403
             )
+
         user_code = pending["code"]
         user = db.query(User).filter_by(code=user_code).first()
         if not user:
             return JSONResponse({"success": False, "error": "Không tìm thấy người dùng"}, status_code=404)
 
-        # ✅ Với ktv, quanly: chỉ check theo ngày (shift=None)
-        if user.role in ["ktv", "quanly"]:
-            log = db.query(AttendanceLog).filter_by(
-                user_code=user_code,
-                date=work_date
-            ).first()
-            shift_value = None
-        else:
-            # Các role khác: vẫn check theo ca
-            log = db.query(AttendanceLog).filter_by(
-                user_code=user_code,
-                date=work_date,
-                shift=shift
-            ).first()
-            shift_value = shift
+        # ✅ shift_value: ktv/quanly = None, còn lại theo ca
+        shift_value = None if user.role in ["ktv", "quanly"] else shift
+
+        # Query log theo shift_value (tránh sinh 2 log)
+        log = db.query(AttendanceLog).filter_by(
+            user_code=user_code,
+            date=work_date,
+            shift=shift_value
+        ).first()
 
         # Nếu chưa có log thì tạo mới
         if not log:
