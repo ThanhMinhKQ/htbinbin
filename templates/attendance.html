@@ -301,6 +301,19 @@
     /* ===== Save attendance (giữ nguyên payload/endpoint) ===== */
     async function saveAttendance(){
       if (employees.length === 0){ toast("Danh sách trống, không có gì để lưu.", 'info'); return; }
+
+      const saveButton = document.getElementById("saveBtn");
+      const originalButtonText = saveButton.innerHTML;
+      saveButton.disabled = true;
+      saveButton.innerHTML = `
+        <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Đang lưu...</span>
+      `;
+
+      if (employees.length === 0){ toast("Danh sách trống, không có gì để lưu.", 'info'); return; }
       const payload = employees.map(emp => ({
         sheet:(function(code){
           if(!code) return "Khac";
@@ -329,18 +342,26 @@
         if (doc && doc.status === 'queued'){
           toast("Điểm danh thành công!", 'success');
           const token = new URLSearchParams(window.location.search).get("token");
-          if (token){
-            fetch("/attendance/checkin_success", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ token }) })
-              .then(r=>r.json()).then(data=>{
-                if (data && data.success && data.redirect_to) window.location.href = data.redirect_to;
-                else if (data && !data.success) toast("Điểm danh thất bại: " + (data.error || "Lỗi"), 'error');
-              }).catch(err=> toast("Lỗi xác nhận điểm danh: " + err.message, 'error'));
+          if (token) {
+            const checkinRes = await fetch("/attendance/checkin_success", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ token }) });
+            const data = await checkinRes.json();
+            if (data && data.success && data.redirect_to) {
+                window.location.replace(data.redirect_to);
+                return; // Ngăn khối finally chạy trước khi chuyển hướng
+            } else {
+                const errorMsg = data && data.error ? data.error : "Lỗi không xác định";
+                toast("Điểm danh thất bại: " + errorMsg, 'error');
+            }
           }
         }else{
           toast("Lưu xong nhưng server trả về không chuẩn.", 'error');
         }
       }catch(err){
         toast("Lỗi khi lưu điểm danh: " + (err?.message || err), 'error');
+      } finally {
+        // Luôn kích hoạt lại nút bấm sau khi yêu cầu hoàn tất
+        saveButton.disabled = false;
+        saveButton.innerHTML = originalButtonText;
       }
     }
 
