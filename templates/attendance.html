@@ -342,21 +342,23 @@
         });
         if (!res.ok) throw new Error(`Lỗi server: ${res.status}`);
         const doc = await res.json().catch(()=>null);
-        if (doc && doc.status === 'queued'){
-          toast("Điểm danh thành công!", 'success');
+        if (doc && doc.status === 'queued') {
+          // Bỏ toast và hợp nhất logic gọi checkin_success cho cả mobile & desktop
           const token = new URLSearchParams(window.location.search).get("token");
-          if (token) {
-            const checkinRes = await fetch("/attendance/checkin_success", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ token }) });
-            const data = await checkinRes.json();
-            if (data && data.success && data.redirect_to) {
-                window.location.replace(data.redirect_to);
-                return; // Ngăn khối finally chạy trước khi chuyển hướng
-            } else {
-                const errorMsg = data && data.error ? data.error : "Lỗi không xác định";
-                toast("Điểm danh thất bại: " + errorMsg, 'error');
-            }
+          const checkinPayload = token ? { token } : {};
+          const checkinRes = await fetch("/attendance/checkin_success", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(checkinPayload)
+          });
+          const data = await checkinRes.json();
+          if (data && data.success && data.redirect_to) {
+            window.location.replace(data.redirect_to);
+            return; // Ngăn khối finally chạy trước khi chuyển hướng
           }
-        }else{
+          const errorMsg = data && data.error ? data.error : "Lỗi không xác định";
+          toast("Điểm danh thất bại: " + errorMsg, 'error');
+        } else {
           toast("Lưu xong nhưng server trả về không chuẩn.", 'error');
         }
       }catch(err){
