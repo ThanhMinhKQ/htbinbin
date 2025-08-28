@@ -431,6 +431,10 @@ def require_checked_in_user(request: Request):
     if not user:
         return False
 
+    # ✅ Admin và Boss luôn được truy cập nếu đã đăng nhập
+    if user.get("role") in ["admin", "boss"]:
+        return True
+
     work_date, _ = get_current_work_shift()
     db = SessionLocal()
     try:
