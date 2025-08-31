@@ -1,5 +1,5 @@
 # models.py
-from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON
+from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON, Float, Time
 from sqlalchemy.dialects.postgresql import JSONB
 from database import Base
 
@@ -38,3 +38,35 @@ class AttendanceLog(Base):
     shift = Column(String(20), index=True)  # Ca làm việc: 'day' hoặc 'night'
     token = Column(String(255), unique=True, index=True)
     checked_in = Column(Boolean, default=False)
+
+class AttendanceRecord(Base):
+    __tablename__ = "attendance_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ngay_diem_danh = Column(Date, nullable=False, index=True)
+    gio_diem_danh = Column(Time, nullable=False)
+    nguoi_diem_danh = Column(String(50), nullable=False, index=True)
+    ma_nv = Column(String(50), nullable=False, index=True)
+    ten_nv = Column(String(100))
+    chi_nhanh_chinh = Column(String(50))
+    chi_nhanh_lam = Column(String(50), index=True)
+    la_tang_ca = Column(Boolean, default=False)
+    so_cong_nv = Column(Float, default=1.0)
+    ghi_chu = Column(Text)
+
+class ServiceRecord(Base):
+    __tablename__ = "service_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    ngay_cham = Column(Date, nullable=False, index=True)
+    gio_cham = Column(Time, nullable=False)
+    nguoi_cham = Column(String(50), nullable=False, index=True)
+    ma_nv = Column(String(50), nullable=False, index=True)
+    ten_nv = Column(String(100))
+    chi_nhanh_chinh = Column(String(50))
+    chi_nhanh_lam = Column(String(50), index=True)
+    la_tang_ca = Column(Boolean, default=False)
+    dich_vu = Column(String(100), nullable=False)
+    so_phong = Column(String(50))
+    so_luong = Column(String(50))
+    ghi_chu = Column(Text)
