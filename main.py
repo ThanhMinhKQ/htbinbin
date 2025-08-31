@@ -1116,24 +1116,34 @@ from employees import employees
 from database import SessionLocal
 from models import User
 
-def sync_employees_from_source(db: Session, force_delete: bool = False):
-    if force_delete:
-        db.query(User).delete()
-        print("[SYNC] Đã xóa toàn bộ user cũ.")
-
+def sync_employees_from_source(db: Session, employees: list[dict], force_delete: bool = False):
     allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
     seen_codes = set()
 
+    # --- Bước 1: Thu thập danh sách code từ employees ---
+    incoming_codes = set()
     for emp in employees:
-        code = emp.get("code", "")
+        code = emp.get("code", "").strip()
+        if code:
+            incoming_codes.add(code)
+
+    # --- Bước 2: Xóa nhân viên không còn trong employees (nếu force_delete=True) ---
+    if force_delete:
+        db.query(User).filter(~User.code.in_(incoming_codes)).delete(synchronize_session=False)
+        print("[SYNC] Đã xóa các nhân viên không còn trong danh sách nguồn.")
+
+    # --- Bước 3: Đồng bộ từng nhân viên ---
+    for emp in employees:
+        code = emp.get("code", "").strip()
         if not code or code in seen_codes:
             continue
         seen_codes.add(code)
 
-        name = emp.get("name", "")
-        branch = emp.get("branch", "")
-        role = emp.get("role", "")
+        name = emp.get("name", "").strip()
+        branch = emp.get("branch", "").strip()
+        role = emp.get("role", "").strip()
 
+        # Nếu chưa có role thì suy từ code
         if not role:
             role_map = {"LT": "letan", "BP": "buongphong", "BV": "baove",
                         "QL": "quanly", "KTV": "ktv"}
@@ -1141,20 +1151,23 @@ def sync_employees_from_source(db: Session, force_delete: bool = False):
             if code.lower() in ["admin", "boss"]:
                 role = code.lower()
 
-        password = emp.get("password") or ("999" if role in allowed_login_roles else "")
-
+        # Kiểm tra nhân viên đã tồn tại chưa
         existing = db.query(User).filter(User.code == code).first()
         if existing:
+            # Cập nhật các thông tin khác (KHÔNG reset password)
             existing.name = name
             existing.role = role
             existing.branch = branch
-            if password:
-                existing.password = password
         else:
+            # Tạo user mới → set mật khẩu một lần
+            password = emp.get("password")
+            if not password:
+                password = "999" if role in allowed_login_roles else ""
             db.add(User(code=code, name=name, password=password, role=role, branch=branch))
 
+    # --- Bước 4: Lưu thay đổi ---
     db.commit()
-    print("[SYNC] Đồng bộ nhân viên thành công.")
+    print("[SYNC] Đồng bộ nhân viên thành công (cập nhật + xóa những user không còn).")
 
 @app.get("/sync-employees")
 def sync_employees_endpoint(request: Request):
@@ -1165,7 +1178,7 @@ def sync_employees_endpoint(request: Request):
     user = request.session.get("user")
     if not user or user.get("role") not in ["admin", "boss"]:
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
-    sync_employees_from_source(db=SessionLocal(), force_delete=True)
+    sync_employees_from_source(db=SessionLocal(), employees=employees, force_delete=True)
     return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py"}
 
 @app.get("/logout")
@@ -1176,12 +1189,11 @@ def logout(request: Request):
 @app.on_event("startup")
 def startup():
     from database import init_db
-    from utils import sync_employees_to_db_safe
 
-    init_db()  # tạo bảng nếu chưa có
+    init_db() 
 
     try:
-        sync_employees_from_source(db=SessionLocal(), force_delete=False)
+        sync_employees_from_source(db=SessionLocal(), employees=employees, force_delete=False)
         print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
     except Exception as e:
         print("[STARTUP] Không thể đồng bộ nhân viên:", e)
@@ -1199,7 +1211,8 @@ def startup():
                 elif mtime != _last_mtime:
                     _last_mtime = mtime
                     print("[SYNC] employees.py thay đổi → đồng bộ DB...")
-                    sync_employees_to_db_safe()
+                    # Sử dụng hàm đồng bộ đã được chuẩn hóa
+                    sync_employees_from_source(db=SessionLocal(), employees=employees, force_delete=False)
                     print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
             except FileNotFoundError:
                 print("[SYNC] Không tìm thấy file employees.py")
