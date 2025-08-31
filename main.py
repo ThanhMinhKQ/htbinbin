@@ -244,7 +244,7 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     if not user_data:
         return RedirectResponse("/login", status_code=303)
     # Quản lý và KTV không có chức năng chấm dịch vụ
-    if user_data.get("role") in ["quanly", "ktv"]:
+    if user_data.get("role") in ["quanly", "ktv", "admin", "boss"]:
         return RedirectResponse("/choose-function", status_code=303)
 
     checker_user = db.query(User).filter(User.code == user_data["code"]).first()
