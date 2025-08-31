@@ -26,8 +26,9 @@ def init_db():
     Hàm này sẽ được gọi khi ứng dụng khởi động.
     Nó import tất cả các model và tạo bảng trong database nếu chúng chưa tồn tại.
     """
-    # Import tất cả các model ở đây để chúng được đăng ký với Base
-    from models import User, Task, AttendanceLog
+    # Import tất cả các model để chúng được đăng ký
+    from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord
+
     print("Đang khởi tạo database và tạo các bảng nếu chưa tồn tại...")
     Base.metadata.create_all(bind=engine)
     print("Hoàn tất khởi tạo database.")
