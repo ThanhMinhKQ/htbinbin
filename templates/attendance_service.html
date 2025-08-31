@@ -50,9 +50,65 @@ Notes:
     /* Table zebra */
     .tbl tr:nth-child(even) td{ background: #fafafa; }
 
-    /* Slide-in toast */
-    .toast-in{animation:toast .25s ease-out both}
-    @keyframes toast{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    /* Status modal success animation */
+    .checkmark__circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 2;
+      stroke-miterlimit: 10;
+      fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 2;
+      stroke: #fff;
+      stroke-miterlimit: 10;
+      margin: 10% auto;
+      animation-duration: .4s, .3s; animation-timing-function: ease-in-out, ease-in-out; animation-delay: .4s, .9s; animation-fill-mode: forwards, both;
+    }
+    .checkmark__check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+    }
+    @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+    @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+    @keyframes fill-green { 100% { box-shadow: inset 0px 0px 0px 40px #4ade80; } }
+    @keyframes fill-blue { 100% { box-shadow: inset 0px 0px 0px 40px #60a5fa; } } /* blue-400 */
+
+    /* Default (save) success colors */
+    #statusSuccess:not(.is-reload) .checkmark__circle { stroke: #4ade80; } /* green-400 */
+    #statusSuccess:not(.is-reload) .checkmark { animation-name: fill-green, scale; }
+    #statusSuccess:not(.is-reload) .timer-bar-container { background-color: rgba(74, 222, 128, 0.5); }
+    #statusSuccess:not(.is-reload) .timer-bar-inner { background-color: #4ade80; }
+
+    /* Blue override for reload success */
+    #statusSuccess.is-reload .checkmark__circle { stroke: #60a5fa; } /* blue-400 */
+    #statusSuccess.is-reload .checkmark { animation-name: fill-blue, scale; }
+    #statusSuccess.is-reload .timer-bar-container { background-color: rgba(96, 165, 250, 0.5); }
+    #statusSuccess.is-reload .timer-bar-inner { background-color: #60a5fa; }
+    .reload__arrow {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+    }
+
+    /* Timer bar for success modal */
+    .timer-bar-inner {
+      animation-name: shrink;
+      animation-timing-function: linear;
+      animation-fill-mode: forwards;
+    }
+    @keyframes shrink {
+      from { width: 100%; }
+      to { width: 0%; }
+    }
   </style>
 </head>
 <body class="bg-gray-50 min-h-screen pb-[calc(76px+var(--safe-bottom))] antialiased">
@@ -157,35 +213,176 @@ Notes:
       </div>
     </div>
   </div>
-  <!-- Lightweight toast container -->
-  <div id="toastHost" class="fixed top-[calc(16px+var(--safe-top))] right-4 z-50 space-y-2"></div>
+
+  <!-- Status Modal (Loading, Success, Error) -->
+  <div id="statusModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm transition-opacity duration-200 opacity-0">
+    <div id="statusModalContent" class="relative w-full max-w-xs bg-white rounded-2xl shadow-xl p-6 text-center space-y-4 overflow-hidden">
+      <!-- Loading State -->
+      <div id="statusLoading">
+        <svg class="animate-spin mx-auto h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p id="loadingMessage" class="mt-4 text-slate-700 font-medium">Đang xử lý...</p>
+      </div>
+      <!-- Success State -->
+      <div id="statusSuccess" class="hidden">
+        <!-- Save Icon (default) -->
+        <svg id="saveSuccessIcon" class="checkmark mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+        <!-- Reload Icon -->
+        <svg id="reloadSuccessIcon" class="checkmark mx-auto hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+            <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+            <path class="reload__arrow" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M40 22a14 14 0 1 1-6-11.3M40 13v9h-9"/>
+        </svg>
+        <p id="successMessage" class="mt-4 text-slate-700 font-medium">Thành công!</p>
+        <div class="absolute bottom-0 left-0 right-0 h-1 timer-bar-container">
+            <div class="h-full timer-bar-inner"></div>
+        </div>
+      </div>
+      <!-- Error State -->
+      <div id="statusError" class="hidden">
+         <svg class="mx-auto h-12 w-12 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+           <circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>
+         </svg>
+        <p id="errorMessage" class="mt-4 text-slate-700 font-medium">Đã xảy ra lỗi.</p>
+        <button id="closeStatusModalBtn" class="mt-4 w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-sm font-semibold transition-colors">Đóng</button>
+      </div>
+    </div>
+  </div>
 
 <script>
   // ------- State & constants -------
   let currentBranch = "{{ branch_id }}";
   const csrfToken = "{{ csrf_token }}";
   let serviceRows = JSON.parse('{{ initial_employees | tojson | safe }}');
+  let modalHideTimer = null; // For auto-hiding modal
 
   const serviceList = document.getElementById("serviceList");
   const serviceTableBody = document.getElementById("serviceTableBody");
   const addModal = document.getElementById("addModal");
-  const toastHost = document.getElementById("toastHost");
+  // New modal elements
+  const statusModal = document.getElementById("statusModal");
+  const statusModalContent = document.getElementById("statusModalContent");
+  const statusLoading = document.getElementById("statusLoading");
+  const statusSuccess = document.getElementById("statusSuccess");
+  const statusError = document.getElementById("statusError");
+  const errorMessage = document.getElementById("errorMessage");
+  const loadingMessage = document.getElementById("loadingMessage");
+  const successMessage = document.getElementById("successMessage");
 
   const SERVICES = ["Giặt","Ủi"]; // giữ nguyên danh mục để không phá backend mapping
 
   const fmt = (v)=> v==null? "" : String(v);
 
   // ------- UI helpers -------
-  const toast = (msg, type="info")=>{
-    const base = document.createElement("div");
-    base.className = `toast-in rounded-xl border px-3 py-2 text-sm shadow-lg bg-white ${type==='error'?'border-red-200':'border-slate-200'}`;
-    base.innerHTML = `<div class="flex items-start gap-2">
-      ${type==='success' ? `<svg class='w-4 h-4 mt-[2px]' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><path d='M20 7 9 18l-5-5'/></svg>`: type==='error'? `<svg class='w-4 h-4 mt-[2px]' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><path d='M12 8v4m0 4h.01'/><circle cx='12' cy='12' r='9'/></svg>`: `<svg class='w-4 h-4 mt-[2px]' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5'><circle cx='12' cy='12' r='9'/></svg>`}
-      <span class="text-slate-800">${msg}</span>
-    </div>`;
-    toastHost.appendChild(base);
-    setTimeout(()=> base.remove(), 2500);
-  };
+  function showStatusModal(state, message = "", autoHideDuration = 0, onHidden = null, options = {}) {
+    const { iconType = 'save' } = options;
+
+    // Clear any previous timer to prevent conflicts
+    if (modalHideTimer) clearTimeout(modalHideTimer);
+    modalHideTimer = null;
+    
+    // Reset mouse listeners
+    statusModalContent.onmouseenter = null;
+    statusModalContent.onmouseleave = null;
+
+    const saveIcon = document.getElementById('saveSuccessIcon');
+    const reloadIcon = document.getElementById('reloadSuccessIcon');
+
+    // Reset icon animations by briefly removing and re-adding the 'checkmark' class
+    [saveIcon, reloadIcon].forEach(icon => {
+        if (icon) {
+            icon.classList.remove('checkmark');
+            void icon.offsetWidth; // trigger reflow
+            icon.classList.add('checkmark');
+        }
+    });
+
+    // Reset timer bar animation
+    const timerBar = document.querySelector('.timer-bar-inner');
+    if (timerBar) {
+      timerBar.style.animation = 'none';
+      timerBar.offsetHeight; /* trigger reflow */
+    }
+
+    statusLoading.classList.add('hidden');
+    statusSuccess.classList.add('hidden');
+    statusError.classList.add('hidden');
+    statusSuccess.classList.remove('is-reload'); // Reset to default green scheme
+    saveIcon.classList.add('hidden');
+    reloadIcon.classList.add('hidden');
+
+    if (state === 'loading') {
+      loadingMessage.textContent = message || "Đang xử lý...";
+      statusLoading.classList.remove('hidden');
+    } else if (state === 'success') {
+      successMessage.textContent = message || "Thành công!";
+      
+      if (iconType === 'reload') {
+        statusSuccess.classList.add('is-reload'); // Apply blue color scheme
+        reloadIcon.classList.remove('hidden');
+      } else {
+        saveIcon.classList.remove('hidden');
+      }
+
+      statusSuccess.classList.remove('hidden');
+      // Start timer bar animation
+      if (timerBar && autoHideDuration > 0) {
+          timerBar.style.animationDuration = `${autoHideDuration / 1000}s`;
+          timerBar.style.animationName = 'shrink';
+      }
+    } else if (state === 'error') {
+      errorMessage.textContent = message || "Đã xảy ra lỗi không xác định.";
+      statusError.classList.remove('hidden');
+    }
+    statusModal.classList.remove('hidden');
+    statusModal.classList.remove('opacity-0');
+
+    // Handle auto-hide for success state
+    if (state === 'success' && autoHideDuration > 0) {
+      let remaining = autoHideDuration;
+      let resumeTime;
+
+      const pause = () => {
+        if (modalHideTimer) {
+          clearTimeout(modalHideTimer);
+          modalHideTimer = null;
+          remaining -= (Date.now() - resumeTime);
+          if (timerBar) timerBar.style.animationPlayState = 'paused';
+        }
+      };
+
+      const resume = () => {
+        if (remaining > 0 && !modalHideTimer) {
+          resumeTime = Date.now();
+          if (timerBar) timerBar.style.animationPlayState = 'running';
+          modalHideTimer = setTimeout(() => {
+            hideStatusModal();
+            if (onHidden) onHidden();
+          }, remaining);
+        }
+      };
+
+      statusModalContent.onmouseenter = pause;
+      statusModalContent.onmouseleave = resume;
+
+      resume(); // Start the timer
+    }
+  }
+
+  function hideStatusModal() {
+    statusModal.classList.add('opacity-0');
+    setTimeout(() => {
+        statusModal.classList.add('hidden');
+        // Clean up listeners after hiding to be safe
+        statusModalContent.onmouseenter = null;
+        statusModalContent.onmouseleave = null;
+    }, 200);
+  }
+  document.getElementById("closeStatusModalBtn").onclick = hideStatusModal;
 
   const openModal = () => {
     addModal.classList.remove("hidden");
@@ -237,7 +434,7 @@ Notes:
         </div>
         <div class="mt-2 grid grid-cols-3 gap-2">
           <input placeholder="Phòng" class="${inputBase}" data-i="${i}" data-f="so_phong" value="${fmt(r.so_phong)}">
-          <input type="number" placeholder="SL" class="${inputBase}" data-i="${i}" data-f="so_luong" value="${fmt(r.so_luong)}">
+          <input type="number" min="1" placeholder="SL" class="${inputBase}" data-i="${i}" data-f="so_luong" value="${fmt(r.so_luong)}">
           <select class="${selectBase}" data-i="${i}" data-f="dich_vu">${serviceOptions(r.dich_vu)}</select>
         </div>
         <input placeholder="Ghi chú" class="mt-2 w-full ${inputBase}" data-i="${i}" data-f="ghi_chu" value="${fmt(r.ghi_chu)}">
@@ -253,7 +450,7 @@ Notes:
       tr.innerHTML = `
         <td class="px-3 py-2">${fmt(r.name)}</td>
         <td class="px-3 py-2"><input class="${inputBase} w-24" data-i="${i}" data-f="so_phong" value="${fmt(r.so_phong)}"></td>
-        <td class="px-3 py-2"><input type="number" class="${inputBase} w-20" data-i="${i}" data-f="so_luong" value="${fmt(r.so_luong)}"></td>
+        <td class="px-3 py-2"><input type="number" min="1" class="${inputBase} w-20" data-i="${i}" data-f="so_luong" value="${fmt(r.so_luong)}"></td>
         <td class="px-3 py-2"><select class="${selectBase}" data-i="${i}" data-f="dich_vu">${serviceOptions(r.dich_vu)}</select></td>
         <td class="px-3 py-2"><input class="${inputBase} w-40" data-i="${i}" data-f="ghi_chu" value="${fmt(r.ghi_chu)}"></td>
         <td class="px-3 py-2 text-right">
@@ -285,53 +482,72 @@ Notes:
   window.addEventListener('beforeunload', (e)=>{ if(unsaved){ e.preventDefault(); e.returnValue = ''; }});
 
   async function saveService(){
-    const payload = serviceRows.filter(r=> r.dich_vu && r.so_phong && r.so_luong!=='' && r.so_luong!=null);
-    if(payload.length===0){ toast("Chưa có dữ liệu hợp lệ", 'error'); return; }
+    if (!serviceRows || serviceRows.length === 0) {
+      showStatusModal('error', "Danh sách trống, không có gì để lưu.");
+      return;
+    }
 
-    const saveButton = document.getElementById("serviceSaveBtn");
-    const originalButtonText = saveButton.innerHTML;
-    saveButton.disabled = true;
-    saveButton.innerHTML = `
-      <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      <span>Đang lưu...</span>
-    `;
+    // Validate all rows before saving
+    for (const row of serviceRows) {
+      if (!row.so_phong) {
+        showStatusModal('error', `Nhân viên "${row.name}" cần nhập "Số phòng".`);
+        return;
+      }
+      if (row.so_luong === '' || row.so_luong == null) { // Check if empty
+        showStatusModal('error', `Nhân viên "${row.name}" cần nhập "Số lượng".`);
+        return;
+      }
+      if (row.so_luong <= 0) { // Check if not positive
+        showStatusModal('error', `Số lượng của nhân viên "${row.name}" phải lớn hơn 0.`);
+        return;
+      }
+      if (!row.dich_vu) {
+        showStatusModal('error', `Nhân viên "${row.name}" cần chọn "Dịch vụ".`);
+        return;
+      }
+    }
 
-    // build payload matching backend expectation
-    const now = new Date().toISOString().slice(0,19).replace("T"," ");
-    const normalized = payload.map(r=>({
-      sheet:"DV",
+    showStatusModal('loading', 'Đang lưu dữ liệu...');
+
+    const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+    const normalized = serviceRows.map(r => ({
+      sheet: "DV",
       thoi_gian: now,
       ma_nv: r.code,
       ten_nv: r.name,
       chi_nhanh_chinh: r.branch || currentBranch,
       chi_nhanh_lam: currentBranch,
       la_tang_ca: (r.branch || currentBranch) !== currentBranch,
-      ghi_chu: r.ghi_chu || "",
+      ghi_chu: r.ghi_chu || "", // Đảm bảo ghi chú là chuỗi
       dich_vu: r.dich_vu,
       so_phong: r.so_phong,
       so_luong: r.so_luong
     }));
 
-    try{
-      const res = await fetch("/attendance/checkin_bulk",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","X-CSRF-Token":csrfToken},
+    try {
+      const res = await fetch("/attendance/checkin_bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
         body: JSON.stringify(normalized)
       });
-      if(!res.ok) throw new Error("Lỗi lưu");
-      toast("Đã lưu thành công", 'success');
-      
-      // Tải lại danh sách nhân viên đã điểm danh gần nhất, giống như bấm nút "Tải lại"
-      await loadInitialEmployees();
-    }catch(e){
-      toast("Lỗi: "+e.message, 'error');
-    } finally {
-      // Luôn kích hoạt lại nút bấm sau khi yêu cầu hoàn tất (dù thành công hay thất bại)
-      saveButton.disabled = false;
-      saveButton.innerHTML = originalButtonText;
+
+      if (!res.ok) {
+        let errorText = `Lỗi máy chủ: ${res.status}`;
+        try { const errorData = await res.json(); if (errorData.detail) errorText = errorData.detail; }
+        catch { /* Ignore if response is not JSON */ }
+        throw new Error(errorText);
+      }
+
+      // Use the new modal function with auto-hide and callback
+      showStatusModal(
+        'success', 
+        'Lưu thành công!', 
+        1800, // duration
+        async () => { await loadInitialEmployees(false); } // onHidden callback, no modals
+      );
+
+    } catch (e) {
+      showStatusModal('error', e.message);
     }
   }
 
@@ -353,7 +569,10 @@ Notes:
         <span class='text-xs text-slate-500'>${emp.code}</span>
       </div>`;
       btn.onclick = ()=>{
-        if(serviceRows.some(r=> r.code===emp.code)) { toast("Nhân viên đã có trong danh sách", 'info'); return; }
+        if(serviceRows.some(r=> r.code===emp.code)) {
+          showStatusModal('error', 'Nhân viên này đã có trong danh sách.');
+          return;
+        }
         serviceRows.push({ code: emp.code, name: emp.name, branch: emp.branch, so_phong:"", so_luong:"", dich_vu:"", ghi_chu:"" });
         renderService(); closeModal();
         document.getElementById("searchInput").value = "";
@@ -376,16 +595,28 @@ Notes:
   document.getElementById("searchInput").addEventListener('input', (e)=> doSearch(e.target.value.trim()));
 
   // ------- Reload initial checked-in list -------
-  async function loadInitialEmployees(){
+  async function loadInitialEmployees(showModals = true){
+    if (showModals) showStatusModal('loading', 'Đang tải lại danh sách...');
     try{
       const data = await fetch('/api/attendance/last-checked-in-bp').then(r=>{ if(!r.ok) throw new Error('Lỗi máy chủ khi tải lại.'); return r.json(); });
       if(!Array.isArray(data)) throw new Error('API không trả về mảng.');
       serviceRows = data;
-      renderService(); unsaved = false; toast("Đã tải danh sách", 'success');
-    }catch(e){ toast("Lỗi tải lại: "+e.message, 'error'); }
+      renderService();
+      unsaved = false;
+      if (showModals) {
+        // Use the new modal function with auto-hide and custom icon
+        showStatusModal('success', 'Đã tải lại danh sách!', 1800, null, { iconType: 'reload' });
+      }
+    }catch(e){
+      if (showModals) {
+        showStatusModal('error', "Lỗi tải lại: " + e.message);
+      } else {
+        console.error("Lỗi khi tải lại danh sách (ẩn):", e.message);
+      }
+    }
   }
 
-  document.getElementById("reloadBtn").onclick = loadInitialEmployees;
+  document.getElementById("reloadBtn").onclick = () => loadInitialEmployees(true);
 
   // ------- Init -------
   window.addEventListener('DOMContentLoaded', ()=>{ renderService(); });
