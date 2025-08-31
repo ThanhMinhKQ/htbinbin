@@ -152,9 +152,8 @@
         background: linear-gradient(145deg, #23243a, #2f3a56); /* Gradient đẹp cho background */
       }
 
-      /* Giảm khoảng cách giữa form thêm công việc và danh sách công việc */
       .max-w-6xl.mx-auto.w-full.mb-10 {
-        margin-bottom: 0.5rem; /* Giảm khoảng cách dưới của form thêm công việc */
+        margin-bottom: 0.5rem;
       }
 
       /* Giảm khoảng cách dưới của form danh sách công việc */
@@ -387,20 +386,29 @@
       <!-- Người tạo -->
       <input type="hidden" name="nguoi_tao" value="{{ user }}">
 
-      <div class="flex justify-between mt-4">
-        <!-- ✅ Bộ lọc: thêm type="button" -->
+      <div class="flex justify-between items-center mt-4">
+        <div class="flex gap-4">
+          <!-- ✅ Bộ lọc: thêm type="button" -->
         <button type="button" onclick="openModal('filterModal')"
-          class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-blue-600 hover:to-green-600 text-white px-6 py-2 rounded shadow-lg flex items-center gap-2 font-semibold transition">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"
-            stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M6 10h12M10 14h4" />
-          </svg>
-          Bộ lọc
-        </button>
-
-        <!-- ✅ Giữ nguyên nút submit -->
+            class="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-purple-600 hover:to-indigo-600 text-white px-6 py-2 rounded-xl shadow-lg flex items-center gap-2 font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"
+              stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M6 10h12M10 14h4" />
+            </svg>
+            Bộ lọc
+          </button>
+          {% if role in ['admin', 'boss'] %}
+          <button type="button" id="export-excel-btn"
+            class="bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-cyan-600 hover:to-teal-600 text-white px-6 py-2 rounded-xl shadow-lg flex items-center gap-2 font-semibold transition">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Xuất Excel
+          </button>
+          {% endif %}
+        </div>
         <button type="submit"
-          class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-blue-600 hover:to-green-600 text-white px-6 py-2 rounded shadow-lg flex items-center gap-2 font-semibold transition">
+          class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-blue-600 hover:to-green-600 text-white px-6 py-2 rounded-xl shadow-lg flex items-center gap-2 font-semibold transition">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"
             stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -475,7 +483,7 @@
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ngày hoàn thành</label>
           <div class="relative w-full">
             <input type="date" name="han_hoan_thanh" value="{{ han_hoan_thanh or '' }}"
-              class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
+            id="filter_han_hoan_thanh" class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] 
                     bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm 
                     focus:ring-2 focus:ring-blue-500 truncate appearance-none">
           </div>
@@ -487,7 +495,7 @@
       {% if role != 'letan' %}
       <div class="w-full">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Chi nhánh</label>
-        <select name="chi_nhanh"
+        <select name="chi_nhanh" id="filter_chi_nhanh"
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500">
           <option value=""> Tất cả chi nhánh </option>
           {% for cn in branches %}
@@ -503,14 +511,14 @@
       <!-- Từ khoá -->
       <div class="w-full">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Từ khoá</label>
-        <input name="search" value="{{ search or '' }}" placeholder="Tìm kiếm..."
+        <input name="search" id="filter_search" value="{{ search or '' }}" placeholder="Tìm kiếm..."
                class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500">
       </div>
 
       <!-- Trạng thái -->
       <div class="w-full">
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trạng thái</label>
-        <select name="trang_thai"
+        <select name="trang_thai" id="filter_trang_thai"
                 class="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-[#3c3f63] bg-white dark:bg-[#25273c] text-gray-900 dark:text-gray-100 shadow-sm focus:ring-2 focus:ring-blue-500">
           <option value="">Tất cả trạng thái</option>
           <option value="Đang chờ" {% if trang_thai == 'Đang chờ' %}selected{% endif %}>Đang chờ</option>
@@ -652,7 +660,7 @@
             {% endif %}
             <td class="p-2 text-center text-sm text-gray-600 dark:text-gray-300">
               <div class="flex justify-center flex-wrap gap-1 max-w-[80px] mx-auto pointer-events-auto">
-                {% if role in ['quanly', 'ktv'] or (role == 'letan' and t.chi_nhanh == user_chi_nhanh) %}
+                {% if role in ['quanly', 'ktv', 'admin', 'boss'] or (role == 'letan' and t.chi_nhanh == user_chi_nhanh) %}
                 {% if t.trang_thai not in ['Hoàn thành', 'Đã xoá'] %}
                 <form action="/complete/{{ t.id }}?{{ query_string }}" method="post" class="inline">
                   <input type="hidden" name="nguoi_thuc_hien" value="{{ user }}">
@@ -668,7 +676,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 11l6.232-6.232a2 2 0 112.828 2.828L11.828 13.828a2 2 0 01-1.414.586H7v-3a2 2 0 01.586-1.414z" />
                   </svg>
                 </button>
-                {% if role == 'quanly' or (role == 'letan' and t.chi_nhanh == user_chi_nhanh) %}
+                {% if role in ['quanly', 'admin', 'boss'] or (role == 'letan' and t.chi_nhanh == user_chi_nhanh) %}
                 <form method="post" action="/delete/{{ t.id }}?{{ query_string }}" onsubmit="return confirm('Bạn có chắc muốn xoá công việc này không?');" class="inline">
                   <button title="Xoá" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition" onclick="event.stopPropagation()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1980,6 +1988,48 @@ function drawCloud(c) {
 
   // Kiểm tra thời gian mỗi 30 giây để đảm bảo không bỏ lỡ
   setInterval(checkAndLogoutForShiftChange, 30000);
+</script>
+<script>
+  const exportBtn = document.getElementById('export-excel-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', function () {
+      // Lấy giá trị bộ lọc từ form (nếu có)
+      const chi_nhanh_el = document.getElementById('filter_chi_nhanh');
+      // Nếu không có select thì fallback về chi nhánh mặc định từ user
+      const chi_nhanh = chi_nhanh_el && chi_nhanh_el.value
+        ? chi_nhanh_el.value
+        : "{{ user['chi_nhanh'] if user['role'] == 'letan' else '' }}";
+
+      const search_el = document.getElementById('filter_search');
+      const search = search_el ? search_el.value.trim() : '';
+
+      const trang_thai_el = document.getElementById('filter_trang_thai');
+      const trang_thai = trang_thai_el ? trang_thai_el.value : '';
+
+      const han_hoan_thanh_el = document.getElementById('filter_han_hoan_thanh');
+      const han_hoan_thanh = han_hoan_thanh_el ? han_hoan_thanh_el.value : '';
+
+      // Tạo query string an toàn
+      const params = new URLSearchParams({
+        chi_nhanh,
+        search,
+        trang_thai,
+        han_hoan_thanh
+      });
+
+      // URL API export
+      const exportUrl = `/api/tasks/export-excel?${params.toString()}`;
+
+      // Tạo link ẩn để tải file
+      const link = document.createElement('a');
+      link.href = exportUrl;
+      link.setAttribute('download', '');
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  }
 </script>
 </body>
 </html>
