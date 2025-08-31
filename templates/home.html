@@ -342,9 +342,9 @@
       class="bg-white/80 dark:bg-gradient-to-br dark:from-[#1f2233] dark:to-[#2b2f4a] backdrop-blur-xl p-6 rounded-3xl shadow-2xl border border-transparent dark:border-[#35377b]/40 transition-all duration-300">
 
       <!-- 👇 Grid theo role -->
-      <div class="{% if role in ['quanly', 'ktv'] %}grid grid-cols-4{% else %}grid grid-cols-3{% endif %} gap-4 mb-2">
+      <div class="{% if role in ['quanly', 'ktv', 'admin', 'boss'] %}grid grid-cols-4{% else %}grid grid-cols-3{% endif %} gap-4 mb-2">
         
-        {% if role in ['quanly', 'ktv'] %}
+        {% if role in ['quanly', 'ktv', 'admin', 'boss'] %}
         <div>
           <select name="chi_nhanh" required
             class="border border-gray-300 dark:border-[#35377b]/40 bg-white dark:bg-[#23243a] text-gray-900 dark:text-gray-100 p-2 rounded focus:ring-2 focus:ring-blue-400 w-full">
@@ -525,7 +525,7 @@
           <option value="Hoàn thành" {% if trang_thai == 'Hoàn thành' %}selected{% endif %}>Hoàn thành</option>
           <option value="Quá hạn" {% if trang_thai == 'Quá hạn' %}selected{% endif %}>Quá hạn</option>
           
-          {% if role == 'quanly' %}
+          {% if role in ['quanly', 'admin', 'boss'] %}
           <option value="Đã xoá" {% if trang_thai == 'Đã xoá' %}selected{% endif %}>Đã xoá</option>
           {% endif %}
           
@@ -594,7 +594,7 @@
             <th class="p-2 font-semibold text-center">Hạn</th>
             <th class="p-2 font-semibold text-center">Trạng thái</th>
             <th class="hidden md:table-cell p-2 font-semibold text-center">Ghi chú</th>
-            {% if role == 'quanly' %}
+            {% if role in ['quanly', 'admin', 'boss'] %}
             <th class="hidden lg:table-cell p-2 font-semibold text-center">Hoàn thành</th>
             {% endif %}
             <th class="p-2 font-semibold text-center">Thao tác</th>
@@ -643,7 +643,7 @@
                 {% endif %}">{{ t.trang_thai }}</span>
             </td>
             <td class="hidden md:table-cell p-2 text-center max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap" title="{{ t.ghi_chu }}">{{ t.ghi_chu }}</td>
-            {% if role == 'quanly' %}
+            {% if role in ['quanly', 'admin', 'boss'] %}
             <td class="hidden lg:table-cell p-2 text-center text-sm text-gray-600 dark:text-gray-300">
               {% if t.nguoi_thuc_hien %}
               <span class="flex items-center justify-center gap-1">
