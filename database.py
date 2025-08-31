@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from config import DATABASE_URL
 
 # Tạo engine kết nối đến database từ URL trong file config
@@ -12,6 +12,14 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class cho các model. Tất cả các model của bạn (User, Task,...)
 # phải kế thừa từ lớp Base này.
 Base = declarative_base()
+
+def get_db():
+    """Dependency to get a DB session."""
+    db: Session = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def init_db():
     """
