@@ -1112,51 +1112,49 @@ async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
  
+from employees import employees
+from database import SessionLocal
+from models import User
+
 def sync_employees_from_source(db: Session, force_delete: bool = False):
-    """
-    Hàm đồng bộ nhân viên từ file employees.py vào database.
-    - force_delete=True: Xóa toàn bộ user cũ trước khi đồng bộ (giống sync_employees_to_db).
-    - force_delete=False: Chỉ cập nhật hoặc thêm mới (giống seed_users).
-    """
-    db = SessionLocal()
-    try:
-        if force_delete:
-            db.query(User).delete()
-            print("[SYNC] Đã xóa toàn bộ user cũ.")
+    if force_delete:
+        db.query(User).delete()
+        print("[SYNC] Đã xóa toàn bộ user cũ.")
 
-        allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
-        seen_codes = set()
+    allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+    seen_codes = set()
 
-        for emp in employees:
-            code = emp.get("code", "")
-            if not code or code in seen_codes:
-                continue
-            seen_codes.add(code)
+    for emp in employees:
+        code = emp.get("code", "")
+        if not code or code in seen_codes:
+            continue
+        seen_codes.add(code)
 
-            name = emp.get("name", "")
-            branch = emp.get("branch", "")
-            role = emp.get("role", "")
+        name = emp.get("name", "")
+        branch = emp.get("branch", "")
+        role = emp.get("role", "")
 
-            if not role:
-                role_map = {"LT": "letan", "BP": "buongphong", "BV": "baove", "QL": "quanly", "KTV": "ktv"}
-                role = next((v for k, v in role_map.items() if k in code.upper()), "khac")
-                if code.lower() in ["admin", "boss"]:
-                    role = code.lower()
+        if not role:
+            role_map = {"LT": "letan", "BP": "buongphong", "BV": "baove",
+                        "QL": "quanly", "KTV": "ktv"}
+            role = next((v for k, v in role_map.items() if k in code.upper()), "khac")
+            if code.lower() in ["admin", "boss"]:
+                role = code.lower()
 
-            password = emp.get("password") or ("999" if role in allowed_login_roles else "")
+        password = emp.get("password") or ("999" if role in allowed_login_roles else "")
 
-            existing = db.query(User).filter(User.code == code).first()
-            if existing:
-                existing.name = name
-                existing.role = role
-                existing.branch = branch
-                if password: # Chỉ cập nhật mật khẩu nếu có
-                    existing.password = password
-            else:
-                db.add(User(code=code, name=name, password=password, role=role, branch=branch))
-        db.commit()
-    finally:
-        db.close()
+        existing = db.query(User).filter(User.code == code).first()
+        if existing:
+            existing.name = name
+            existing.role = role
+            existing.branch = branch
+            if password:
+                existing.password = password
+        else:
+            db.add(User(code=code, name=name, password=password, role=role, branch=branch))
+
+    db.commit()
+    print("[SYNC] Đồng bộ nhân viên thành công.")
 
 @app.get("/sync-employees")
 def sync_employees_endpoint(request: Request):
