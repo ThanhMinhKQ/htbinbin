@@ -20,16 +20,65 @@
     .btn-gradient {
       background-image: linear-gradient(to right, #2563eb 0%, #06b6d4 50%, #2563eb 100%);
       background-size: 200% auto;
-      transition: background-position 0.3s cubic-bezier(.4,0,.2,1);
+      transition: background-position 0.3s cubic-bezier(.4,0,.2,1), transform 0.1s ease-out, box-shadow 0.2s ease;
     }
     .btn-gradient:hover {
       background-position: right center;
     }
+    .btn-gradient:active { box-shadow: 0 2px 10px -2px rgba(37, 99, 235, 0.5); }
     /* Focus ring */
     .focus-ring:focus{ outline:none; box-shadow: 0 0 0 3px rgba(59,130,246,.25); border-color: #60a5fa; }
     /* Toast animation */
-    .animate-toastIn { animation: toastIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
-    @keyframes toastIn { from { transform: translateY(100%) scale(0.9); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+    /* Status Modal (Loading, Success, Error) */
+    .checkmark__circle {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 2;
+      stroke-miterlimit: 10;
+      fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+    .checkmark {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 2;
+      stroke: #fff;
+      stroke-miterlimit: 10;
+      margin: 10% auto;
+      animation-duration: .4s, .3s; animation-timing-function: ease-in-out, ease-in-out; animation-delay: .4s, .9s; animation-fill-mode: forwards, both;
+    }
+    .checkmark__check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.8s forwards;
+    }
+    @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+    @keyframes scale { 0%, 100% { transform: none; } 50% { transform: scale3d(1.1, 1.1, 1); } }
+    @keyframes fill-green { 100% { box-shadow: inset 0px 0px 0px 40px #4ade80; } }
+    #statusSuccess .checkmark__circle { stroke: #4ade80; } /* green-400 */
+    #statusSuccess .checkmark { animation-name: fill-green, scale; }
+    #statusSuccess .timer-bar-container { background-color: rgba(74, 222, 128, 0.5); }
+    #statusSuccess .timer-bar-inner { background-color: #4ade80; }
+    .timer-bar-inner { animation-name: shrink; animation-timing-function: linear; animation-fill-mode: forwards; }
+    @keyframes shrink { from { width: 100%; } to { width: 0%; } }
+
+    /* List item animations */
+    @keyframes item-in {
+      from { opacity: 0; transform: translateY(15px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .attendance-item {
+      animation: item-in 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+    }
+    .item-out {
+      animation: item-out 0.35s ease-in-out forwards;
+    }
+    @keyframes item-out {
+      to { opacity: 0; transform: scale(0.95); height: 0; padding-top: 0; padding-bottom: 0; margin-bottom: 0; border-width: 0; }
+    }
 
     @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
   </style>
@@ -47,6 +96,12 @@
       </div>
     </header>
 
+    <!-- Night Shift Notification -->
+    <div id="nightShiftNotice" class="hidden mt-4 flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 shadow-sm" role="alert">
+      <svg class="h-5 w-5 flex-shrink-0 text-yellow-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21.64 13.5A9 9 0 1 1 11.5 3.36M22 12l-6-6"/></svg>
+      <p><strong>Lưu ý:</strong> Hiện là ca đêm. Điểm danh bây giờ sẽ được ghi nhận cho ngày <strong id="workDate"></strong>.</p>
+    </div>
+
     <!-- Branch -->
     <section class="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm" role="region" aria-label="Chi nhánh">
       <div class="flex items-center gap-3">
@@ -62,7 +117,7 @@
 
     <!-- Actions -->
     <div class="mt-4 grid grid-cols-2 gap-3">
-      <button id="refreshBtn" class="group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition active:scale-[.98] focus-ring">
+      <button id="refreshBtn" class="group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-transform active:scale-[.98] focus-ring">
         <svg class="h-4 w-4 text-slate-500 transition-transform group-active:rotate-90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v6h-6"/></svg>
         <span>Tải lại</span>
       </button>
@@ -88,14 +143,34 @@
     </div>
   </div>
 
-  <!-- Overlay loading -->
-  <div id="loadingOverlay" class="fixed inset-0 z-[999] hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="flex flex-col items-center gap-4 rounded-2xl bg-white/90 px-6 py-8 shadow-xl">
-      <svg class="h-10 w-10 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.37 0 0 5.37 0 12h4zm2 5.29A7.96 7.96 0 014 12H0c0 3.04 1.13 5.82 3 7.94l3-2.65z"></path>
-      </svg>
-      <p class="text-base font-semibold text-slate-700">Đang lưu dữ liệu...</p>
+  <!-- Status Modal (Loading, Success, Error) -->
+  <div id="statusModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm transition-opacity duration-200 opacity-0">
+    <div id="statusModalContent" class="relative w-full max-w-xs bg-white rounded-2xl shadow-xl p-6 text-center space-y-4 overflow-hidden">
+      <!-- Loading State -->
+      <div id="statusLoading">
+        <svg class="animate-spin mx-auto h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p id="loadingMessage" class="mt-4 text-slate-700 font-medium">Đang xử lý...</p>
+      </div>
+      <!-- Success State -->
+      <div id="statusSuccess" class="hidden">
+        <svg class="checkmark mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+          <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+          <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+        </svg>
+        <p id="successMessage" class="mt-4 text-slate-700 font-medium">Thành công!</p>
+        <div class="absolute bottom-0 left-0 right-0 h-1 timer-bar-container">
+            <div class="h-full timer-bar-inner"></div>
+        </div>
+      </div>
+      <!-- Error State -->
+      <div id="statusError" class="hidden">
+        <svg class="mx-auto h-16 w-16 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <p id="errorMessage" class="mt-4 text-slate-700 font-medium">Đã xảy ra lỗi!</p>
+        <button onclick="hideStatusModal()" class="mt-4 w-full rounded-lg bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200">Đóng</button>
+      </div>
     </div>
   </div>
 
@@ -129,9 +204,6 @@
     </div>
   </div>
 
-  <!-- Lightweight toast container -->
-  <div id="toastHost" class="fixed top-[calc(16px+var(--safe-top))] right-4 z-50 space-y-2"></div>
-
   <!-- Template variables (giữ nguyên) -->
   <script>
     const userRole = "{{ role | lower }}";
@@ -155,23 +227,105 @@
     function departmentDisplay(dep){ const map={ letan:"Lễ tân",buongphong:"Buồng phòng",baove:"Bảo vệ" }; return map[dep?.toLowerCase()] || dep || ""; }
     function branchDisplay(branch){ const map={ B1:"Bin Bin Hotel 1", B2:"Bin Bin Hotel 2", B3:"Bin Bin Hotel 3", B5:"Bin Bin Hotel 5", B6:"Bin Bin Hotel 6", B7:"Bin Bin Hotel 7", B8:"Bin Bin Hotel 8", B9:"Bin Bin Hotel 9", B10:"Bin Bin Hotel 10", B11:"Bin Bin Hotel 11", B12:"Bin Bin Hotel 12", B14:"Bin Bin Hotel 14", B15:"Bin Bin Hotel 15", B16:"Bin Bin Hotel 16" }; return map[branch] || branch || ""; }
 
-    const toastHost = document.getElementById("toastHost");
-    const toast = (msg, type='info') => {
-        const icon = { success: '✓', info: 'ℹ', error: '✕' }[type];
-        const colors = { success: 'bg-green-600', info: 'bg-blue-600', error: 'bg-red-600' }[type];
-        const base = document.createElement("div");
-        base.className = `animate-toastIn ${colors} text-white text-sm font-medium rounded-full shadow-lg px-4 py-2`;
-        base.textContent = `${icon} ${msg}`;
-        toastHost.appendChild(base);
-        setTimeout(()=> base.remove(), 2500);
+    /* ===== Status Modal Logic ===== */
+    function updateEmployeeOvertime(emp) {
+        const isDifferentBranch = (emp.branch || "") !== (emp.branch_today || currentBranch);
+        const hasHighWorkUnits = (emp.so_cong_nv || 1) > 1;
+        emp.la_tang_ca = isDifferentBranch || hasHighWorkUnits;
+        // Theo yêu cầu, không tự động cập nhật trường "ghi_chu".
+        // Cờ 'la_tang_ca' sẽ được xác định và gửi đi là đủ.
+    }
+    function vibrate(duration = 5) {
+      if ('vibrate' in navigator && window.navigator.vibrate) {
+        try {
+          window.navigator.vibrate(duration);
+        } catch (e) { /* Can fail on some browsers/settings */ }
+      }
+    }
+
+    const statusModal = document.getElementById('statusModal');
+    const statusModalContent = document.getElementById('statusModalContent');
+    const statusLoading = document.getElementById('statusLoading');
+    const loadingMessage = document.getElementById('loadingMessage');
+    const statusSuccess = document.getElementById('statusSuccess');
+    const successMessage = document.getElementById('successMessage');
+    const statusError = document.getElementById('statusError');
+    const errorMessage = document.getElementById('errorMessage');
+    let modalHideTimer = null;
+
+    function hideStatusModal() {
+      statusModal.classList.add('opacity-0');
+      setTimeout(() => {
+        statusModal.classList.add('hidden');
+      }, 200); // Match transition duration
+    }
+
+    function showStatusModal(state, message = "", autoHideDuration = 0, onHidden = null) {
+      if (modalHideTimer) clearTimeout(modalHideTimer);
+      modalHideTimer = null;
+      statusModalContent.onmouseenter = null;
+      statusModalContent.onmouseleave = null;
+
+      const checkmarkIcon = statusSuccess.querySelector('.checkmark');
+      if (checkmarkIcon) {
+          checkmarkIcon.classList.remove('checkmark');
+          void checkmarkIcon.offsetWidth;
+          checkmarkIcon.classList.add('checkmark');
+      }
+
+      const timerBar = document.querySelector('.timer-bar-inner');
+      if (timerBar) {
+        timerBar.style.animation = 'none';
+        timerBar.offsetHeight;
+      }
+
+      statusLoading.classList.add('hidden');
+      statusSuccess.classList.add('hidden');
+      statusError.classList.add('hidden');
+
+      if (state === 'loading') {
+        loadingMessage.textContent = message || "Đang xử lý...";
+        statusLoading.classList.remove('hidden');
+      } else if (state === 'success') {
+        successMessage.textContent = message || "Thành công!";
+        statusSuccess.classList.remove('hidden');
+        if (timerBar && autoHideDuration > 0) {
+            timerBar.style.animationDuration = `${autoHideDuration / 1000}s`;
+            timerBar.style.animationName = 'shrink';
+        }
+      } else if (state === 'error') {
+        errorMessage.textContent = message || "Đã xảy ra lỗi không xác định.";
+        statusError.classList.remove('hidden');
+      }
+      statusModal.classList.remove('hidden');
+      statusModal.classList.remove('opacity-0');
+
+      if (state === 'success' && autoHideDuration > 0) {
+        let remaining = autoHideDuration;
+        let resumeTime;
+        const pause = () => {
+          if (modalHideTimer) {
+            clearTimeout(modalHideTimer);
+            modalHideTimer = null;
+            remaining -= (Date.now() - resumeTime);
+            if (timerBar) timerBar.style.animationPlayState = 'paused';
+          }
+        };
+        const resume = () => {
+          if (remaining > 0 && !modalHideTimer) {
+            resumeTime = Date.now();
+            if (timerBar) timerBar.style.animationPlayState = 'running';
+            modalHideTimer = setTimeout(() => { hideStatusModal(); if (onHidden) onHidden(); }, remaining);
+          }
+        };
+        statusModalContent.onmouseenter = pause;
+        statusModalContent.onmouseleave = resume;
+        resume();
+      }
     };
 
-    const loadingOverlay = document.getElementById("loadingOverlay");
-    function showOverlay(){ if(loadingOverlay) loadingOverlay.classList.remove("hidden"); }
-    function hideOverlay(){ if(loadingOverlay) loadingOverlay.classList.add("hidden"); }
-
     function disableForm(message){
-      toast(message || "Không thể điểm danh", 'error');
+      showStatusModal('error', message || "Không thể điểm danh");
       ["saveBtn","addEmployeeBtn","refreshBtn"].forEach(id=>{
         const el=document.getElementById(id); if(!el) return;
         el.disabled=true; el.classList.add("opacity-50", "cursor-not-allowed");
@@ -215,23 +369,42 @@
     });
 
     /* ===== Render list ===== */
+    function renderSkeleton(count = 3) {
+      const wrap = document.getElementById("attendanceList");
+      wrap.innerHTML = "";
+      let skeletonHTML = '';
+      for (let i = 0; i < count; i++) {
+          skeletonHTML += `
+          <div class="space-y-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm animate-pulse">
+            <div class="flex items-start gap-3">
+              <div class="flex-1 space-y-2 py-1">
+                <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+                <div class="h-3 bg-slate-200 rounded w-1/2"></div>
+              </div>
+              <div class="h-8 w-8 bg-slate-200 rounded-full"></div>
+            </div>
+            <div class="h-10 bg-slate-200 rounded-lg mt-1"></div>
+            <div class="h-10 bg-slate-200 rounded-lg"></div>
+          </div>`;
+      }
+      wrap.innerHTML = skeletonHTML;
+    }
+
     function renderAttendanceList(){
       const wrap = document.getElementById("attendanceList");
       wrap.innerHTML = "";
       document.getElementById("emptyHint").style.display = employees.length > 0 ? "none" : "block";
 
       employees.forEach((emp, idx) => {
-        emp.la_tang_ca = !!((emp.branch_today || currentBranch) !== (emp.branch || ""));
-
         const row = document.createElement("div");
-        row.className = "space-y-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm";
+        row.className = "attendance-item space-y-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm";
+        row.style.animationDelay = `${Math.min(idx * 50, 500)}ms`;
         row.innerHTML = `
           <div class="flex items-start gap-3">
             <div class="flex-1">
               <p class="font-semibold text-slate-800">${escapeHtml(emp.name)}</p>
               <p class="mt-1 text-sm text-slate-500">
-                Mã: ${escapeHtml(emp.code)} &bull; ${escapeHtml(departmentDisplay(emp.department))}
-                ${emp.la_tang_ca ? '<span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Tăng ca</span>' : ''}
+                Mã: ${escapeHtml(emp.code)} &bull; ${escapeHtml(departmentDisplay(emp.department))}<span class="badge-container" style="display: inline;">${emp.la_tang_ca ? '<span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Tăng ca</span>' : ''}</span>
               </p>
             </div>
             <button data-idx="${idx}" class="btn-delete rounded-full p-1.5 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-500" aria-label="Xóa">
@@ -257,10 +430,27 @@
         `;
 
         row.querySelector('.btn-delete').onclick = (e) => {
-            employees.splice(e.currentTarget.dataset.idx, 1);
-            renderAttendanceList();
+            vibrate(10);
+            const rowElement = e.currentTarget.closest('.attendance-item');
+            rowElement.classList.add('item-out');
+            rowElement.addEventListener('animationend', () => {
+                const currentIdx = parseInt(e.currentTarget.dataset.idx, 10);
+                employees.splice(currentIdx, 1);
+                renderAttendanceList(); // Re-render to fix indices and layout
+            }, { once: true });
         };
-        row.querySelector('select').onchange = (e) => { employees[e.currentTarget.dataset.idx].so_cong_nv = parseFloat(e.target.value); };
+
+        row.querySelector('select').onchange = (e) => {
+            const idx = parseInt(e.currentTarget.dataset.idx, 10);
+            const emp = employees[idx];
+            emp.so_cong_nv = parseFloat(e.target.value);
+
+            updateEmployeeOvertime(emp);
+
+            const itemElement = e.currentTarget.closest('.attendance-item');
+            const badgeContainer = itemElement.querySelector('.badge-container');
+            badgeContainer.innerHTML = emp.la_tang_ca ? '<span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Tăng ca</span>' : '';
+        };
         row.querySelector('input').oninput = (e) => { employees[e.currentTarget.dataset.idx].ghi_chu = e.target.value.slice(0,200); };
 
         wrap.appendChild(row);
@@ -269,27 +459,34 @@
 
     /* ===== Data load by branch ===== */
     async function loadEmployeesForBranch(){
-      if(!currentBranch){ toast("Chi nhánh chưa được xác định.", 'error'); return; }
+      if(!currentBranch){ showStatusModal("error", "Chi nhánh chưa được xác định."); return; }
+      renderSkeleton(3);
       try{
         const data = await safeFetchJson(byBranchUrl(currentBranch));
         if (!Array.isArray(data)) throw new Error("API trả về không phải mảng");
-        employees = data.map(emp => ({
-          code: emp.code||"", name: emp.name||"", department: emp.department||"", branch: emp.branch||"",
-          branch_today: currentBranch, la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:""
-        }));
+        employees = data.map(emp => {
+            const newEmp = {
+                code: emp.code||"", name: emp.name||"", department: emp.department||"", branch: emp.branch||"",
+                branch_today: currentBranch, so_cong_nv: 1, service:[], ghi_chu: ""
+            };
+            updateEmployeeOvertime(newEmp);
+            return newEmp;
+        });
 
         if (loginCode && !employees.some(e => e.code === loginCode)){
           try{
             const searchData = await safeFetchJson(searchUrl(loginCode));
             if (Array.isArray(searchData) && searchData.length>0){
               const s = searchData[0];
-              employees.unshift({ code:s.code, name:s.name, department:s.department, branch:s.branch, branch_today:currentBranch, la_tang_ca:false, so_cong_nv:1, service:[], ghi_chu:"" });
+              const newEmp = { code: s.code, name: s.name, department: s.department, branch: s.branch, branch_today: currentBranch, so_cong_nv: 1, service:[], ghi_chu: "" };
+              updateEmployeeOvertime(newEmp);
+              employees.unshift(newEmp);
             }
           }catch(e){}
         }
         renderAttendanceList();
       }catch(err){
-        toast("Lỗi khi tải danh sách: " + (err?.message || err), 'error');
+        showStatusModal('error', "Lỗi khi tải danh sách: " + (err?.message || err));
       }
     }
 
@@ -298,25 +495,28 @@
       if(!q) return;
       try{
         const data = await safeFetchJson(searchUrl(q));
-        if (!Array.isArray(data) || data.length === 0){ toast("Không tìm thấy nhân viên", 'info'); return; }
+        if (!Array.isArray(data) || data.length === 0){ showStatusModal('error', "Không tìm thấy nhân viên"); return; }
         const emp = data[0];
-        const exists = employees.some(e => e.code === emp.code && e.branch_today === currentBranch);
-        if (exists){ toast("Nhân viên đã có trong danh sách", 'info'); return; }
-        employees.unshift({
-          code:emp.code, name:emp.name, department:emp.department, branch:emp.branch,
-          branch_today:currentBranch, la_tang_ca:(emp.branch !== currentBranch), so_cong_nv:1, service:[], ghi_chu:"Tăng ca"
-        });
+        const exists = employees.some(e => e.code === emp.code);
+        if (exists){ showStatusModal('error', "Nhân viên đã có trong danh sách"); return; }
+        const newEmp = {
+            code: emp.code, name: emp.name, department: emp.department, branch: emp.branch,
+            branch_today: currentBranch, so_cong_nv: 1, service:[], ghi_chu: ""
+        };
+        updateEmployeeOvertime(newEmp);
+        employees.unshift(newEmp);
         renderAttendanceList();
         closeModal('searchModal');
       }catch(err){
-        toast("Lỗi tìm kiếm: " + (err?.message || err), 'error');
+        showStatusModal('error', "Lỗi tìm kiếm: " + (err?.message || err));
       }
     }
 
     /* ===== Save attendance (giữ nguyên payload/endpoint) ===== */
     async function saveAttendance(){
-      if (employees.length === 0){ toast("Danh sách trống, không có gì để lưu.", 'info'); return; }
-      showOverlay();
+      vibrate();
+      if (employees.length === 0){ showStatusModal('error', "Danh sách trống, không có gì để lưu."); return; }
+      showStatusModal('loading', 'Đang lưu dữ liệu...');
       const payload = employees.map(emp => ({
         sheet:(function(code){
           if(!code) return "Khac";
@@ -335,36 +535,57 @@
       }));
 
       try{
-        const res = await fetch(saveUrl(), {
+        const res = await fetch(saveUrl(), { // Gọi đến /attendance/checkin_bulk
           method:"POST",
           headers:{ "Content-Type":"application/json", "X-CSRF-Token": csrfToken },
           body: JSON.stringify(payload)
         });
-        if (!res.ok) throw new Error(`Lỗi server: ${res.status}`);
+        if (!res.ok) {
+            let errorMsg = `Lỗi server: ${res.status}`;
+            try {
+                const errData = await res.json();
+                if (errData && errData.detail) errorMsg = errData.detail;
+            } catch(e) {}
+            throw new Error(errorMsg);
+        }
         const doc = await res.json().catch(()=>null);
+
+        // Luồng 1 (Ưu tiên): Backend yêu cầu chuyển hướng (dành cho đăng nhập mobile)
+        if (doc && doc.redirect_to) {
+          window.location.replace(doc.redirect_to);
+          return; // Dừng xử lý tại đây
+        }
+
+        // Luồng 2: Xử lý các trường hợp còn lại (điểm danh thường, hoặc quét QR)
         if (doc && doc.status === 'queued') {
-          // Bỏ toast và hợp nhất logic gọi checkin_success cho cả mobile & desktop
           const token = new URLSearchParams(window.location.search).get("token");
-          const checkinPayload = token ? { token } : {};
-          const checkinRes = await fetch("/attendance/checkin_success", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(checkinPayload)
-          });
-          const data = await checkinRes.json();
-          if (data && data.success && data.redirect_to) {
-            window.location.replace(data.redirect_to);
-            return; // Ngăn khối finally chạy trước khi chuyển hướng
+          if (token) {
+            // Đây là luồng quét QR từ desktop, cần gọi checkin_success để hoàn tất đăng nhập cho desktop
+            const checkinPayload = { token };
+            const checkinRes = await fetch("/attendance/checkin_success", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(checkinPayload)
+            });
+            const data = await checkinRes.json();
+            if (data && data.success && data.redirect_to) {
+              window.location.replace(data.redirect_to);
+              return;
+            }
+            const errorMsg = data && data.error ? data.error : "Lỗi không xác định";
+            showStatusModal('error', "Điểm danh thất bại: " + errorMsg);
+          } else {
+            // Đây là luồng điểm danh thông thường (không phải đăng nhập)
+            showStatusModal('success', 'Lưu điểm danh thành công!', 2000, () => {
+                employees = []; // Xóa danh sách sau khi lưu
+                renderAttendanceList();
+            });
           }
-          const errorMsg = data && data.error ? data.error : "Lỗi không xác định";
-          toast("Điểm danh thất bại: " + errorMsg, 'error');
         } else {
-          toast("Lưu xong nhưng server trả về không chuẩn.", 'error');
+          showStatusModal('error', "Lưu xong nhưng server trả về không chuẩn.");
         }
       }catch(err){
-        toast("Lỗi khi lưu điểm danh: " + (err?.message || err), 'error');
-      } finally {
-        hideOverlay();
+        showStatusModal('error', "Lỗi khi lưu điểm danh: " + (err?.message || err));
       }
     }
 
@@ -408,7 +629,7 @@
           try{
             await safeFetchJson("/attendance/api/select-branch", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ branch: ch.branch }) });
             closeModal('branchPopup'); await loadEmployeesForBranch();
-          }catch(err){ toast("Lỗi chọn chi nhánh: " + (err?.message || err), 'error'); }
+          }catch(err){ showStatusModal('error', "Lỗi chọn chi nhánh: " + (err?.message || err)); }
         };
         container.appendChild(btn);
       });
@@ -416,7 +637,8 @@
     }
 
     /* ===== Search wiring ===== */
-    document.getElementById("addEmployeeBtn").addEventListener("click", () => {
+    document.getElementById("addEmployeeBtn").addEventListener("click", (e) => {
+      vibrate();
       openModal('searchModal');
       document.getElementById("searchInputMain").value="";
       document.getElementById("suggestListMain").innerHTML="";
@@ -439,16 +661,36 @@
           list.querySelectorAll("div[data-code]").forEach(li=>{
             li.onclick = ()=>{ addBySearchQuery(li.dataset.code); };
           });
-        }catch(err){ toast("Lỗi tìm kiếm: " + (err?.message || err), 'error'); }
+        }catch(err){ showStatusModal('error', "Lỗi tìm kiếm: " + (err?.message || err)); }
       }, 300);
     });
 
     /* ===== Buttons ===== */
-    document.getElementById("saveBtn").addEventListener("click", saveAttendance);
-    document.getElementById("refreshBtn").addEventListener("click", ()=> loadEmployeesForBranch());
+    document.getElementById("saveBtn").addEventListener("click", (e) => { vibrate(); saveAttendance(); });
+    document.getElementById("refreshBtn").addEventListener("click", (e) => {
+      vibrate();
+      loadEmployeesForBranch();
+    });
 
     /* ===== Init ===== */
     window.addEventListener("DOMContentLoaded", async ()=>{
+      // Hiển thị cảnh báo ca đêm nếu điểm danh trước 7h sáng
+      const now = new Date();
+      const currentHour = now.getHours();
+
+      if (currentHour < 7) {
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const day = String(yesterday.getDate()).padStart(2, '0');
+        const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+        const year = yesterday.getFullYear();
+        const workDateStr = `${day}/${month}/${year}`;
+
+        document.getElementById('workDate').textContent = workDateStr;
+        document.getElementById('nightShiftNotice').classList.remove('hidden');
+      }
+
+      renderSkeleton(4);
       const role = (userRole||"").toLowerCase();
       if (["quanly","ktv","boss","admin"].includes(role)){
         try{
