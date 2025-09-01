@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Điểm danh — Mobile (EU)</title>
+  <title>Điểm danh — Bin Bin Hotel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root {
@@ -407,14 +407,14 @@
                 Mã: ${escapeHtml(emp.code)} &bull; ${escapeHtml(departmentDisplay(emp.department))}<span class="badge-container" style="display: inline;">${emp.la_tang_ca ? '<span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Tăng ca</span>' : ''}</span>
               </p>
             </div>
-            <button data-idx="${idx}" class="btn-delete rounded-full p-1.5 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-500" aria-label="Xóa">
+            <button data-code="${escapeAttr(emp.code)}" class="btn-delete rounded-full p-1.5 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-500" aria-label="Xóa">
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
             </button>
           </div>
           <div class="grid grid-cols-2 gap-x-4 gap-y-3">
             <div>
               <label class="text-xs text-slate-500">Số công</label>
-              <select data-idx="${idx}" data-field="so_cong_nv" class="focus-ring mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base">
+              <select data-code="${escapeAttr(emp.code)}" data-field="so_cong_nv" class="focus-ring mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-base">
                 <option value="0.5" ${emp.so_cong_nv === 0.5 ? "selected" : ""}>0.5</option>
                 <option value="1" ${!emp.so_cong_nv || emp.so_cong_nv === 1 ? "selected" : ""}>1</option>
                 <option value="1.5" ${emp.so_cong_nv === 1.5 ? "selected" : ""}>1.5</option>
@@ -424,25 +424,34 @@
             </div>
             <div class="col-span-2">
               <label class="text-xs text-slate-500">Ghi chú</label>
-              <input data-idx="${idx}" data-field="ghi_chu" value="${escapeAttr(emp.ghi_chu || '')}" placeholder="Nhập ghi chú..." class="focus-ring mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base">
+              <input data-code="${escapeAttr(emp.code)}" data-field="ghi_chu" value="${escapeAttr(emp.ghi_chu || '')}" placeholder="Nhập ghi chú..." class="focus-ring mt-1 w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-base">
             </div>
           </div>
         `;
 
         row.querySelector('.btn-delete').onclick = (e) => {
             vibrate(10);
+            const codeToDelete = e.currentTarget.dataset.code;
             const rowElement = e.currentTarget.closest('.attendance-item');
+
+            // Immediately find and remove from the data array
+            const indexToDelete = employees.findIndex(emp => emp.code === codeToDelete);
+            if (indexToDelete === -1) return; // Already deleted, do nothing
+            employees.splice(indexToDelete, 1);
+
+            // Animate the row out, then remove it from the DOM
             rowElement.classList.add('item-out');
             rowElement.addEventListener('animationend', () => {
-                const currentIdx = parseInt(e.currentTarget.dataset.idx, 10);
-                employees.splice(currentIdx, 1);
-                renderAttendanceList(); // Re-render to fix indices and layout
+                rowElement.remove();
+                // Update empty hint visibility if needed
+                document.getElementById("emptyHint").style.display = employees.length > 0 ? "none" : "block";
             }, { once: true });
         };
 
         row.querySelector('select').onchange = (e) => {
-            const idx = parseInt(e.currentTarget.dataset.idx, 10);
-            const emp = employees[idx];
+            const code = e.currentTarget.dataset.code;
+            const emp = employees.find(emp => emp.code === code);
+            if (!emp) return;
             emp.so_cong_nv = parseFloat(e.target.value);
 
             updateEmployeeOvertime(emp);
@@ -451,7 +460,12 @@
             const badgeContainer = itemElement.querySelector('.badge-container');
             badgeContainer.innerHTML = emp.la_tang_ca ? '<span class="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-600">Tăng ca</span>' : '';
         };
-        row.querySelector('input').oninput = (e) => { employees[e.currentTarget.dataset.idx].ghi_chu = e.target.value.slice(0,200); };
+        row.querySelector('input').oninput = (e) => {
+            const code = e.currentTarget.dataset.code;
+            const emp = employees.find(emp => emp.code === code);
+            if (!emp) return;
+            emp.ghi_chu = e.target.value.slice(0,200);
+        };
 
         wrap.appendChild(row);
       });
@@ -713,3 +727,4 @@
   </script>
 </body>
 </html>
+
