@@ -1194,7 +1194,7 @@ from datetime import datetime
 from employees import employees
 
 # Danh sách các bảng có cột id SERIAL cần reset sequence
-TABLES_WITH_SERIAL_ID = ["tasks", "users", "attendancelog", "attendancerecord", "servicerecord"]
+TABLES_WITH_SERIAL_ID = ["tasks", "attendance_log", "attendance_records", "service_records"]
 
 def reset_sequence(db, table_name: str, id_col: str = "id"):
     """
