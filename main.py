@@ -1186,21 +1186,50 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
 
+from sqlalchemy import text
+from database import SessionLocal, init_db
+import os, time, threading, atexit
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
+from employees import employees
+
+# Danh sách các bảng có cột id SERIAL cần reset sequence
+TABLES_WITH_SERIAL_ID = ["tasks", "users", "attendancelog", "attendancerecord", "servicerecord"]
+
+def reset_sequence(db, table_name: str, id_col: str = "id"):
+    """
+    Reset sequence cho bảng cụ thể, đảm bảo id không bị trùng.
+    """
+    seq_name = f"{table_name}_{id_col}_seq"
+    sql = f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX({id_col}), 0) + 1 FROM {table_name}), false)"
+    try:
+        db.execute(text(sql))
+        db.commit()
+        print(f"[INIT] Đã đồng bộ sequence cho bảng {table_name}")
+    except Exception as e:
+        print(f"[INIT] Lỗi khi reset sequence cho {table_name}: {e}")
+
 @app.on_event("startup")
 def startup():
-    from database import init_db
+    # --- 1. Init DB ---
+    init_db()
 
-    init_db() 
+    # --- 2. Reset sequence cho các bảng ---
+    with SessionLocal() as db:
+        for table in TABLES_WITH_SERIAL_ID:
+            reset_sequence(db, table)
 
-    try:
-        sync_employees_from_source(db=SessionLocal(), employees=employees, force_delete=False)
-        print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
-    except Exception as e:
-        print("[STARTUP] Không thể đồng bộ nhân viên:", e)
+        # --- 3. Đồng bộ nhân viên ---
+        try:
+            sync_employees_from_source(db=db, employees=employees, force_delete=False)
+            print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
+        except Exception as e:
+            print("[STARTUP] Không thể đồng bộ nhân viên:", e)
 
-    # Thread watch employees.py
+    # --- 4. Theo dõi file employees.py để tự động sync ---
     EMPLOYEES_FILE = os.path.join(os.path.dirname(__file__), "employees.py")
     _last_mtime = None
+
     def watch_employees_file():
         nonlocal _last_mtime
         while True:
@@ -1211,40 +1240,28 @@ def startup():
                 elif mtime != _last_mtime:
                     _last_mtime = mtime
                     print("[SYNC] employees.py thay đổi → đồng bộ DB...")
-                    # Sử dụng hàm đồng bộ đã được chuẩn hóa
-                    sync_employees_from_source(db=SessionLocal(), employees=employees, force_delete=False)
+                    with SessionLocal() as db:
+                        sync_employees_from_source(db=db, employees=employees, force_delete=False)
                     print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
             except FileNotFoundError:
                 print("[SYNC] Không tìm thấy file employees.py")
             except Exception as e:
                 print("[SYNC] Lỗi khi theo dõi employees.py:", e)
             time.sleep(5)
+
     threading.Thread(target=watch_employees_file, daemon=True).start()
 
-    # --- Lập lịch tự động đăng xuất ---
+    # --- 5. Lập lịch auto logout + kiểm tra điểm danh ---
     def auto_logout_job():
-        """
-        Hàm này được kích hoạt vào các thời điểm đăng xuất đã lên lịch.
-
-        LƯU Ý: Do ứng dụng sử dụng session lưu trong cookie phía trình duyệt,
-        server không thể buộc trình duyệt đăng xuất. Hàm này đóng vai trò là
-        bộ kích hoạt phía server và ghi log. Việc đăng xuất thực tế phải
-        được thực hiện bằng JavaScript ở phía trình duyệt.
-        """
         print(f"[{datetime.now(VN_TZ)}] Kích hoạt đăng xuất tự động. Các client cần thực hiện đăng xuất.")
 
     scheduler = BackgroundScheduler(timezone=str(VN_TZ))
-    # Lập lịch chạy vào 6:59 và 18:59 mỗi ngày, theo múi giờ Việt Nam.
     scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
     scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
-
-    # === THÊM LỊCH CHẠY KIỂM TRA ĐIỂM DANH VẮNG ===
-    # Chạy lúc 07:00 hàng ngày để chốt danh sách nghỉ của ngày hôm trước
     scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
-    # ===============================================
-
     scheduler.start()
-    print("Đã khởi động lịch tự động đăng xuất và kiểm tra điểm danh vắng hàng ngày.")
+
+    print("✅ Startup hoàn tất: reset sequence, đồng bộ nhân viên, theo dõi file employees.py, lập lịch auto logout/check vắng")
     atexit.register(lambda: scheduler.shutdown())
 
 if __name__ == "__main__":
