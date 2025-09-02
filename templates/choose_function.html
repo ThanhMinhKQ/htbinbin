@@ -90,13 +90,15 @@
 
                 <!-- Card: Đồng bộ Nhân viên -->
                 {% if user and user.role in ['admin', 'boss'] %}
-                <a href="/sync-employees" id="sync-employees-btn" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-rose-400 dark:hover:border-rose-500 hover:-translate-y-1">
-                    <div class="inline-block p-5 bg-gradient-to-br from-rose-100 to-pink-200 dark:from-rose-900/50 dark:to-pink-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
-                        <lord-icon src="https://cdn.lordicon.com/dklbhvrt.json" trigger="hover" colors="primary:#f43f5e,secondary:#ec4899" style="width:40px;height:40px"></lord-icon>
+                <div class="group block w-full sm:w-80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-8 text-center opacity-70 cursor-not-allowed">
+                    <div class="inline-block p-5 bg-gradient-to-br from-rose-100 to-pink-200 dark:from-rose-900/50 dark:to-pink-900/50 rounded-2xl mb-6">
+                        <lord-icon src="https://cdn.lordicon.com/dklbhvrt.json" trigger="hover" 
+                            colors="primary:#f43f5e,secondary:#ec4899" style="width:40px;height:40px">
+                        </lord-icon>
                     </div>
-                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Đồng Bộ Nhân Viên</h3>
-                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Cập nhật danh sách nhân viên từ file cấu hình hệ thống.</p>
-                </a>
+                    <h3 class="font-semibold text-xl text-gray-500 dark:text-gray-400">Đồng Bộ Nhân Viên</h3>
+                    <p class="text-gray-400 mt-2 text-sm">Chức năng đang phát triển, vui lòng quay lại sau.</p>
+                </div>
                 {% endif %}
             </div>
         </main>
