@@ -17,7 +17,7 @@ class User(Base):
 class Task(Base):
     __tablename__ = "tasks"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     chi_nhanh = Column(String(50), nullable=False)
     phong = Column(String(50), nullable=False)
     mo_ta = Column(Text, nullable=False)
