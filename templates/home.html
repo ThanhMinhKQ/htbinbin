@@ -233,7 +233,6 @@
     </style>
 
     <!-- Thư viện ngoài -->
-    <script src="https://animatedicons.co/scripts/embed-animated-icons.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -242,6 +241,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/iconoir/css/iconoir.css" />
     <canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]"></canvas>
   </head>
   <body class="bg-gradient-to-br from-[#f4f7fa] to-[#e9eafc] dark:from-[#18192a] dark:to-[#23243a] text-gray-800 dark:text-gray-100 min-h-screen text-[15px]">
@@ -312,14 +312,9 @@
 
           <div class="flex-1 flex items-center justify-center w-full">
               <!-- Icon cuốn lịch động -->
-              <div>
-                  <animated-icons
-                    src="https://animatedicons.co/get-icon?name=Schedule&style=minimalistic&token=5be054c1-2954-4c87-9287-f1e6362c8da3"
-                    trigger="loop-on-hover"
-                    attributes='{"variationThumbColour":"#536DFE","variationName":"Two Tone","variationNumber":2,"numberOfGroups":2,"backgroundIsGroup":false,"strokeWidth":1,"defaultColours":{"group-1":"#000000","group-2":"#536DFE","background":"#FFFFFF"}}'
-                    height="200"
-                    width="200"
-                  ></animated-icons>
+              <!-- Iconoir -->
+              <div class="flex justify-center items-center">
+                <i class="iconoir-calendar text-[100px] text-indigo-600"></i>
               </div>
           </div>
       </div>
@@ -458,12 +453,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
-        <animated-icons
-          src="https://animatedicons.co/get-icon?name=search&style=minimalistic&token=12e9ffab-e7da-417f-a9d9-d7f67b64d808"
-          trigger="loop"
-          height="40"
-          width="40"
-        ></animated-icons>
+        <!-- Icon tìm kiếm (Iconoir) -->
+        <i class="iconoir-search text-[40px] text-gray-600"></i>
         <h2 class="text-xl font-semibold text-gray-800 dark:text-white tracking-tight">Bộ Lọc Công Việc</h2>
       </div>
       <button onclick="closeModal('filterModal')"
@@ -588,9 +579,7 @@
             <th class="p-2 font-semibold text-center">Phòng</th>
             <th class="hidden lg:table-cell p-2 font-semibold text-center">Người lập</th>
             <th class="p-2 font-semibold text-center">Mô tả</th>
-            {% if role != 'letan' %}
             <th class="hidden lg:table-cell p-2 font-semibold text-center">Ghi nhận</th>
-            {% endif %}
             <th class="p-2 font-semibold text-center">Hạn</th>
             <th class="p-2 font-semibold text-center">Trạng thái</th>
             <th class="hidden md:table-cell p-2 font-semibold text-center">Ghi chú</th>
@@ -627,9 +616,7 @@
             <td class="p-2 text-center truncate">{{ t.phong }}</td>
             <td class="hidden lg:table-cell p-2 text-center truncate">{{ t.nguoi_tao }}</td>
             <td class="p-2 text-center max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap" title="{{ t.mo_ta }}">{{ t.mo_ta }}</td>
-            {% if role != 'letan' %}
             <td class="hidden lg:table-cell p-2 text-center truncate">{{ t.ngay_tao }}</td>
-            {% endif %}
             <td class="p-2 text-center truncate">
               <span class="block sm:hidden">{{ formatted_han_hoan_thanh[:5] if formatted_han_hoan_thanh else '' }}</span>
               <span class="hidden sm:block">{{ formatted_han_hoan_thanh or '' }}</span>
@@ -878,14 +865,8 @@ document.querySelectorAll('.swipe-item').forEach(item => {
     <!-- Header with Animated Icon -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
-        <!-- Animated Icon from AnimatedIcons -->
-        <animated-icons
-          src="https://animatedicons.co/get-icon?name=Maintenance&style=minimalistic&token=c427791f-d7f8-4a99-a56b-60ef3373e1f7"
-          trigger="loop"
-          attributes='{"variationThumbColour":"#536DFE","variationName":"Two Tone","variationNumber":2,"numberOfGroups":2,"backgroundIsGroup":false,"strokeWidth":1,"defaultColours":{"group-1":"#000000","group-2":"#536DFE","background":"#FFFFFF"}}'
-          height="60"
-          width="60"
-        ></animated-icons>
+        <!-- Icon bảo trì (Iconoir) -->
+        <i class="iconoir-wrench text-[40px] text-indigo-600"></i>
         <h2 class="text-xl font-semibold text-gray-800 dark:text-white tracking-tight">Sửa Công Việc</h2>
       </div>
       <button onclick="closeModal('editModal')"
@@ -987,15 +968,7 @@ document.querySelectorAll('.swipe-item').forEach(item => {
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center gap-3">
-        <!-- Icon động -->
-        <animated-icons
-          src="https://animatedicons.co/get-icon?name=information&style=minimalistic&token=4a9d7337-655d-4d65-9456-1a332908b1aa"
-          trigger="loop"
-          attributes='{"variationThumbColour":"#536DFE","variationName":"Two Tone","variationNumber":2,"numberOfGroups":2,"backgroundIsGroup":false,"strokeWidth":1,"defaultColours":{"group-1":"#000000","group-2":"#536DFE","background":"#FFFFFF"}}'
-          height="60"
-          width="60"
-        ></animated-icons>
-
+        <i class="iconoir-info-circle text-[50px] text-indigo-600"></i>
         <!-- Tên phòng thay thế tiêu đề -->
         <h2 id="taskDetailPhong" class="text-lg font-semibold text-gray-800 dark:text-white truncate"></h2>
       </div>
@@ -1127,12 +1100,7 @@ document.querySelectorAll('.swipe-item').forEach(item => {
     <!-- Header -->
     <div class="flex items-center justify-between p-4 border-b border-gray-300 dark:border-gray-700">
       <div class="flex items-center gap-3">
-        <animated-icons
-          src="https://animatedicons.co/get-icon?name=calendar&style=minimalistic&token=12e9ffab-e7da-417f-a9d9-d7f67b64d808"
-          trigger="loop"
-          height="40"
-          width="40"
-        ></animated-icons>
+        <i class="iconoir-calendar text-[40px] text-gray-700"></i>
         <h2 class="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white">
           Lịch công việc
         </h2>
