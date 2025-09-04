@@ -110,9 +110,11 @@
                 {% endif %}
                 {% if user.role not in ['quanly', 'ktv'] %}
                 <div class="relative">
-                    <label for="filter-nhan-vien" class="block text-sm font-medium text-gray-700">Thông tin nhân viên</label>
-                    <input type="text" id="filter-nhan-vien" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                    <div id="nhan-vien-filter-results" class="hidden absolute z-20 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
+                    <label for="filter-nhan-vien" class="block text-sm font-medium text-gray-700">Nhân viên</label>
+                    <select id="filter-nhan-vien" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">Tất cả nhân viên</option>
+                        <!-- Options will be populated by JS -->
+                    </select>
                 </div>
                 <div id="container-filter-chuc-vu" class="w-full">
                     <label for="filter-chuc-vu" class="block text-sm font-medium text-gray-700">Chức vụ</label>
@@ -462,7 +464,7 @@
                     }
                 }
                 if (filterNhanVienEl && filterNhanVienEl.value) params.append('filter_nhan_vien', filterNhanVienEl.value.trim());
-                if (filterChucVuEl && filterChucVuEl.value) params.append('filter_chuc_vu', filterChucVuEl.value.trim());
+                if (filterChucVuEl && filterChucVuEl.value) params.append('filter_chuc_vu', filterChucVuEl.value);
                 if (filterCnLamEl && filterCnLamEl.value) params.append('filter_cn_lam', filterCnLamEl.value.trim());
                 if (filterSoCongEl.value) params.append('filter_so_cong', filterSoCongEl.value);
                 if (filterTangCaEl && filterTangCaEl.value && filterTangCaEl.value !== 'all') params.append('filter_tang_ca', filterTangCaEl.value);
@@ -602,6 +604,24 @@
                         }).catch(err => alert(`Lỗi khi xóa hàng loạt: ${err.message || 'Lỗi server'}`));
                     }
                 });
+            }
+
+            function populateEmployeeFilter(employees) {
+                if (!filterNhanVienEl) return;
+
+                // Lưu giá trị đang chọn
+                const selectedValue = filterNhanVienEl.value;
+
+                // Xóa các option cũ, giữ lại option "Tất cả"
+                filterNhanVienEl.innerHTML = '<option value="">Tất cả nhân viên</option>';
+
+                employees.forEach(emp => {
+                    const option = new Option(`${emp.name} (${emp.code})`, emp.name);
+                    filterNhanVienEl.add(option);
+                });
+
+                // Khôi phục lại giá trị đã chọn nếu có
+                filterNhanVienEl.value = selectedValue;
             }
 
             function setupSoCongFilter() {
@@ -770,6 +790,10 @@
                     tableEl.classList.remove('hidden');
                     allRecords = data.records;
                     renderTable(data.records);
+                    // Chỉ cập nhật danh sách nhân viên khi tải trang đầu tiên để tránh ghi đè bộ lọc
+                    if (data.currentPage === 1 && data.relatedEmployees) {
+                        populateEmployeeFilter(data.relatedEmployees);
+                    }
                     renderPagination(data.currentPage, data.totalPages, data.totalRecords);
                 } else {
                     tbodyEl.innerHTML = `<tr><td colspan="15" class="text-center py-6 text-gray-500">Không có dữ liệu.</td></tr>`;
@@ -792,7 +816,7 @@
             clearFiltersBtn.addEventListener('click', () => {
                 filterDateEl.value = '';
                 if (filterNhanVienEl) filterNhanVienEl.value = '';
-                if (filterChucVuEl) filterChucVuEl.value = '';
+                if (filterChucVuEl) filterChucVuEl.selectedIndex = 0;
                 if (filterCnLamEl) filterCnLamEl.value = '';
                 filterSoCongEl.value = '';
                 if (filterTangCaEl) filterTangCaEl.value = 'all';
@@ -1280,56 +1304,6 @@
                     }, 300);
                 });
             }
-
-            // Employee filter search
-            if (filterNhanVienEl) {
-                let nhanVienFilterTimeout;
-                const nhanVienFilterResults = document.getElementById('nhan-vien-filter-results');
-
-                filterNhanVienEl.addEventListener('input', () => {
-                    clearTimeout(nhanVienFilterTimeout);
-                    const query = filterNhanVienEl.value.trim();
-                    if (query === '') {
-                        nhanVienFilterResults.classList.add('hidden');
-                        return;
-                    }
-                    if (query.length < 2) return;
-
-                    nhanVienFilterTimeout = setTimeout(() => {
-                        fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}`)
-                            .then(res => res.json())
-                            .then(employees => {
-                                nhanVienFilterResults.innerHTML = '';
-                                if (employees.length > 0) {
-                                    employees.forEach(p => {
-                                        const div = document.createElement('div');
-                                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
-                                        div.textContent = `${p.name} (${p.code})`;
-                                        div.onclick = () => {
-                                            filterNhanVienEl.value = p.name;
-                                            nhanVienFilterResults.classList.add('hidden');
-                                        };
-                                        nhanVienFilterResults.appendChild(div);
-                                    });
-                                    nhanVienFilterResults.classList.remove('hidden');
-                                } else {
-                                    nhanVienFilterResults.classList.add('hidden');
-                                }
-                            });
-                    }, 300);
-                });
-            }
-
-            // Hide all suggestion dropdowns when clicking outside
-            document.addEventListener('click', (e) => {
-                ['nhan-vien-filter-results', 'performer-filter-results'].forEach(id => {
-                    const dropdown = document.getElementById(id);
-                    const input = dropdown ? dropdown.previousElementSibling : null;
-                    if (dropdown && input && !input.contains(e.target) && !dropdown.contains(e.target)) {
-                        dropdown.classList.add('hidden');
-                    }
-                });
-            });
 
             // Sorting listener
             if (!theadEl.dataset.sortListenerAdded) {
