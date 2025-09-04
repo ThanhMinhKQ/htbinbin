@@ -1,148 +1,37 @@
-<!-- templates/show_qr.html (Thiết kế sang trọng, chuyên nghiệp, UX thân thiện, trung tâm màn hình, có animation, dark/light) -->
-<!DOCTYPE html>
-<html lang="vi" class="h-full">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Điểm danh bằng QR</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ["Inter", "system-ui", "-apple-system", "Segoe UI", "Roboto"]
-          },
-          boxShadow: {
-            glow: "0 0 20px rgba(61, 140, 246, 0.35)"
-          },
-          colors: {
-            brand: { 500: '#3d8cf6', 600: '#2f74e9', 700: '#285fca' }
-          },
-          keyframes: {
-            fadeInUp: { '0%': {opacity: 0, transform: 'translateY(20px)'}, '100%': {opacity: 1, transform: 'translateY(0)'} },
-            pulseGlow: { '0%,100%': { boxShadow: '0 0 0 rgba(61,140,246,0)' }, '50%': { boxShadow: '0 0 20px rgba(61,140,246,0.6)' } }
-          },
-          animation: {
-            fadeInUp: 'fadeInUp .6s ease-out',
-            pulseGlow: 'pulseGlow 2s infinite'
-          }
-        }
-      },
-      darkMode: 'class'
-    }
-  </script>
-</head>
-<body class="h-full bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 flex items-center justify-center">
-  <div class="max-w-md w-full text-center animate-fadeInUp">
-    <!-- Card -->
-    <div class="rounded-3xl bg-white dark:bg-gray-900 shadow-xl p-8 relative overflow-hidden">
-      <!-- Theme toggle -->
-      <button id="btn-theme" class="absolute top-4 right-4 rounded-full p-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition" aria-label="Đổi giao diện">
-        <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10 15a5 5 0 100-10 5 5 0 000 10z" />
-          <path fill-rule="evenodd" d="M10 1a1 1 0 011 1v1a1 1 0 11-2 0V2a1 1 0 011-1zm0 16a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zm9-7a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM4 10a1 1 0 01-1 1H2a1 1 0 110-2h1a1 1 0 011 1z" clip-rule="evenodd" />
-        </svg>
-        <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="currentColor" viewBox="0 0 20 20">
-          <path fill-rule="evenodd" d="M17.293 13.293a8 8 0 01-10.586-10.586 8.001 8.001 0 1010.586 10.586z" clip-rule="evenodd" />
-        </svg>
-      </button>
+import os
+import logging
+from dotenv import load_dotenv
 
-      <!-- Header -->
-      <h1 class="text-2xl font-semibold mb-2">Điểm danh bằng QR</h1>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-6">Quét mã trên điện thoại để xác nhận điểm danh</p>
+load_dotenv()  # load biến từ .env
 
-      <!-- QR Code -->
-      <div class="mx-auto aspect-square max-w-[260px] w-full rounded-2xl bg-gray-50 dark:bg-gray-800 grid place-items-center p-4 shadow-glow animate-pulseGlow">
-        <canvas id="qrcode" class="w-full h-full"></canvas>
-      </div>
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not set!")
 
-      <!-- Status -->
-      <div id="status-dot" class="mt-6 inline-flex items-center gap-2 text-sm px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800">
-        <span class="relative flex size-2.5"><span class="absolute inline-flex w-full h-full rounded-full bg-brand-500 opacity-75 animate-ping"></span><span class="relative inline-flex size-2.5 rounded-full bg-brand-500"></span></span>
-        <span id="status-text">Đang chờ điện thoại điểm danh…</span>
-      </div>
-    </div>
+# Fix prefix nếu copy nhầm postgres:// -> postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-    <!-- Footer -->
-    <div class="text-xs text-gray-500 dark:text-gray-400 mt-6">© <span id="year"></span> – Bin Bin Hotel. All rights reserved</div>
-  </div>
+# Đảm bảo sử dụng driver 'psycopg' (v3) đã được cài, thay vì 'psycopg2' mặc định.
+if "postgresql+psycopg2://" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+elif "postgresql://" in DATABASE_URL and "+psycopg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
-  <!-- Lib: QRious -->
-  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
-  <script>
-    const checkinUrl = "{{ base_url }}/attendance/checkin?token={{ qr_token }}";
-    const qr = new QRious({ element: document.getElementById('qrcode'), value: checkinUrl, size: 220 });
+SMTP_CONFIG = {
+    "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
+    "port": int(os.getenv("SMTP_PORT", 587)),
+    "user": os.getenv("SMTP_USER", ""),
+    "password": os.getenv("SMTP_PASSWORD", ""),
+}
 
-    const statusText = document.getElementById('status-text');
-    const statusDot = document.getElementById('status-dot');
+ALERT_EMAIL = os.getenv("ALERT_EMAIL", "yourmail@example.com")
 
-    async function pollCheckin() {
-      try {
-        const res = await fetch(`/attendance/checkin_status?token={{ qr_token }}&t=` + Date.now(), { credentials: 'same-origin' });
-        const data = await res.json();
-        if (data.checked_in) {
-          statusText.textContent = 'Đã điểm danh, đang chuyển trang…';
-          statusDot.innerHTML = '<span class="inline-flex size-2.5 rounded-full bg-green-500"></span><span>Thành công</span>';
-          if (data.redirect_to) window.location.href = '/' + data.redirect_to;
-          else window.location.href = '/choose-function';
-        } else {
-          setTimeout(pollCheckin, 2500);
-        }
-      } catch {
-        statusText.textContent = 'Mạng chập chờn, thử lại sau…';
-        setTimeout(pollCheckin, 3500);
-      }
-    }
-    pollCheckin();
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 
-    // Theme toggle
-    const root = document.documentElement;
-    const THEME_KEY = 'theme-mode';
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    function applyTheme(mode){
-      if (mode === 'dark' || (mode === 'system' && prefersDark)) {
-        root.classList.add('dark');
-        document.getElementById('icon-sun').classList.remove('hidden');
-        document.getElementById('icon-moon').classList.add('hidden');
-      } else {
-        root.classList.remove('dark');
-        document.getElementById('icon-sun').classList.add('hidden');
-        document.getElementById('icon-moon').classList.remove('hidden');
-      }
-    }
-    const saved = localStorage.getItem(THEME_KEY) || 'system';
-    applyTheme(saved);
-    document.getElementById('btn-theme').addEventListener('click', () => {
-      const current = localStorage.getItem(THEME_KEY) || 'system';
-      const next = current === 'dark' ? 'light' : current === 'light' ? 'system' : 'dark';
-      localStorage.setItem(THEME_KEY, next);
-      applyTheme(next);
-    });
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s [%(levelname)s] %(message)s",
+)
 
-    document.getElementById('year').textContent = new Date().getFullYear();
-  </script>
-</body>
-<script>
-  function checkAndLogoutForShiftChange() {
-      const now = new Date();
-      const hours = now.getHours();
-      const minutes = now.getMinutes();
-
-      // Tự động đăng xuất lúc 6:59 sáng
-      const isMorningLogout = (hours === 6 && minutes === 59); // Giữ nguyên hoặc thay đổi để test
-
-      // Tự động đăng xuất lúc 18:59 tối
-      const isEveningLogout = (hours === 18 && minutes === 59); // <-- THAY ĐỔI GIỜ VÀ PHÚT Ở ĐÂY
-
-      if (isMorningLogout || isEveningLogout) {
-          console.log("Đã đến giờ chuyển ca, tự động đăng xuất...");
-          // Chuyển hướng về trang đăng xuất để xóa session
-          window.location.href = '/logout';
-      }
-  }
-
-  // Kiểm tra thời gian mỗi 30 giây để đảm bảo không bỏ lỡ
-  setInterval(checkAndLogoutForShiftChange, 30000);
-</script>
-</html>
+logger = logging.getLogger("binbin-app")
