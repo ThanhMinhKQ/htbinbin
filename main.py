@@ -42,7 +42,6 @@ from pytz import timezone
 from services.email_service import send_alert_email
 
 from employees import employees  # import danh sách nhân viên tĩnh
-import pandas as pd
 
 ROLE_MAP = {
     "letan": "Lễ tân",
