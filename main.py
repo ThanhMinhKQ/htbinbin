@@ -1752,6 +1752,7 @@ async def api_get_attendance_results(
     # Get total count for pagination
     count_query = select(func.count()).select_from(final_query.alias("count_alias"))
     total_records = db.execute(count_query).scalar_one() or 0
+
     total_pages = math.ceil(total_records / per_page) if per_page > 0 else 1
 
     # Apply sorting
@@ -1787,6 +1788,27 @@ async def api_get_attendance_results(
     
     records = db.execute(paginated_query).all()
 
+    # ✅ Lấy danh sách nhân viên liên quan cho bộ lọc (chỉ chạy khi page=1)
+    related_employees = []
+    if page == 1:
+        # Lấy tất cả các mã nhân viên (ma_nv) từ các bản ghi đã lọc (không phân trang)
+        employee_codes_query = select(u.c.ma_nv, u.c.ten_nv).distinct()
+
+        # Áp dụng các bộ lọc tương tự như trên, NGOẠI TRỪ filter_nhan_vien
+        # để có được danh sách đầy đủ cho dropdown
+        if filter_type: employee_codes_query = employee_codes_query.where(u.c.type == filter_type)
+        if filter_date:
+            try:
+                parsed_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
+                employee_codes_query = employee_codes_query.where(u.c.date_col == parsed_date)
+            except ValueError: pass
+        if filter_cn_lam: employee_codes_query = employee_codes_query.where(u.c.chi_nhanh_lam == filter_cn_lam)
+        # ... có thể thêm các filter khác nếu cần ...
+
+        related_employee_rows = db.execute(employee_codes_query.order_by(u.c.ten_nv)).all()
+        related_employees = [{"code": row.ma_nv, "name": row.ten_nv} for row in related_employee_rows]
+
+
     # Format results
     combined_results = []
     for rec in records:
@@ -1821,6 +1843,7 @@ async def api_get_attendance_results(
         "currentPage": page,
         "totalPages": total_pages,
         "totalRecords": total_records,
+        "relatedEmployees": related_employees, # Trả về danh sách nhân viên cho bộ lọc
     })
 
 def _auto_adjust_worksheet_columns(worksheet):
