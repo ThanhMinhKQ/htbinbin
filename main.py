@@ -10,6 +10,7 @@ import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Request
 from typing import Optional
+from config import logger
 
 from database import SessionLocal, get_db
 from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord
@@ -24,6 +25,7 @@ from sqlalchemy import func
 from sqlalchemy import (
     union_all,
     literal_column,
+    asc,
     or_,
     select,
     desc,
@@ -35,6 +37,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import aliased
 import os, re, math, io
+import openpyxl
+from openpyxl.utils import get_column_letter
 import socket, threading, time
 from email.message import EmailMessage
 from datetime import datetime, timedelta, date
@@ -92,10 +96,10 @@ def run_daily_absence_check(target_date: Optional[date] = None):
         target_date = datetime.now(VN_TZ).date() - timedelta(days=1)
         log_prefix = "tự động"
 
-    print(f"[{datetime.now(VN_TZ)}] Bắt đầu chạy kiểm tra điểm danh vắng {log_prefix} cho ngày {target_date.strftime('%d/%m/%Y')}.")
+    logger.info(f"Bắt đầu chạy kiểm tra điểm danh vắng {log_prefix} cho ngày {target_date.strftime('%d/%m/%Y')}")
     # LƯU Ý: Hàm update_missing_attendance_to_db cần được sửa đổi để chấp nhận tham số `target_date`.
     update_missing_attendance_to_db(employees, target_date=target_date)
-    print(f"[{datetime.now(VN_TZ)}] Hoàn tất kiểm tra điểm danh vắng cho ngày {target_date.strftime('%d/%m/%Y')}.")
+    logger.info(f"Hoàn tất kiểm tra điểm danh vắng cho ngày {target_date.strftime('%d/%m/%Y')}")
 
 from urllib.parse import parse_qs, urlencode
 
@@ -299,22 +303,19 @@ def _get_filtered_tasks_query(
     dựa trên các bộ lọc được cung cấp.
     """
     role = user_data.get("role")
-    user_branch = user_data.get("branch")
 
     tasks_query = db.query(Task)
 
-    # Lọc theo vai trò
+    # Loại bỏ công việc đã xoá cho các vai trò không phải quản lý cấp cao
     if role not in ["quanly", "admin", "boss"]:
         tasks_query = tasks_query.filter(Task.trang_thai != "Đã xoá")
 
-    # Lọc theo chi nhánh
-    if role == "letan":
-        chi_nhanh = user_branch
-        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
-    elif chi_nhanh:
+    # Lọc theo chi nhánh (nếu có).
+    # `chi_nhanh` ở đây đã được xác định một cách chính xác ở hàm `home`.
+    if chi_nhanh:
         tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
 
-    # Lọc theo từ khóa tìm kiếm
+    # Lọc theo từ khóa
     if search:
         clean_search = re.sub(r'\s+', ' ', search).strip()
         search_pattern = f"%{clean_search}%"
@@ -380,7 +381,9 @@ def view_attendance_results(request: Request):
     user_data = request.session.get("user")
     return templates.TemplateResponse("attendance_results.html", {
         "request": request,
-        "user": user_data
+        "user": user_data,
+        "branches": BRANCHES,
+        "roles": ROLE_MAP
     })
 
 @app.get("/login", response_class=HTMLResponse)
@@ -730,54 +733,141 @@ def search_employees(
     ]
     return JSONResponse(content=employee_list)
 
+from sqlalchemy import case
+
+def _get_filtered_tasks_query(
+    db: Session,
+    user_data: dict,
+    chi_nhanh: str = "",
+    search: str = "",
+    trang_thai: str = "",
+    han_hoan_thanh: str = ""
+):
+    """
+    Hàm helper để xây dựng và trả về câu truy vấn SQLAlchemy cho các công việc
+    dựa trên các bộ lọc được cung cấp. Việc xác định chi nhánh nào cần lọc
+    (dựa trên GPS hay form) đã được thực hiện ở hàm `home`.
+    """
+    role = user_data.get("role")
+
+    tasks_query = db.query(Task)
+
+    # Loại bỏ công việc đã xoá cho các vai trò không phải quản lý cấp cao
+    if role not in ["quanly", "ktv", "admin", "boss"]:
+        tasks_query = tasks_query.filter(Task.trang_thai != "Đã xoá")
+
+    # Lọc theo chi nhánh (nếu có).
+    # `chi_nhanh` ở đây đã được xác định một cách chính xác ở hàm `home`
+    # (là chi nhánh GPS cho lễ tân, hoặc chi nhánh từ bộ lọc cho các role khác).
+    if chi_nhanh:
+        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
+
+    # Lọc theo từ khóa
+    if search:
+        clean_search = re.sub(r'\s+', ' ', search).strip()
+        search_pattern = f"%{clean_search}%"
+        tasks_query = tasks_query.filter(
+            or_(
+                Task.chi_nhanh.ilike(search_pattern),
+                Task.phong.ilike(search_pattern),
+                Task.mo_ta.ilike(search_pattern),
+                Task.trang_thai.ilike(search_pattern),
+                Task.nguoi_tao.ilike(search_pattern),
+                Task.nguoi_thuc_hien.ilike(search_pattern),
+                Task.ghi_chu.ilike(search_pattern),
+            )
+        )
+
+    # Lọc theo trạng thái
+    if trang_thai:
+        tasks_query = tasks_query.filter(Task.trang_thai == trang_thai)
+
+    # Lọc theo hạn hoàn thành
+    if han_hoan_thanh:
+        try:
+            han_date = datetime.strptime(han_hoan_thanh, "%Y-%m-%d").date()
+            tasks_query = tasks_query.filter(func.date(Task.han_hoan_thanh) == han_date)
+        except (ValueError, TypeError):
+            pass
+
+    return tasks_query
+
 @app.get("/home", response_class=HTMLResponse)
-def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: str = "", han_hoan_thanh: str = "", page: int = 1, per_page: int = 8, db: Session = Depends(get_db)):
+def home(
+    request: Request,
+    chi_nhanh: str = "",
+    search: str = "",
+    trang_thai: str = "",
+    han_hoan_thanh: str = "",
+    page: int = 1,
+    per_page: int = 8,
+    db: Session = Depends(get_db)
+):
     user_data = request.session.get("user")
     today = datetime.now(VN_TZ)
-    if page == 1 and not search and not trang_thai and not han_hoan_thanh:
-        overdue_tasks = db.query(Task).filter(
-            Task.trang_thai == "Đang chờ",
-            Task.han_hoan_thanh < today
-        ).all()
-        for t in overdue_tasks:
-            t.trang_thai = "Quá hạn"
-        if overdue_tasks:
-            db.commit()
 
     if not user_data:
         return RedirectResponse("/login", status_code=303)
 
-    # Tiếp tục xử lý nếu người dùng đã đăng nhập
     username = user_data["code"]
     role = user_data["role"]
-    user_branch = user_data["branch"]
     user_name = user_data["name"]
 
-    tasks_query = _get_filtered_tasks_query(db, user_data, chi_nhanh, search, trang_thai, han_hoan_thanh)
-    rows_all = tasks_query.all()
+    # Lấy chi nhánh hoạt động từ GPS (active_branch) hoặc chi nhánh mặc định của user
+    # --- LOGIC MỚI ĐỂ LẤY CHI NHÁNH ---
+    # 1. Lấy thông tin user đầy đủ từ DB để có last_active_branch
+    user_from_db = db.query(User).filter(User.code == username).first()
 
-    order = {
-        "Quá hạn": 0,
-        "Đang chờ": 1,
-        "Hoàn thành": 2,
-        "Đã xoá": 3
-    }
-    far_future = VN_TZ.localize(datetime(2099, 12, 31))
-    rows_all.sort(key=lambda t: (
-        order.get(t.trang_thai, 99),
-        t.han_hoan_thanh or far_future
-    ))
+    # 2. Xác định chi nhánh hoạt động theo thứ tự ưu tiên:
+    #    - Ưu tiên 1: Chi nhánh từ session (vừa quét GPS trong phiên này).
+    #    - Ưu tiên 2: Chi nhánh hoạt động cuối cùng đã lưu trong DB.
+    #    - Ưu tiên 3: Chi nhánh mặc định của user (fallback).
+    active_branch = (
+        request.session.get("active_branch")
+        or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
+        or user_data.get("branch")
+    )
 
-    total_tasks = len(rows_all)
+    # Xác định chi nhánh để lọc query dựa trên vai trò
+    branch_to_filter = ""
+
+    if role == 'letan':
+        # ✅ Lễ tân: luôn ưu tiên GPS (active_branch) nếu có
+        if request.session.get("active_branch"):
+            branch_to_filter = chi_nhanh or request.session["active_branch"]
+        else:
+            branch_to_filter = chi_nhanh or (user_from_db.last_active_branch if user_from_db and user_from_db.last_active_branch else user_data.get("branch"))
+    else:
+        # ✅ Quản lý, KTV, Admin, Boss: chỉ lọc khi chọn từ form
+        branch_to_filter = chi_nhanh
+
+
+    # ✅ Query công việc với chi nhánh đã được xác định
+    tasks_query = _get_filtered_tasks_query(
+        db, user_data, branch_to_filter, search, trang_thai, han_hoan_thanh
+    )
+
+    # ✅ Tổng số task
+    total_tasks = tasks_query.count()
     total_pages = max(1, (total_tasks + per_page - 1) // per_page)
-    start = (page - 1) * per_page
-    rows = rows_all[start:start + per_page]
 
-    tasks = []
-    chi_nhanhs_set = set()
+    # ✅ Sắp xếp
+    order = {"Quá hạn": 0, "Đang chờ": 1, "Hoàn thành": 2, "Đã xoá": 3}
+    rows = (
+        tasks_query.order_by(
+            case(order, value=Task.trang_thai, else_=99),
+            Task.han_hoan_thanh.nullslast(),
+        )
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    # ✅ Chuẩn bị dữ liệu
+    tasks, chi_nhanhs_set = [], set()
     for t in rows:
         chi_nhanhs_set.add(t.chi_nhanh)
-        task_data = {
+        tasks.append({
             "id": t.id,
             "chi_nhanh": t.chi_nhanh,
             "phong": t.phong,
@@ -791,74 +881,55 @@ def home(request: Request, chi_nhanh: str = "", search: str = "", trang_thai: st
             "nguoi_thuc_hien": t.nguoi_thuc_hien,
             "ngay_hoan_thanh": format_datetime_display(t.ngay_hoan_thanh, with_time=True) if t.ngay_hoan_thanh else "",
             "is_overdue": is_overdue(t),
-        }
-        tasks.append(task_data)
-    
+        })
+
     # ✅ Thống kê
-    today = datetime.now(VN_TZ)
     thong_ke = {
-        "tong_cong_viec": len(rows_all),
-        "hoan_thanh": sum(1 for t in rows_all if t.trang_thai == "Hoàn thành"),
-        "hoan_thanh_tuan": sum(
-            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
-            t.ngay_hoan_thanh and
-            t.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday())
-        ),
-        "hoan_thanh_thang": sum(
-            1 for t in rows_all if t.trang_thai == "Hoàn thành" and
-            t.ngay_hoan_thanh and
-            t.ngay_hoan_thanh.month == today.month
-        ),
-        "dang_cho": sum(1 for t in rows_all if t.trang_thai == "Đang chờ"),
-        "qua_han": sum(1 for t in rows_all if t.trang_thai == "Quá hạn"),
+        "tong_cong_viec": total_tasks,
+        "hoan_thanh": tasks_query.filter(Task.trang_thai == "Hoàn thành").count(),
+        "hoan_thanh_tuan": tasks_query.filter(
+            Task.trang_thai == "Hoàn thành",
+            Task.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday()),
+        ).count(),
+        "hoan_thanh_thang": tasks_query.filter(
+            Task.trang_thai == "Hoàn thành",
+            func.extract("month", Task.ngay_hoan_thanh) == today.month,
+        ).count(),
+        "dang_cho": tasks_query.filter(Task.trang_thai == "Đang chờ").count(),
+        "qua_han": tasks_query.filter(Task.trang_thai == "Quá hạn").count(),
     }
 
-    from urllib.parse import urlencode
-
-    query_params = {
-        "search": search,
-        "trang_thai": trang_thai,
-        "han_hoan_thanh": han_hoan_thanh,
-        "chi_nhanh": chi_nhanh,
-    }
-    query_string = "&" + urlencode({k: v for k, v in query_params.items() if v}) if any(query_params.values()) else ""
-
-    # Lấy toàn bộ tasks cho Calendar
-    all_tasks_for_calendar = rows_all
+    if role in ["admin", "boss"]:
+        # Admin/Boss: luôn thấy tất cả chi nhánh
+        chi_nhanhs_display = BRANCHES
+    else:
+        chi_nhanhs_display = sorted(chi_nhanhs_set)
 
 
-    all_tasks_for_calendar_serialized = [
+    # ✅ Render template
+    response = templates.TemplateResponse(
+        "home.html",
         {
-            "id": t.id,
-            "phong": t.phong,
-            "mo_ta": t.mo_ta,
-            "han_hoan_thanh": t.han_hoan_thanh.strftime("%Y-%m-%d") if t.han_hoan_thanh else "",
-            "han_hoan_thanh_raw": t.han_hoan_thanh.strftime("%d/%m/%Y") if t.han_hoan_thanh else "",
-            "trang_thai": t.trang_thai
-        } for t in all_tasks_for_calendar
-    ]
-
-    # ✅ Trả về template
-    response = templates.TemplateResponse("home.html", {
-        "request": request,
-        "tasks": tasks,
-        "user": username,
-        "role": role,
-        "user_name": user_name,
-        "search": search,
-        "trang_thai": trang_thai,
-        "chi_nhanh": chi_nhanh,
-        "chi_nhanhs": sorted(chi_nhanhs_set),
-        "user_chi_nhanh": user_branch,
-        "branches": BRANCHES,
-        "now": today,
-        "thong_ke": thong_ke,
-        "page": page,
-        "total_pages": total_pages,
-        "per_page": per_page,
-        "query_string": query_string,
-        "all_tasks_for_calendar": all_tasks_for_calendar_serialized,
-    })
+            "request": request,
+            "tasks": tasks,
+            "user": username,
+            "role": role,
+            "user_name": user_name,
+            "search": search,
+            "trang_thai": trang_thai,
+            "chi_nhanh": branch_to_filter, # Sử dụng chi nhánh đã lọc để hiển thị trên dropdown
+            "chi_nhanhs": chi_nhanhs_display,
+            "user_chi_nhanh": active_branch,
+            "branches": BRANCHES,
+            "now": today,
+            "thong_ke": thong_ke,
+            "page": page,
+            "total_pages": total_pages,
+            "per_page": per_page,
+            "query_string": "",  # rút gọn cho gọn code, giữ như cũ nếu bạn cần
+            "all_tasks_for_calendar": [],
+        },
+    )
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -880,11 +951,19 @@ def add_task(
         return RedirectResponse("/login", status_code=303)
 
     role = user.get("role")
-    user_branch = user.get("branch")
 
-    # ✅ Nếu không phải là các vai trò quản lý cấp cao, thì ép chi nhánh từ session
+    # Đối với các vai trò không có dropdown chọn chi nhánh (ví dụ: lễ tân),
+    # chi nhánh phải được xác định một cách an toàn ở phía server
+    # dựa trên chi nhánh hoạt động (active_branch) từ GPS/session.
     if role not in ["quanly", "ktv", "admin", "boss"]:
-        chi_nhanh = user_branch
+        user_from_db = db.query(User).filter(User.code == user["code"]).first()
+        # Sử dụng logic tương tự như route GET /home để đảm bảo tính nhất quán
+        active_branch = (
+            request.session.get("active_branch")
+            or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
+            or user.get("branch")
+        )
+        chi_nhanh = active_branch
 
     if not chi_nhanh:
         raise HTTPException(status_code=400, detail="Không xác định được chi nhánh")
@@ -977,11 +1056,17 @@ async def edit_submit(
         return RedirectResponse("/login", status_code=303)
 
     role = user.get("role")
-    user_branch = user.get("branch")
 
-    # ✅ Nếu không phải là các vai trò quản lý cấp cao, thì ép chi nhánh từ session
+    # Tương tự như khi thêm mới, vai trò không có dropdown chọn chi nhánh
+    # phải được xác định chi nhánh một cách an toàn ở phía server.
     if role not in ["quanly", "ktv", "admin", "boss"]:
-        chi_nhanh = user_branch
+        user_from_db = db.query(User).filter(User.code == user["code"]).first()
+        active_branch = (
+            request.session.get("active_branch")
+            or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
+            or user.get("branch")
+        )
+        chi_nhanh = active_branch
 
     if not chi_nhanh:
         raise HTTPException(status_code=400, detail="Không xác định được chi nhánh")
@@ -1114,7 +1199,6 @@ async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
 from employees import employees
 from database import SessionLocal
 from models import User
-
 def sync_employees_from_source(db: Session, employees: list[dict], force_delete: bool = False):
     allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
     seen_codes = set()
@@ -1129,7 +1213,8 @@ def sync_employees_from_source(db: Session, employees: list[dict], force_delete:
     # --- Bước 2: Xóa nhân viên không còn trong employees (nếu force_delete=True) ---
     if force_delete:
         db.query(User).filter(~User.code.in_(incoming_codes)).delete(synchronize_session=False)
-        print("[SYNC] Đã xóa các nhân viên không còn trong danh sách nguồn.")
+        db.commit()
+        logger.info("[SYNC] Đã xóa các nhân viên không còn trong danh sách nguồn.")
 
     # --- Bước 3: Đồng bộ từng nhân viên ---
     for emp in employees:
@@ -1150,10 +1235,9 @@ def sync_employees_from_source(db: Session, employees: list[dict], force_delete:
             if code.lower() in ["admin", "boss"]:
                 role = code.lower()
 
-        # Kiểm tra nhân viên đã tồn tại chưa
         existing = db.query(User).filter(User.code == code).first()
         if existing:
-            # Cập nhật các thông tin khác (KHÔNG reset password)
+            # Cập nhật thông tin khác (KHÔNG reset password)
             existing.name = name
             existing.role = role
             existing.branch = branch
@@ -1164,9 +1248,9 @@ def sync_employees_from_source(db: Session, employees: list[dict], force_delete:
                 password = "999" if role in allowed_login_roles else ""
             db.add(User(code=code, name=name, password=password, role=role, branch=branch))
 
-    # --- Bước 4: Lưu thay đổi ---
-    db.commit()
-    print("[SYNC] Đồng bộ nhân viên thành công (cập nhật + xóa những user không còn).")
+    db.commit() # Commit một lần duy nhất ở cuối hàm
+
+    logger.info("Đồng bộ nhân viên thành công")
 
 @app.get("/sync-employees")
 def sync_employees_endpoint(request: Request):
@@ -1177,7 +1261,9 @@ def sync_employees_endpoint(request: Request):
     user = request.session.get("user")
     if not user or user.get("role") not in ["admin", "boss"]:
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
-    sync_employees_from_source(db=SessionLocal(), employees=employees, force_delete=True)
+    db = SessionLocal()
+    sync_employees_from_source(db=db, employees=employees, force_delete=True)
+    db.close()
     return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py"}
 
 @app.get("/logout")
@@ -1204,12 +1290,14 @@ def reset_sequence(db, table_name: str, id_col: str = "id"):
     try:
         db.execute(text(sql))
         db.commit()
-        print(f"[INIT] Đã đồng bộ sequence cho bảng {table_name}")
+        logger.info(f"Đã đồng bộ sequence cho bảng {table_name}")
     except Exception as e:
-        print(f"[INIT] Lỗi khi reset sequence cho {table_name}: {e}")
+        logger.error(f"Lỗi khi reset sequence cho {table_name}: {e}", exc_info=True)
 
 @app.on_event("startup")
 def startup():
+    logger.info("🚀 Khởi động ứng dụng...")
+
     # --- 1. Init DB ---
     init_db()
 
@@ -1218,41 +1306,16 @@ def startup():
         for table in TABLES_WITH_SERIAL_ID:
             reset_sequence(db, table)
 
-        # --- 3. Đồng bộ nhân viên ---
+        # --- 3. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
         try:
             sync_employees_from_source(db=db, employees=employees, force_delete=False)
-            print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
+            logger.info("Hoàn tất đồng bộ nhân viên từ employees.py")
         except Exception as e:
-            print("[STARTUP] Không thể đồng bộ nhân viên:", e)
+            logger.error("Không thể đồng bộ nhân viên", exc_info=True)
 
-    # --- 4. Theo dõi file employees.py để tự động sync ---
-    EMPLOYEES_FILE = os.path.join(os.path.dirname(__file__), "employees.py")
-    _last_mtime = None
-
-    def watch_employees_file():
-        nonlocal _last_mtime
-        while True:
-            try:
-                mtime = os.path.getmtime(EMPLOYEES_FILE)
-                if _last_mtime is None:
-                    _last_mtime = mtime
-                elif mtime != _last_mtime:
-                    _last_mtime = mtime
-                    print("[SYNC] employees.py thay đổi → đồng bộ DB...")
-                    with SessionLocal() as db:
-                        sync_employees_from_source(db=db, employees=employees, force_delete=False)
-                    print("[SYNC] Hoàn tất đồng bộ nhân viên từ employees.py")
-            except FileNotFoundError:
-                print("[SYNC] Không tìm thấy file employees.py")
-            except Exception as e:
-                print("[SYNC] Lỗi khi theo dõi employees.py:", e)
-            time.sleep(5)
-
-    threading.Thread(target=watch_employees_file, daemon=True).start()
-
-    # --- 5. Lập lịch auto logout + kiểm tra điểm danh ---
+    # --- 4. Lập lịch auto logout + kiểm tra điểm danh ---
     def auto_logout_job():
-        print(f"[{datetime.now(VN_TZ)}] Kích hoạt đăng xuất tự động. Các client cần thực hiện đăng xuất.")
+        logger.info("Kích hoạt đăng xuất tự động cho tất cả client.")
 
     scheduler = BackgroundScheduler(timezone=str(VN_TZ))
     scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
@@ -1260,8 +1323,10 @@ def startup():
     scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
     scheduler.start()
 
-    print("✅ Startup hoàn tất: reset sequence, đồng bộ nhân viên, theo dõi file employees.py, lập lịch auto logout/check vắng")
+    # --- 5. Shutdown scheduler khi app stop ---
     atexit.register(lambda: scheduler.shutdown())
+
+    logger.info("✅ Startup hoàn tất: DB init, reset sequence, sync nhân viên, lập lịch auto logout/check vắng")
 
 if __name__ == "__main__":
     import uvicorn
@@ -1456,13 +1521,13 @@ async def attendance_checkin_bulk(
         db.commit()
     except SQLAlchemyError as e:
         db.rollback()
-        print(f"[DB_ERROR] Lỗi khi lưu điểm danh/dịch vụ: {e}")
+        logger.error(f"Lỗi khi lưu điểm danh/dịch vụ: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Lỗi khi lưu kết quả vào cơ sở dữ liệu.")
 
     # Chạy push_bulk_checkin ở background để ghi vào Google Sheets
     background_tasks.add_task(push_bulk_checkin, normalized_data)
 
-    print(f"[AUDIT] {nguoi_diem_danh_code} gửi {len(normalized_data)} record (ghi DB & queue ghi Sheets)")
+    logger.info(f"{nguoi_diem_danh_code} gửi {len(normalized_data)} record (ghi DB & queue ghi Sheets)")
 
     # Nếu đây là lần điểm danh ngay sau khi đăng nhập (trên mobile),
     # thì hoàn tất phiên đăng nhập và trả về URL để chuyển hướng.
@@ -1530,14 +1595,17 @@ async def api_get_attendance_results(
     per_page: int = 20,
     filter_type: Optional[str] = None,
     filter_date: Optional[str] = None,
-    filter_ma_nv: Optional[str] = None,
-    filter_ten_nv: Optional[str] = None,
+    filter_nhan_vien: Optional[str] = None,
     filter_chuc_vu: Optional[str] = None,
     filter_cn_lam: Optional[str] = None,
     filter_so_cong: Optional[float] = None,
     filter_tang_ca: Optional[str] = None,
     filter_ghi_chu: Optional[str] = None,
     filter_nguoi_thuc_hien: Optional[str] = None,
+    filter_dich_vu: Optional[str] = None,
+    filter_so_phong: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = 'desc',
 ):
     """
     API trả về kết quả điểm danh.
@@ -1611,12 +1679,10 @@ async def api_get_attendance_results(
     )
 
     # Role-based filtering
-    if user_role == "letan":
+    if user_role not in ["admin", "boss"]:
+        # Non-admin roles (letan, ktv, quanly) see records they created OR records about them.
         att_q = att_q.where(or_(AttendanceRecord.nguoi_diem_danh == checker_code, AttendanceRecord.ma_nv == checker_code))
-        svc_q = svc_q.where(ServiceRecord.nguoi_cham == checker_code)
-    elif user_role not in ["admin", "boss"]:
-        att_q = att_q.where(AttendanceRecord.nguoi_diem_danh == checker_code)
-        svc_q = svc_q.where(ServiceRecord.nguoi_cham == checker_code)
+        svc_q = svc_q.where(or_(ServiceRecord.nguoi_cham == checker_code, ServiceRecord.ma_nv == checker_code))
 
     # Union the two queries
     u = union_all(att_q, svc_q).alias("u")
@@ -1633,10 +1699,12 @@ async def api_get_attendance_results(
             final_query = final_query.where(u.c.date_col == parsed_date)
         except ValueError:
             pass # Ignore invalid date format
-    if filter_ma_nv:
-        final_query = final_query.where(u.c.ma_nv.ilike(f"%{filter_ma_nv}%"))
-    if filter_ten_nv:
-        final_query = final_query.where(u.c.ten_nv.ilike(f"%{filter_ten_nv}%"))
+    if filter_nhan_vien:
+        search_pattern = f"%{filter_nhan_vien}%"
+        final_query = final_query.where(or_(
+            u.c.ma_nv.ilike(search_pattern),
+            u.c.ten_nv.ilike(search_pattern)
+        ))
     if filter_chuc_vu:
         matching_roles = [
             role for role, vn_role in ROLE_MAP.items()
@@ -1645,7 +1713,7 @@ async def api_get_attendance_results(
         if matching_roles:
             final_query = final_query.where(u.c.chuc_vu_raw.in_(matching_roles))
     if filter_cn_lam:
-        final_query = final_query.where(u.c.chi_nhanh_lam.ilike(f"%{filter_cn_lam}%"))
+        final_query = final_query.where(u.c.chi_nhanh_lam == filter_cn_lam)
     if filter_so_cong is not None:
         final_query = final_query.where(u.c.so_cong == filter_so_cong)
     if filter_tang_ca and filter_tang_ca != 'all':
@@ -1658,14 +1726,46 @@ async def api_get_attendance_results(
             u.c.nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%"),
             u.c.ten_nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%")
         ))
+    if filter_dich_vu:
+        final_query = final_query.where(u.c.dich_vu.ilike(f"%{filter_dich_vu}%"))
+    if filter_so_phong:
+        final_query = final_query.where(u.c.so_phong.ilike(f"%{filter_so_phong}%"))
 
     # Get total count for pagination
     count_query = select(func.count()).select_from(final_query.alias("count_alias"))
     total_records = db.execute(count_query).scalar_one() or 0
     total_pages = math.ceil(total_records / per_page) if per_page > 0 else 1
 
-    # Apply sorting and pagination
-    paginated_query = final_query.order_by(desc(u.c.date_col), desc(u.c.time_col)).offset((page - 1) * per_page).limit(per_page)
+    # Apply sorting
+    order_expressions = []
+    sort_map = {
+        "thoi_gian": [u.c.date_col, u.c.time_col],
+        "nguoi_thuc_hien": [u.c.ten_nguoi_thuc_hien],
+        "ma_nv": [u.c.ma_nv],
+        "ten_nv": [u.c.ten_nv],
+        "chuc_vu": [u.c.chuc_vu_raw],
+        "chi_nhanh_lam": [u.c.chi_nhanh_lam],
+        "so_cong": [u.c.so_cong],
+        "la_tang_ca": [u.c.la_tang_ca],
+        "dich_vu": [u.c.dich_vu],
+        "so_phong": [u.c.so_phong],
+        "so_luong": [u.c.so_luong],
+        "type": [u.c.type],
+    }
+
+    if sort_by and sort_by in sort_map:
+        sort_columns = sort_map[sort_by]
+        if sort_order == 'asc':
+            order_expressions.extend([col.asc().nullslast() for col in sort_columns])
+        else:
+            order_expressions.extend([col.desc().nullslast() for col in sort_columns])
+
+    # Add default sort as secondary to ensure consistent ordering
+    if sort_by != 'thoi_gian':
+        order_expressions.extend([desc(u.c.date_col), desc(u.c.time_col)])
+
+    # Final query with sorting and pagination
+    paginated_query = final_query.order_by(*order_expressions).offset((page - 1) * per_page).limit(per_page)
     
     records = db.execute(paginated_query).all()
 
@@ -1705,6 +1805,24 @@ async def api_get_attendance_results(
         "totalRecords": total_records,
     })
 
+def _auto_adjust_worksheet_columns(worksheet):
+    """Helper function to adjust column widths of a worksheet."""
+    for i, column_cells in enumerate(worksheet.columns, 1):
+        max_length = 0
+        column_letter = get_column_letter(i)
+        # Also check header length
+        if worksheet.cell(row=1, column=i).value:
+            max_length = len(str(worksheet.cell(row=1, column=i).value))
+
+        for cell in column_cells:
+            try:
+                if len(str(cell.value)) > max_length:
+                    max_length = len(str(cell.value))
+            except:
+                pass
+        adjusted_width = (max_length + 2)
+        worksheet.column_dimensions[column_letter].width = adjusted_width
+
 @app.get("/api/tasks/export-excel")
 async def export_tasks_to_excel(
     request: Request,
@@ -1732,9 +1850,12 @@ async def export_tasks_to_excel(
         t.han_hoan_thanh or far_future
     ))
 
-    data_for_df = []
+    if not rows_all:
+        return Response(status_code=204)
+
+    data_for_export = []
     for t in rows_all:
-        data_for_df.append({
+        data_for_export.append({
             "ID": t.id,
             "Chi Nhánh": t.chi_nhanh,
             "Phòng": t.phong,
@@ -1748,20 +1869,18 @@ async def export_tasks_to_excel(
             "Ghi Chú": t.ghi_chu or "",
         })
 
-    df = pd.DataFrame(data_for_df)
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='CongViec')
-        worksheet = writer.sheets['CongViec']
-        for column in worksheet.columns:
-            max_length = 0
-            column_letter = column[0].column_letter
-            for cell in column:
-                try:
-                    if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
-                except: pass
-            adjusted_width = (max_length + 2)
-            worksheet.column_dimensions[column_letter].width = adjusted_width
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "CongViec"
+
+    headers = list(data_for_export[0].keys())
+    ws.append(headers)
+    for row_data in data_for_export:
+        ws.append(list(row_data.values()))
+    _auto_adjust_worksheet_columns(ws)
+
+    wb.save(output)
     output.seek(0)
 
     filename = f"danh_sach_cong_viec_{datetime.now(VN_TZ).strftime('%Y%m%d_%H%M%S')}.xlsx"
@@ -1777,14 +1896,15 @@ async def export_attendance_results_to_excel(
     db: Session = Depends(get_db),
     filter_type: Optional[str] = None,
     filter_date: Optional[str] = None,
-    filter_ma_nv: Optional[str] = None,
-    filter_ten_nv: Optional[str] = None,
+    filter_nhan_vien: Optional[str] = None,
     filter_chuc_vu: Optional[str] = None,
     filter_cn_lam: Optional[str] = None,
     filter_so_cong: Optional[float] = None,
     filter_tang_ca: Optional[str] = None,
     filter_ghi_chu: Optional[str] = None,
     filter_nguoi_thuc_hien: Optional[str] = None,
+    filter_dich_vu: Optional[str] = None,
+    filter_so_phong: Optional[str] = None,
 ):
     """
     API to export filtered attendance results to an Excel file with separate sheets
@@ -1846,10 +1966,11 @@ async def export_attendance_results_to_excel(
                 parsed_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
                 query = query.where(query.selected_columns.date_col == parsed_date)
             except (ValueError, TypeError): pass
-        if filter_ma_nv:
-            query = query.where(query.selected_columns.ma_nv.ilike(f"%{filter_ma_nv}%"))
-        if filter_ten_nv:
-            query = query.where(query.selected_columns.ten_nv.ilike(f"%{filter_ten_nv}%"))
+        if filter_nhan_vien:
+            query = query.where(or_(
+                query.selected_columns.ma_nv.ilike(f"%{filter_nhan_vien}%"),
+                query.selected_columns.ten_nv.ilike(f"%{filter_nhan_vien}%")
+            ))
         if filter_chuc_vu:
             matching_roles = [role for role, vn_role in ROLE_MAP.items() if filter_chuc_vu.lower() in vn_role.lower()]
             if matching_roles:
@@ -1868,6 +1989,11 @@ async def export_attendance_results_to_excel(
                 query.selected_columns.nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%"),
                 query.selected_columns.ten_nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%")
             ))
+        if not is_att_query:
+            if filter_dich_vu:
+                query = query.where(query.selected_columns.dich_vu.ilike(f"%{filter_dich_vu}%"))
+            if filter_so_phong:
+                query = query.where(query.selected_columns.so_phong.ilike(f"%{filter_so_phong}%"))
         return query
 
     # Apply filters to each query
@@ -1909,37 +2035,32 @@ async def export_attendance_results_to_excel(
             "Ghi chú": ghi_chu_text,
         })
 
-    df_att = pd.DataFrame(att_data_for_df)
-    df_svc = pd.DataFrame(svc_data_for_df)
-
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        if not df_att.empty:
-            df_att.to_excel(writer, index=False, sheet_name='Điểm danh')
-            worksheet = writer.sheets['Điểm danh']
-            for column in worksheet.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
-                    except: pass
-                adjusted_width = (max_length + 2)
-                worksheet.column_dimensions[column_letter].width = adjusted_width
-        
-        if not df_svc.empty:
-            df_svc.to_excel(writer, index=False, sheet_name='Chấm Dịch Vụ')
-            worksheet = writer.sheets['Chấm Dịch Vụ']
-            for column in worksheet.columns:
-                max_length = 0
-                column_letter = column[0].column_letter
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length: max_length = len(str(cell.value))
-                    except: pass
-                adjusted_width = (max_length + 2)
-                worksheet.column_dimensions[column_letter].width = adjusted_width
+    wb = openpyxl.Workbook()
+    wb.remove(wb.active) # Remove default sheet
 
+    # --- Sheet 1: Điểm danh ---
+    if att_data_for_df:
+        ws_att = wb.create_sheet(title="Điểm danh")
+        headers_att = list(att_data_for_df[0].keys())
+        ws_att.append(headers_att)
+        for row_data in att_data_for_df:
+            ws_att.append(list(row_data.values()))
+        _auto_adjust_worksheet_columns(ws_att)
+
+    # --- Sheet 2: Chấm Dịch Vụ ---
+    if svc_data_for_df:
+        ws_svc = wb.create_sheet(title="Chấm Dịch Vụ")
+        headers_svc = list(svc_data_for_df[0].keys())
+        ws_svc.append(headers_svc)
+        for row_data in svc_data_for_df:
+            ws_svc.append(list(row_data.values()))
+        _auto_adjust_worksheet_columns(ws_svc)
+
+    if not wb.sheetnames: # If no data was added
+        return Response(status_code=204)
+
+    wb.save(output)
     output.seek(0)
 
     filename = f"ket_qua_diem_danh_{datetime.now(VN_TZ).strftime('%Y%m%d_%H%M%S')}.xlsx"
