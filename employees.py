@@ -36,10 +36,10 @@ employees = [
 #--------------------------------------- BIN BIN HOTEL 9 --------------------------------------------#
     {"code": "B9LTCS", "name": "Đặng Thụy Yến Nhi", "department": "Lễ tân", "branch": "B9", "role": "letan"},
     {"code": "B9LTCT", "name": "Lê Quang Hoàng An", "department": "Lễ tân", "branch": "B9", "role": "letan"},
-    {"code": "B9BPCS", "name": "Phan Bảo Trân", "department": "Buồng phòng", "branch": "B9", "role": "buongphong"}, 
+    {"code": "B9BPCS", "name": "Phan Bảo Trân", "department": "Buồng phòng", "branch": "B9", "role": "buongphong"},
     {"code": "B9BPCT", "name": "Đinh Kim Thanh", "department": "Buồng phòng", "branch": "B9", "role": "buongphong"},
 #--------------------------------------- BIN BIN HOTEL 10 --------------------------------------------#
-    {"code": "B10BVCS", "name": "Hà Phúc Duy", "department": "Bảo vệ", "branch": "B10", "role": "baove"},
+    # {"code": "B10BVCS", "name": "Hà Phúc Duy", "department": "Bảo vệ", "branch": "B10", "role": "baove"},
     {"code": "B10LTCS", "name": "Lê Thị Thanh Trinh", "department": "Lễ tân", "branch": "B10", "role": "letan"},
     {"code": "B10LTCT", "name": "Nguyễn Ngọc Tuấn", "department": "Lễ tân", "branch": "B10", "role": "letan"},
     {"code": "B10BPCS", "name": "Nguyễn Thị Tuyết", "department": "Buồng phòng", "branch": "B10", "role": "buongphong"},
@@ -68,7 +68,7 @@ employees = [
     {"code": "B15BPCS01", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BPCS02", "name": "Nguyễn Thành Vũ", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BPCT", "name": "Trần Thị Thanh Nhãn", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
-    {"code": "B15BVCS", "name": "Bùi Minh Nghĩa", "department": "Bảo vệ", "branch": "B15", "role": "baove"},
+    {"code": "B15BVCT", "name": "Bùi Minh Nghĩa", "department": "Bảo vệ", "branch": "B15", "role": "baove"},
 #--------------------------------------- BIN BIN HOTEL 16 --------------------------------------------#
     {"code": "B16LTCS", "name": "Nguyễn Hoàng Thanh Minh", "department": "Lễ tân", "branch": "B16", "role": "letan"},
     {"code": "B16LTCT", "name": "Lê Hữu Nghĩa", "department": "Lễ tân", "branch": "B16", "role": "letan"},
@@ -89,6 +89,7 @@ employees = [
     {"code": "QL03", "name": "Nguyễn Đỗ Minh Luân", "department": "Quản Lý", "branch": "quanly3", "role": "quanly"},
     {"code": "QL04", "name": "Mr. Thuật", "department": "Quản Lý", "branch": "quanly4", "role": "quanly"},
 #--------------------------------------- ADMIN --------------------------------------------#
-    {"code": "Admin", "name": "Minh Vincent", "department": "Quản Lý", "branch": "admin", "role": "admin"},
+    {"code": "Admin", "name": "Vincent Minh", "department": "Quản Lý", "branch": "admin", "role": "admin"},
+    {"code": "ThuyLinh", "name": "Thùy Linh", "department": "Quản Lý", "branch": "admin", "role": "admin"},
     {"code": "Boss", "name": "Sếp Bin", "department": "Giám Đốc", "branch": "boss", "role": "boss"},
 ]
