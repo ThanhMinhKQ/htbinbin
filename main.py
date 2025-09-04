@@ -847,6 +847,24 @@ def home(
         db, user_data, branch_to_filter, search, trang_thai, han_hoan_thanh
     )
 
+    # ✅ Lấy tất cả công việc cho Lịch (bỏ qua filter ngày và phân trang)
+    # Điều này đảm bảo lịch luôn hiển thị tất cả các công việc phù hợp với bộ lọc hiện tại,
+    # không bị giới hạn bởi bộ lọc ngày cụ thể.
+    calendar_tasks_query = _get_filtered_tasks_query(
+        db, user_data, branch_to_filter, search, trang_thai, "" # han_hoan_thanh rỗng
+    )
+    all_tasks_for_cal = calendar_tasks_query.all()
+    calendar_tasks_data = [
+        {
+            "id": t.id,
+            "phong": t.phong,
+            "mo_ta": t.mo_ta,
+            "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
+            "han_hoan_thanh_raw": t.han_hoan_thanh.isoformat() if t.han_hoan_thanh else None,
+            "trang_thai": t.trang_thai,
+        } for t in all_tasks_for_cal
+    ]
+
     # ✅ Tổng số task
     total_tasks = tasks_query.count()
     total_pages = max(1, (total_tasks + per_page - 1) // per_page)
@@ -927,7 +945,7 @@ def home(
             "total_pages": total_pages,
             "per_page": per_page,
             "query_string": "",  # rút gọn cho gọn code, giữ như cũ nếu bạn cần
-            "all_tasks_for_calendar": [],
+            "all_tasks_for_calendar": calendar_tasks_data,
         },
     )
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
