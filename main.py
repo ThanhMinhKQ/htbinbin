@@ -885,6 +885,13 @@ def home(
     tasks, chi_nhanhs_set = [], set()
     for t in rows:
         chi_nhanhs_set.add(t.chi_nhanh)
+
+        # Logic hiển thị trạng thái động:
+        # Nếu một công việc trong DB là "Đang chờ" nhưng thực tế đã quá hạn,
+        # ta sẽ hiển thị nó là "Quá hạn" ngay lập tức trên UI mà không cần chờ tác vụ nền.
+        task_is_overdue = is_overdue(t)
+        display_status = "Quá hạn" if t.trang_thai == "Đang chờ" and task_is_overdue else t.trang_thai
+
         tasks.append({
             "id": t.id,
             "chi_nhanh": t.chi_nhanh,
@@ -893,12 +900,12 @@ def home(
             "ngay_tao": format_datetime_display(t.ngay_tao, with_time=True),
             "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
             "han_hoan_thanh_raw": t.han_hoan_thanh.isoformat() if t.han_hoan_thanh else None,
-            "trang_thai": t.trang_thai,
+            "trang_thai": display_status,
             "nguoi_tao": t.nguoi_tao,
             "ghi_chu": t.ghi_chu or "",
             "nguoi_thuc_hien": t.nguoi_thuc_hien,
             "ngay_hoan_thanh": format_datetime_display(t.ngay_hoan_thanh, with_time=True) if t.ngay_hoan_thanh else "",
-            "is_overdue": is_overdue(t),
+            "is_overdue": task_is_overdue,
         })
 
     # ✅ Thống kê
