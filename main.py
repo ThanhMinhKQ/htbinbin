@@ -12,7 +12,7 @@ from fastapi import Request
 from typing import Optional
 from config import logger
 
-from database import SessionLocal, get_db
+from database import SessionLocal, get_db, Base
 from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord
 from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
 from database import init_db
@@ -924,6 +924,18 @@ def home(
         chi_nhanhs_display = sorted(chi_nhanhs_set)
 
 
+    # Tạo query string cho phân trang, giữ lại các bộ lọc hiện tại
+    query_params = {
+        "chi_nhanh": branch_to_filter,
+        "search": search,
+        "trang_thai": trang_thai,
+        "han_hoan_thanh": han_hoan_thanh,
+        "per_page": per_page,
+    }
+    # Loại bỏ các key có giá trị rỗng hoặc None
+    active_filters = {k: v for k, v in query_params.items() if v}
+    pagination_query_string = urlencode(active_filters)
+
     # ✅ Render template
     response = templates.TemplateResponse(
         "home.html",
@@ -944,7 +956,7 @@ def home(
             "page": page,
             "total_pages": total_pages,
             "per_page": per_page,
-            "query_string": "",  # rút gọn cho gọn code, giữ như cũ nếu bạn cần
+            "query_string": f"&{pagination_query_string}" if pagination_query_string else "",
             "all_tasks_for_calendar": calendar_tasks_data,
         },
     )
@@ -1296,6 +1308,43 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 from employees import employees
 
+def update_overdue_tasks_status():
+    """
+    Tác vụ nền tự động cập nhật trạng thái các công việc từ "Đang chờ" sang "Quá hạn".
+    Sử dụng một câu lệnh UPDATE duy nhất để tối ưu hiệu suất và bộ nhớ.
+    Chỉ so sánh ngày để xác định quá hạn.
+    """
+    db = SessionLocal()
+    try:
+        # Lấy ngày hiện tại theo múi giờ Việt Nam
+        today_vn = datetime.now(VN_TZ).date()
+        
+        # Thực hiện một câu lệnh UPDATE trực tiếp trên DB.
+        # So sánh ngày của han_hoan_thanh với ngày hiện tại.
+        updated_count = db.query(Task).filter(
+            Task.trang_thai == "Đang chờ",
+            cast(Task.han_hoan_thanh, Date) < today_vn
+        ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
+        
+        db.commit()
+
+        if updated_count > 0:
+            logger.info(f"[AUTO_UPDATE_STATUS] Đã cập nhật {updated_count} công việc sang trạng thái 'Quá hạn'.")
+        else:
+            logger.info("[AUTO_UPDATE_STATUS] Không có công việc nào cần cập nhật trạng thái.")
+
+    except Exception as e:
+        logger.error(f"[AUTO_UPDATE_STATUS] Lỗi khi cập nhật trạng thái công việc quá hạn: {e}", exc_info=True)
+        db.rollback()
+    finally:
+        db.close()
+
+from database import SessionLocal, init_db
+import os, time, threading, atexit
+from apscheduler.schedulers.background import BackgroundScheduler
+from datetime import datetime
+from employees import employees
+
 # Danh sách các bảng có cột id SERIAL cần reset sequence
 TABLES_WITH_SERIAL_ID = ["tasks", "attendance_log", "attendance_records", "service_records"]
 
@@ -1331,11 +1380,14 @@ def startup():
         except Exception as e:
             logger.error("Không thể đồng bộ nhân viên", exc_info=True)
 
-    # --- 4. Lập lịch auto logout + kiểm tra điểm danh ---
+    # --- 4. Lập lịch các tác vụ nền ---
     def auto_logout_job():
         logger.info("Kích hoạt đăng xuất tự động cho tất cả client.")
 
     scheduler = BackgroundScheduler(timezone=str(VN_TZ))
+    # Chạy mỗi ngày lúc 01:05 sáng để cập nhật trạng thái công việc
+    scheduler.add_job(update_overdue_tasks_status, 'cron', hour=1, minute=5, id='update_overdue_tasks')
+    # Các job cũ
     scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
     scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
     scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
@@ -1344,7 +1396,7 @@ def startup():
     # --- 5. Shutdown scheduler khi app stop ---
     atexit.register(lambda: scheduler.shutdown())
 
-    logger.info("✅ Startup hoàn tất: DB init, reset sequence, sync nhân viên, lập lịch auto logout/check vắng")
+    logger.info("✅ Startup hoàn tất: DB init, reset sequence, sync nhân viên, lập lịch các tác vụ nền.")
 
 if __name__ == "__main__":
     import uvicorn
