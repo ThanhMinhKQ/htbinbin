@@ -1754,6 +1754,7 @@ document.addEventListener("DOMContentLoaded", function() {
             let color = "#fbbf24"; // Vàng - Đang chờ
             if (task.trang_thai === "Quá hạn") color = "#ef4444"; // Đỏ - Quá hạn
             if (task.trang_thai === "Hoàn thành") color = "#10b981"; // Xanh lá - Hoàn thành
+            if (task.trang_thai === "Đã xoá") color = "#6b7280"; // Xám - Đã xoá
 
             // Chuyển ngày về yyyy-mm-dd nếu cần
             let rawDate = task.han_hoan_thanh_raw || task.han_hoan_thanh;
