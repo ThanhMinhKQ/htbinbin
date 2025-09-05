@@ -1312,18 +1312,19 @@ def update_overdue_tasks_status():
     """
     Tác vụ nền tự động cập nhật trạng thái các công việc từ "Đang chờ" sang "Quá hạn".
     Sử dụng một câu lệnh UPDATE duy nhất để tối ưu hiệu suất và bộ nhớ.
-    Chỉ so sánh ngày để xác định quá hạn.
+    So sánh thời gian đầy đủ (datetime) để đảm bảo tính chính xác.
     """
     db = SessionLocal()
     try:
-        # Lấy ngày hiện tại theo múi giờ Việt Nam
-        today_vn = datetime.now(VN_TZ).date()
+        # Lấy thời gian hiện tại theo múi giờ Việt Nam
+        now_vn = datetime.now(VN_TZ)
         
         # Thực hiện một câu lệnh UPDATE trực tiếp trên DB.
-        # So sánh ngày của han_hoan_thanh với ngày hiện tại.
+        # So sánh thời gian đầy đủ của han_hoan_thanh với thời gian hiện tại.
+        # Một công việc được coi là quá hạn nếu thời gian hiện tại đã vượt qua hạn hoàn thành.
         updated_count = db.query(Task).filter(
             Task.trang_thai == "Đang chờ",
-            cast(Task.han_hoan_thanh, Date) < today_vn
+            Task.han_hoan_thanh < now_vn
         ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
         
         db.commit()
@@ -1385,8 +1386,11 @@ def startup():
         logger.info("Kích hoạt đăng xuất tự động cho tất cả client.")
 
     scheduler = BackgroundScheduler(timezone=str(VN_TZ))
-    # Chạy mỗi ngày lúc 01:05 sáng để cập nhật trạng thái công việc
-    scheduler.add_job(update_overdue_tasks_status, 'cron', hour=1, minute=5, id='update_overdue_tasks')
+    # Chạy tác vụ cập nhật trạng thái công việc mỗi 3 giờ để tiết kiệm tài nguyên.
+    # Điều này đảm bảo hệ thống phản ứng nhanh hơn và linh hoạt hơn với các
+    # nền tảng hosting có thể "ngủ" (sleep) khi không có traffic.
+    # misfire_grace_time=600: Nếu job bị lỡ, nó vẫn sẽ chạy nếu server thức dậy trong vòng 10 phút.
+    scheduler.add_job(update_overdue_tasks_status, 'interval', hours=3, id='update_overdue_tasks', misfire_grace_time=600)
     # Các job cũ
     scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
     scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
