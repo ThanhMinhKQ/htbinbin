@@ -809,6 +809,17 @@ def home(
     if not user_data:
         return RedirectResponse("/login", status_code=303)
 
+    # Đồng bộ trạng thái "Quá hạn" trước khi query dữ liệu
+    try:
+        db.query(Task).filter(
+            Task.trang_thai == "Đang chờ",
+            Task.han_hoan_thanh < today
+        ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Lỗi khi cập nhật trạng thái công việc quá hạn trong route /home: {e}", exc_info=True)
+
     username = user_data["code"]
     role = user_data["role"]
     user_name = user_data["name"]
@@ -854,16 +865,17 @@ def home(
         db, user_data, branch_to_filter, search, trang_thai, "" # han_hoan_thanh rỗng
     )
     all_tasks_for_cal = calendar_tasks_query.all()
-    calendar_tasks_data = [
-        {
+    calendar_tasks_data = []
+    for t in all_tasks_for_cal:
+        # Dữ liệu đã được đồng bộ ở đầu route, chỉ cần lấy trực tiếp
+        calendar_tasks_data.append({
             "id": t.id,
             "phong": t.phong,
             "mo_ta": t.mo_ta,
             "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
             "han_hoan_thanh_raw": t.han_hoan_thanh.isoformat() if t.han_hoan_thanh else None,
             "trang_thai": t.trang_thai,
-        } for t in all_tasks_for_cal
-    ]
+        })
 
     # ✅ Tổng số task
     total_tasks = tasks_query.count()
@@ -886,11 +898,7 @@ def home(
     for t in rows:
         chi_nhanhs_set.add(t.chi_nhanh)
 
-        # Logic hiển thị trạng thái động:
-        # Nếu một công việc trong DB là "Đang chờ" nhưng thực tế đã quá hạn,
-        # ta sẽ hiển thị nó là "Quá hạn" ngay lập tức trên UI mà không cần chờ tác vụ nền.
-        task_is_overdue = is_overdue(t)
-        display_status = "Quá hạn" if t.trang_thai == "Đang chờ" and task_is_overdue else t.trang_thai
+        # Dữ liệu đã được đồng bộ ở đầu route, chỉ cần lấy trực tiếp
 
         tasks.append({
             "id": t.id,
@@ -900,15 +908,15 @@ def home(
             "ngay_tao": format_datetime_display(t.ngay_tao, with_time=True),
             "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
             "han_hoan_thanh_raw": t.han_hoan_thanh.isoformat() if t.han_hoan_thanh else None,
-            "trang_thai": display_status,
+            "trang_thai": t.trang_thai,
             "nguoi_tao": t.nguoi_tao,
             "ghi_chu": t.ghi_chu or "",
             "nguoi_thuc_hien": t.nguoi_thuc_hien,
             "ngay_hoan_thanh": format_datetime_display(t.ngay_hoan_thanh, with_time=True) if t.ngay_hoan_thanh else "",
-            "is_overdue": task_is_overdue,
+            "is_overdue": t.trang_thai == "Quá hạn",
         })
 
-    # ✅ Thống kê
+    # ✅ Thống kê (đã được đơn giản hóa vì DB đã đồng bộ)
     thong_ke = {
         "tong_cong_viec": total_tasks,
         "hoan_thanh": tasks_query.filter(Task.trang_thai == "Hoàn thành").count(),
@@ -917,8 +925,7 @@ def home(
             Task.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday()),
         ).count(),
         "hoan_thanh_thang": tasks_query.filter(
-            Task.trang_thai == "Hoàn thành",
-            func.extract("month", Task.ngay_hoan_thanh) == today.month,
+            Task.trang_thai == "Hoàn thành", func.extract("month", Task.ngay_hoan_thanh) == today.month
         ).count(),
         "dang_cho": tasks_query.filter(Task.trang_thai == "Đang chờ").count(),
         "qua_han": tasks_query.filter(Task.trang_thai == "Quá hạn").count(),
@@ -1397,8 +1404,8 @@ def startup():
     # Điều này đảm bảo hệ thống phản ứng nhanh hơn và linh hoạt hơn với các
     # nền tảng hosting có thể "ngủ" (sleep) khi không có traffic.
     # misfire_grace_time=600: Nếu job bị lỡ, nó vẫn sẽ chạy nếu server thức dậy trong vòng 10 phút.
-    scheduler.add_job(update_overdue_tasks_status, 'interval', hours=3, id='update_overdue_tasks', misfire_grace_time=600)
-    # Các job cũ
+    # Vô hiệu hóa tác vụ nền cập nhật trạng thái vì đã có cập nhật tức thì trong route /home.
+    # scheduler.add_job(update_overdue_tasks_status, 'interval', hours=3, id='update_overdue_tasks', misfire_grace_time=600)
     scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
     scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
     scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
@@ -1959,6 +1966,8 @@ async def export_tasks_to_excel(
 
     data_for_export = []
     for t in rows_all:
+        # Dữ liệu đã được đồng bộ ở đầu route, chỉ cần lấy trực tiếp
+
         data_for_export.append({
             "ID": t.id,
             "Chi Nhánh": t.chi_nhanh,
