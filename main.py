@@ -1884,7 +1884,8 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("show_qr.html", {
         "request": request,
         "qr_token": qr_token,
-        "base_url": base_url
+        "base_url": base_url,
+        "user": user
     })
 
 from services.attendance_service import push_bulk_checkin
