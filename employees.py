@@ -67,7 +67,7 @@ employees = [
     {"code": "B15LTCT", "name": "Lê Trường Giang", "department": "Lễ tân", "branch": "B15", "role": "letan"},
     {"code": "B15BPCS01", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BPCS02", "name": "Nguyễn Thành Vũ", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
-    {"code": "B15BPCS03", "name": "Nguyễn Thành Vũ", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
+    {"code": "B15BPCS03", "name": "Ngô Thị Thanh", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BPCT", "name": "Trần Thị Thanh Nhãn", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BVCT", "name": "Bùi Minh Nghĩa", "department": "Bảo vệ", "branch": "B15", "role": "baove"},
 #--------------------------------------- BIN BIN HOTEL 16 --------------------------------------------#
