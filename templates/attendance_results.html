@@ -108,14 +108,12 @@
                     <div id="performer-filter-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
                 </div>
                 {% endif %}
-                {% if user.role not in ['quanly', 'ktv'] %}
                 <div class="relative">
                     <label for="filter-nhan-vien" class="block text-sm font-medium text-gray-700">Nhân viên</label>
-                    <select id="filter-nhan-vien" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        <option value="">Tất cả nhân viên</option>
-                        <!-- Options will be populated by JS -->
-                    </select>
+                    <input type="text" id="filter-nhan-vien" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <div id="employee-filter-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
                 </div>
+                {% if user.role not in ['quanly', 'ktv'] %}
                 <div id="container-filter-chuc-vu" class="w-full">
                     <label for="filter-chuc-vu" class="block text-sm font-medium text-gray-700">Chức vụ</label>
                     <select id="filter-chuc-vu" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
@@ -399,6 +397,7 @@
             const filterGhiChuEl = document.getElementById('filter-ghi-chu');
             const filterNguoiThucHienEl = document.getElementById('filter-nguoi-thuc-hien');
             const performerFilterResults = document.getElementById('performer-filter-results');
+            const employeeFilterResults = document.getElementById('employee-filter-results');
 
             const deleteSelectedBtn = document.getElementById('delete-selected-btn');
 
@@ -606,24 +605,6 @@
                 });
             }
 
-            function populateEmployeeFilter(employees) {
-                if (!filterNhanVienEl) return;
-
-                // Lưu giá trị đang chọn
-                const selectedValue = filterNhanVienEl.value;
-
-                // Xóa các option cũ, giữ lại option "Tất cả"
-                filterNhanVienEl.innerHTML = '<option value="">Tất cả nhân viên</option>';
-
-                employees.forEach(emp => {
-                    const option = new Option(`${emp.name} (${emp.code})`, emp.name);
-                    filterNhanVienEl.add(option);
-                });
-
-                // Khôi phục lại giá trị đã chọn nếu có
-                filterNhanVienEl.value = selectedValue;
-            }
-
             function setupSoCongFilter() {
                 const filterType = filterTypeEl ? filterTypeEl.value : 'all';
                 filterSoCongEl.innerHTML = '<option value="">Tất cả</option>'; // Default option
@@ -650,37 +631,40 @@
                     headersHtml = `<tr>
                         ${isAdminOrBoss ? '<th><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>' : ''}
                         <th class="px-4 py-3 sortable" data-sort="thoi_gian">Ngày<span class="sort-indicator"></span></th><th class="px-4 py-3">Giờ</th>${isAdminOrBoss ? '<th class="px-4 py-3 sortable" data-sort="nguoi_thuc_hien">Người thực hiện<span class="sort-indicator"></span></th>' : ''}<th class="px-4 py-3 sortable" data-sort="ma_nv">Mã NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="ten_nv">Tên NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chuc_vu">Chức vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chi_nhanh_lam">CN Làm<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="la_tang_ca">Tăng ca<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_cong">Số công<span class="sort-indicator"></span></th><th class="px-4 py-3">Ghi chú</th>${isAdminOrBoss ? '<th class="px-4 py-3">Hành động</th>' : ''}</tr>`;
-                    records.forEach(rec => {
+                    records.forEach((rec, index) => {
                         const [ngay, gio] = rec.thoi_gian.split(' ');
                         const checkboxHtml = isAdminOrBoss ? `<td class="px-4 py-2"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${rec.id}" data-type="attendance"></td>` : '';
                         const nguoiThucHienHtml = isAdminOrBoss ? `<td class="px-4 py-2">${rec.nguoi_thuc_hien || ''}</td>` : '';
                         const actionsHtml = isAdminOrBoss ? `<td class="px-4 py-2 whitespace-nowrap"><button class="edit-btn text-blue-600 hover:underline mr-2" data-id="${rec.id}" data-type="attendance">Sửa</button><button class="delete-btn text-red-600 hover:underline" data-id="${rec.id}" data-type="attendance">Xóa</button></td>` : '';
-                        rowsHtml += `<tr class="border-b hover:bg-gray-50" data-record='${JSON.stringify(rec)}'>${checkboxHtml}<td class="px-4 py-2">${ngay||''}</td><td class="px-4 py-2">${gio||''}</td>${nguoiThucHienHtml}<td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td><td class="px-4 py-2">${rec.ten_nv||''}</td><td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td><td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td><td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td><td class="px-4 py-2">${rec.so_cong}</td><td class="px-4 py-2">${rec.ghi_chu||''}</td>${actionsHtml}</tr>`;
+                        const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        rowsHtml += `<tr class="border-b ${rowClass} hover:bg-blue-100" data-record='${JSON.stringify(rec)}'>${checkboxHtml}<td class="px-4 py-2">${ngay||''}</td><td class="px-4 py-2">${gio||''}</td>${nguoiThucHienHtml}<td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td><td class="px-4 py-2">${rec.ten_nv||''}</td><td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td><td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td><td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td><td class="px-4 py-2">${rec.so_cong}</td><td class="px-4 py-2">${rec.ghi_chu||''}</td>${actionsHtml}</tr>`;
                     });
                 } else if (currentFilter === 'Dịch vụ') {
                     headersHtml = `<tr>
                         ${isAdminOrBoss ? '<th><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>' : ''}
                         <th class="px-4 py-3 sortable" data-sort="thoi_gian">Ngày<span class="sort-indicator"></span></th><th class="px-4 py-3">Giờ</th>${isAdminOrBoss ? '<th class="px-4 py-3 sortable" data-sort="nguoi_thuc_hien">Người thực hiện<span class="sort-indicator"></span></th>' : ''}<th class="px-4 py-3 sortable" data-sort="ma_nv">Mã NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="ten_nv">Tên NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chuc_vu">Chức vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chi_nhanh_lam">CN Làm<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="la_tang_ca">Tăng ca<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="dich_vu">Dịch vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_phong">Số phòng<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_luong">Số lượng<span class="sort-indicator"></span></th><th class="px-4 py-3">Ghi chú</th>${isAdminOrBoss ? '<th class="px-4 py-3">Hành động</th>' : ''}</tr>`;
-                    records.forEach(rec => {
+                    records.forEach((rec, index) => {
                         const [ngay, gio] = rec.thoi_gian.split(' ');
                         const checkboxHtml = isAdminOrBoss ? `<td class="px-4 py-2"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${rec.id}" data-type="service"></td>` : '';
                         const nguoiThucHienHtml = isAdminOrBoss ? `<td class="px-4 py-2">${rec.nguoi_thuc_hien || ''}</td>` : '';
                         const actionsHtml = isAdminOrBoss ? `<td class="px-4 py-2 whitespace-nowrap"><button class="edit-btn text-blue-600 hover:underline mr-2" data-id="${rec.id}" data-type="service">Sửa</button><button class="delete-btn text-red-600 hover:underline" data-id="${rec.id}" data-type="service">Xóa</button></td>` : '';
-                        rowsHtml += `<tr class="border-b hover:bg-gray-50" data-record='${JSON.stringify(rec)}'>${checkboxHtml}<td class="px-4 py-2">${ngay||''}</td><td class="px-4 py-2">${gio||''}</td>${nguoiThucHienHtml}<td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td><td class="px-4 py-2">${rec.ten_nv||''}</td><td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td><td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td><td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td><td class="px-4 py-2">${rec.dich_vu||''}</td><td class="px-4 py-2">${rec.so_phong||''}</td><td class="px-4 py-2">${rec.so_luong||''}</td><td class="px-4 py-2">${rec.ghi_chu||''}</td>${actionsHtml}</tr>`;
+                        const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        rowsHtml += `<tr class="border-b ${rowClass} hover:bg-blue-100" data-record='${JSON.stringify(rec)}'>${checkboxHtml}<td class="px-4 py-2">${ngay||''}</td><td class="px-4 py-2">${gio||''}</td>${nguoiThucHienHtml}<td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td><td class="px-4 py-2">${rec.ten_nv||''}</td><td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td><td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td><td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td><td class="px-4 py-2">${rec.dich_vu||''}</td><td class="px-4 py-2">${rec.so_phong||''}</td><td class="px-4 py-2">${rec.so_luong||''}</td><td class="px-4 py-2">${rec.ghi_chu||''}</td>${actionsHtml}</tr>`;
                     });
                 } else { // 'all'
                     headersHtml = `<tr>
                         ${isAdminOrBoss ? '<th><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>' : ''}
                         <th class="px-4 py-3 sortable" data-sort="type">Loại<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="thoi_gian">Ngày<span class="sort-indicator"></span></th><th class="px-4 py-3">Giờ</th>${isAdminOrBoss ? '<th class="px-4 py-3 sortable" data-sort="nguoi_thuc_hien">Người thực hiện<span class="sort-indicator"></span></th>' : ''}<th class="px-4 py-3 sortable" data-sort="ma_nv">Mã NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="ten_nv">Tên NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chuc_vu">Chức vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chi_nhanh_lam">CN Làm<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="la_tang_ca">Tăng ca<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_cong">Số công<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="dich_vu">Dịch vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_phong">Số phòng<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_luong">Số lượng<span class="sort-indicator"></span></th><th class="px-4 py-3">Ghi chú</th>${isAdminOrBoss ? '<th class="px-4 py-3">Hành động</th>' : ''}</tr>`;
-                    records.forEach(rec => {
+                    records.forEach((rec, index) => {
                         const [ngay, gio] = rec.thoi_gian.split(' ');
                         const isService = rec.type === 'Dịch vụ';
                         const recordType = isService ? 'service' : 'attendance';
                         const checkboxHtml = isAdminOrBoss ? `<td class="px-4 py-2"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${rec.id}" data-type="${recordType}"></td>` : '';
                         const nguoiThucHienHtml = isAdminOrBoss ? `<td class="px-4 py-2">${rec.nguoi_thuc_hien || ''}</td>` : '';
                         const actionsHtml = isAdminOrBoss ? `<td class="px-4 py-2 whitespace-nowrap"><button class="edit-btn text-blue-600 hover:underline mr-2" data-id="${rec.id}" data-type="${recordType}">Sửa</button><button class="delete-btn text-red-600 hover:underline" data-id="${rec.id}" data-type="${recordType}">Xóa</button></td>` : '';
+                        const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
                         rowsHtml += `
-                            <tr class="border-b hover:bg-gray-50" data-record='${JSON.stringify(rec)}'>
+                            <tr class="border-b ${rowClass} hover:bg-blue-100" data-record='${JSON.stringify(rec)}'>
                                 ${checkboxHtml}
                                 <td class="px-4 py-2 font-semibold ${isService ? 'text-green-600' : 'text-blue-600'}">${rec.type}</td>
                                 <td class="px-4 py-2">${ngay||''}</td>
@@ -789,11 +773,7 @@
                 if (data && data.records && data.records.length > 0) {
                     tableEl.classList.remove('hidden');
                     allRecords = data.records;
-                    renderTable(data.records);
-                    // Chỉ cập nhật danh sách nhân viên khi tải trang đầu tiên để tránh ghi đè bộ lọc
-                    if (data.currentPage === 1 && data.relatedEmployees) {
-                        populateEmployeeFilter(data.relatedEmployees);
-                    }
+                    renderTable(data.records);                    
                     renderPagination(data.currentPage, data.totalPages, data.totalRecords);
                 } else {
                     tbodyEl.innerHTML = `<tr><td colspan="15" class="text-center py-6 text-gray-500">Không có dữ liệu.</td></tr>`;
@@ -1000,58 +980,24 @@
                 const openModal = (mode, record = null) => {
                     recordForm.reset();
                     // Xóa data attribute và bật lại checkbox khi mở modal
+                    recordForm.removeAttribute('data-employee-role');
                     recordForm.removeAttribute('data-chi-nhanh-chinh');
                     modalLaTangCa.disabled = false;
 
-                    modalTypeContainer.style.display = mode === 'add' ? 'block' : 'none';
-
                     let recordType = 'attendance'; // Default for add mode
+                    modalTypeContainer.style.display = mode === 'add' ? 'block' : 'none';
 
                     if (mode === 'edit' && record) {
                         modalTitle.textContent = 'Chỉnh sửa bản ghi';
                         recordType = record.type === 'Điểm danh' ? 'attendance' : 'service';
                         modalRecordId.value = record.id;
 
-                        // Populate form with existing data
+                        // Populate common form fields first
                         modalMaNv.value = record.ma_nv;
                         modalMaNvSearch.value = record.ten_nv;
                         modalGhiChu.value = record.ghi_chu_raw;
 
-                        const isKtvOrQuanLy = record.chuc_vu === 'Kỹ thuật viên' || record.chuc_vu === 'Quản lý';
-                        recordForm.dataset.chiNhanhChinh = record.chi_nhanh_chinh || '';
-                        const cnLamContainer = document.getElementById('modal-cn-lam-container');
-                        const tangCaContainer = document.getElementById('modal-tang-ca-container');
-                        const performerContainer = document.getElementById('modal-performer-container');
-
-                        if (isKtvOrQuanLy) {
-                            // Hide fields not applicable to KTV/Manager
-                            cnLamContainer.style.display = 'none';
-                            modalChiNhanhLam.disabled = true;
-                            tangCaContainer.style.display = 'none';
-                            performerContainer.style.display = 'none';
-
-                            modalLaTangCa.checked = false;
-                            modalLaTangCa.disabled = true;
-                            // Set default/implicit values for hidden fields
-                            modalChiNhanhLam.value = record.chi_nhanh_chinh;
-                            modalNguoiThucHienCode.value = record.ma_nv; // Performer is themselves
-                            modalNguoiThucHienSearch.value = record.ma_nv; // Also set the visible input
-                        } else {
-                            // Show fields and enable automatic overtime logic for other roles
-                            modalLaTangCa.disabled = true; // Vô hiệu hóa để người dùng không tự sửa
-                            cnLamContainer.style.display = 'block';
-                            modalChiNhanhLam.disabled = false;
-                            tangCaContainer.style.display = 'block';
-                            performerContainer.style.display = 'block';
-
-                            // Set values from record
-                            modalChiNhanhLam.value = record.chi_nhanh_lam;
-                            modalNguoiThucHienCode.value = record.nguoi_thuc_hien;
-                            modalNguoiThucHienSearch.value = record.nguoi_thuc_hien;
-                            // Cập nhật trạng thái tăng ca ban đầu sau khi điền các trường
-                            updateOvertimeStatus();
-                        }
-
+                        // Populate time and work units (so_cong) BEFORE calculating overtime
                         const [datePart, timePart] = record.thoi_gian.split(' ');
                         const [h, min] = timePart.split(':');
                         modalThoiGian.value = `${datePart} ${h}:${min}`;
@@ -1068,6 +1014,45 @@
                             modalDichVu.value = record.dich_vu;
                             modalSoPhong.value = record.so_phong;
                             modalSoLuong.value = record.so_luong;
+                        }
+
+                        // Now, handle role-specific UI and overtime logic
+                        const isKtvOrQuanLy = record.chuc_vu === 'Kỹ thuật viên' || record.chuc_vu === 'Quản lý';
+                        recordForm.dataset.chiNhanhChinh = record.chi_nhanh_chinh || '';
+                        const cnLamContainer = document.getElementById('modal-cn-lam-container');
+                        const tangCaContainer = document.getElementById('modal-tang-ca-container');
+                        const performerContainer = document.getElementById('modal-performer-container');
+
+                        if (isKtvOrQuanLy) {
+                            // Hide fields not applicable to KTV/Manager
+                            cnLamContainer.style.display = 'none';
+                            modalChiNhanhLam.disabled = true;
+                            tangCaContainer.style.display = 'none';
+                            performerContainer.style.display = 'none';
+                            modalLaTangCa.disabled = true;
+
+                            // Set implicit values
+                            modalChiNhanhLam.value = record.chi_nhanh_chinh;
+                            modalNguoiThucHienCode.value = record.ma_nv;
+                            modalNguoiThucHienSearch.value = record.ma_nv;
+                            
+                            // Set overtime based on so_cong, which is now populated
+                            modalLaTangCa.checked = (record.so_cong || 0) > 1.0;
+                        } else {
+                            // Show fields and enable automatic overtime logic for other roles
+                            modalLaTangCa.disabled = true; // User can't manually check it
+                            cnLamContainer.style.display = 'block';
+                            modalChiNhanhLam.disabled = false;
+                            tangCaContainer.style.display = 'block';
+                            performerContainer.style.display = 'block';
+
+                            // Set values from record
+                            modalChiNhanhLam.value = record.chi_nhanh_lam;
+                            modalNguoiThucHienCode.value = record.nguoi_thuc_hien;
+                            modalNguoiThucHienSearch.value = record.nguoi_thuc_hien;
+                            
+                            // This will now work correctly because so_cong is set
+                            updateOvertimeStatus();
                         }
 
                     } else { // 'add' mode
@@ -1138,10 +1123,54 @@
 
                 recordForm.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const formData = new FormData(recordForm);
                     const recordId = modalRecordId.value;
                     const isEdit = !!recordId;
 
+                    // --- VALIDATION LOGIC FOR ADD MODE ---
+                    if (!isEdit) {
+                        const employeeRole = recordForm.dataset.employeeRole || '';
+                        const isKtvOrQuanLy = employeeRole === 'ktv' || employeeRole === 'quanly';
+                        const recordType = modalRecordType.value;
+
+                        const validateField = (input, message, checkNumeric = false) => {
+                            const value = input.value.trim();
+                            let searchInput;
+                            if (input.id === 'modal-ma-nv') {
+                                searchInput = document.getElementById('modal-ma-nv-search');
+                            } else if (input.id === 'modal-nguoi-thuc-hien-code') {
+                                searchInput = document.getElementById('modal-nguoi-thuc-hien-search');
+                            }
+                            const targetInput = searchInput || input;
+
+                            if (!value) {
+                                alert(message);
+                                targetInput.focus();
+                                return false;
+                            }
+                            if (checkNumeric && (isNaN(parseFloat(value)) || parseFloat(value) <= 0)) {
+                                alert(message);
+                                targetInput.focus();
+                                return false;
+                            }
+                            return true;
+                        };
+
+                        if (!validateField(modalMaNv, 'Vui lòng chọn một nhân viên.')) return;
+                        if (!isKtvOrQuanLy && !validateField(modalNguoiThucHienCode, 'Vui lòng chọn người thực hiện.')) return;
+                        if (!validateField(modalThoiGian, 'Vui lòng nhập thời gian.')) return;
+                        if (!isKtvOrQuanLy && !validateField(modalChiNhanhLam, 'Vui lòng chọn chi nhánh làm việc.')) return;
+
+                        if (recordType === 'attendance') {
+                            if (!validateField(modalSoCongNv, 'Vui lòng nhập số công hợp lệ (lớn hơn 0).', true)) return;
+                        } else { // service
+                            if (!validateField(modalDichVu, 'Vui lòng chọn dịch vụ.')) return;
+                            if (!validateField(modalSoPhong, 'Vui lòng nhập số phòng.')) return;
+                            if (!validateField(modalSoLuong, 'Vui lòng nhập số lượng.')) return;
+                        }
+                    }
+                    // --- END VALIDATION ---
+
+                    const formData = new FormData(recordForm);
                     // Handle checkbox value
                     formData.set('la_tang_ca', modalLaTangCa.checked);
 
@@ -1167,7 +1196,9 @@
                 let performerSearchTimeout;
                 modalNguoiThucHienSearch.addEventListener('input', () => {
                     clearTimeout(performerSearchTimeout);
+                    modalNguoiThucHienCode.value = ''; // Invalidate on any input
                     const query = modalNguoiThucHienSearch.value.trim();
+                    // If the search box is cleared, also clear the hidden code input.
                     if (query === '') {
                         performerSearchResults.classList.add('hidden');
                         return;
@@ -1186,7 +1217,7 @@
                                         div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
                                         div.textContent = `${p.name} (${p.code})`;
                                         div.onclick = () => {
-                                            modalNguoiThucHienSearch.value = p.code;
+                                            modalNguoiThucHienSearch.value = p.name;
                                             modalNguoiThucHienCode.value = p.code;
                                             performerSearchResults.classList.add('hidden');
                                         };
@@ -1203,7 +1234,13 @@
                 let searchTimeout;
                 modalMaNvSearch.addEventListener('input', () => {
                     clearTimeout(searchTimeout);
+                    modalMaNv.value = ''; // Invalidate on any input
                     const query = modalMaNvSearch.value.trim();
+                    // If the search box is cleared, also clear the hidden code input.
+                    if (query === '') {
+                        employeeSearchResults.classList.add('hidden');
+                        return;
+                    }
                     if (query.length < 2) {
                         employeeSearchResults.classList.add('hidden');
                         return;
@@ -1227,6 +1264,7 @@
                                             if (modalRecordId.value === '') {
                                                 const isKtvOrQuanLy = emp.department === 'ktv' || emp.department === 'quanly';
                                                 recordForm.dataset.chiNhanhChinh = emp.branch || '';
+                                            recordForm.dataset.employeeRole = emp.department || '';
 
                                                 const cnLamContainer = document.getElementById('modal-cn-lam-container');
                                                 const tangCaContainer = document.getElementById('modal-tang-ca-container');
@@ -1266,6 +1304,9 @@
                 document.addEventListener('click', (e) => {
                     if (!modalMaNvSearch.contains(e.target) && !employeeSearchResults.contains(e.target)) {
                         employeeSearchResults.classList.add('hidden');
+                    }
+                    if (filterNhanVienEl && !filterNhanVienEl.contains(e.target) && employeeFilterResults && !employeeFilterResults.contains(e.target)) {
+                        employeeFilterResults.classList.add('hidden');
                     }
                 });
 
@@ -1324,6 +1365,43 @@
                     fetchData();
                 });
                 theadEl.dataset.sortListenerAdded = 'true';
+            }
+
+            // Employee filter search (for the main filter bar)
+            let employeeFilterTimeout;
+            if (filterNhanVienEl && employeeFilterResults) {
+                filterNhanVienEl.addEventListener('input', () => {
+                    clearTimeout(employeeFilterTimeout);
+                    const query = filterNhanVienEl.value.trim();
+                    if (query === '') {
+                        employeeFilterResults.classList.add('hidden');
+                        return;
+                    }
+                    if (query.length < 2) return;
+
+                    employeeFilterTimeout = setTimeout(() => {
+                        fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}&context=results_filter`)
+                            .then(res => res.json())
+                            .then(employees => {
+                                employeeFilterResults.innerHTML = '';
+                                if (employees.length > 0) {
+                                    employees.forEach(emp => {
+                                        const div = document.createElement('div');
+                                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                        div.textContent = `${emp.name} (${emp.code})`;
+                                        div.onclick = () => {
+                                            filterNhanVienEl.value = emp.name;
+                                            employeeFilterResults.classList.add('hidden');
+                                        };
+                                        employeeFilterResults.appendChild(div);
+                                    });
+                                    employeeFilterResults.classList.remove('hidden');
+                                } else {
+                                    employeeFilterResults.classList.add('hidden');
+                                }
+                            });
+                }, 300);
+                });
             }
 
             // Initial data fetch
