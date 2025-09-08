@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTa
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi.templating import Jinja2Templates, Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from utils import parse_datetime_input, format_datetime_display, is_overdue
 import atexit
@@ -34,9 +34,13 @@ from sqlalchemy import (
     String,
     and_,
     Float,
+    extract,
+    case,
 )
+from collections import OrderedDict
 from sqlalchemy.orm import aliased
-import os, re, math, io
+import os, re, math, io, calendar
+from collections import defaultdict
 import openpyxl
 from openpyxl.utils import get_column_letter
 import socket, threading, time
@@ -371,7 +375,7 @@ async def choose_function(request: Request):
     return response
 
 @app.get("/attendance/results", response_class=HTMLResponse)
-def view_attendance_results(request: Request):
+def view_attendance_results(request: Request, db: Session = Depends(get_db)):
     """
     Route để hiển thị trang xem kết quả điểm danh.
     """
@@ -379,11 +383,385 @@ def view_attendance_results(request: Request):
         return RedirectResponse("/login", status_code=303)
 
     user_data = request.session.get("user")
+
     return templates.TemplateResponse("attendance_results.html", {
         "request": request,
         "user": user_data,
         "branches": BRANCHES,
-        "roles": ROLE_MAP
+        "roles": ROLE_MAP,
+        "dashboard_stats": None
+    })
+
+@app.get("/attendance/calendar-view", response_class=HTMLResponse)
+def view_attendance_calendar(
+    request: Request,
+    db: Session = Depends(get_db),
+    chi_nhanh: Optional[str] = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+):
+    user_data = request.session.get("user")
+    # Cấp quyền cho Lễ tân
+    if not user_data or user_data.get("role") not in ["admin", "boss", "quanly", "letan", "ktv"]:
+        return RedirectResponse("/choose-function", status_code=303)
+
+    # Tạo danh sách chi nhánh để hiển thị trong bộ lọc
+    display_branches = BRANCHES.copy()
+    if user_data.get("role") in ["admin", "boss"]:
+        display_branches.extend(["KTV", "Quản lý", "LTTC", "BPTC"])
+
+    # Nếu chưa có chi nhánh được chọn từ filter, đặt giá trị mặc định theo vai trò
+    if not chi_nhanh:
+        user_role = user_data.get("role")
+        user_code = user_data.get("code", "")
+
+        if user_role == "ktv":
+            # KTVs default to the "KTV" role-based view
+            chi_nhanh = "KTV"
+        elif user_role == "quanly":
+            # Managers default to the "Quản lý" role-based view
+            chi_nhanh = "Quản lý"
+        elif user_role == "letan" and "LTTC" in user_code.upper():
+            # LTTC users default to the "LTTC" code-based view
+            chi_nhanh = "LTTC"
+        elif user_role == "letan": # Lễ tân thường: ưu tiên GPS/last active
+            user_from_db = db.query(User).filter(User.code == user_data["code"]).first()
+            active_branch = (
+                request.session.get("active_branch")
+                or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
+                or user_data.get("branch")
+            )
+            chi_nhanh = active_branch
+        elif user_role in ["admin", "boss"]:
+            chi_nhanh = "B1"
+
+    now = datetime.now(VN_TZ)
+    current_month = month if month else now.month
+    current_year = year if year else now.year
+
+    _, num_days = calendar.monthrange(current_year, current_month)
+    
+    employee_data = defaultdict(lambda: {
+        "name": "",
+        "role": "",
+        "role_key": "",
+        "main_branch": "",
+        "is_cross_branch_month": False, # Sẽ được cập nhật sau
+        "worked_away_from_main_branch": False, # Cờ mới để đánh dấu *
+        "daily_work": defaultdict(lambda: {"work_units": 0, "is_overtime": False, "work_branch": "", "services": []})
+    })
+
+    if chi_nhanh:
+        # --- Xây dựng bộ lọc dựa trên lựa chọn ---
+        att_location_filter = None
+        svc_location_filter = None
+
+        role_map_filter = {"KTV": "ktv", "Quản lý": "quanly"}
+        code_prefix_filter = {"LTTC": "LTTC", "BPTC": "BPTC"}
+
+        if chi_nhanh in role_map_filter:
+            # Lọc theo vai trò nếu chọn KTV hoặc Quản lý
+            role_to_filter = role_map_filter[chi_nhanh]
+            att_location_filter = (User.role == role_to_filter)
+            svc_location_filter = (User.role == role_to_filter)
+        elif chi_nhanh in code_prefix_filter:
+            # Lọc theo mã nhân viên nếu chọn LTTC/BPTC
+            prefix_to_filter = code_prefix_filter[chi_nhanh]
+            att_location_filter = (User.code.startswith(prefix_to_filter))
+            svc_location_filter = (User.code.startswith(prefix_to_filter))
+        elif chi_nhanh in BRANCHES:
+            # Lọc theo chi nhánh làm việc
+            att_location_filter = (AttendanceRecord.chi_nhanh_lam == chi_nhanh)
+            svc_location_filter = (ServiceRecord.chi_nhanh_lam == chi_nhanh)
+        
+        # Chỉ thực hiện query nếu có bộ lọc hợp lệ
+        if att_location_filter is not None:
+            # Query cho điểm danh
+            att_q = select(
+                literal_column("'attendance'").label("type"),
+                AttendanceRecord.ma_nv, AttendanceRecord.ten_nv, User.role, User.branch.label("main_branch"),
+                AttendanceRecord.ngay_diem_danh.label("date"),
+                AttendanceRecord.so_cong_nv.label("value"),
+                AttendanceRecord.la_tang_ca,
+                AttendanceRecord.chi_nhanh_lam.label("work_branch"),
+                literal_column("''").label("dich_vu")
+            ).join(
+                User, User.code == AttendanceRecord.ma_nv, isouter=True
+            ).filter(
+                extract('month', AttendanceRecord.ngay_diem_danh) == current_month,
+                extract('year', AttendanceRecord.ngay_diem_danh) == current_year,
+                att_location_filter
+            )
+
+            # Query cho dịch vụ
+            svc_q = select(
+                literal_column("'service'").label("type"),
+                ServiceRecord.ma_nv, ServiceRecord.ten_nv, User.role, User.branch.label("main_branch"),
+                ServiceRecord.ngay_cham.label("date"),
+                cast(ServiceRecord.so_luong, Float).label("value"),
+                ServiceRecord.la_tang_ca,
+                ServiceRecord.chi_nhanh_lam.label("work_branch"),
+                ServiceRecord.dich_vu
+            ).join(
+                User, User.code == ServiceRecord.ma_nv, isouter=True
+            ).filter(
+                extract('month', ServiceRecord.ngay_cham) == current_month,
+                extract('year', ServiceRecord.ngay_cham) == current_year,
+                svc_location_filter
+            )
+
+            # Gộp 2 query
+            combined_query = union_all(att_q, svc_q).alias("combined")
+            records = db.execute(select(combined_query).order_by(combined_query.c.ten_nv, combined_query.c.date)).all()
+
+        # Process records into the desired structure
+        for rec in records:
+            day_of_month = rec.date.day
+            emp_code = rec.ma_nv
+
+            if not employee_data[emp_code]["name"]:
+                employee_data[emp_code]["name"] = rec.ten_nv
+                
+                # Xác định role_key để sắp xếp, ưu tiên LTTC/BPTC
+                emp_role_key = rec.role or "khac"
+                if "LTTC" in emp_code.upper():
+                    emp_role_key = "lttc"
+                elif "BPTC" in emp_code.upper():
+                    emp_role_key = "bptc"
+                employee_data[emp_code]["role_key"] = emp_role_key
+                employee_data[emp_code]["role"] = map_role_to_vietnamese(rec.role)
+                employee_data[emp_code]["main_branch"] = rec.main_branch
+
+            if not employee_data[emp_code]["is_cross_branch_month"] and rec.main_branch != chi_nhanh:
+                employee_data[emp_code]["is_cross_branch_month"] = True
+
+            # Logic mới: Đánh dấu nếu nhân viên từng làm khác chi nhánh chính trong tháng
+            if rec.work_branch and rec.main_branch and rec.work_branch != rec.main_branch:
+                employee_data[emp_code]["worked_away_from_main_branch"] = True
+
+            if rec.type == 'attendance':
+                daily_work_entry = employee_data[emp_code]["daily_work"][day_of_month]
+                daily_work_entry["work_units"] += rec.value or 0
+                if rec.la_tang_ca:
+                    daily_work_entry["is_overtime"] = True
+                    daily_work_entry["work_branch"] = rec.work_branch
+            elif rec.type == 'service':
+                daily_work_entry = employee_data[emp_code]["daily_work"][day_of_month]
+                if rec.la_tang_ca:
+                    daily_work_entry["is_overtime"] = True
+                    daily_work_entry["work_branch"] = rec.work_branch
+                # Tổng hợp dịch vụ theo ngày
+                service_summary = daily_work_entry.setdefault("service_summary", defaultdict(int))
+                service_summary[rec.dich_vu] += int(rec.value or 0)
+
+        # Chuyển đổi service_summary thành list string để dễ render
+        for emp_code in employee_data:
+            for day in employee_data[emp_code]["daily_work"]:
+                if "service_summary" in employee_data[emp_code]["daily_work"][day]:
+                    summary = employee_data[emp_code]["daily_work"][day].pop("service_summary")
+                    employee_data[emp_code]["daily_work"][day]["services"] = [f"{k}: {v}" for k, v in summary.items()]
+    
+        # --- TÍNH TOÁN THỐNG KÊ DASHBOARD CHO NHÂN VIÊN CỦA CHI NHÁNH ĐANG XEM ---
+        for emp_code, emp_details in employee_data.items():
+            # Chỉ tính cho nhân viên có chi nhánh chính là chi nhánh đang xem
+            is_main_employee_of_view = (
+                emp_details.get("main_branch") == chi_nhanh
+                or (chi_nhanh == "KTV" and emp_details.get("role_key") == "ktv")
+                or (chi_nhanh == "Quản lý" and emp_details.get("role_key") == "quanly")
+                or (chi_nhanh == "LTTC" and emp_details.get("role_key") == "lttc")
+                or (chi_nhanh == "BPTC" and emp_details.get("role_key") == "bptc")
+            )
+
+            if is_main_employee_of_view:
+                # --- TÍNH TOÁN DASHBOARD ---
+                # 1. Lấy tất cả bản ghi điểm danh có khả năng ảnh hưởng đến tháng đang xem
+                # (bao gồm cả ca đêm của ngày cuối tháng trước và ca đêm của ngày cuối tháng này)
+                start_query_date = date(current_year, current_month, 1)
+                end_query_date = date(current_year, current_month, num_days) + timedelta(days=1)
+                
+                all_atts_raw = db.query(
+                    AttendanceRecord.ngay_diem_danh, AttendanceRecord.gio_diem_danh,
+                    AttendanceRecord.so_cong_nv, AttendanceRecord.la_tang_ca,
+                    AttendanceRecord.chi_nhanh_lam
+                ).filter(
+                    AttendanceRecord.ma_nv == emp_code,
+                    AttendanceRecord.ngay_diem_danh.between(start_query_date, end_query_date)
+                ).all()
+
+                # Helper để xác định ngày làm việc (ca đêm < 7h sáng tính cho ngày hôm trước)
+                def get_work_day(att_date, att_time):
+                    return att_date - timedelta(days=1) if att_time.hour < 7 else att_date
+
+                # Gắn "work_day" vào mỗi bản ghi và lọc lại theo tháng đang xem
+                all_atts = [
+                    {**att._asdict(), "work_day": get_work_day(att.ngay_diem_danh, att.gio_diem_danh)}
+                    for att in all_atts_raw
+                ]
+                all_atts = [
+                    att for att in all_atts 
+                    if att["work_day"].month == current_month and att["work_day"].year == current_year
+                ]
+
+                # 2. Xử lý dữ liệu điểm danh dựa trên "work_day"
+                tong_so_cong = 0.0
+                work_days_set = set()
+                overtime_work_days_set = set()
+                daily_work_units = defaultdict(float)
+
+                for att in all_atts:
+                    work_day = att['work_day']
+                    so_cong = att['so_cong_nv'] or 0
+                    tong_so_cong += so_cong
+                    if so_cong > 0:
+                        work_days_set.add(work_day)
+                    daily_work_units[work_day] += so_cong
+                    if att['la_tang_ca']:
+                        overtime_work_days_set.add(work_day)
+
+                # Xác định ngày tăng ca dựa trên tổng công > 1
+                for day, total_units in daily_work_units.items():
+                    if total_units > 1:
+                        overtime_work_days_set.add(day)
+
+                # Lấy chi tiết tăng ca
+                overtime_details = []
+                main_branch = emp_details.get("main_branch")
+
+                # Xác định những ngày làm việc có chấm công ở chi nhánh khác (với số công > 0)
+                other_branch_work_days = {
+                    att['work_day']
+                    for att in all_atts
+                    if main_branch and att['chi_nhanh_lam'] != main_branch and (att['so_cong_nv'] or 0) > 0
+                }
+
+                # Set để đảm bảo mỗi ngày chỉ xử lý 1 lần cho trường hợp >1 công
+                processed_main_branch_overtime_days = set()
+
+                # Lặp qua tất cả các bản ghi để xây dựng chi tiết
+                for att in all_atts:
+                    work_day = att['work_day']
+
+                    # Bỏ qua nếu không phải là ngày tăng ca
+                    if work_day not in overtime_work_days_set:
+                        continue
+
+                    # Ưu tiên 1: Tăng ca do đi chi nhánh khác
+                    if work_day in other_branch_work_days:
+                        # Chỉ thêm các bản ghi ở chi nhánh khác (có công)
+                        if main_branch and att['chi_nhanh_lam'] != main_branch and (att['so_cong_nv'] or 0) > 0:
+                            overtime_details.append({ "date": att['ngay_diem_danh'].strftime('%d/%m/%Y'), "time": att['gio_diem_danh'].strftime('%H:%M'), "branch": att['chi_nhanh_lam'], "work_units": att['so_cong_nv'] })
+                    # Trường hợp 2: Tăng ca do làm >1 công (và chỉ làm tại chi nhánh chính)
+                    elif daily_work_units.get(work_day, 0) > 1:
+                        if work_day not in processed_main_branch_overtime_days:
+                            # Chỉ hiển thị 1 dòng tóm tắt cho ngày này
+                            overtime_details.append({ "date": work_day.strftime('%d/%m/%Y'), "time": "Nhiều ca", "branch": main_branch, "work_units": f"{daily_work_units.get(work_day, 0):.1f}" })
+                            processed_main_branch_overtime_days.add(work_day)
+
+                # 3. Lấy tất cả bản ghi dịch vụ trong tháng
+                all_services = db.query(
+                    ServiceRecord
+                ).filter(
+                    ServiceRecord.ma_nv == emp_code,
+                    extract('month', ServiceRecord.ngay_cham) == current_month,
+                    extract('year', ServiceRecord.ngay_cham) == current_year
+                ).all()
+
+                # 4. Tổng hợp kết quả
+                so_ngay_lam = len(work_days_set)
+                so_ngay_tang_ca = len(overtime_work_days_set)
+
+                # --- LOGIC MỚI CHO SỐ NGÀY NGHỈ ---
+                is_current_month_view = (current_year == now.year and current_month == now.month)
+                
+                if is_current_month_view:
+                    # Đối với tháng hiện tại, số ngày nghỉ được tính từ đầu tháng đến ngày hôm nay.
+                    days_passed = now.day
+                    # Lọc ra những ngày đã làm việc tính đến hôm nay.
+                    worked_days_so_far = {d for d in work_days_set if d <= now.date()}
+                    so_ngay_nghi = days_passed - len(worked_days_so_far)
+                else:
+                    # Đối với các tháng trong quá khứ, tính như cũ.
+                    so_ngay_nghi = num_days - so_ngay_lam
+                so_ngay_nghi = max(0, so_ngay_nghi)
+                laundry_details = []
+                ironing_details = []
+                tong_dich_vu_giat = 0
+                tong_dich_vu_ui = 0
+
+                for svc in all_services:
+                    try:
+                        quantity = int(svc.so_luong)
+                    except (ValueError, TypeError):
+                        quantity = 0
+                    
+                    detail = {
+                        "date": svc.ngay_cham.strftime('%d/%m/%Y'), "time": svc.gio_cham.strftime('%H:%M'),
+                        "branch": svc.chi_nhanh_lam, "room": svc.so_phong, "quantity": svc.so_luong
+                    }
+
+                    if svc.dich_vu == 'Giặt':
+                        tong_dich_vu_giat += quantity
+                        laundry_details.append(detail)
+                    elif svc.dich_vu == 'Ủi':
+                        tong_dich_vu_ui += quantity
+                        ironing_details.append(detail)
+
+                emp_details["dashboard_stats"] = {
+                    "so_ngay_lam": so_ngay_lam,
+                    "so_ngay_nghi": so_ngay_nghi,
+                    "so_ngay_tang_ca": so_ngay_tang_ca,
+                    "tong_so_cong": tong_so_cong,
+                    "tong_dich_vu_giat": tong_dich_vu_giat,
+                    "tong_dich_vu_ui": tong_dich_vu_ui,
+                    "overtime_details": sorted(overtime_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
+                    "laundry_details": sorted(laundry_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
+                    "ironing_details": sorted(ironing_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
+                }
+    
+    # Sắp xếp nhân viên theo: Chức vụ > Tăng ca (làm khác CN) > Tên
+    role_priority = {
+        "letan": 0,
+        "lttc": 0,      # Sắp xếp cùng Lễ tân
+        "buongphong": 1,
+        "bptc": 1,      # Sắp xếp cùng Buồng phòng
+        "baove": 2,
+        "ktv": 3,
+        "quanly": 4,
+    }
+    
+    # Chuyển dict thành list để sắp xếp
+    employee_list_to_sort = list(employee_data.items())
+
+    # Sắp xếp list
+    sorted_employee_list = sorted(
+        employee_list_to_sort,
+        key=lambda item: (
+            role_priority.get(item[1].get("role_key", "khac"), 99),
+            item[1].get("is_cross_branch_month", False),
+            item[1].get("name", "")
+        )
+    )
+    sorted_employee_data = OrderedDict(sorted_employee_list)
+
+    # Chuẩn bị dữ liệu chi tiết cho JavaScript
+    employee_data_for_js = {}
+    for code, data in sorted_employee_data.items():
+        if "dashboard_stats" in data:
+            employee_data_for_js[code] = {
+                "dashboard_stats": data["dashboard_stats"]
+            }
+
+    return templates.TemplateResponse("attendance_calendar_view.html", {
+        "request": request,
+        "user": user_data,
+        "branches": display_branches,
+        "selected_branch": chi_nhanh,
+        "selected_month": current_month,
+        "selected_year": current_year,
+        "num_days": num_days,
+        "employee_data": sorted_employee_data,
+        "employee_data_for_js": employee_data_for_js,
+        "current_day": now.day if now.month == current_month and now.year == current_year else None,
     })
 
 @app.get("/login", response_class=HTMLResponse)
@@ -672,64 +1050,88 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
 @app.get("/attendance/api/employees/search", response_class=JSONResponse)
 def search_employees(
     q: str = "",
-    request: Request = None, # Thêm request để lấy session
-    branch_id: str = None,  # Thêm tham số để lọc theo chi nhánh
+    request: Request = None,
+    branch_id: Optional[str] = None,
     only_bp: bool = False,
-    loginCode: str = None,   # ✅ thêm tham số loginCode để phân biệt lễ tân đăng nhập
+    loginCode: Optional[str] = None,
+    context: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
     API tìm kiếm nhân viên theo mã hoặc tên.
     - Nếu branch_id được cung cấp, chỉ tìm trong chi nhánh đó (ngoại trừ khi only_bp=True).
     - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP') từ TẤT CẢ các chi nhánh.
-    - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode).
+    - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode) trong các context khác.
+    - Thêm context='results_filter' để chỉ gợi ý nhân viên mà user đã chấm công.
     - Giới hạn 20 kết quả.
     """
     if not q:
-        # Nếu không có query 'q' nhưng 'only_bp' là true,
-        # cho phép tiếp tục để lấy toàn bộ nhân viên (thường là BP) của một chi nhánh.
         if not only_bp:
             return JSONResponse(content=[], status_code=400)
         search_pattern = "%"
     else:
         search_pattern = f"%{q}%"
 
-    # Xây dựng query cơ bản
-    query = db.query(User).filter(
-        or_(
-            User.code.ilike(search_pattern),
-            User.name.ilike(search_pattern)
-        )
-    )
-
-    # Thêm bộ lọc chi nhánh nếu được cung cấp (bỏ qua nếu tìm BP)
-    if branch_id and not only_bp:
-        query = query.filter(User.branch == branch_id)
-
-    employees = query.limit(50).all()
-
-    # ✅ Nếu chỉ tìm buồng phòng
-    if only_bp:
-        employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
-
-    # Lấy thông tin người dùng từ session để kiểm tra vai trò
     user = request.session.get("user") if request else None
-    is_admin_or_boss = user and user.get("role") in ["admin", "boss"]
 
-    # ✅ Nếu không phải admin/boss, loại bỏ tất cả lễ tân khác, chỉ giữ lại đúng loginCode (nếu có)
-    if not is_admin_or_boss:
-        filtered = []
-        for emp in employees:
-            if (emp.role or "").lower() == "letan":
-                if loginCode and emp.code == loginCode:
-                    filtered.append(emp)  # giữ lại chính lễ tân đăng nhập
-            else:
-                filtered.append(emp)
-        employees = filtered
+    # --- LOGIC MỚI: Lọc theo ngữ cảnh trang kết quả ---
+    if user and user.get("role") not in ["admin", "boss"] and context == "results_filter":
+        checker_code = user.get("code")
+
+        # Lấy mã các nhân viên mà user này đã tạo bản ghi cho
+        att_employee_codes_q = db.query(AttendanceRecord.ma_nv).filter(AttendanceRecord.nguoi_diem_danh == checker_code).distinct()
+        svc_employee_codes_q = db.query(ServiceRecord.ma_nv).filter(ServiceRecord.nguoi_cham == checker_code).distinct()
+
+        related_codes = {row[0] for row in att_employee_codes_q.all()}
+        related_codes.update({row[0] for row in svc_employee_codes_q.all()})
+
+        # Luôn bao gồm chính mình trong danh sách tìm kiếm (trường hợp tự chấm công)
+        related_codes.add(checker_code)
+
+        if not related_codes:
+             return JSONResponse(content=[])
+
+        # Xây dựng query dựa trên các mã đã thu thập
+        query = db.query(User).filter(
+            User.code.in_(list(related_codes)),
+            or_(
+                User.code.ilike(search_pattern),
+                User.name.ilike(search_pattern)
+            )
+        )
+        employees = query.limit(50).all()
+    else:
+        # --- LOGIC CŨ: Dùng cho các trường hợp khác (trang điểm danh, admin/boss, etc.) ---
+        query = db.query(User).filter(
+            or_(
+                User.code.ilike(search_pattern),
+                User.name.ilike(search_pattern)
+            )
+        )
+
+        if branch_id and not only_bp:
+            query = query.filter(User.branch == branch_id)
+
+        employees = query.limit(50).all()
+
+        if only_bp:
+            employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
+
+        is_admin_or_boss = user and user.get("role") in ["admin", "boss"]
+
+        if not is_admin_or_boss:
+            filtered = []
+            for emp in employees:
+                if (emp.role or "").lower() == "letan":
+                    if loginCode and emp.code == loginCode:
+                        filtered.append(emp)
+                else:
+                    filtered.append(emp)
+            employees = filtered
 
     employee_list = [
         {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
-        for emp in employees[:20] # Giới hạn 20 kết quả ở đây
+        for emp in employees[:20]
     ]
     return JSONResponse(content=employee_list)
 
@@ -1827,13 +2229,18 @@ async def api_get_attendance_results(
 
     # Apply sorting
     order_expressions = []
+
+    # Custom sort for 'chi_nhanh_lam' to follow the order in BRANCHES list
+    branch_order_whens = {branch: i for i, branch in enumerate(BRANCHES)}
+    chi_nhanh_lam_sort_expr = case(branch_order_whens, value=u.c.chi_nhanh_lam, else_=len(BRANCHES))
+
     sort_map = {
         "thoi_gian": [u.c.date_col, u.c.time_col],
         "nguoi_thuc_hien": [u.c.ten_nguoi_thuc_hien],
         "ma_nv": [u.c.ma_nv],
         "ten_nv": [u.c.ten_nv],
         "chuc_vu": [u.c.chuc_vu_raw],
-        "chi_nhanh_lam": [u.c.chi_nhanh_lam],
+        "chi_nhanh_lam": [chi_nhanh_lam_sort_expr],
         "so_cong": [u.c.so_cong],
         "la_tang_ca": [u.c.la_tang_ca],
         "dich_vu": [u.c.dich_vu],
