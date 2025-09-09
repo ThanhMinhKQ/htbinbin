@@ -1,7 +1,7 @@
 from sqlalchemy import create_engine, NullPool
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from config import DATABASE_URL
+from config import DATABASE_URL, logger
 
 # Tạo engine kết nối đến database từ URL trong file config.
 engine_options = {
@@ -20,11 +20,13 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
-    """Dependency to get a DB session."""
+    """Dependency to get a DB session with logging."""
     db: Session = SessionLocal()
+    logger.debug(f"DB Session {id(db)} created.")
     try:
         yield db
     finally:
+        logger.debug(f"DB Session {id(db)} closed.")
         db.close()
 
 def init_db():
