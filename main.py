@@ -1,3063 +1,1449 @@
-import secrets
-from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTasks
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response, StreamingResponse
-from pydantic import BaseModel
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates, Jinja2Templates
-from starlette.middleware.sessions import SessionMiddleware
-from utils import parse_datetime_input, format_datetime_display, is_overdue
-import atexit
-from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import Request
-from typing import Optional
-from config import logger
-
-from database import SessionLocal, get_db, Base
-from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord
-from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
-from database import init_db
-from sqlalchemy.orm import Session
-from sqlalchemy import or_, cast, Date, desc
-from sqlalchemy.exc import SQLAlchemyError
-from services.missing_attendance_service import update_missing_attendance_to_db
-from employees import employees
-from sqlalchemy import func
-from sqlalchemy import (
-    union_all,
-    literal_column,
-    asc,
-    or_,
-    select,
-    desc,
-    func,
-    cast,
-    String,
-    and_,
-    Float,
-    extract,
-    case,
-)
-from collections import OrderedDict
-from sqlalchemy.orm import aliased
-import os, re, math, io, calendar
-from collections import defaultdict
-import openpyxl
-from openpyxl.utils import get_column_letter
-import socket, threading, time
-from email.message import EmailMessage
-from datetime import datetime, timedelta, date
-from pytz import timezone
-from services.email_service import send_alert_email
-
-from employees import employees  # import danh sách nhân viên tĩnh
-
-ROLE_MAP = {
-    "letan": "Lễ tân",
-    "buongphong": "Buồng phòng",
-    "quanly": "Quản lý",
-    "ktv": "Kỹ thuật viên",
-    "baove": "Bảo vệ",
-    "boss": "Boss",
-    "admin": "Admin",
-    "khac": "Khác",
-}
-
-def map_role_to_vietnamese(role: Optional[str]) -> str:
-    if not role:
-        return "Không rõ"
-    return ROLE_MAP.get(role.lower(), role.capitalize())
-
-# Định nghĩa múi giờ Việt Nam (UTC+7)
-VN_TZ = timezone("Asia/Ho_Chi_Minh")
-
-def get_current_work_shift():
-    """
-    Xác định ngày và ca làm việc hiện tại.
-    - Ca ngày: 07:00 - 18:59
-    - Ca đêm: 19:00 - 06:59
-    - Thời gian từ 00:00 đến 06:59 được tính là ca đêm của ngày hôm trước.
-    """
-    now = datetime.now(VN_TZ)
-    if now.hour < 7:
-        work_date = now.date() - timedelta(days=1)
-        shift = "night"
-    elif 7 <= now.hour < 19:
-        work_date = now.date()
-        shift = "day"
-    else:  # 19:00 trở đi
-        work_date = now.date()
-        shift = "night"
-    return work_date, shift
-
-def run_daily_absence_check(target_date: Optional[date] = None):
-    """
-    Chạy kiểm tra và ghi nhận nhân viên vắng mặt.
-    Nếu target_date được cung cấp, sẽ chạy cho ngày đó (chạy thủ công).
-    Nếu không, sẽ chạy cho ngày hôm trước (dùng cho cron job tự động).
-    """
-    log_prefix = "thủ công"
-    if target_date is None:
-        target_date = datetime.now(VN_TZ).date() - timedelta(days=1)
-        log_prefix = "tự động"
-
-    logger.info(f"Bắt đầu chạy kiểm tra điểm danh vắng {log_prefix} cho ngày {target_date.strftime('%d/%m/%Y')}")
-    # LƯU Ý: Hàm update_missing_attendance_to_db cần được sửa đổi để chấp nhận tham số `target_date`.
-    update_missing_attendance_to_db(employees, target_date=target_date)
-    logger.info(f"Hoàn tất kiểm tra điểm danh vắng cho ngày {target_date.strftime('%d/%m/%Y')}")
-
-from urllib.parse import parse_qs, urlencode
-
-def clean_query_string(query: str) -> str:
-    parsed = parse_qs(query)
-    # Loại bỏ các key không mong muốn
-    parsed.pop("success", None)
-    parsed.pop("action", None)
-    return urlencode(parsed, doseq=True)
-
-app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="binbin-hotel-secret")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
-
-BRANCHES = [
-    "B1", "B2", "B3",
-    "B5", "B6", "B7",
-    "B8", "B9", "B10",
-    "B11", "B12", "B14",
-    "B15", "B16"
-]
-
-from math import radians, cos, sin, sqrt, atan2
-
-branchCoordinates = {
-    "B1": [10.727298831515066,106.6967154830272],
-    "B2": [10.740600,106.695797],
-    "B3": [10.733902,106.708781],
-    "B5": [10.73780906347085,106.70517496567874],
-    "B6": [10.729986861681768,106.70690372549372],
-    "B7": [10.744230207012244,106.6965025304644],
-    "B8": [10.741408,106.699883],
-    "B9": [10.740970,106.699825],
-    "B10": [10.814503,106.670873],
-    "B11": [10.77497650247788,106.75134333045331],
-    "B12": [10.778874744587053,106.75266727478706],
-    "B14": [10.742557513695218,106.69945313180673],
-    "B15": [10.775572501574938,106.75167172807936],
-    "B16": [10.760347394497392,106.69043939445082],
-}
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # bán kính trái đất km
-    dlat = radians(lat2 - lat1)
-    dlon = radians(lon2 - lon1)
-    a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
-    c = 2 * atan2(sqrt(a), sqrt(1-a))
-    return R * c
-
-@app.post("/attendance/api/detect-branch")
-async def detect_branch(request: Request, db: Session = Depends(get_db)):
-    special_roles = ["quanly", "ktv", "boss", "admin"]
-
-    # Lấy user từ session (ưu tiên user, fallback pending_user)
-    user_data = request.session.get("user") or request.session.get("pending_user")
-    user_in_db = None
-    if user_data:
-        user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
-
-    # ===============================
-    # 1. Role đặc biệt → bỏ qua GPS
-    # ===============================
-    if user_data and user_data.get("role") in special_roles:
-        if user_in_db and user_in_db.branch:
-            main_branch = user_in_db.branch
-            request.session["active_branch"] = main_branch
-            user_in_db.last_active_branch = main_branch
-            db.commit()
-            return {"branch": main_branch, "distance_km": 0}
-
-        return JSONResponse(
-            {"error": "Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị."},
-            status_code=400,
-        )
-
-    # ===============================
-    # 2. Role thường → dùng GPS
-    # ===============================
-    try:
-        data = await request.json()
-    except Exception:
-        data = {}
-
-    lat, lng = data.get("lat"), data.get("lng")
-    if lat is None or lng is None:
-        return JSONResponse(
-            {"error": "Bạn vui lòng mở định vị trên điện thoại để lấy vị trí"},
-            status_code=400,
-        )
-
-    # Tìm chi nhánh trong bán kính 200m
-    nearby_branches = []
-    for branch, coords in branchCoordinates.items():
-        dist = haversine(lat, lng, coords[0], coords[1])
-        if dist <= 0.2:  # trong 200m
-            nearby_branches.append((branch, dist))
-
-    if not nearby_branches:
-        return JSONResponse(
-            {"error": "Bạn đang ở quá xa khách sạn (ngoài 200m). Vui lòng điểm danh tại khách sạn."},
-            status_code=403,
-        )
-
-    # Nếu có nhiều chi nhánh gần → cho frontend chọn
-    if len(nearby_branches) > 1:
-        choices = [
-            {"branch": b, "distance_km": round(d, 3)}
-            for b, d in sorted(nearby_branches, key=lambda x: x[1])
-        ]
-        return {"choices": choices}
-
-    # Nếu chỉ có 1 chi nhánh gần → chọn luôn
-    chosen_branch, min_distance = nearby_branches[0]
-
-    request.session["active_branch"] = chosen_branch
-    if user_in_db:
-        user_in_db.last_active_branch = chosen_branch
-        db.commit()
-
-    return {"branch": chosen_branch, "distance_km": round(min_distance, 3)}
-
-@app.post("/attendance/api/select-branch")
-async def select_branch(request: Request, db: Session = Depends(get_db)):
-    data = await request.json()
-    branch = data.get("branch")
-
-    user_data = request.session.get("user") or request.session.get("pending_user")
-    if not user_data:
-        return JSONResponse({"error": "User chưa đăng nhập"}, status_code=403)
-
-    request.session["active_branch"] = branch
-
-    # Lưu DB
-    user_in_db = db.query(User).filter(User.code == user_data["code"]).first()
-    if user_in_db:
-        user_in_db.last_active_branch = branch
-        db.commit()
-
-    return {"branch": branch}
-
-@app.get("/attendance/service", response_class=HTMLResponse)
-def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
-    user_data = request.session.get("user")
-    if not user_data:
-        return RedirectResponse("/login", status_code=303)
-    # Quản lý và KTV không có chức năng chấm dịch vụ
-    if user_data.get("role") in ["quanly", "ktv", "admin", "boss"]:
-        return RedirectResponse("/choose-function", status_code=303)
-
-    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
-    active_branch = request.session.get("active_branch")
-    # Nếu trong session không có, thử lấy từ DB (lần đăng nhập trước)
-    if not active_branch and checker_user and hasattr(checker_user, 'last_active_branch') and checker_user.last_active_branch:
-        active_branch = checker_user.last_active_branch
-        request.session["active_branch"] = active_branch # Lưu lại vào session cho lần tải trang sau trong cùng phiên
-    # Nếu vẫn không có, dùng chi nhánh mặc định của user
-    if not active_branch:
-        active_branch = user_data.get("branch", "")
-    csrf_token = get_csrf_token(request)
-
-    initial_employees = []
-    # Lấy danh sách nhân viên BP đã được điểm danh lần cuối từ DB của lễ tân
-    if checker_user and checker_user.last_checked_in_bp:
-        service_checkin_codes = checker_user.last_checked_in_bp
-
-        if service_checkin_codes:
-            # Lấy thông tin chi tiết của các nhân viên đó
-            employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
-            # Sắp xếp lại theo đúng thứ tự đã điểm danh
-            emp_map = {emp.code: emp for emp in employees_from_db}
-            sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
-            
-            initial_employees = [
-                {"code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""}
-                for emp in sorted_employees
-            ]
-
-    response = templates.TemplateResponse("attendance_service.html", {
-        "request": request,
-        "branch_id": active_branch,
-        "csrf_token": csrf_token,
-        "user": user_data,
-        "initial_employees": initial_employees,
-    })
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-def _get_filtered_tasks_query(
-    db: Session,
-    user_data: dict,
-    chi_nhanh: str = "",
-    search: str = "",
-    trang_thai: str = "",
-    han_hoan_thanh: str = ""
-):
-    """
-    Hàm helper để xây dựng và trả về câu truy vấn SQLAlchemy cho các công việc
-    dựa trên các bộ lọc được cung cấp.
-    """
-    role = user_data.get("role")
-
-    tasks_query = db.query(Task)
-
-    # Loại bỏ công việc đã xoá cho các vai trò không phải quản lý cấp cao
-    if role not in ["quanly", "admin", "boss"]:
-        tasks_query = tasks_query.filter(Task.trang_thai != "Đã xoá")
-
-    # Lọc theo chi nhánh (nếu có).
-    # `chi_nhanh` ở đây đã được xác định một cách chính xác ở hàm `home`.
-    if chi_nhanh:
-        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
-
-    # Lọc theo từ khóa
-    if search:
-        clean_search = re.sub(r'\s+', ' ', search).strip()
-        search_pattern = f"%{clean_search}%"
-        tasks_query = tasks_query.filter(
-            or_(
-                Task.chi_nhanh.ilike(search_pattern),
-                Task.phong.ilike(search_pattern),
-                Task.mo_ta.ilike(search_pattern),
-                Task.trang_thai.ilike(search_pattern),
-                Task.nguoi_tao.ilike(search_pattern),
-                Task.nguoi_thuc_hien.ilike(search_pattern),
-                Task.ghi_chu.ilike(search_pattern)
-            )
-        )
-
-    # Lọc theo trạng thái
-    if trang_thai:
-        tasks_query = tasks_query.filter(Task.trang_thai == trang_thai)
-
-    # Lọc theo hạn hoàn thành
-    if han_hoan_thanh:
-        try:
-            han_date = datetime.strptime(han_hoan_thanh, "%Y-%m-%d").date()
-            tasks_query = tasks_query.filter(func.date(Task.han_hoan_thanh) == han_date)
-        except (ValueError, TypeError):
-            pass  # Bỏ qua nếu định dạng ngày không hợp lệ
-
-    return tasks_query
-
-@app.get("/", response_class=HTMLResponse)
-def root(request: Request):
-    """Route gốc, chuyển hướng người dùng dựa trên trạng thái đăng nhập."""
-    if request.session.get("user"):
-        return RedirectResponse("/login", status_code=303) 
-    return RedirectResponse("/login", status_code=303)
-
-# --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
-@app.get("/choose-function", response_class=HTMLResponse)
-async def choose_function(request: Request):
-    if not require_checked_in_user(request): # This check also ensures user is in session
-        return RedirectResponse("/login", status_code=303)
-
-    # Nếu có flag after_checkin thì xóa để tránh dùng lại
-    if request.session.get("after_checkin") == "choose_function":
-        request.session.pop("after_checkin", None)
-
-    response = templates.TemplateResponse(
-        "choose_function.html", {"request": request, "user": request.session.get("user")}
-    )
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-@app.get("/attendance/results", response_class=HTMLResponse)
-def view_attendance_results(request: Request, db: Session = Depends(get_db)):
-    """
-    Route để hiển thị trang xem kết quả điểm danh.
-    """
-    if not require_checked_in_user(request):
-        return RedirectResponse("/login", status_code=303)
-
-    user_data = request.session.get("user")
-
-    return templates.TemplateResponse("attendance_results.html", {
-        "request": request,
-        "user": user_data,
-        "branches": BRANCHES,
-        "roles": ROLE_MAP,
-        "dashboard_stats": None
-    })
-
-@app.get("/attendance/calendar-view", response_class=HTMLResponse)
-def view_attendance_calendar(
-    request: Request,
-    db: Session = Depends(get_db),
-    chi_nhanh: Optional[str] = None,
-    month: Optional[int] = None,
-    year: Optional[int] = None,
-):
-    user_data = request.session.get("user")
-    # Cấp quyền cho Lễ tân
-    if not user_data or user_data.get("role") not in ["admin", "boss", "quanly", "letan", "ktv"]:
-        return RedirectResponse("/choose-function", status_code=303)
-
-    # Tạo danh sách chi nhánh để hiển thị trong bộ lọc
-    display_branches = BRANCHES.copy()
-    if user_data.get("role") in ["admin", "boss"]:
-        display_branches.extend(["KTV", "Quản lý", "LTTC", "BPTC"])
-
-    # Nếu chưa có chi nhánh được chọn từ filter, đặt giá trị mặc định theo vai trò
-    if not chi_nhanh:
-        user_role = user_data.get("role")
-        user_code = user_data.get("code", "")
-
-        if user_role == "ktv":
-            # KTVs default to the "KTV" role-based view
-            chi_nhanh = "KTV"
-        elif user_role == "quanly":
-            # Managers default to the "Quản lý" role-based view
-            chi_nhanh = "Quản lý"
-        elif user_role == "letan" and "LTTC" in user_code.upper():
-            # LTTC users default to the "LTTC" code-based view
-            chi_nhanh = "LTTC"
-        elif user_role == "letan": # Lễ tân thường: ưu tiên GPS/last active
-            user_from_db = db.query(User).filter(User.code == user_data["code"]).first()
-            active_branch = (
-                request.session.get("active_branch")
-                or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
-                or user_data.get("branch")
-            )
-            chi_nhanh = active_branch
-        elif user_role in ["admin", "boss"]:
-            chi_nhanh = "B1"
-
-    now = datetime.now(VN_TZ)
-    current_month = month if month else now.month
-    current_year = year if year else now.year
-
-    _, num_days = calendar.monthrange(current_year, current_month)
-    
-    employee_data = defaultdict(lambda: {
-        "name": "",
-        "role": "",
-        "role_key": "",
-        "main_branch": "",
-        "is_cross_branch_month": False, # Sẽ được cập nhật sau
-        "worked_away_from_main_branch": False, # Cờ mới để đánh dấu *
-        "daily_work": defaultdict(lambda: {"work_units": 0, "is_overtime": False, "work_branch": "", "services": []})
-    })
-
-    if chi_nhanh:
-        # --- Xây dựng bộ lọc dựa trên lựa chọn ---
-        att_location_filter = None
-        svc_location_filter = None
-
-        role_map_filter = {"KTV": "ktv", "Quản lý": "quanly"}
-        code_prefix_filter = {"LTTC": "LTTC", "BPTC": "BPTC"}
-
-        if chi_nhanh in role_map_filter:
-            # Lọc theo vai trò nếu chọn KTV hoặc Quản lý
-            role_to_filter = role_map_filter[chi_nhanh]
-            att_location_filter = (User.role == role_to_filter)
-            svc_location_filter = (User.role == role_to_filter)
-        elif chi_nhanh in code_prefix_filter:
-            # Lọc theo mã nhân viên nếu chọn LTTC/BPTC
-            prefix_to_filter = code_prefix_filter[chi_nhanh]
-            att_location_filter = (User.code.startswith(prefix_to_filter))
-            svc_location_filter = (User.code.startswith(prefix_to_filter))
-        elif chi_nhanh in BRANCHES:
-            # Lọc theo chi nhánh làm việc
-            att_location_filter = (AttendanceRecord.chi_nhanh_lam == chi_nhanh)
-            svc_location_filter = (ServiceRecord.chi_nhanh_lam == chi_nhanh)
-        
-        # Chỉ thực hiện query nếu có bộ lọc hợp lệ
-        if att_location_filter is not None:
-            # Query cho điểm danh
-            att_q = select(
-                literal_column("'attendance'").label("type"),
-                AttendanceRecord.ma_nv, AttendanceRecord.ten_nv, User.role, User.branch.label("main_branch"),
-                AttendanceRecord.ngay_diem_danh.label("date"),
-                AttendanceRecord.so_cong_nv.label("value"),
-                AttendanceRecord.la_tang_ca,
-                AttendanceRecord.chi_nhanh_lam.label("work_branch"),
-                literal_column("''").label("dich_vu")
-            ).join(
-                User, User.code == AttendanceRecord.ma_nv, isouter=True
-            ).filter(
-                extract('month', AttendanceRecord.ngay_diem_danh) == current_month,
-                extract('year', AttendanceRecord.ngay_diem_danh) == current_year,
-                att_location_filter
-            )
-
-            # Query cho dịch vụ
-            svc_q = select(
-                literal_column("'service'").label("type"),
-                ServiceRecord.ma_nv, ServiceRecord.ten_nv, User.role, User.branch.label("main_branch"),
-                ServiceRecord.ngay_cham.label("date"),
-                cast(ServiceRecord.so_luong, Float).label("value"),
-                ServiceRecord.la_tang_ca,
-                ServiceRecord.chi_nhanh_lam.label("work_branch"),
-                ServiceRecord.dich_vu
-            ).join(
-                User, User.code == ServiceRecord.ma_nv, isouter=True
-            ).filter(
-                extract('month', ServiceRecord.ngay_cham) == current_month,
-                extract('year', ServiceRecord.ngay_cham) == current_year,
-                svc_location_filter
-            )
-
-            # Gộp 2 query
-            combined_query = union_all(att_q, svc_q).alias("combined")
-            records = db.execute(select(combined_query).order_by(combined_query.c.ten_nv, combined_query.c.date)).all()
-
-        # Process records into the desired structure
-        for rec in records:
-            day_of_month = rec.date.day
-            emp_code = rec.ma_nv
-
-            if not employee_data[emp_code]["name"]:
-                employee_data[emp_code]["name"] = rec.ten_nv
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kết Quả Điểm Danh - {{ user.name }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <style>
+        .table-auto th, .table-auto td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+        }
+        .table-auto th {
+            background-color: #f7fafc;
+        }
+        .pagination-btn.current {
+            background-color: #3b82f6;
+            color: white;
+        }
+        /* For sticky header */
+        #results-table {
+            max-height: 70vh; /* Adjust height as needed */
+            overflow-y: auto;
+            position: relative;
+        }
+        #results-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable .sort-indicator {
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            opacity: 0.5;
+            font-size: 0.8em;
+            color: #6b7280;
+            line-height: 1;
+        }
+        .sortable.asc .sort-indicator, .sortable.desc .sort-indicator {
+            opacity: 1;
+            color: #2563eb;
+        }
+        .sortable:hover .sort-indicator {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <!-- Header -->
+            <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800">Lịch sử Điểm Danh</h1>
+                    {% if user.role not in ['admin', 'boss'] %}
+                    <p class="text-gray-600">Các bản ghi do bạn (<strong class="text-blue-600">{{ user.name }}</strong>) thực hiện.</p>
+                    {% endif %}
+                </div>
+                <a href="/choose-function" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition text-sm font-semibold">
+                    &#8592; Quay lại
+                </a>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="flex flex-wrap justify-end items-center gap-4 mb-4">
+                <div class="flex items-center gap-2">
+                    {% if user.role in ['admin', 'boss'] %}
+                    <button id="export-attendance-btn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 text-sm font-semibold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>
+                        Xuất Excel
+                    </button>
+                    <button id="open-absence-modal-btn" class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition font-semibold text-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>
+                        Cập nhật vắng
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div id="search-filters" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4 p-4 border rounded-md bg-gray-50">
+                {% if user.role not in ['quanly', 'ktv'] %}
+                <div>
+                    <label for="filter-type" class="block text-sm font-medium text-gray-700">Loại bản ghi</label>
+                    <select id="filter-type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="all" selected>Tất cả</option>
+                        <option value="Điểm danh">Điểm danh</option>
+                        <option value="Dịch vụ">Chấm Dịch Vụ</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div>
+                    <label for="filter-date" class="block text-sm font-medium text-gray-700">Ngày</label>
+                    <input type="text" id="filter-date" placeholder="dd/mm/yyyy" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                {% if user.role in ['admin', 'boss'] %}
+                <div class="relative">
+                    <label for="filter-nguoi-thuc-hien" class="block text-sm font-medium text-gray-700">Người thực hiện</label>
+                    <input type="text" id="filter-nguoi-thuc-hien" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <div id="performer-filter-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
+                </div>
+                {% endif %}
+                <div class="relative">
+                    <label for="filter-nhan-vien" class="block text-sm font-medium text-gray-700">Nhân viên</label>
+                    <input type="text" id="filter-nhan-vien" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <div id="employee-filter-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
+                </div>
+                {% if user.role not in ['quanly', 'ktv'] %}
+                <div id="container-filter-chuc-vu" class="w-full">
+                    <label for="filter-chuc-vu" class="block text-sm font-medium text-gray-700">Chức vụ</label>
+                    <select id="filter-chuc-vu" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">Tất cả</option>
+                        {% if user.role in ['admin', 'boss'] %}
+                            {% for role_key, role_name in roles.items() if role_key not in ['admin', 'boss'] %}
+                            <option value="{{ role_name }}">{{ role_name }}</option>
+                            {% endfor %}
+                        {% elif user.role == 'letan' %}
+                            {% for role_key, role_name in roles.items() if role_key in ['letan', 'buongphong', 'baove'] %}
+                            <option value="{{ role_name }}">{{ role_name }}</option>
+                            {% endfor %}
+                        {% else %}
+                            {% for role_key, role_name in roles.items() %}
+                            <option value="{{ role_name }}">{{ role_name }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-cn-lam" class="block text-sm font-medium text-gray-700">CN Làm</label>
+                    <select id="filter-cn-lam" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">Tất cả</option>
+                        {% for branch in branches %}
+                        <option value="{{ branch }}">{{ branch }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="container-filter-tang-ca">
+                    <label for="filter-tang-ca" class="block text-sm font-medium text-gray-700">Tăng ca</label>
+                    <select id="filter-tang-ca" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="all">Tất cả</option>
+                        <option value="yes">Có</option>
+                        <option value="no">Không</option>
+                    </select>
+                </div>
+                <div id="container-filter-dich-vu" style="display: none;">
+                    <label for="filter-dich-vu" class="block text-sm font-medium text-gray-700">Dịch vụ</label>
+                    <select id="filter-dich-vu" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">Tất cả</option>
+                        <option value="Giặt">Giặt</option>
+                        <option value="Ủi">Ủi</option>
+                    </select>
+                </div>
+                <div id="container-filter-so-phong" style="display: none;">
+                    <label for="filter-so-phong" class="block text-sm font-medium text-gray-700">Số phòng</label>
+                    <input type="text" id="filter-so-phong" placeholder="Tìm theo số phòng..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                {% endif %} {# End if not quanly/ktv #}
+                <div id="container-filter-so-cong">
+                    <label for="filter-so-cong" class="block text-sm font-medium text-gray-700">Số công</label>
+                    <select id="filter-so-cong" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-ghi-chu" class="block text-sm font-medium text-gray-700">Ghi chú</label>
+                    <input type="text" id="filter-ghi-chu" placeholder="Tìm trong ghi chú..." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                <div class="col-span-full flex items-center justify-start gap-3 pt-2">
+                    <div class="flex items-center gap-3">
+                        <button id="apply-filters" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition text-sm font-medium">
+                            Lọc kết quả
+                        </button>
+                        <button id="clear-filters" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition text-sm">
+                            Xóa bộ lọc
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="my-4 flex justify-between items-center gap-4">
+                <!-- Left side: Delete button, Per-page select, and Record count -->
+                <div class="flex items-center gap-4">
+                    {% if user.role in ['admin', 'boss'] %}
+                    <button id="delete-selected-btn" class="hidden px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition font-semibold text-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        Xóa mục đã chọn
+                    </button>
+                    {% endif %}
+                    <div class="flex items-center gap-2">
+                        <label for="per-page-select" class="text-sm font-medium text-gray-700 whitespace-nowrap">Hiển thị:</label>
+                        <select id="per-page-select" class="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2 pl-3 pr-8 text-sm">
+                            <option value="100">100</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                        </select>
+                    </div>
+                    <p id="record-count" class="text-sm text-gray-600 font-medium"></p>
+                </div>
+
+                <!-- Center: Pagination controls -->
+                <div id="pagination-controls" class="flex justify-center items-center gap-1">
+                    <!-- Pagination buttons will be generated here -->
+                </div>
+
+                <!-- Right side: Add button -->
+                <div>
+                    {% if user.role in ['admin', 'boss'] %}
+                    <button id="add-record-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition font-semibold text-sm flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                        Thêm bản ghi
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div id="loading" class="text-center py-10">
+                <p class="text-gray-500">Đang tải dữ liệu, vui lòng chờ...</p>
+            </div>
+
+            <div id="error" class="hidden text-center py-10 bg-red-100 text-red-700 rounded-md">
+                <p>Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.</p>
+            </div>
+
+            <div id="results-table" class="hidden overflow-x-auto">
+                <table class="min-w-full table-auto text-sm text-left text-gray-700">
+                    <thead id="results-thead" class="bg-gray-50 text-xs text-gray-700 uppercase">
+                        <!-- Headers will be generated here by JavaScript -->
+                    </thead>
+                    <tbody id="results-tbody" class="bg-white">
+                        <!-- Dữ liệu sẽ được chèn vào đây bằng JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Record -->
+    <div id="record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[95vh] overflow-y-auto">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 id="modal-title" class="text-xl font-bold text-gray-900">Thêm bản ghi mới</h3>
+                <button id="modal-close-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+            <form id="record-form" class="mt-4 space-y-4">
+                <input type="hidden" id="modal-record-id" name="record_id">
                 
-                # Xác định role_key để sắp xếp, ưu tiên LTTC/BPTC
-                emp_role_key = rec.role or "khac"
-                if "LTTC" in emp_code.upper():
-                    emp_role_key = "lttc"
-                elif "BPTC" in emp_code.upper():
-                    emp_role_key = "bptc"
-                employee_data[emp_code]["role_key"] = emp_role_key
-                employee_data[emp_code]["role"] = map_role_to_vietnamese(rec.role)
-                employee_data[emp_code]["main_branch"] = rec.main_branch
+                <div id="modal-type-selector-container">
+                    <label for="modal-record-type" class="block text-sm font-medium text-gray-700">Loại bản ghi</label>
+                    <select id="modal-record-type" name="record_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="attendance">Điểm danh</option>
+                        <option value="service">Dịch vụ</option>
+                    </select>
+                </div>
 
-            if not employee_data[emp_code]["is_cross_branch_month"] and rec.main_branch != chi_nhanh:
-                employee_data[emp_code]["is_cross_branch_month"] = True
+                <!-- Performer field -->
+                <div id="modal-performer-container" class="relative">
+                    <label for="modal-nguoi-thuc-hien-search" class="block text-sm font-medium text-gray-700">Người thực hiện</label>
+                    <input type="text" id="modal-nguoi-thuc-hien-search" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <input type="hidden" id="modal-nguoi-thuc-hien-code" name="nguoi_thuc_hien">
+                    <div id="performer-search-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
+                </div>
 
-            # Logic mới: Đánh dấu nếu nhân viên từng làm khác chi nhánh chính trong tháng
-            if rec.work_branch and rec.main_branch and rec.work_branch != rec.main_branch:
-                employee_data[emp_code]["worked_away_from_main_branch"] = True
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="relative">
+                        <label for="modal-ma-nv-search" class="block text-sm font-medium text-gray-700">Nhân viên</label>
+                        <input type="text" id="modal-ma-nv-search" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <input type="hidden" id="modal-ma-nv" name="ma_nv">
+                        <div id="employee-search-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
+                    </div>
+                    <div>
+                        <label for="modal-thoi-gian" class="block text-sm font-medium text-gray-700">Thời gian</label>
+                        <input type="text" id="modal-thoi-gian" name="thoi_gian" required placeholder="dd/mm/yyyy HH:MM" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
 
-            if rec.type == 'attendance':
-                daily_work_entry = employee_data[emp_code]["daily_work"][day_of_month]
-                daily_work_entry["work_units"] += rec.value or 0
-                if rec.la_tang_ca:
-                    daily_work_entry["is_overtime"] = True
-                    daily_work_entry["work_branch"] = rec.work_branch
-            elif rec.type == 'service':
-                daily_work_entry = employee_data[emp_code]["daily_work"][day_of_month]
-                if rec.la_tang_ca:
-                    daily_work_entry["is_overtime"] = True
-                    daily_work_entry["work_branch"] = rec.work_branch
-                # Tổng hợp dịch vụ theo ngày
-                service_summary = daily_work_entry.setdefault("service_summary", defaultdict(int))
-                service_summary[rec.dich_vu] += int(rec.value or 0)
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div id="modal-cn-lam-container">
+                        <label for="modal-chi-nhanh-lam" class="block text-sm font-medium text-gray-700">Chi nhánh làm</label>
+                        <select id="modal-chi-nhanh-lam" name="chi_nhanh_lam" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option><option value="B5">B5</option><option value="B6">B6</option><option value="B7">B7</option><option value="B8">B8</option><option value="B9">B9</option><option value="B10">B10</option><option value="B11">B11</option><option value="B12">B12</option><option value="B14">B14</option><option value="B15">B15</option><option value="B16">B16</option>
+                        </select>
+                    </div>
+                    <div id="modal-tang-ca-container" class="flex items-end">
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="modal-la-tang-ca" name="la_tang_ca" class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                            <span class="text-sm text-gray-700">Tăng ca</span>
+                        </label>
+                    </div>
+                </div>
 
-        # Chuyển đổi service_summary thành list string để dễ render
-        for emp_code in employee_data:
-            for day in employee_data[emp_code]["daily_work"]:
-                if "service_summary" in employee_data[emp_code]["daily_work"][day]:
-                    summary = employee_data[emp_code]["daily_work"][day].pop("service_summary")
-                    employee_data[emp_code]["daily_work"][day]["services"] = [f"{k}: {v}" for k, v in summary.items()]
-    
-        # --- TÍNH TOÁN THỐNG KÊ DASHBOARD CHO NHÂN VIÊN CỦA CHI NHÁNH ĐANG XEM ---
-        for emp_code, emp_details in employee_data.items():
-            # Chỉ tính cho nhân viên có chi nhánh chính là chi nhánh đang xem
-            is_main_employee_of_view = (
-                emp_details.get("main_branch") == chi_nhanh
-                or (chi_nhanh == "KTV" and emp_details.get("role_key") == "ktv")
-                or (chi_nhanh == "Quản lý" and emp_details.get("role_key") == "quanly")
-                or (chi_nhanh == "LTTC" and emp_details.get("role_key") == "lttc")
-                or (chi_nhanh == "BPTC" and emp_details.get("role_key") == "bptc")
-            )
+                <!-- Attendance-specific fields -->
+                <div id="modal-attendance-fields">
+                    <div>
+                        <label for="modal-so-cong-nv" class="block text-sm font-medium text-gray-700">Số công</label>
+                        <input type="number" step="0.5" min="0.5" id="modal-so-cong-nv" name="so_cong_nv" value="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    </div>
+                </div>
 
-            if is_main_employee_of_view:
-                # --- TÍNH TOÁN DASHBOARD ---
-                # 1. Lấy tất cả bản ghi điểm danh có khả năng ảnh hưởng đến tháng đang xem
-                # (bao gồm cả ca đêm của ngày cuối tháng trước và ca đêm của ngày cuối tháng này)
-                start_query_date = date(current_year, current_month, 1)
-                end_query_date = date(current_year, current_month, num_days) + timedelta(days=1)
+                <!-- Service-specific fields -->
+                <div id="modal-service-fields" class="hidden space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="modal-dich-vu" class="block text-sm font-medium text-gray-700">Dịch vụ</label>
+                            <select id="modal-dich-vu" name="dich_vu" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                <option value="" disabled selected>Chọn dịch vụ</option>
+                                <option value="Giặt">Giặt</option>
+                                <option value="Ủi">Ủi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="modal-so-phong" class="block text-sm font-medium text-gray-700">Số phòng</p></label>
+                            <input type="text" id="modal-so-phong" name="so_phong" placeholder="VD: 201, 202" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="modal-so-luong" class="block text-sm font-medium text-gray-700">Số lượng</label>
+                            <input type="text" id="modal-so-luong" name="so_luong" placeholder="VD: 2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="modal-ghi-chu" class="block text-sm font-medium text-gray-700">Ghi chú</label>
+                    <textarea id="modal-ghi-chu" name="ghi_chu" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-3 border-t">
+                    <button type="button" id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Hủy</button>
+                    <button type="submit" id="modal-submit-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Absence Check -->
+    {% if user.role in ['admin', 'boss'] %}
+    <div id="absence-check-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3 class="text-xl font-bold text-gray-900">Cập nhật điểm danh vắng</h3>
+                <button id="absence-modal-close-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </button>
+            </div>
+            <div class="mt-4">
+                <p class="text-sm text-gray-600">Chọn ngày để chạy lại tác vụ ghi nhận nhân viên vắng mặt cho ngày đó.</p>
+                <p class="text-sm text-gray-600 mt-1"><strong>Lưu ý:</strong> Thao tác này sẽ xóa và tạo lại các bản ghi "Nghỉ" do hệ thống tự động tạo cho ngày đã chọn.</p>
+                <div class="mt-4 flex items-center gap-4">
+                    <input type="text" id="absence-check-date" placeholder="dd/mm/yyyy" class="block w-full sm:w-auto rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                    <button id="run-absence-check-btn" class="px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed">Chạy cập nhật</button>
+                </div>
+                <p id="absence-check-status" class="mt-2 text-sm font-bold"></p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const userRole = '{{ user.role }}';
+            const isAdminOrBoss = userRole === 'admin' || userRole === 'boss';
+
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error');
+            const tableEl = document.getElementById('results-table');
+            const tbodyEl = document.getElementById('results-tbody');
+            const theadEl = document.getElementById('results-thead');
+            const searchFiltersEl = document.getElementById('search-filters');
+
+            // Modal elements
+            const recordModal = document.getElementById('record-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            const modalCancelBtn = document.getElementById('modal-cancel-btn');
+            const recordForm = document.getElementById('record-form');
+            const addRecordBtn = document.getElementById('add-record-btn');
+
+            // Filter controls
+            const applyFiltersBtn = document.getElementById('apply-filters');
+            const clearFiltersBtn = document.getElementById('clear-filters');
+            const filterTypeEl = document.getElementById('filter-type');
+            const filterDateEl = document.getElementById('filter-date');
+            const filterNhanVienEl = document.getElementById('filter-nhan-vien');
+            const filterChucVuEl = document.getElementById('filter-chuc-vu');
+            const filterCnLamEl = document.getElementById('filter-cn-lam');
+            const filterSoCongEl = document.getElementById('filter-so-cong');
+            const filterTangCaEl = document.getElementById('filter-tang-ca');
+            const filterGhiChuEl = document.getElementById('filter-ghi-chu');
+            const filterNguoiThucHienEl = document.getElementById('filter-nguoi-thuc-hien');
+            const performerFilterResults = document.getElementById('performer-filter-results');
+            const employeeFilterResults = document.getElementById('employee-filter-results');
+
+            const deleteSelectedBtn = document.getElementById('delete-selected-btn');
+
+            const containerSoCong = document.getElementById('container-filter-so-cong');
+            const containerTangCa = document.getElementById('container-filter-tang-ca');
+            const containerChucVu = document.getElementById('container-filter-chuc-vu');
+            const containerDichVu = document.getElementById('container-filter-dich-vu');
+            const containerSoPhong = document.getElementById('container-filter-so-phong');
+
+            let allRecords = [];
+            let lastCheckedCheckbox = null;
+            let currentSortBy = 'thoi_gian';
+            let currentSortOrder = 'desc';
+
+            function fetchData() {
+                loadingEl.classList.remove('hidden');
+                tableEl.classList.add('hidden');
+                errorEl.classList.add('hidden');
+
+                const queryString = buildQueryString();
+
+                fetch(`/api/attendance/results-by-checker?${queryString}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        return response.json();
+                    })
+                    .then(handleData)
+                    .catch(handleError);
+            }
+
+            let currentPage = 1;
+            let recordsPerPage = parseInt(localStorage.getItem('recordsPerPage')) || 100;
+            const perPageSelect = document.getElementById('per-page-select');
+
+            if (perPageSelect) {
+                perPageSelect.value = recordsPerPage;
+                perPageSelect.addEventListener('change', () => {
+                    recordsPerPage = parseInt(perPageSelect.value, 10);
+                    localStorage.setItem('recordsPerPage', recordsPerPage);
+                    currentPage = 1; // Reset to first page when changing page size
+                    fetchData();
+                });
+            }
+
+            function buildQueryString() {
+                const params = new URLSearchParams();
+                params.append('page', currentPage);
+                params.append('per_page', recordsPerPage);
+
+                params.append('sort_by', currentSortBy);
+                params.append('sort_order', currentSortOrder);
+
+                const filterType = filterTypeEl ? filterTypeEl.value : 'all';
+                if (filterType && filterType !== 'all') params.append('filter_type', filterType);
                 
-                all_atts_raw = db.query(
-                    AttendanceRecord.ngay_diem_danh, AttendanceRecord.gio_diem_danh,
-                    AttendanceRecord.so_cong_nv, AttendanceRecord.la_tang_ca,
-                    AttendanceRecord.chi_nhanh_lam
-                ).filter(
-                    AttendanceRecord.ma_nv == emp_code,
-                    AttendanceRecord.ngay_diem_danh.between(start_query_date, end_query_date)
-                ).all()
+                if (filterDateEl.value) {
+                    const dateValue = filterDateEl.value.trim();
+                    const parts = dateValue.split('/');
+                    // Convert d/m/Y to YYYY-MM-DD for API
+                    if (parts.length === 3 && parts[2] && parts[2].length === 4) {
+                        const [d, m, y] = parts;
+                        params.append('filter_date', `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`);
+                    }
+                }
+                if (filterNhanVienEl && filterNhanVienEl.value) params.append('filter_nhan_vien', filterNhanVienEl.value.trim());
+                if (filterChucVuEl && filterChucVuEl.value) params.append('filter_chuc_vu', filterChucVuEl.value);
+                if (filterCnLamEl && filterCnLamEl.value) params.append('filter_cn_lam', filterCnLamEl.value.trim());
+                if (filterSoCongEl.value) params.append('filter_so_cong', filterSoCongEl.value);
+                if (filterTangCaEl && filterTangCaEl.value && filterTangCaEl.value !== 'all') params.append('filter_tang_ca', filterTangCaEl.value);
+                if (filterGhiChuEl.value) params.append('filter_ghi_chu', filterGhiChuEl.value.trim());
 
-                # Helper để xác định ngày làm việc (ca đêm < 7h sáng tính cho ngày hôm trước)
-                def get_work_day(att_date, att_time):
-                    return att_date - timedelta(days=1) if att_time.hour < 7 else att_date
+                const filterDichVuEl = document.getElementById('filter-dich-vu');
+                const filterSoPhongEl = document.getElementById('filter-so-phong');
+                if (filterDichVuEl && filterDichVuEl.value) params.append('filter_dich_vu', filterDichVuEl.value.trim());
+                if (filterSoPhongEl && filterSoPhongEl.value) params.append('filter_so_phong', filterSoPhongEl.value.trim());
 
-                # Gắn "work_day" vào mỗi bản ghi và lọc lại theo tháng đang xem
-                all_atts = [
-                    {**att._asdict(), "work_day": get_work_day(att.ngay_diem_danh, att.gio_diem_danh)}
-                    for att in all_atts_raw
-                ]
-                all_atts = [
-                    att for att in all_atts 
-                    if att["work_day"].month == current_month and att["work_day"].year == current_year
-                ]
-
-                # 2. Xử lý dữ liệu điểm danh dựa trên "work_day"
-                tong_so_cong = 0.0
-                work_days_set = set()
-                overtime_work_days_set = set()
-                daily_work_units = defaultdict(float)
-
-                for att in all_atts:
-                    work_day = att['work_day']
-                    so_cong = att['so_cong_nv'] or 0
-                    tong_so_cong += so_cong
-                    if so_cong > 0:
-                        work_days_set.add(work_day)
-                    daily_work_units[work_day] += so_cong
-                    if att['la_tang_ca']:
-                        overtime_work_days_set.add(work_day)
-
-                # Xác định ngày tăng ca dựa trên tổng công > 1
-                for day, total_units in daily_work_units.items():
-                    if total_units > 1:
-                        overtime_work_days_set.add(day)
-
-                # Lấy chi tiết tăng ca
-                overtime_details = []
-                main_branch = emp_details.get("main_branch")
-
-                # Xác định những ngày làm việc có chấm công ở chi nhánh khác (với số công > 0)
-                other_branch_work_days = {
-                    att['work_day']
-                    for att in all_atts
-                    if main_branch and att['chi_nhanh_lam'] != main_branch and (att['so_cong_nv'] or 0) > 0
+                if (isAdminOrBoss && filterNguoiThucHienEl && filterNguoiThucHienEl.value) {
+                    params.append('filter_nguoi_thuc_hien', filterNguoiThucHienEl.value.trim());
                 }
 
-                # Set để đảm bảo mỗi ngày chỉ xử lý 1 lần cho trường hợp >1 công
-                processed_main_branch_overtime_days = set()
+                return params.toString();
+            }
+            
+            function toggleFilterVisibility() {
+                const selectedType = filterTypeEl ? filterTypeEl.value : 'all';
+                if (selectedType === 'Dịch vụ') {
+                    if (containerSoCong) containerSoCong.style.display = 'none';
+                    if (containerChucVu) containerChucVu.style.display = 'none';
+                    if (containerDichVu) containerDichVu.style.display = 'block';
+                    if (containerSoPhong) containerSoPhong.style.display = 'block';
+                } else {
+                    if (containerSoCong) containerSoCong.style.display = 'block';
+                    if (containerChucVu) containerChucVu.style.display = 'block';
+                    if (containerDichVu) containerDichVu.style.display = 'none';
+                    if (containerSoPhong) containerSoPhong.style.display = 'none';
+                }
+            }
 
-                # Lặp qua tất cả các bản ghi để xây dựng chi tiết
-                for att in all_atts:
-                    work_day = att['work_day']
+            function updateSelectAllCheckboxState() {
+                const selectAllCheckbox = document.getElementById('select-all-checkbox');
+                if (!selectAllCheckbox) return;
 
-                    # Bỏ qua nếu không phải là ngày tăng ca
-                    if work_day not in overtime_work_days_set:
-                        continue
+                const rowCheckboxes = tbodyEl.querySelectorAll('.row-checkbox');
+                const totalRows = rowCheckboxes.length;
+                if (totalRows === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                    return;
+                }
 
-                    # Ưu tiên 1: Tăng ca do đi chi nhánh khác
-                    if work_day in other_branch_work_days:
-                        # Chỉ thêm các bản ghi ở chi nhánh khác (có công)
-                        if main_branch and att['chi_nhanh_lam'] != main_branch and (att['so_cong_nv'] or 0) > 0:
-                            overtime_details.append({ "date": att['ngay_diem_danh'].strftime('%d/%m/%Y'), "time": att['gio_diem_danh'].strftime('%H:%M'), "branch": att['chi_nhanh_lam'], "work_units": att['so_cong_nv'] })
-                    # Trường hợp 2: Tăng ca do làm >1 công (và chỉ làm tại chi nhánh chính)
-                    elif daily_work_units.get(work_day, 0) > 1:
-                        if work_day not in processed_main_branch_overtime_days:
-                            # Chỉ hiển thị 1 dòng tóm tắt cho ngày này
-                            overtime_details.append({ "date": work_day.strftime('%d/%m/%Y'), "time": "Nhiều ca", "branch": main_branch, "work_units": f"{daily_work_units.get(work_day, 0):.1f}" })
-                            processed_main_branch_overtime_days.add(work_day)
+                const checkedRows = tbodyEl.querySelectorAll('.row-checkbox:checked').length;
 
-                # 3. Lấy tất cả bản ghi dịch vụ trong tháng
-                all_services = db.query(
-                    ServiceRecord
-                ).filter(
-                    ServiceRecord.ma_nv == emp_code,
-                    extract('month', ServiceRecord.ngay_cham) == current_month,
-                    extract('year', ServiceRecord.ngay_cham) == current_year
-                ).all()
+                if (checkedRows === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                } else if (checkedRows < totalRows) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = true;
+                } else { // checkedRows === totalRows
+                    selectAllCheckbox.checked = true;
+                    selectAllCheckbox.indeterminate = false;
+                }
+            }
 
-                # 4. Tổng hợp kết quả
-                so_ngay_lam = len(work_days_set)
-                so_ngay_tang_ca = len(overtime_work_days_set)
+            function updateDeleteButtonState() {
+                if (!isAdminOrBoss || !deleteSelectedBtn) return;
+                const selectedCheckboxes = tbodyEl.querySelectorAll('.row-checkbox:checked');
+                if (selectedCheckboxes.length > 0) {
+                    deleteSelectedBtn.classList.remove('hidden');
+                } else {
+                    deleteSelectedBtn.classList.add('hidden');
+                }
+            }
 
-                # --- LOGIC MỚI CHO SỐ NGÀY NGHỈ ---
-                is_current_month_view = (current_year == now.year and current_month == now.month)
-                
-                if is_current_month_view:
-                    # Đối với tháng hiện tại, số ngày nghỉ được tính từ đầu tháng đến ngày hôm nay.
-                    days_passed = now.day
-                    # Lọc ra những ngày đã làm việc tính đến hôm nay.
-                    worked_days_so_far = {d for d in work_days_set if d <= now.date()}
-                    so_ngay_nghi = days_passed - len(worked_days_so_far)
-                else:
-                    # Đối với các tháng trong quá khứ, tính như cũ.
-                    so_ngay_nghi = num_days - so_ngay_lam
-                so_ngay_nghi = max(0, so_ngay_nghi)
-                laundry_details = []
-                ironing_details = []
-                tong_dich_vu_giat = 0
-                tong_dich_vu_ui = 0
+            function setupCheckboxListeners() {
+                const selectAllCheckbox = document.getElementById('select-all-checkbox');
+                if (selectAllCheckbox) {
+                    selectAllCheckbox.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        tbodyEl.querySelectorAll('.row-checkbox').forEach(checkbox => {
+                            checkbox.checked = isChecked;
+                        });
+                        selectAllCheckbox.indeterminate = false;
+                        updateDeleteButtonState();
+                    });
+                }
 
-                for svc in all_services:
-                    try:
-                        quantity = int(svc.so_luong)
-                    except (ValueError, TypeError):
-                        quantity = 0
-                    
-                    detail = {
-                        "date": svc.ngay_cham.strftime('%d/%m/%Y'), "time": svc.gio_cham.strftime('%H:%M'),
-                        "branch": svc.chi_nhanh_lam, "room": svc.so_phong, "quantity": svc.so_luong
+                if (!tbodyEl.dataset.changeListenerAdded) {
+                    tbodyEl.addEventListener('click', (e) => {
+                        if (e.target.tagName === 'INPUT' && e.target.classList.contains('row-checkbox')) {
+                            const checkbox = e.target;
+
+                            if (e.shiftKey && lastCheckedCheckbox && lastCheckedCheckbox !== checkbox) {
+                                const checkboxes = Array.from(tbodyEl.querySelectorAll('.row-checkbox'));
+                                const start = checkboxes.indexOf(lastCheckedCheckbox);
+                                const end = checkboxes.indexOf(checkbox);
+
+                                const rangeStart = Math.min(start, end);
+                                const rangeEnd = Math.max(start, end);
+                                const isChecked = checkbox.checked;
+                                for (let i = rangeStart; i <= rangeEnd; i++) {
+                                    checkboxes[i].checked = isChecked;
+                                }
+                            } else {
+                                lastCheckedCheckbox = checkbox;
+                            }
+                            updateDeleteButtonState();
+                            updateSelectAllCheckboxState();
+                        }
+                    });
+                    tbodyEl.dataset.clickListenerAdded = 'true';
+                }
+            }
+
+            if (deleteSelectedBtn) {
+                deleteSelectedBtn.addEventListener('click', () => {
+                    const selected = [];
+                    tbodyEl.querySelectorAll('.row-checkbox:checked').forEach(checkbox => {
+                        selected.push({
+                            id: parseInt(checkbox.dataset.id, 10),
+                            type: checkbox.dataset.type
+                        });
+                    });
+
+                    if (selected.length === 0) {
+                        alert('Vui lòng chọn ít nhất một bản ghi để xóa.');
+                        return;
                     }
 
-                    if svc.dich_vu == 'Giặt':
-                        tong_dich_vu_giat += quantity
-                        laundry_details.append(detail)
-                    elif svc.dich_vu == 'Ủi':
-                        tong_dich_vu_ui += quantity
-                        ironing_details.append(detail)
-
-                emp_details["dashboard_stats"] = {
-                    "so_ngay_lam": so_ngay_lam,
-                    "so_ngay_nghi": so_ngay_nghi,
-                    "so_ngay_tang_ca": so_ngay_tang_ca,
-                    "tong_so_cong": tong_so_cong,
-                    "tong_dich_vu_giat": tong_dich_vu_giat,
-                    "tong_dich_vu_ui": tong_dich_vu_ui,
-                    "overtime_details": sorted(overtime_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
-                    "laundry_details": sorted(laundry_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
-                    "ironing_details": sorted(ironing_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
-                }
-    
-    # Sắp xếp nhân viên theo: Chức vụ > Tăng ca (làm khác CN) > Tên
-    role_priority = {
-        "letan": 0,
-        "lttc": 0,      # Sắp xếp cùng Lễ tân
-        "buongphong": 1,
-        "bptc": 1,      # Sắp xếp cùng Buồng phòng
-        "baove": 2,
-        "ktv": 3,
-        "quanly": 4,
-    }
-    
-    # Chuyển dict thành list để sắp xếp
-    employee_list_to_sort = list(employee_data.items())
-
-    # Sắp xếp list
-    sorted_employee_list = sorted(
-        employee_list_to_sort,
-        key=lambda item: (
-            role_priority.get(item[1].get("role_key", "khac"), 99),
-            item[1].get("is_cross_branch_month", False),
-            item[1].get("name", "")
-        )
-    )
-    sorted_employee_data = OrderedDict(sorted_employee_list)
-
-    # Chuẩn bị dữ liệu chi tiết cho JavaScript
-    employee_data_for_js = {}
-    for code, data in sorted_employee_data.items():
-        if "dashboard_stats" in data:
-            employee_data_for_js[code] = {
-                "dashboard_stats": data["dashboard_stats"]
+                    if (confirm(`Bạn có chắc chắn muốn xóa ${selected.length} bản ghi đã chọn không?`)) {
+                        fetch('/api/attendance/records/batch-delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ records: selected })
+                        }).then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err)))
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert(`Đã xóa thành công ${data.deleted_count} bản ghi.`);
+                                fetchData();
+                            } else {
+                                throw new Error(data.detail || 'Lỗi không xác định');
+                            }
+                        }).catch(err => alert(`Lỗi khi xóa hàng loạt: ${err.message || 'Lỗi server'}`));
+                    }
+                });
             }
 
-    return templates.TemplateResponse("attendance_calendar_view.html", {
-        "request": request,
-        "user": user_data,
-        "branches": display_branches,
-        "selected_branch": chi_nhanh,
-        "selected_month": current_month,
-        "selected_year": current_year,
-        "num_days": num_days,
-        "employee_data": sorted_employee_data,
-        "employee_data_for_js": employee_data_for_js,
-        "current_day": now.day if now.month == current_month and now.year == current_year else None,
-    })
-
-@app.get("/login", response_class=HTMLResponse)
-def login_form(request: Request):
-    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chọn chức năng
-    user = request.session.get("user")
-    if user:
-        today = date.today()
-        db = SessionLocal()
-        try:
-            log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
-            if log and log.checked_in:
-                    return RedirectResponse(url="/choose-function", status_code=303)
-        finally:
-            db.close()
-    error = request.query_params.get("error", "")
-    role = request.query_params.get("role", "")
-    response = templates.TemplateResponse("login.html", {
-        "request": request,
-        "error": error,
-        "role": role
-    })
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-def _get_log_shift_for_user(user_role: str, current_shift: str) -> Optional[str]:
-    """Xác định ca làm việc để ghi log, trả về None cho các role đặc biệt."""
-    return None if user_role in ["ktv", "quanly"] else current_shift
-
-@app.post("/login", response_class=HTMLResponse)
-def login_submit(
-    request: Request,
-    username: str = Form(...),
-    password: str = Form(...),
-    db: Session = Depends(get_db)
-):
-    request.session.clear()
-    allowed_roles = ["letan", "quanly", "ktv", "admin", "boss"]
-
-    # Tìm user
-    user = db.query(User).filter(
-        User.code == username,
-        User.password == password,
-        User.role.in_(allowed_roles)
-    ).first()
-
-    if not user:
-        # Nếu login sai → đoán role để hiển thị UI đúng
-        guessed_role = ""
-        if username.lower().startswith("b") and "lt" in username.lower():
-            guessed_role = "letan"
-        elif username.lower().startswith("ktv"):
-            guessed_role = "ktv"
-        elif username.lower() in ["ql", "admin"]:
-            guessed_role = "quanly"
-
-        query = urlencode({
-            "error": "Mã nhân viên hoặc mật khẩu sai",
-            "role": guessed_role
-        })
-        return RedirectResponse(f"/login?{query}", status_code=303)
-
-    # ✅ Boss & Admin: vào thẳng hệ thống, không cần điểm danh
-    if user.role in ["boss", "admin"]:
-        request.session["user"] = {
-            "code": user.code,
-            "role": user.role,
-            "branch": user.branch,
-            "name": user.name
-        }
-        request.session["after_checkin"] = "choose_function"
-        return RedirectResponse("/choose-function", status_code=303)
-
-    # ✅ Các role khác: kiểm tra log điểm danh
-    work_date, shift = get_current_work_shift()
-    shift_value = _get_log_shift_for_user(user.role, shift)
-
-    # Query log theo shift_value
-    log = db.query(AttendanceLog).filter_by(
-        user_code=user.code,
-        date=work_date,
-        shift=shift_value
-    ).first()
-
-    # Nếu đã check-in thì vào thẳng hệ thống
-    if log and log.checked_in:
-        request.session["user"] = {
-            "code": user.code,
-            "role": user.role,
-            "branch": user.branch,
-            "name": user.name
-        }
-        request.session.pop("pending_user", None)
-        return RedirectResponse("/choose-function", status_code=303)
-
-    # Nếu chưa check-in → phân luồng mobile / desktop
-    user_agent = request.headers.get("user-agent", "").lower()
-    is_mobile = any(k in user_agent for k in ["mobi", "android", "iphone", "ipad"])
-
-    if is_mobile:
-        if not log:
-            token = secrets.token_urlsafe(24)
-            log = AttendanceLog(
-                user_code=user.code,
-                date=work_date,
-                shift=shift_value,
-                token=token,
-                checked_in=False
-            )
-            db.add(log)
-            db.commit()
-        token = log.token
-
-        request.session["pending_user"] = {
-            "code": user.code,
-            "role": user.role,
-            "branch": user.branch,
-            "name": user.name,
-        }
-        request.session["qr_token"] = token
-        return RedirectResponse("/attendance/ui", status_code=303)
-
-    else:
-        # Desktop
-        if log and not log.checked_in:
-            token = log.token
-        else:
-            token = secrets.token_urlsafe(24)
-            log = AttendanceLog(
-                user_code=user.code,
-                date=work_date,
-                shift=shift_value,
-                token=token,
-                checked_in=False
-            )
-            db.add(log)
-            db.commit()
-
-        request.session["pending_user"] = {
-            "code": user.code,
-            "role": user.role,
-            "branch": user.branch,
-            "name": user.name,
-        }
-        request.session["qr_token"] = token
-        return RedirectResponse("/show_qr", status_code=303)
-
-# --- Middleware kiểm tra trạng thái điểm danh QR ---
-from datetime import date
-
-def require_checked_in_user(request: Request):
-    user = request.session.get("user")
-    if not user:
-        return False
-
-    # ✅ Admin và Boss luôn được truy cập nếu đã đăng nhập
-    if user.get("role") in ["admin", "boss"]:
-        return True
-
-    work_date, _ = get_current_work_shift()
-    db = SessionLocal()
-    try:
-        # Kiểm tra xem có bất kỳ log nào đã check-in trong ngày làm việc hiện tại không
-        # (ca ngày hoặc ca đêm).
-        log = db.query(AttendanceLog).filter(
-            AttendanceLog.user_code == user["code"],
-            AttendanceLog.date == work_date,
-            AttendanceLog.checked_in == True
-        ).first()
-
-        # Cho phép vào nếu có log checked_in trong DB hoặc vừa quét QR xong
-        if (log and log.checked_in) or request.session.get("after_checkin") == "choose_function":
-            return True
-    finally:
-        db.close()
-
-    return False
-
-# --- CSRF Token Management ---
-def generate_csrf_token():
-    return secrets.token_urlsafe(32)
-
-def get_csrf_token(request: Request):
-    token = request.session.get("csrf_token")
-    if not token:
-        token = generate_csrf_token()
-        request.session["csrf_token"] = token
-    return token
-
-def validate_csrf(request: Request):
-    token = request.headers.get("X-CSRF-Token") or request.query_params.get("csrf_token")
-    session_token = request.session.get("csrf_token")
-    if not session_token or token != session_token:
-        raise HTTPException(status_code=403, detail="CSRF token không hợp lệ")
-
-# --- Attendance UI ---
-@app.get("/attendance/ui", response_class=HTMLResponse)
-def attendance_ui(request: Request):
-    user_data = request.session.get("user") or request.session.get("pending_user")
-    if not user_data:
-        return RedirectResponse("/login", status_code=303)
-    active_branch = request.session.get("active_branch") or user_data.get("branch", "")
-    csrf_token = get_csrf_token(request)
-    # Truyền mã nhân viên đăng nhập cho frontend để luôn hiển thị trong danh sách điểm danh
-    response = templates.TemplateResponse("attendance.html", {
-        "request": request,
-        "branch_id": active_branch,
-        "csrf_token": csrf_token,
-        # "branches": BRANCHES,
-        "user": user_data,
-        "login_code": user_data.get("code", ""),  # thêm dòng này
-    })
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-# --- Get CSRF token ---
-@app.get("/attendance/csrf-token")
-def attendance_csrf_token(request: Request):
-    token = get_csrf_token(request)
-    return {"csrf_token": token}
-
-@app.get("/attendance/api/employees/by-branch/{branch_id}", response_class=JSONResponse)
-def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), request: Request = None):
-    try:
-        user = request.session.get("user") if request else None
-        now_hour = datetime.now(VN_TZ).hour
-        current_shift = "CS" if 7 <= now_hour < 19 else "CT"
-
-        def match_shift(emp_code: str):
-            emp_code = emp_code.upper()
-            if "CS" in emp_code and current_shift != "CS":
-                return False
-            if "CT" in emp_code and current_shift != "CT":
-                return False
-            return True
-
-        employees = []
-
-        if user and user.get("role") == "letan":
-            # ✅ Luôn thêm chính lễ tân đang đăng nhập
-            lt_self = db.query(User).filter(
-                User.code == user.get("code"),
-                User.branch == branch_id
-            ).all()
-            # Các bộ phận khác cùng chi nhánh (bỏ quản lý, ktv, lễ tân khác)
-            others = db.query(User).filter(
-                User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv", "letan"])
-            ).all()
-            others = [emp for emp in others if match_shift(emp.code)]
-            employees = sorted(lt_self + others, key=lambda e: e.name)
-
-        elif user and user.get("role") in ["quanly", "ktv"]:
-            # ✅ Quản lý và KTV chỉ thấy chính họ (bỏ lọc chi nhánh, bỏ shift)
-            employees = db.query(User).filter(
-                User.code == user.get("code")
-            ).all()
-
-        elif user and user.get("role") in ["admin", "boss"]:
-            # ✅ Admin và Boss thấy tất cả nhân viên của chi nhánh, không lọc shift
-            employees = db.query(User).filter(User.branch == branch_id).order_by(User.name).all()
-
-        else:
-            # ✅ Logic chung cho các role khác
-            employees = db.query(User).filter(
-                User.branch == branch_id,
-                ~User.role.in_(["quanly", "ktv", "admin", "boss"])
-            ).all()
-            employees = [emp for emp in employees if match_shift(emp.code)]
-            employees.sort(key=lambda e: e.name)
-
-        employee_list = [
-            {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
-            for emp in employees
-        ]
-        return JSONResponse(content=employee_list)
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"detail": f"Lỗi server: {str(e)}"})
-
-# --- Employee search ---
-@app.get("/attendance/api/employees/search", response_class=JSONResponse)
-def search_employees(
-    q: str = "",
-    request: Request = None,
-    branch_id: Optional[str] = None,
-    only_bp: bool = False,
-    loginCode: Optional[str] = None,
-    context: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
-    """
-    API tìm kiếm nhân viên theo mã hoặc tên.
-    - Nếu branch_id được cung cấp, chỉ tìm trong chi nhánh đó (ngoại trừ khi only_bp=True).
-    - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP') từ TẤT CẢ các chi nhánh.
-    - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode) trong các context khác.
-    - Thêm context='results_filter' để chỉ gợi ý nhân viên mà user đã chấm công.
-    - Giới hạn 20 kết quả.
-    """
-    if not q:
-        if not only_bp:
-            return JSONResponse(content=[], status_code=400)
-        search_pattern = "%"
-    else:
-        search_pattern = f"%{q}%"
-
-    user = request.session.get("user") if request else None
-
-    # --- LOGIC MỚI: Lọc theo ngữ cảnh trang kết quả ---
-    if user and user.get("role") not in ["admin", "boss"] and context == "results_filter":
-        checker_code = user.get("code")
-
-        # Lấy mã các nhân viên mà user này đã tạo bản ghi cho
-        att_employee_codes_q = db.query(AttendanceRecord.ma_nv).filter(AttendanceRecord.nguoi_diem_danh == checker_code).distinct()
-        svc_employee_codes_q = db.query(ServiceRecord.ma_nv).filter(ServiceRecord.nguoi_cham == checker_code).distinct()
-
-        related_codes = {row[0] for row in att_employee_codes_q.all()}
-        related_codes.update({row[0] for row in svc_employee_codes_q.all()})
-
-        # Luôn bao gồm chính mình trong danh sách tìm kiếm (trường hợp tự chấm công)
-        related_codes.add(checker_code)
-
-        if not related_codes:
-             return JSONResponse(content=[])
-
-        # Xây dựng query dựa trên các mã đã thu thập
-        query = db.query(User).filter(
-            User.code.in_(list(related_codes)),
-            or_(
-                User.code.ilike(search_pattern),
-                User.name.ilike(search_pattern)
-            )
-        )
-        employees = query.limit(50).all()
-    else:
-        # --- LOGIC CŨ: Dùng cho các trường hợp khác (trang điểm danh, admin/boss, etc.) ---
-        query = db.query(User).filter(
-            or_(
-                User.code.ilike(search_pattern),
-                User.name.ilike(search_pattern)
-            )
-        )
-
-        if branch_id and not only_bp:
-            query = query.filter(User.branch == branch_id)
-
-        employees = query.limit(50).all()
-
-        if only_bp:
-            employees = [emp for emp in employees if "BP" in (emp.code or "").upper()]
-
-        is_admin_or_boss = user and user.get("role") in ["admin", "boss"]
-
-        if not is_admin_or_boss:
-            filtered = []
-            for emp in employees:
-                if (emp.role or "").lower() == "letan":
-                    if loginCode and emp.code == loginCode:
-                        filtered.append(emp)
-                else:
-                    filtered.append(emp)
-            employees = filtered
-
-    employee_list = [
-        {"code": emp.code, "name": emp.name, "department": emp.role, "branch": emp.branch}
-        for emp in employees[:20]
-    ]
-    return JSONResponse(content=employee_list)
-
-from sqlalchemy import case
-
-def _get_filtered_tasks_query(
-    db: Session,
-    user_data: dict,
-    chi_nhanh: str = "",
-    search: str = "",
-    trang_thai: str = "",
-    han_hoan_thanh: str = ""
-):
-    """
-    Hàm helper để xây dựng và trả về câu truy vấn SQLAlchemy cho các công việc
-    dựa trên các bộ lọc được cung cấp. Việc xác định chi nhánh nào cần lọc
-    (dựa trên GPS hay form) đã được thực hiện ở hàm `home`.
-    """
-    role = user_data.get("role")
-
-    tasks_query = db.query(Task)
-
-    # Loại bỏ công việc đã xoá cho các vai trò không phải quản lý cấp cao
-    if role not in ["quanly", "ktv", "admin", "boss"]:
-        tasks_query = tasks_query.filter(Task.trang_thai != "Đã xoá")
-
-    # Lọc theo chi nhánh (nếu có).
-    # `chi_nhanh` ở đây đã được xác định một cách chính xác ở hàm `home`
-    # (là chi nhánh GPS cho lễ tân, hoặc chi nhánh từ bộ lọc cho các role khác).
-    if chi_nhanh:
-        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
-
-    # Lọc theo từ khóa
-    if search:
-        clean_search = re.sub(r'\s+', ' ', search).strip()
-        search_pattern = f"%{clean_search}%"
-        tasks_query = tasks_query.filter(
-            or_(
-                Task.chi_nhanh.ilike(search_pattern),
-                Task.phong.ilike(search_pattern),
-                Task.mo_ta.ilike(search_pattern),
-                Task.trang_thai.ilike(search_pattern),
-                Task.nguoi_tao.ilike(search_pattern),
-                Task.nguoi_thuc_hien.ilike(search_pattern),
-                Task.ghi_chu.ilike(search_pattern),
-            )
-        )
-
-    # Lọc theo trạng thái
-    if trang_thai:
-        tasks_query = tasks_query.filter(Task.trang_thai == trang_thai)
-
-    # Lọc theo hạn hoàn thành
-    if han_hoan_thanh:
-        try:
-            han_date = datetime.strptime(han_hoan_thanh, "%Y-%m-%d").date()
-            tasks_query = tasks_query.filter(func.date(Task.han_hoan_thanh) == han_date)
-        except (ValueError, TypeError):
-            pass
-
-    return tasks_query
-
-@app.get("/home", response_class=HTMLResponse)
-def home(
-    request: Request,
-    chi_nhanh: str = "",
-    search: str = "",
-    trang_thai: str = "",
-    han_hoan_thanh: str = "",
-    page: int = 1,
-    per_page: int = 8,
-    db: Session = Depends(get_db)
-):
-    user_data = request.session.get("user")
-    today = datetime.now(VN_TZ)
-
-    if not user_data:
-        return RedirectResponse("/login", status_code=303)
-
-    # Đồng bộ trạng thái "Quá hạn" trước khi query dữ liệu
-    try:
-        db.query(Task).filter(
-            Task.trang_thai == "Đang chờ",
-            Task.han_hoan_thanh < today
-        ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Lỗi khi cập nhật trạng thái công việc quá hạn trong route /home: {e}", exc_info=True)
-
-    username = user_data["code"]
-    role = user_data["role"]
-    user_name = user_data["name"]
-
-    # Lấy chi nhánh hoạt động từ GPS (active_branch) hoặc chi nhánh mặc định của user
-    # --- LOGIC MỚI ĐỂ LẤY CHI NHÁNH ---
-    # 1. Lấy thông tin user đầy đủ từ DB để có last_active_branch
-    user_from_db = db.query(User).filter(User.code == username).first()
-
-    # 2. Xác định chi nhánh hoạt động theo thứ tự ưu tiên:
-    #    - Ưu tiên 1: Chi nhánh từ session (vừa quét GPS trong phiên này).
-    #    - Ưu tiên 2: Chi nhánh hoạt động cuối cùng đã lưu trong DB.
-    #    - Ưu tiên 3: Chi nhánh mặc định của user (fallback).
-    active_branch = (
-        request.session.get("active_branch")
-        or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
-        or user_data.get("branch")
-    )
-
-    # Xác định chi nhánh để lọc query dựa trên vai trò
-    branch_to_filter = ""
-
-    if role == 'letan':
-        # ✅ Lễ tân: luôn ưu tiên GPS (active_branch) nếu có
-        if request.session.get("active_branch"):
-            branch_to_filter = chi_nhanh or request.session["active_branch"]
-        else:
-            branch_to_filter = chi_nhanh or (user_from_db.last_active_branch if user_from_db and user_from_db.last_active_branch else user_data.get("branch"))
-    else:
-        # ✅ Quản lý, KTV, Admin, Boss: chỉ lọc khi chọn từ form
-        branch_to_filter = chi_nhanh
-
-
-    # ✅ Query công việc với chi nhánh đã được xác định
-    tasks_query = _get_filtered_tasks_query(
-        db, user_data, branch_to_filter, search, trang_thai, han_hoan_thanh
-    )
-
-    # ✅ Lấy tất cả công việc cho Lịch (bỏ qua filter ngày và phân trang)
-    # Điều này đảm bảo lịch luôn hiển thị tất cả các công việc phù hợp với bộ lọc hiện tại,
-    # không bị giới hạn bởi bộ lọc ngày cụ thể.
-    calendar_tasks_query = _get_filtered_tasks_query(
-        db, user_data, branch_to_filter, search, trang_thai, "" # han_hoan_thanh rỗng
-    )
-    all_tasks_for_cal = calendar_tasks_query.all()
-    calendar_tasks_data = []
-    for t in all_tasks_for_cal:
-        # Dữ liệu đã được đồng bộ ở đầu route, chỉ cần lấy trực tiếp
-        calendar_tasks_data.append({
-            "id": t.id,
-            "phong": t.phong,
-            "mo_ta": t.mo_ta,
-            "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
-            "han_hoan_thanh_raw": t.han_hoan_thanh.isoformat() if t.han_hoan_thanh else None,
-            "trang_thai": t.trang_thai,
-        })
-
-    # ✅ Tổng số task
-    total_tasks = tasks_query.count()
-    total_pages = max(1, (total_tasks + per_page - 1) // per_page)
-
-    # ✅ Sắp xếp
-    order = {"Quá hạn": 0, "Đang chờ": 1, "Hoàn thành": 2, "Đã xoá": 3}
-    rows = (
-        tasks_query.order_by(
-            case(order, value=Task.trang_thai, else_=99),
-            Task.han_hoan_thanh.nullslast(),
-        )
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-        .all()
-    )
-
-    # ✅ Chuẩn bị dữ liệu
-    tasks, chi_nhanhs_set = [], set()
-    for t in rows:
-        chi_nhanhs_set.add(t.chi_nhanh)
-
-        # Dữ liệu đã được đồng bộ ở đầu route, chỉ cần lấy trực tiếp
-
-        tasks.append({
-            "id": t.id,
-            "chi_nhanh": t.chi_nhanh,
-            "phong": t.phong,
-            "mo_ta": t.mo_ta,
-            "ngay_tao": format_datetime_display(t.ngay_tao, with_time=True),
-            "han_hoan_thanh": format_datetime_display(t.han_hoan_thanh, with_time=False),
-            "han_hoan_thanh_raw": t.han_hoan_thanh.isoformat() if t.han_hoan_thanh else None,
-            "trang_thai": t.trang_thai,
-            "nguoi_tao": t.nguoi_tao,
-            "ghi_chu": t.ghi_chu or "",
-            "nguoi_thuc_hien": t.nguoi_thuc_hien,
-            "ngay_hoan_thanh": format_datetime_display(t.ngay_hoan_thanh, with_time=True) if t.ngay_hoan_thanh else "",
-            "is_overdue": t.trang_thai == "Quá hạn",
-        })
-
-    # ✅ Thống kê (đã được đơn giản hóa vì DB đã đồng bộ)
-    thong_ke = {
-        "tong_cong_viec": total_tasks,
-        "hoan_thanh": tasks_query.filter(Task.trang_thai == "Hoàn thành").count(),
-        "hoan_thanh_tuan": tasks_query.filter(
-            Task.trang_thai == "Hoàn thành",
-            Task.ngay_hoan_thanh >= today.replace(hour=0, minute=0) - timedelta(days=today.weekday()),
-        ).count(),
-        "hoan_thanh_thang": tasks_query.filter(
-            Task.trang_thai == "Hoàn thành", func.extract("month", Task.ngay_hoan_thanh) == today.month
-        ).count(),
-        "dang_cho": tasks_query.filter(Task.trang_thai == "Đang chờ").count(),
-        "qua_han": tasks_query.filter(Task.trang_thai == "Quá hạn").count(),
-    }
-
-    if role in ["admin", "boss"]:
-        # Admin/Boss: luôn thấy tất cả chi nhánh
-        chi_nhanhs_display = BRANCHES
-    else:
-        chi_nhanhs_display = sorted(chi_nhanhs_set)
-
-
-    # Tạo query string cho phân trang, giữ lại các bộ lọc hiện tại
-    query_params = {
-        "chi_nhanh": branch_to_filter,
-        "search": search,
-        "trang_thai": trang_thai,
-        "han_hoan_thanh": han_hoan_thanh,
-        "per_page": per_page,
-    }
-    # Loại bỏ các key có giá trị rỗng hoặc None
-    active_filters = {k: v for k, v in query_params.items() if v}
-    pagination_query_string = urlencode(active_filters)
-
-    # ✅ Render template
-    response = templates.TemplateResponse(
-        "home.html",
-        {
-            "request": request,
-            "tasks": tasks,
-            "user": username,
-            "role": role,
-            "user_name": user_name,
-            "search": search,
-            "trang_thai": trang_thai,
-            "chi_nhanh": branch_to_filter, # Sử dụng chi nhánh đã lọc để hiển thị trên dropdown
-            "chi_nhanhs": chi_nhanhs_display,
-            "user_chi_nhanh": active_branch,
-            "branches": BRANCHES,
-            "now": today,
-            "thong_ke": thong_ke,
-            "page": page,
-            "total_pages": total_pages,
-            "per_page": per_page,
-            "query_string": f"&{pagination_query_string}" if pagination_query_string else "",
-            "all_tasks_for_calendar": calendar_tasks_data,
-        },
-    )
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-@app.post("/add")
-def add_task(
-    request: Request,
-    chi_nhanh: Optional[str] = Form(None),
-    phong: str = Form(...),
-    mo_ta: str = Form(...),
-    han_hoan_thanh: str = Form(...),
-    nguoi_tao: str = Form(...),
-    ghi_chu: str = Form(""),
-    db: Session = Depends(get_db)
-):
-    user = request.session.get("user")
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-
-    role = user.get("role")
-
-    # Đối với các vai trò không có dropdown chọn chi nhánh (ví dụ: lễ tân),
-    # chi nhánh phải được xác định một cách an toàn ở phía server
-    # dựa trên chi nhánh hoạt động (active_branch) từ GPS/session.
-    if role not in ["quanly", "ktv", "admin", "boss"]:
-        user_from_db = db.query(User).filter(User.code == user["code"]).first()
-        # Sử dụng logic tương tự như route GET /home để đảm bảo tính nhất quán
-        active_branch = (
-            request.session.get("active_branch")
-            or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
-            or user.get("branch")
-        )
-        chi_nhanh = active_branch
-
-    if not chi_nhanh:
-        raise HTTPException(status_code=400, detail="Không xác định được chi nhánh")
-
-    han = parse_datetime_input(han_hoan_thanh)
-    if han and han.tzinfo is None:
-        han = VN_TZ.localize(han)
-    now = datetime.now(VN_TZ)
-    trang_thai = "Quá hạn" if han < now else "Đang chờ"
-
-    new_task = Task(
-        chi_nhanh=chi_nhanh,
-        phong=phong,
-        mo_ta=mo_ta,
-        ngay_tao=now,
-        han_hoan_thanh=han,
-        trang_thai=trang_thai,
-        nguoi_tao=nguoi_tao,
-        ghi_chu=ghi_chu
-    )
-    db.add(new_task)
-    db.commit()
-
-    raw_query = request.scope.get("query_string", b"").decode()
-    clean_query = clean_query_string(raw_query)
-    redirect_url = f"/home?{clean_query}&success=1&action=add" if clean_query else "/home?success=1&action=add"
-
-    return RedirectResponse(redirect_url, status_code=303)
-
-@app.post("/complete/{task_id}")
-async def complete_task(task_id: int, request: Request, nguoi_thuc_hien: str = Form(...), db: Session = Depends(get_db)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
-
-    task.trang_thai = "Hoàn thành"
-    task.nguoi_thuc_hien = nguoi_thuc_hien
-    task.ngay_hoan_thanh = datetime.now(VN_TZ)
-    db.commit()
-
-    if request.query_params.get("json") == "1":
-        return JSONResponse({"success": True, "task_id": task_id})
-
-    raw_query = request.scope.get("query_string", b"").decode()
-    clean_query = clean_query_string(raw_query)
-    redirect_url = f"/home?{clean_query}&success=1&action=complete" if clean_query else "/home?success=1&action=complete"
-    return RedirectResponse(redirect_url, status_code=303)
-
-@app.post("/delete/{task_id}")
-async def delete_task(task_id: int, request: Request, db: Session = Depends(get_db)):
-    user_code = request.session.get("user", {}).get("code", "")
-    user = db.query(User).filter(User.code == user_code).first()
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
-
-    if user.role in ["quanly", "admin", "boss"]:
-        db.delete(task)
-    else:
-        task.trang_thai = "Đã xoá"
-    db.commit()
-
-    if request.query_params.get("json") == "1":
-        return JSONResponse({"success": True, "task_id": task_id})
-
-    raw_query = request.scope.get("query_string", b"").decode()
-    clean_query = clean_query_string(raw_query)
-    redirect_url = f"/home?{clean_query}&success=1&action=delete" if clean_query else "/home?success=1&action=delete"
-    return RedirectResponse(redirect_url, status_code=303)
-
-from typing import Optional
-
-@app.post("/edit/{task_id}")
-async def edit_submit(
-    request: Request,
-    task_id: int,
-    chi_nhanh: Optional[str] = Form(None),
-    phong: str = Form(...),
-    mo_ta: str = Form(...),
-    han_hoan_thanh: str = Form(...),
-    ghi_chu: str = Form(""),
-    db: Session = Depends(get_db)
-):
-    # Lấy session user
-    user = request.session.get("user")
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-
-    role = user.get("role")
-
-    # Tương tự như khi thêm mới, vai trò không có dropdown chọn chi nhánh
-    # phải được xác định chi nhánh một cách an toàn ở phía server.
-    if role not in ["quanly", "ktv", "admin", "boss"]:
-        user_from_db = db.query(User).filter(User.code == user["code"]).first()
-        active_branch = (
-            request.session.get("active_branch")
-            or (user_from_db.last_active_branch if user_from_db and hasattr(user_from_db, 'last_active_branch') else None)
-            or user.get("branch")
-        )
-        chi_nhanh = active_branch
-
-    if not chi_nhanh:
-        raise HTTPException(status_code=400, detail="Không xác định được chi nhánh")
-
-    # Tìm công việc cần sửa
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
-
-    # Parse hạn hoàn thành
-    han = parse_datetime_input(han_hoan_thanh)
-    now = datetime.now(VN_TZ)
-
-    # Cập nhật dữ liệu
-    task.chi_nhanh = chi_nhanh
-    task.phong = phong
-    task.mo_ta = mo_ta
-    task.han_hoan_thanh = han
-    task.ghi_chu = ghi_chu
-    task.trang_thai = "Quá hạn" if han < now else "Đang chờ"
-
-    db.commit()
-
-    # Lấy query_string để redirect giữ lại filter
-    form_data = await request.form()
-    redirect_query = form_data.get("redirect_query", "")
-
-    return RedirectResponse(f"/home?success=1&action=update{('&' + redirect_query) if redirect_query else ''}", status_code=303)
-
-@app.get("/send-overdue-alerts")
-async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
-    try:
-        now = datetime.now(VN_TZ)
-
-        # Cập nhật trạng thái "Quá hạn"
-        overdue_to_update = db.query(Task).filter(
-            Task.trang_thai == "Đang chờ",
-            Task.han_hoan_thanh < now
-        ).all()
-        for task in overdue_to_update:
-            task.trang_thai = "Quá hạn"
-        if overdue_to_update:
-            db.commit()
-
-        # Lấy công việc quá hạn
-        tasks = db.query(Task).filter(
-            Task.trang_thai == "Quá hạn"
-        ).order_by(Task.chi_nhanh.asc(), Task.phong.asc()).all()
-
-        if not tasks:
-            return JSONResponse({"message": "Không có công việc quá hạn."})
-
-        from collections import defaultdict
-        grouped = defaultdict(list)
-        for t in tasks:
-            grouped[t.chi_nhanh].append(t)
-
-        base_url = str(request.base_url).rstrip("/")
-        total_sent = 0
-
-        for chi_nhanh, task_list in grouped.items():
-            # Bảng HTML có kẻ dòng, căn giữa tiêu đề, chữ căn đều
-            rows_html = "\n".join([
-                f"""
-                <tr style="border-bottom:1px solid #e5e7eb;">
-                    <td style="padding:10px;">{t.phong}</td>
-                    <td style="padding:10px;">
-                        <a href="{base_url}/edit/{t.id}" target="_blank" style="color:#2563eb; text-decoration:none;">
-                            {t.mo_ta}
-                        </a>
-                    </td>
-                    <td style="padding:10px;">{t.ghi_chu or ''}</td>
-                </tr>
-                """ for t in task_list
-            ])
-
-            subject = f"🕹 CẢNH BÁO: {len(task_list)} công việc quá hạn tại {chi_nhanh}"
-
-            body = f"""
-            <html>
-            <body style="font-family:Segoe UI, sans-serif; font-size:15px; color:#1f2937; background-color:#f9fafb; padding:24px;">
-                <div style="max-width:700px; margin:auto; background:white; padding:24px; border-radius:8px; border:1px solid #e5e7eb; text-align:justify;">
-                    <h2 style="color:#dc2626; font-weight:600; margin-bottom:16px; font-size:20px; text-align:center;">
-                        {chi_nhanh} CẢNH BÁO CÔNG VIỆC QUÁ HẠN
-                    </h2>
-
-                    <p style="font-size:15px; line-height:1.6;">
-                        🍀 Hệ thống ghi nhận có <strong>{len(task_list)} công việc</strong> tại chi nhánh <strong>{chi_nhanh}</strong> đang quá hạn xử lý.<br></p>
-                    
-                    <table style="
-                        width:100%;
-                        border-collapse:collapse;
-                        margin-top:20px;
-                        font-size:14px;
-                        background-color:white;
-                        box-shadow:0 0 8px rgba(0,0,0,0.04);
-                    ">
-                        <thead style="background-color: #f3f4f6;">
-                            <tr style="border-bottom:1px solid #d1d5db;">
-                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Phòng</th>
-                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Mô tả</th>
-                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Ghi chú</th>
+            function setupSoCongFilter() {
+                const filterType = filterTypeEl ? filterTypeEl.value : 'all';
+                filterSoCongEl.innerHTML = '<option value="">Tất cả</option>'; // Default option
+
+                const options = ['0.5', '1', '1.5', '2'];
+                containerSoCong.style.display = 'block';
+
+                options.forEach(opt => {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = opt;
+                    optionEl.textContent = opt;
+                    filterSoCongEl.appendChild(optionEl);
+                });
+            }
+
+
+            function renderTable(records) {
+                let headersHtml = '';
+                let rowsHtml = '';
+
+                const currentFilter = filterTypeEl ? filterTypeEl.value : 'all';
+
+                if (currentFilter === 'Điểm danh') {
+                    headersHtml = `<tr>
+                        ${isAdminOrBoss ? '<th><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>' : ''}
+                        <th class="px-4 py-3 sortable" data-sort="thoi_gian">Ngày<span class="sort-indicator"></span></th><th class="px-4 py-3">Giờ</th>${isAdminOrBoss ? '<th class="px-4 py-3 sortable" data-sort="nguoi_thuc_hien">Người thực hiện<span class="sort-indicator"></span></th>' : ''}<th class="px-4 py-3 sortable" data-sort="ma_nv">Mã NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="ten_nv">Tên NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chuc_vu">Chức vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chi_nhanh_lam">CN Làm<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="la_tang_ca">Tăng ca<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_cong">Số công<span class="sort-indicator"></span></th><th class="px-4 py-3">Ghi chú</th>${isAdminOrBoss ? '<th class="px-4 py-3">Hành động</th>' : ''}</tr>`;
+                    records.forEach((rec, index) => {
+                        const [ngay, gio] = rec.thoi_gian.split(' ');
+                        const checkboxHtml = isAdminOrBoss ? `<td class="px-4 py-2"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${rec.id}" data-type="attendance"></td>` : '';
+                        const nguoiThucHienHtml = isAdminOrBoss ? `<td class="px-4 py-2">${rec.nguoi_thuc_hien || ''}</td>` : '';
+                        const actionsHtml = isAdminOrBoss ? `<td class="px-4 py-2 whitespace-nowrap"><button class="edit-btn text-blue-600 hover:underline mr-2" data-id="${rec.id}" data-type="attendance">Sửa</button><button class="delete-btn text-red-600 hover:underline" data-id="${rec.id}" data-type="attendance">Xóa</button></td>` : '';
+                        const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        rowsHtml += `<tr class="border-b ${rowClass} hover:bg-blue-100" data-record='${JSON.stringify(rec)}'>${checkboxHtml}<td class="px-4 py-2">${ngay||''}</td><td class="px-4 py-2">${gio||''}</td>${nguoiThucHienHtml}<td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td><td class="px-4 py-2">${rec.ten_nv||''}</td><td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td><td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td><td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td><td class="px-4 py-2">${rec.so_cong}</td><td class="px-4 py-2">${rec.ghi_chu||''}</td>${actionsHtml}</tr>`;
+                    });
+                } else if (currentFilter === 'Dịch vụ') {
+                    headersHtml = `<tr>
+                        ${isAdminOrBoss ? '<th><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>' : ''}
+                        <th class="px-4 py-3 sortable" data-sort="thoi_gian">Ngày<span class="sort-indicator"></span></th><th class="px-4 py-3">Giờ</th>${isAdminOrBoss ? '<th class="px-4 py-3 sortable" data-sort="nguoi_thuc_hien">Người thực hiện<span class="sort-indicator"></span></th>' : ''}<th class="px-4 py-3 sortable" data-sort="ma_nv">Mã NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="ten_nv">Tên NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chuc_vu">Chức vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chi_nhanh_lam">CN Làm<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="la_tang_ca">Tăng ca<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="dich_vu">Dịch vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_phong">Số phòng<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_luong">Số lượng<span class="sort-indicator"></span></th><th class="px-4 py-3">Ghi chú</th>${isAdminOrBoss ? '<th class="px-4 py-3">Hành động</th>' : ''}</tr>`;
+                    records.forEach((rec, index) => {
+                        const [ngay, gio] = rec.thoi_gian.split(' ');
+                        const checkboxHtml = isAdminOrBoss ? `<td class="px-4 py-2"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${rec.id}" data-type="service"></td>` : '';
+                        const nguoiThucHienHtml = isAdminOrBoss ? `<td class="px-4 py-2">${rec.nguoi_thuc_hien || ''}</td>` : '';
+                        const actionsHtml = isAdminOrBoss ? `<td class="px-4 py-2 whitespace-nowrap"><button class="edit-btn text-blue-600 hover:underline mr-2" data-id="${rec.id}" data-type="service">Sửa</button><button class="delete-btn text-red-600 hover:underline" data-id="${rec.id}" data-type="service">Xóa</button></td>` : '';
+                        const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        rowsHtml += `<tr class="border-b ${rowClass} hover:bg-blue-100" data-record='${JSON.stringify(rec)}'>${checkboxHtml}<td class="px-4 py-2">${ngay||''}</td><td class="px-4 py-2">${gio||''}</td>${nguoiThucHienHtml}<td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td><td class="px-4 py-2">${rec.ten_nv||''}</td><td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td><td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td><td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td><td class="px-4 py-2">${rec.dich_vu||''}</td><td class="px-4 py-2">${rec.so_phong||''}</td><td class="px-4 py-2">${rec.so_luong||''}</td><td class="px-4 py-2">${rec.ghi_chu||''}</td>${actionsHtml}</tr>`;
+                    });
+                } else { // 'all'
+                    headersHtml = `<tr>
+                        ${isAdminOrBoss ? '<th><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>' : ''}
+                        <th class="px-4 py-3 sortable" data-sort="type">Loại<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="thoi_gian">Ngày<span class="sort-indicator"></span></th><th class="px-4 py-3">Giờ</th>${isAdminOrBoss ? '<th class="px-4 py-3 sortable" data-sort="nguoi_thuc_hien">Người thực hiện<span class="sort-indicator"></span></th>' : ''}<th class="px-4 py-3 sortable" data-sort="ma_nv">Mã NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="ten_nv">Tên NV<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chuc_vu">Chức vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="chi_nhanh_lam">CN Làm<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="la_tang_ca">Tăng ca<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_cong">Số công<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="dich_vu">Dịch vụ<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_phong">Số phòng<span class="sort-indicator"></span></th><th class="px-4 py-3 sortable" data-sort="so_luong">Số lượng<span class="sort-indicator"></span></th><th class="px-4 py-3">Ghi chú</th>${isAdminOrBoss ? '<th class="px-4 py-3">Hành động</th>' : ''}</tr>`;
+                    records.forEach((rec, index) => {
+                        const [ngay, gio] = rec.thoi_gian.split(' ');
+                        const isService = rec.type === 'Dịch vụ';
+                        const recordType = isService ? 'service' : 'attendance';
+                        const checkboxHtml = isAdminOrBoss ? `<td class="px-4 py-2"><input type="checkbox" class="row-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${rec.id}" data-type="${recordType}"></td>` : '';
+                        const nguoiThucHienHtml = isAdminOrBoss ? `<td class="px-4 py-2">${rec.nguoi_thuc_hien || ''}</td>` : '';
+                        const actionsHtml = isAdminOrBoss ? `<td class="px-4 py-2 whitespace-nowrap"><button class="edit-btn text-blue-600 hover:underline mr-2" data-id="${rec.id}" data-type="${recordType}">Sửa</button><button class="delete-btn text-red-600 hover:underline" data-id="${rec.id}" data-type="${recordType}">Xóa</button></td>` : '';
+                        const rowClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                        rowsHtml += `
+                            <tr class="border-b ${rowClass} hover:bg-blue-100" data-record='${JSON.stringify(rec)}'>
+                                ${checkboxHtml}
+                                <td class="px-4 py-2 font-semibold ${isService ? 'text-green-600' : 'text-blue-600'}">${rec.type}</td>
+                                <td class="px-4 py-2">${ngay||''}</td>
+                                <td class="px-4 py-2">${gio||''}</td>
+                                ${nguoiThucHienHtml}
+                                <td class="px-4 py-2 font-medium text-gray-900">${rec.ma_nv||''}</td>
+                                <td class="px-4 py-2">${rec.ten_nv||''}</td>
+                                <td class="px-4 py-2">${rec.chuc_vu||'Không rõ'}</td>
+                                <td class="px-4 py-2">${rec.chi_nhanh_lam||''}</td>
+                                <td class="px-4 py-2">${rec.tang_ca ? 'Có' : 'Không'}</td>
+                                <td class="px-4 py-2">${rec.so_cong != null ? rec.so_cong : ''}</td>
+                                <td class="px-4 py-2">${rec.dich_vu || ''}</td>
+                                <td class="px-4 py-2">${rec.so_phong || ''}</td>
+                                <td class="px-4 py-2">${rec.so_luong || ''}</td>
+                                <td class="px-4 py-2">${rec.ghi_chu || ''}</td>
+                                ${actionsHtml}
                             </tr>
-                        </thead>
-                        <tbody>
-                            {rows_html}
-                        </tbody>
-                    </table>
+                        `;
+                    });
+                }
 
-                    <p style="font-size:15px; line-height:1.6;"> ❗️ Vui lòng kiểm tra và xử lý kịp thời để đảm bảo tiến độ công việc. </p>
+                theadEl.innerHTML = headersHtml;
+                tbodyEl.innerHTML = rowsHtml;
 
-                    <p style="margin-top:16px; font-size:13px; color:#9ca3af;">
-                        (Email tự động từ hệ thống quản lý công việc Bin Bin Hotel.)
-                    </p>
-                </div>
-            </body>
-            </html>
-            """
-
-            await send_alert_email(ALERT_EMAIL, subject, body, html=True)
-            total_sent += len(task_list)
-
-        return JSONResponse({"sent_total": total_sent, "branches": list(grouped.keys())})
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
- 
-from employees import employees
-from database import SessionLocal
-from models import User
-def sync_employees_from_source(db: Session, employees: list[dict], force_delete: bool = False):
-    allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
-    seen_codes = set()
-
-    # --- Bước 1: Thu thập danh sách code từ employees ---
-    incoming_codes = set()
-    for emp in employees:
-        code = emp.get("code", "").strip()
-        if code:
-            incoming_codes.add(code)
-
-    # --- Bước 2: Xóa nhân viên không còn trong employees (nếu force_delete=True) ---
-    if force_delete:
-        db.query(User).filter(~User.code.in_(incoming_codes)).delete(synchronize_session=False)
-        db.commit()
-        logger.info("[SYNC] Đã xóa các nhân viên không còn trong danh sách nguồn.")
-
-    # --- Bước 3: Đồng bộ từng nhân viên ---
-    for emp in employees:
-        code = emp.get("code", "").strip()
-        if not code or code in seen_codes:
-            continue
-        seen_codes.add(code)
-
-        name = emp.get("name", "").strip()
-        branch = emp.get("branch", "").strip()
-        role = emp.get("role", "").strip()
-
-        # Nếu chưa có role thì suy từ code
-        if not role:
-            role_map = {"LT": "letan", "BP": "buongphong", "BV": "baove",
-                        "QL": "quanly", "KTV": "ktv"}
-            role = next((v for k, v in role_map.items() if k in code.upper()), "khac")
-            if code.lower() in ["admin", "boss"]:
-                role = code.lower()
-
-        existing = db.query(User).filter(User.code == code).first()
-        if existing:
-            # Cập nhật thông tin khác (KHÔNG reset password)
-            existing.name = name
-            existing.role = role
-            existing.branch = branch
-        else:
-            # Tạo user mới → set mật khẩu một lần
-            password = emp.get("password")
-            if not password:
-                password = "999" if role in allowed_login_roles else ""
-            db.add(User(code=code, name=name, password=password, role=role, branch=branch))
-
-    db.commit() # Commit một lần duy nhất ở cuối hàm
-
-    logger.info("Đồng bộ nhân viên thành công")
-
-@app.get("/sync-employees")
-def sync_employees_endpoint(request: Request):
-    """
-    Endpoint để đồng bộ lại dữ liệu nhân viên từ employees.py vào database.
-    Chỉ cho phép admin hoặc boss thực hiện.
-    """
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
-        raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
-    db = SessionLocal()
-    sync_employees_from_source(db=db, employees=employees, force_delete=True)
-    db.close()
-    return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py"}
-
-@app.get("/logout")
-def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse("/login", status_code=303)
-
-from sqlalchemy import text
-from database import SessionLocal, init_db
-import os, time, threading, atexit
-from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
-from employees import employees
-
-def update_overdue_tasks_status():
-    """
-    Tác vụ nền tự động cập nhật trạng thái các công việc từ "Đang chờ" sang "Quá hạn".
-    Sử dụng một câu lệnh UPDATE duy nhất để tối ưu hiệu suất và bộ nhớ.
-    So sánh thời gian đầy đủ (datetime) để đảm bảo tính chính xác.
-    """
-    db = SessionLocal()
-    try:
-        # Lấy thời gian hiện tại theo múi giờ Việt Nam
-        now_vn = datetime.now(VN_TZ)
-        
-        # Thực hiện một câu lệnh UPDATE trực tiếp trên DB.
-        # So sánh thời gian đầy đủ của han_hoan_thanh với thời gian hiện tại.
-        # Một công việc được coi là quá hạn nếu thời gian hiện tại đã vượt qua hạn hoàn thành.
-        updated_count = db.query(Task).filter(
-            Task.trang_thai == "Đang chờ",
-            Task.han_hoan_thanh < now_vn
-        ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
-        
-        db.commit()
-
-        if updated_count > 0:
-            logger.info(f"[AUTO_UPDATE_STATUS] Đã cập nhật {updated_count} công việc sang trạng thái 'Quá hạn'.")
-        else:
-            logger.info("[AUTO_UPDATE_STATUS] Không có công việc nào cần cập nhật trạng thái.")
-
-    except Exception as e:
-        logger.error(f"[AUTO_UPDATE_STATUS] Lỗi khi cập nhật trạng thái công việc quá hạn: {e}", exc_info=True)
-        db.rollback()
-    finally:
-        db.close()
-
-from database import SessionLocal, init_db
-import os, time, threading, atexit
-from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
-from employees import employees
-
-# Danh sách các bảng có cột id SERIAL cần reset sequence
-TABLES_WITH_SERIAL_ID = ["tasks", "attendance_log", "attendance_records", "service_records"]
-
-def reset_sequence(db, table_name: str, id_col: str = "id"):
-    """
-    Reset sequence cho bảng cụ thể, đảm bảo id không bị trùng.
-    """
-    seq_name = f"{table_name}_{id_col}_seq"
-    sql = f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX({id_col}), 0) + 1 FROM {table_name}), false)"
-    try:
-        db.execute(text(sql))
-        db.commit()
-        logger.info(f"Đã đồng bộ sequence cho bảng {table_name}")
-    except Exception as e:
-        logger.error(f"Lỗi khi reset sequence cho {table_name}: {e}", exc_info=True)
-
-@app.on_event("startup")
-def startup():
-    logger.info("🚀 Khởi động ứng dụng...")
-
-    # --- 1. Init DB ---
-    init_db()
-
-    # --- 2. Reset sequence cho các bảng ---
-    with SessionLocal() as db:
-        for table in TABLES_WITH_SERIAL_ID:
-            reset_sequence(db, table)
-
-        # --- 3. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
-        try:
-            sync_employees_from_source(db=db, employees=employees, force_delete=False)
-            logger.info("Hoàn tất đồng bộ nhân viên từ employees.py")
-        except Exception as e:
-            logger.error("Không thể đồng bộ nhân viên", exc_info=True)
-
-    # --- 4. Lập lịch các tác vụ nền ---
-    def auto_logout_job():
-        logger.info("Kích hoạt đăng xuất tự động cho tất cả client.")
-
-    scheduler = BackgroundScheduler(timezone=str(VN_TZ))
-    # Chạy tác vụ cập nhật trạng thái công việc mỗi 3 giờ để tiết kiệm tài nguyên.
-    # Điều này đảm bảo hệ thống phản ứng nhanh hơn và linh hoạt hơn với các
-    # nền tảng hosting có thể "ngủ" (sleep) khi không có traffic.
-    # misfire_grace_time=600: Nếu job bị lỡ, nó vẫn sẽ chạy nếu server thức dậy trong vòng 10 phút.
-    # Vô hiệu hóa tác vụ nền cập nhật trạng thái vì đã có cập nhật tức thì trong route /home.
-    # scheduler.add_job(update_overdue_tasks_status, 'interval', hours=3, id='update_overdue_tasks', misfire_grace_time=600)
-    scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
-    scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
-    scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
-    scheduler.start()
-
-    # --- 5. Shutdown scheduler khi app stop ---
-    atexit.register(lambda: scheduler.shutdown())
-
-    logger.info("✅ Startup hoàn tất: DB init, reset sequence, sync nhân viên, lập lịch các tác vụ nền.")
-
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
-
-def get_lan_ip():
-    """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # Không cần phải kết nối được, chỉ là một mẹo để lấy IP
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
-    except Exception:
-        IP = '127.0.0.1' # Fallback nếu không lấy được IP
-    finally:
-        s.close()
-    return IP
-
-@app.get("/show_qr", response_class=HTMLResponse)
-async def show_qr(request: Request, db: Session = Depends(get_db)):
-    user = request.session.get("pending_user") or request.session.get("user")
-    if not user:
-        return RedirectResponse("/login", status_code=303)
-
-    work_date, shift = get_current_work_shift()
-    # Sửa lỗi: Áp dụng logic tương tự login_submit để xác định ca làm việc
-    # Đối với KTV/Quản lý, ca luôn là NULL để đảm bảo mỗi ngày chỉ có 1 record.
-    shift_value = _get_log_shift_for_user(user.get("role"), shift)
-    log = db.query(AttendanceLog).filter(
-        AttendanceLog.user_code == user["code"], # user là dict, nên dùng user["code"]
-        AttendanceLog.date == work_date,
-        AttendanceLog.shift == shift_value
-    ).first()
-
-    if log:
-        if log.checked_in:
-            # Nếu đã check-in thì không cần show_qr nữa → đi thẳng trang chọn chức năng
-            request.session["user"] = user
-            request.session.pop("pending_user", None)
-            return RedirectResponse("/choose-function", status_code=303) # Thêm redirect ở đây
-        else:
-            qr_token = log.token
-    else:
-        # Trường hợp này không nên xảy ra nếu luồng đăng nhập đúng, nhưng là fallback
-        import uuid
-        qr_token = str(uuid.uuid4())
-        log = AttendanceLog(user_code=user["code"], date=work_date, shift=shift_value, token=qr_token, checked_in=False)
-        db.add(log)
-        db.commit()
-
-    request.session["qr_token"] = qr_token
-    
-    # Lấy host và port từ request
-    request_host = request.url.hostname
-    port = request.url.port
-    scheme = request.url.scheme
-
-    # Nếu host là localhost, thay thế bằng IP LAN để điện thoại có thể truy cập
-    if request_host in ["localhost", "127.0.0.1"]:
-        lan_ip = get_lan_ip()
-        base_url = f"{scheme}://{lan_ip}:{port}"
-    else:
-        base_url = str(request.base_url).strip("/")
-    return templates.TemplateResponse("show_qr.html", {
-        "request": request,
-        "qr_token": qr_token,
-        "base_url": base_url,
-        "user": user
-    })
-
-from services.attendance_service import push_bulk_checkin
-
-@app.post("/attendance/checkin_bulk")
-async def attendance_checkin_bulk(
-    request: Request,
-    background_tasks: BackgroundTasks,
-    db: Session = Depends(get_db)
-):
-    validate_csrf(request)
-
-    # Xác định xem đây là luồng điểm danh khi đăng nhập hay điểm danh thông thường
-    is_login_flow = "pending_user" in request.session and "user" not in request.session
-
-    user = request.session.get("user") or request.session.get("pending_user")
-    if not user:
-        raise HTTPException(status_code=403, detail="Không có quyền điểm danh.")
-
-    raw_data = await request.json()
-    if not isinstance(raw_data, list):
-        raise HTTPException(status_code=400, detail="Payload phải là danh sách")
-
-    # Lấy chi nhánh làm việc từ payload để cập nhật trạng thái.
-    # Giả định tất cả record trong 1 lần gửi đều thuộc cùng 1 chi nhánh làm việc.
-    active_branch_from_payload = None
-    if raw_data: # Đảm bảo raw_data không rỗng
-        active_branch_from_payload = raw_data[0].get("chi_nhanh_lam")
-
-    nguoi_diem_danh_code = user.get("code")
-    user_role = user.get("role")
-    user_branch = user.get("branch")
-    special_roles = ["quanly", "ktv", "admin", "boss"]
-
-    # Đối với các vai trò đặc biệt (QL, KTV, admin, boss), họ chỉ điểm danh cho chính mình.
-    # Chi nhánh làm việc sẽ được tự động gán bằng chi nhánh chính của họ, không cần chọn từ UI.
-    if user_role in special_roles:
-        active_branch_from_payload = user_branch
-
-    normalized_data = []
-    attendance_db_records = []
-    service_db_records = []
-    now_vn = datetime.now(VN_TZ)
-
-    for rec in raw_data:
-        # Luôn sử dụng thời gian từ server để đảm bảo tính chính xác và tránh sai lệch múi giờ từ client.
-        thoi_gian_dt = now_vn
-        thoi_gian_str = thoi_gian_dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        # Dữ liệu cho Google Sheets (giữ nguyên)
-        normalized_data.append({
-            "sheet": rec.get("sheet"),
-            "thoi_gian": thoi_gian_str, # Sử dụng thời gian server đã định dạng
-            "nguoi_diem_danh": nguoi_diem_danh_code,
-            "ma_nv": rec.get("ma_nv"),
-            "ten_nv": rec.get("ten_nv"),
-            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
-            "chi_nhanh_lam": active_branch_from_payload,
-            "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
-            "so_cong_nv": rec.get("so_cong_nv") or 1,
-            "ghi_chu": rec.get("ghi_chu", ""),
-            "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
-            "so_phong": rec.get("so_phong") or rec.get("room_count") or "",
-            "so_luong": rec.get("so_luong") or rec.get("item_count") or ""
-        })
-
-        # Phân loại record để lưu vào DB
-        is_service_record = any(rec.get(key) for key in ["dich_vu", "service", "so_phong", "room_count"])
-
-        if is_service_record:
-            # Tạo bản ghi dịch vụ
-            service_db_records.append(ServiceRecord(
-                ngay_cham=thoi_gian_dt.date(),
-                gio_cham=thoi_gian_dt.time(), # Sử dụng time() từ datetime object đã nhận đúng múi giờ
-                nguoi_cham=nguoi_diem_danh_code,
-                ma_nv=rec.get("ma_nv"),
-                ten_nv=rec.get("ten_nv"),
-                chi_nhanh_chinh=rec.get("chi_nhanh_chinh"),
-                chi_nhanh_lam=active_branch_from_payload,
-                la_tang_ca=bool(rec.get("la_tang_ca")),
-                dich_vu=rec.get("dich_vu") or rec.get("service") or "N/A",
-                so_phong=rec.get("so_phong") or rec.get("room_count") or "",
-                so_luong=rec.get("so_luong") or rec.get("item_count") or "",
-                ghi_chu=rec.get("ghi_chu", "")
-            ))
-        else:
-            # Tạo bản ghi điểm danh
-            attendance_db_records.append(AttendanceRecord(
-                ngay_diem_danh=thoi_gian_dt.date(),
-                gio_diem_danh=thoi_gian_dt.time(), # Sử dụng time() từ datetime object đã nhận đúng múi giờ
-                nguoi_diem_danh=nguoi_diem_danh_code,
-                ma_nv=rec.get("ma_nv"),
-                ten_nv=rec.get("ten_nv"),
-                chi_nhanh_chinh=rec.get("chi_nhanh_chinh"),
-                chi_nhanh_lam=active_branch_from_payload,
-                la_tang_ca=bool(rec.get("la_tang_ca")),
-                so_cong_nv=float(rec.get("so_cong_nv") or 1.0),
-                ghi_chu=rec.get("ghi_chu", "")
-            ))
-
-    # Lấy danh sách mã nhân viên BP vừa được điểm danh
-    bp_codes = [
-        rec.get("ma_nv") for rec in raw_data
-        if "BP" in rec.get("ma_nv", "").upper()
-    ]
-
-    # Cập nhật DB cho lễ tân đang đăng nhập và lưu các bản ghi
-    try:
-        # Lưu các bản ghi mới vào DB
-        if attendance_db_records:
-            db.add_all(attendance_db_records)
-        if service_db_records:
-            db.add_all(service_db_records)
-
-        # Cập nhật thông tin cho người điểm danh
-        if nguoi_diem_danh_code:
-            checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
-            if checker_user:
-                checker_user.last_checked_in_bp = bp_codes
-                if active_branch_from_payload and hasattr(checker_user, 'last_active_branch'):
-                    checker_user.last_active_branch = active_branch_from_payload
-                    request.session["active_branch"] = active_branch_from_payload
-
-        db.commit()
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"Lỗi khi lưu điểm danh/dịch vụ: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Lỗi khi lưu kết quả vào cơ sở dữ liệu.")
-
-    # Chạy push_bulk_checkin ở background để ghi vào Google Sheets
-    background_tasks.add_task(push_bulk_checkin, normalized_data)
-
-    logger.info(f"{nguoi_diem_danh_code} gửi {len(normalized_data)} record (ghi DB & queue ghi Sheets)")
-
-    # Nếu đây là lần điểm danh ngay sau khi đăng nhập (trên mobile),
-    # thì hoàn tất phiên đăng nhập và trả về URL để chuyển hướng.
-    if is_login_flow and nguoi_diem_danh_code:
-        user_in_db = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
-        if user_in_db:
-            # Đánh dấu bản ghi log điểm danh là đã check-in thành công
-            work_date, shift = get_current_work_shift()
-            shift_value = None if user_in_db.role in ["ktv", "quanly"] else shift
-            log = db.query(AttendanceLog).filter_by(
-                user_code=user_in_db.code,
-                date=work_date,
-                shift=shift_value
-            ).first()
-            if log:
-                log.checked_in = True
-                db.commit()
-
-            # Chuyển từ pending_user sang user chính thức trong session
-            request.session["user"] = {
-                "code": user_in_db.code, "role": user_in_db.role,
-                "branch": user_in_db.branch, "name": user_in_db.name
+                if (records.length === 0) {
+                    const colspan = theadEl.querySelector('tr')?.children.length || 9;
+                    tbodyEl.innerHTML = `<tr><td colspan="${colspan}" class="text-center py-6 text-gray-500">Không có dữ liệu cho bộ lọc này.</td></tr>`;
+                } else {
+                    lastCheckedCheckbox = null; // Reset for new table render
+                }
+                if (isAdminOrBoss) {
+                    setupCheckboxListeners();
+                    updateDeleteButtonState();
+                    updateSelectAllCheckboxState();
+                }
             }
-            request.session["after_checkin"] = "choose_function"
-            request.session.pop("pending_user", None)
-            return {"status": "queued", "inserted": len(normalized_data), "redirect_to": "/choose-function"}
 
-    return {"status": "queued", "inserted": len(normalized_data)}
-
-@app.get("/api/attendance/last-checked-in-bp", response_class=JSONResponse)
-def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
-    """
-    API trả về danh sách nhân viên buồng phòng mà lễ tân đã điểm danh lần cuối.
-    Dùng cho nút "Tải lại" trên trang Chấm dịch vụ.
-    """
-    user_data = request.session.get("user")
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Không có quyền truy cập.")
-
-    checker_user = db.query(User).filter(User.code == user_data["code"]).first()
-    if not checker_user or not checker_user.last_checked_in_bp:
-        return JSONResponse(content=[])
-
-    service_checkin_codes = checker_user.last_checked_in_bp
-    
-    if not service_checkin_codes:
-        return JSONResponse(content=[])
-
-    employees_from_db = db.query(User).filter(User.code.in_(service_checkin_codes)).all()
-    # Sắp xếp lại theo đúng thứ tự đã điểm danh
-    emp_map = {emp.code: emp for emp in employees_from_db}
-    sorted_employees = [emp_map[code] for code in service_checkin_codes if code in emp_map]
-    
-    employee_list = [
-        { "code": emp.code, "name": emp.name, "branch": emp.branch, "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": "" }
-        for emp in sorted_employees
-    ]
-    return JSONResponse(content=employee_list)
-
-@app.get("/api/attendance/results-by-checker")
-async def api_get_attendance_results(
-    request: Request,
-    db: Session = Depends(get_db),
-    page: int = 1,
-    per_page: int = 20,
-    filter_type: Optional[str] = None,
-    filter_date: Optional[str] = None,
-    filter_nhan_vien: Optional[str] = None,
-    filter_chuc_vu: Optional[str] = None,
-    filter_cn_lam: Optional[str] = None,
-    filter_so_cong: Optional[float] = None,
-    filter_tang_ca: Optional[str] = None,
-    filter_ghi_chu: Optional[str] = None,
-    filter_nguoi_thuc_hien: Optional[str] = None,
-    filter_dich_vu: Optional[str] = None,
-    filter_so_phong: Optional[str] = None,
-    sort_by: Optional[str] = None,
-    sort_order: Optional[str] = 'desc',
-):
-    """
-    API trả về kết quả điểm danh.
-    - Đối với admin/boss: trả về tất cả kết quả.
-    - Đối với các role khác: trả về kết quả do chính người dùng đó thực hiện.
-    - Hỗ trợ phân trang và lọc phía server.
-    """
-    user = request.session.get("user")
-    allowed_roles = ['letan', 'quanly', 'ktv', 'admin', 'boss']
-    if not user or user.get("role") not in allowed_roles:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
-
-    checker_code = user.get("code")
-    user_role = user.get("role")
-    if not checker_code:
-        raise HTTPException(status_code=403, detail="Không tìm thấy mã người dùng.")
-
-    EmployeeUser = aliased(User, name="employee_user")
-    CheckerUser = aliased(User, name="checker_user")
-
-    # Base query for AttendanceRecord
-    att_q = select(
-        AttendanceRecord.id,
-        literal_column("'Điểm danh'").label("type"),
-        AttendanceRecord.ngay_diem_danh.label("date_col"),
-        AttendanceRecord.gio_diem_danh.label("time_col"),
-        AttendanceRecord.nguoi_diem_danh.label("nguoi_thuc_hien"),
-        CheckerUser.name.label("ten_nguoi_thuc_hien"),
-        AttendanceRecord.ma_nv,
-        AttendanceRecord.ten_nv,
-        EmployeeUser.role.label("chuc_vu_raw"),
-        AttendanceRecord.chi_nhanh_lam,
-        AttendanceRecord.chi_nhanh_chinh,
-        EmployeeUser.branch.label("employee_branch"),
-        AttendanceRecord.so_cong_nv.label("so_cong"),
-        AttendanceRecord.la_tang_ca,
-        AttendanceRecord.ghi_chu,
-        literal_column("''").label("dich_vu"),
-        literal_column("''").label("so_phong"),
-        literal_column("''").label("so_luong")
-    ).join(
-        EmployeeUser, EmployeeUser.code == AttendanceRecord.ma_nv, isouter=True
-    ).join(
-        CheckerUser, CheckerUser.code == AttendanceRecord.nguoi_diem_danh, isouter=True
-    )
-
-    # Base query for ServiceRecord
-    svc_q = select(
-        ServiceRecord.id,
-        literal_column("'Dịch vụ'").label("type"),
-        ServiceRecord.ngay_cham.label("date_col"),
-        ServiceRecord.gio_cham.label("time_col"),
-        ServiceRecord.nguoi_cham.label("nguoi_thuc_hien"),
-        CheckerUser.name.label("ten_nguoi_thuc_hien"),
-        ServiceRecord.ma_nv,
-        ServiceRecord.ten_nv,
-        EmployeeUser.role.label("chuc_vu_raw"),
-        ServiceRecord.chi_nhanh_lam,
-        ServiceRecord.chi_nhanh_chinh,
-        EmployeeUser.branch.label("employee_branch"),
-        literal_column("NULL").cast(Float).label("so_cong"),
-        ServiceRecord.la_tang_ca,
-        ServiceRecord.ghi_chu,
-        ServiceRecord.dich_vu,
-        ServiceRecord.so_phong,
-        ServiceRecord.so_luong
-    ).join(
-        EmployeeUser, EmployeeUser.code == ServiceRecord.ma_nv, isouter=True
-    ).join(
-        CheckerUser, CheckerUser.code == ServiceRecord.nguoi_cham, isouter=True
-    )
-
-    # Role-based filtering
-    if user_role not in ["admin", "boss"]:
-        # Non-admin roles (letan, ktv, quanly) see records they created OR records about them.
-        att_q = att_q.where(or_(AttendanceRecord.nguoi_diem_danh == checker_code, AttendanceRecord.ma_nv == checker_code))
-        svc_q = svc_q.where(or_(ServiceRecord.nguoi_cham == checker_code, ServiceRecord.ma_nv == checker_code))
-
-    # Union the two queries
-    u = union_all(att_q, svc_q).alias("u")
-
-    # Build final query from the union
-    final_query = select(u)
-
-    # Apply filters
-    if filter_type:
-        final_query = final_query.where(u.c.type == filter_type)
-    if filter_date:
-        try:
-            parsed_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
-            final_query = final_query.where(u.c.date_col == parsed_date)
-        except ValueError:
-            pass # Ignore invalid date format
-    if filter_nhan_vien:
-        search_pattern = f"%{filter_nhan_vien}%"
-        final_query = final_query.where(or_(
-            u.c.ma_nv.ilike(search_pattern),
-            u.c.ten_nv.ilike(search_pattern)
-        ))
-    if filter_chuc_vu:
-        matching_roles = [
-            role for role, vn_role in ROLE_MAP.items()
-            if filter_chuc_vu.lower() in vn_role.lower()
-        ]
-        if matching_roles:
-            final_query = final_query.where(u.c.chuc_vu_raw.in_(matching_roles))
-    if filter_cn_lam:
-        final_query = final_query.where(u.c.chi_nhanh_lam == filter_cn_lam)
-    if filter_so_cong is not None:
-        final_query = final_query.where(u.c.so_cong == filter_so_cong)
-    if filter_tang_ca and filter_tang_ca != 'all':
-        is_overtime = filter_tang_ca == 'yes'
-        final_query = final_query.where(u.c.la_tang_ca == is_overtime)
-    if filter_ghi_chu:
-        final_query = final_query.where(u.c.ghi_chu.ilike(f"%{filter_ghi_chu}%"))
-    if filter_nguoi_thuc_hien and user_role in ['admin', 'boss']:
-        final_query = final_query.where(or_(
-            u.c.nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%"),
-            u.c.ten_nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%")
-        ))
-    if filter_dich_vu:
-        final_query = final_query.where(u.c.dich_vu.ilike(f"%{filter_dich_vu}%"))
-    if filter_so_phong:
-        final_query = final_query.where(u.c.so_phong.ilike(f"%{filter_so_phong}%"))
-
-    # Get total count for pagination
-    count_query = select(func.count()).select_from(final_query.alias("count_alias"))
-    total_records = db.execute(count_query).scalar_one() or 0
-
-    total_pages = math.ceil(total_records / per_page) if per_page > 0 else 1
-
-    # Apply sorting
-    order_expressions = []
-
-    # Custom sort for 'chi_nhanh_lam' to follow the order in BRANCHES list
-    branch_order_whens = {branch: i for i, branch in enumerate(BRANCHES)}
-    chi_nhanh_lam_sort_expr = case(branch_order_whens, value=u.c.chi_nhanh_lam, else_=len(BRANCHES))
-
-    sort_map = {
-        "thoi_gian": [u.c.date_col, u.c.time_col],
-        "nguoi_thuc_hien": [u.c.ten_nguoi_thuc_hien],
-        "ma_nv": [u.c.ma_nv],
-        "ten_nv": [u.c.ten_nv],
-        "chuc_vu": [u.c.chuc_vu_raw],
-        "chi_nhanh_lam": [chi_nhanh_lam_sort_expr],
-        "so_cong": [u.c.so_cong],
-        "la_tang_ca": [u.c.la_tang_ca],
-        "dich_vu": [u.c.dich_vu],
-        "so_phong": [u.c.so_phong],
-        "so_luong": [u.c.so_luong],
-        "type": [u.c.type],
-    }
-
-    if sort_by and sort_by in sort_map:
-        sort_columns = sort_map[sort_by]
-        if sort_order == 'asc':
-            order_expressions.extend([col.asc().nullslast() for col in sort_columns])
-        else:
-            order_expressions.extend([col.desc().nullslast() for col in sort_columns])
-
-    # Add default sort as secondary to ensure consistent ordering
-    if sort_by != 'thoi_gian':
-        order_expressions.extend([desc(u.c.date_col), desc(u.c.time_col)])
-
-    # Final query with sorting and pagination
-    paginated_query = final_query.order_by(*order_expressions).offset((page - 1) * per_page).limit(per_page)
-    
-    records = db.execute(paginated_query).all()
-
-    # ✅ Lấy danh sách nhân viên liên quan cho bộ lọc (chỉ chạy khi page=1)
-    related_employees = []
-    if page == 1:
-        # Lấy tất cả các mã nhân viên (ma_nv) từ các bản ghi đã lọc (không phân trang)
-        employee_codes_query = select(u.c.ma_nv, u.c.ten_nv).distinct()
-
-        # Áp dụng các bộ lọc tương tự như trên, NGOẠI TRỪ filter_nhan_vien
-        # để có được danh sách đầy đủ cho dropdown
-        if filter_type: employee_codes_query = employee_codes_query.where(u.c.type == filter_type)
-        if filter_date:
-            try:
-                parsed_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
-                employee_codes_query = employee_codes_query.where(u.c.date_col == parsed_date)
-            except ValueError: pass
-        if filter_cn_lam: employee_codes_query = employee_codes_query.where(u.c.chi_nhanh_lam == filter_cn_lam)
-        # ... có thể thêm các filter khác nếu cần ...
-
-        related_employee_rows = db.execute(employee_codes_query.order_by(u.c.ten_nv)).all()
-        related_employees = [{"code": row.ma_nv, "name": row.ten_nv} for row in related_employee_rows]
-
-
-    # Format results
-    combined_results = []
-    for rec in records:
-        ghi_chu_text = rec.ghi_chu or ""
-        if rec.la_tang_ca and rec.type == 'Điểm danh':
-            ghi_chu_text = re.sub(r'Tăng ca\s*\.?\s*', '', ghi_chu_text, flags=re.IGNORECASE).strip()
-        
-        dt = datetime.combine(rec.date_col, rec.time_col)
-
-        combined_results.append({
-            "id": rec.id,
-            "type": rec.type,
-            "thoi_gian": dt.strftime("%d/%m/%Y %H:%M:%S"),
-            "nguoi_thuc_hien": rec.nguoi_thuc_hien,
-            "ten_nguoi_thuc_hien": rec.ten_nguoi_thuc_hien,
-            "ma_nv": rec.ma_nv,
-            "ten_nv": rec.ten_nv,
-            "chuc_vu": map_role_to_vietnamese(rec.chuc_vu_raw),
-            "chi_nhanh_lam": rec.chi_nhanh_lam,
-            "chi_nhanh_chinh": rec.chi_nhanh_chinh or rec.employee_branch,
-            "so_cong": rec.so_cong,
-            "tang_ca": rec.la_tang_ca,
-            "ghi_chu": ghi_chu_text,
-            "ghi_chu_raw": rec.ghi_chu or "",
-            "dich_vu": rec.dich_vu or "",
-            "so_phong": rec.so_phong or "",
-            "so_luong": rec.so_luong or "",
-        })
-
-    return JSONResponse(content={
-        "records": combined_results,
-        "currentPage": page,
-        "totalPages": total_pages,
-        "totalRecords": total_records,
-        "relatedEmployees": related_employees, # Trả về danh sách nhân viên cho bộ lọc
-    })
-
-def _auto_adjust_worksheet_columns(worksheet):
-    """Helper function to adjust column widths of a worksheet."""
-    for i, column_cells in enumerate(worksheet.columns, 1):
-        max_length = 0
-        column_letter = get_column_letter(i)
-        # Also check header length
-        if worksheet.cell(row=1, column=i).value:
-            max_length = len(str(worksheet.cell(row=1, column=i).value))
-
-        for cell in column_cells:
-            try:
-                if len(str(cell.value)) > max_length:
-                    max_length = len(str(cell.value))
-            except:
-                pass
-        adjusted_width = (max_length + 2)
-        worksheet.column_dimensions[column_letter].width = adjusted_width
-
-@app.get("/api/tasks/export-excel")
-async def export_tasks_to_excel(
-    request: Request,
-    db: Session = Depends(get_db),
-    chi_nhanh: str = "",
-    search: str = "",
-    trang_thai: str = "",
-    han_hoan_thanh: str = "",
-):
-    """
-    API để xuất danh sách công việc đã lọc ra file Excel.
-    """
-    user_data = request.session.get("user")
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập.")
-
-    tasks_query = _get_filtered_tasks_query(db, user_data, chi_nhanh, search, trang_thai, han_hoan_thanh)
-
-    # Sắp xếp tương tự trang chủ
-    order = { "Quá hạn": 0, "Đang chờ": 1, "Hoàn thành": 2, "Đã xoá": 3 }
-    far_future = VN_TZ.localize(datetime(2099, 12, 31))
-    rows_all = tasks_query.all()
-    rows_all.sort(key=lambda t: (
-        order.get(t.trang_thai, 99),
-        t.han_hoan_thanh or far_future
-    ))
-
-    if not rows_all:
-        return Response(status_code=204)
-
-    data_for_export = []
-    for t in rows_all:
-        # Dữ liệu đã được đồng bộ ở đầu route, chỉ cần lấy trực tiếp
-
-        data_for_export.append({
-            "ID": t.id,
-            "Chi Nhánh": t.chi_nhanh,
-            "Phòng": t.phong,
-            "Mô Tả": t.mo_ta,
-            "Ngày Tạo": format_datetime_display(t.ngay_tao, with_time=True),
-            "Hạn Hoàn Thành": format_datetime_display(t.han_hoan_thanh, with_time=False),
-            "Trạng Thái": t.trang_thai,
-            "Người Tạo": t.nguoi_tao,
-            "Người Thực Hiện": t.nguoi_thuc_hien or "",
-            "Ngày Hoàn Thành": format_datetime_display(t.ngay_hoan_thanh, with_time=True) if t.ngay_hoan_thanh else "",
-            "Ghi Chú": t.ghi_chu or "",
-        })
-
-    output = io.BytesIO()
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "CongViec"
-
-    headers = list(data_for_export[0].keys())
-    ws.append(headers)
-    for row_data in data_for_export:
-        ws.append(list(row_data.values()))
-    _auto_adjust_worksheet_columns(ws)
-
-    wb.save(output)
-    output.seek(0)
-
-    filename = f"danh_sach_cong_viec_{datetime.now(VN_TZ).strftime('%Y%m%d_%H%M%S')}.xlsx"
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
-    )
-
-@app.get("/api/attendance/export-excel")
-async def export_attendance_results_to_excel(
-    request: Request,
-    db: Session = Depends(get_db),
-    filter_type: Optional[str] = None,
-    filter_date: Optional[str] = None,
-    filter_nhan_vien: Optional[str] = None,
-    filter_chuc_vu: Optional[str] = None,
-    filter_cn_lam: Optional[str] = None,
-    filter_so_cong: Optional[float] = None,
-    filter_tang_ca: Optional[str] = None,
-    filter_ghi_chu: Optional[str] = None,
-    filter_nguoi_thuc_hien: Optional[str] = None,
-    filter_dich_vu: Optional[str] = None,
-    filter_so_phong: Optional[str] = None,
-):
-    """
-    API to export filtered attendance results to an Excel file with separate sheets
-    for attendance and service records.
-    """
-    user = request.session.get("user")
-    allowed_roles = ['letan', 'quanly', 'ktv', 'admin', 'boss']
-    if not user or user.get("role") not in allowed_roles:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
-    
-    checker_code = user.get("code")
-    user_role = user.get("role")
-    if not checker_code:
-        raise HTTPException(status_code=403, detail="Không tìm thấy mã người dùng.")
-    
-    EmployeeUser = aliased(User, name="employee_user")
-    CheckerUser = aliased(User, name="checker_user")
-
-    # Base query for AttendanceRecord
-    att_q = select(
-        AttendanceRecord.id,
-        AttendanceRecord.ngay_diem_danh.label("date_col"), AttendanceRecord.gio_diem_danh.label("time_col"),
-        AttendanceRecord.nguoi_diem_danh.label("nguoi_thuc_hien"), CheckerUser.name.label("ten_nguoi_thuc_hien"),
-        AttendanceRecord.ma_nv, AttendanceRecord.ten_nv, EmployeeUser.role.label("chuc_vu_raw"),
-        AttendanceRecord.chi_nhanh_lam, AttendanceRecord.chi_nhanh_chinh, EmployeeUser.branch.label("employee_branch"),
-        AttendanceRecord.so_cong_nv.label("so_cong"), AttendanceRecord.la_tang_ca, AttendanceRecord.ghi_chu
-    ).join(
-        EmployeeUser, EmployeeUser.code == AttendanceRecord.ma_nv, isouter=True
-    ).join(
-        CheckerUser, CheckerUser.code == AttendanceRecord.nguoi_diem_danh, isouter=True
-    )
-    
-    # Base query for ServiceRecord
-    svc_q = select(
-        ServiceRecord.id,
-        ServiceRecord.ngay_cham.label("date_col"), ServiceRecord.gio_cham.label("time_col"),
-        ServiceRecord.nguoi_cham.label("nguoi_thuc_hien"), CheckerUser.name.label("ten_nguoi_thuc_hien"),
-        ServiceRecord.ma_nv, ServiceRecord.ten_nv, EmployeeUser.role.label("chuc_vu_raw"),
-        ServiceRecord.chi_nhanh_lam, ServiceRecord.chi_nhanh_chinh, EmployeeUser.branch.label("employee_branch"),
-        ServiceRecord.la_tang_ca, ServiceRecord.ghi_chu,
-        ServiceRecord.dich_vu, ServiceRecord.so_phong, ServiceRecord.so_luong
-    ).join(
-        EmployeeUser, EmployeeUser.code == ServiceRecord.ma_nv, isouter=True
-    ).join(
-        CheckerUser, CheckerUser.code == ServiceRecord.nguoi_cham, isouter=True
-    )
-    
-    # Role-based filtering
-    if user_role == "letan":
-        att_q = att_q.where(or_(AttendanceRecord.nguoi_diem_danh == checker_code, AttendanceRecord.ma_nv == checker_code))
-        svc_q = svc_q.where(ServiceRecord.nguoi_cham == checker_code)
-    elif user_role not in ["admin", "boss"]:
-        att_q = att_q.where(AttendanceRecord.nguoi_diem_danh == checker_code)
-        svc_q = svc_q.where(ServiceRecord.nguoi_cham == checker_code)
-    
-    def _apply_common_filters(query, is_att_query=False):
-        if filter_date:
-            try:
-                parsed_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
-                query = query.where(query.selected_columns.date_col == parsed_date)
-            except (ValueError, TypeError): pass
-        if filter_nhan_vien:
-            query = query.where(or_(
-                query.selected_columns.ma_nv.ilike(f"%{filter_nhan_vien}%"),
-                query.selected_columns.ten_nv.ilike(f"%{filter_nhan_vien}%")
-            ))
-        if filter_chuc_vu:
-            matching_roles = [role for role, vn_role in ROLE_MAP.items() if filter_chuc_vu.lower() in vn_role.lower()]
-            if matching_roles:
-                query = query.where(query.selected_columns.chuc_vu_raw.in_(matching_roles))
-        if filter_cn_lam:
-            query = query.where(query.selected_columns.chi_nhanh_lam.ilike(f"%{filter_cn_lam}%"))
-        if is_att_query and filter_so_cong is not None:
-            query = query.where(query.selected_columns.so_cong == filter_so_cong)
-        if filter_tang_ca and filter_tang_ca != 'all':
-            is_overtime = filter_tang_ca == 'yes'
-            query = query.where(query.selected_columns.la_tang_ca == is_overtime)
-        if filter_ghi_chu:
-            query = query.where(query.selected_columns.ghi_chu.ilike(f"%{filter_ghi_chu}%"))
-        if filter_nguoi_thuc_hien and user_role in ['admin', 'boss']:
-            query = query.where(or_(
-                query.selected_columns.nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%"),
-                query.selected_columns.ten_nguoi_thuc_hien.ilike(f"%{filter_nguoi_thuc_hien}%")
-            ))
-        if not is_att_query:
-            if filter_dich_vu:
-                query = query.where(query.selected_columns.dich_vu.ilike(f"%{filter_dich_vu}%"))
-            if filter_so_phong:
-                query = query.where(query.selected_columns.so_phong.ilike(f"%{filter_so_phong}%"))
-        return query
-
-    # Apply filters to each query
-    filtered_att_q = _apply_common_filters(att_q, is_att_query=True)
-    filtered_svc_q = _apply_common_filters(svc_q, is_att_query=False)
-
-    # Fetch all records for both types, no pagination
-    att_records = db.execute(filtered_att_q.order_by(desc(att_q.selected_columns.date_col), desc(att_q.selected_columns.time_col))).all()
-    svc_records = db.execute(filtered_svc_q.order_by(desc(svc_q.selected_columns.date_col), desc(svc_q.selected_columns.time_col))).all()
-
-    # Prepare data for Attendance DataFrame
-    att_data_for_df = []
-    for rec in att_records:
-        ghi_chu_text = rec.ghi_chu or ""
-        if rec.la_tang_ca:
-            ghi_chu_text = re.sub(r'Tăng ca\s*\.?\s*', '', ghi_chu_text, flags=re.IGNORECASE).strip()
-        dt = datetime.combine(rec.date_col, rec.time_col)
-        att_data_for_df.append({
-            "Thời gian": dt.strftime("%d/%m/%Y %H:%M:%S"),
-            "Người thực hiện": f"{rec.ten_nguoi_thuc_hien} ({rec.nguoi_thuc_hien})" if rec.ten_nguoi_thuc_hien else rec.nguoi_thuc_hien,
-            "Mã NV": rec.ma_nv, "Tên NV": rec.ten_nv, "Chức vụ": map_role_to_vietnamese(rec.chuc_vu_raw),
-            "CN Làm": rec.chi_nhanh_lam, "CN Chính": rec.chi_nhanh_chinh or rec.employee_branch,
-            "Tăng ca": "Có" if rec.la_tang_ca else "Không", "Số công": rec.so_cong,
-            "Ghi chú": ghi_chu_text,
-        })
-
-    # Prepare data for Service DataFrame
-    svc_data_for_df = []
-    for rec in svc_records:
-        ghi_chu_text = rec.ghi_chu or ""
-        dt = datetime.combine(rec.date_col, rec.time_col)
-        svc_data_for_df.append({
-            "Thời gian": dt.strftime("%d/%m/%Y %H:%M:%S"),
-            "Người thực hiện": f"{rec.ten_nguoi_thuc_hien} ({rec.nguoi_thuc_hien})" if rec.ten_nguoi_thuc_hien else rec.nguoi_thuc_hien,
-            "Mã NV": rec.ma_nv, "Tên NV": rec.ten_nv, "Chức vụ": map_role_to_vietnamese(rec.chuc_vu_raw),
-            "CN Làm": rec.chi_nhanh_lam, "CN Chính": rec.chi_nhanh_chinh or rec.employee_branch,
-            "Tăng ca": "Có" if rec.la_tang_ca else "Không",
-            "Dịch vụ": rec.dich_vu or "", "Số phòng": rec.so_phong or "", "Số lượng": rec.so_luong or "",
-            "Ghi chú": ghi_chu_text,
-        })
-
-    output = io.BytesIO()
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active) # Remove default sheet
-
-    # --- Sheet 1: Điểm danh ---
-    if att_data_for_df:
-        ws_att = wb.create_sheet(title="Điểm danh")
-        headers_att = list(att_data_for_df[0].keys())
-        ws_att.append(headers_att)
-        for row_data in att_data_for_df:
-            ws_att.append(list(row_data.values()))
-        _auto_adjust_worksheet_columns(ws_att)
-
-    # --- Sheet 2: Chấm Dịch Vụ ---
-    if svc_data_for_df:
-        ws_svc = wb.create_sheet(title="Chấm Dịch Vụ")
-        headers_svc = list(svc_data_for_df[0].keys())
-        ws_svc.append(headers_svc)
-        for row_data in svc_data_for_df:
-            ws_svc.append(list(row_data.values()))
-        _auto_adjust_worksheet_columns(ws_svc)
-
-    if not wb.sheetnames: # If no data was added
-        return Response(status_code=204)
-
-    wb.save(output)
-    output.seek(0)
-
-    filename = f"ket_qua_diem_danh_{datetime.now(VN_TZ).strftime('%Y%m%d_%H%M%S')}.xlsx"
-    return StreamingResponse(
-        output,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename=\"{filename}\""}
-    )
-
-class RecordToDelete(BaseModel):
-    id: int
-    type: str
-
-class BatchDeletePayload(BaseModel):
-    records: list[RecordToDelete]
-
-@app.post("/api/attendance/records/batch-delete", response_class=JSONResponse)
-async def batch_delete_records(
-    request: Request,
-    payload: BatchDeletePayload,
-    db: Session = Depends(get_db)
-):
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
-        raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới có quyền xóa hàng loạt.")
-
-    # --- Tối ưu hóa: Gom ID để xóa hàng loạt ---
-    attendance_ids_to_delete = []
-    service_ids_to_delete = []
-
-    for record_info in payload.records:
-        if record_info.type == 'attendance':
-            attendance_ids_to_delete.append(record_info.id)
-        elif record_info.type == 'service':
-            service_ids_to_delete.append(record_info.id)
-
-    deleted_count = 0
-    try:
-        # Thực hiện xóa hàng loạt cho từng loại bản ghi
-        if attendance_ids_to_delete:
-            # .delete() trả về số dòng đã xóa
-            num_deleted = db.query(AttendanceRecord).filter(
-                AttendanceRecord.id.in_(attendance_ids_to_delete)
-            ).delete(synchronize_session=False)
-            deleted_count += num_deleted
-
-        if service_ids_to_delete:
-            num_deleted = db.query(ServiceRecord).filter(
-                ServiceRecord.id.in_(service_ids_to_delete)
-            ).delete(synchronize_session=False)
-            deleted_count += num_deleted
-
-        db.commit()
-        return JSONResponse({"status": "success", "message": f"Đã xóa thành công {deleted_count} bản ghi.", "deleted_count": deleted_count})
-    except SQLAlchemyError as e:
-        db.rollback()
-        logger.error(f"Lỗi khi xóa hàng loạt: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Lỗi cơ sở dữ liệu khi xóa hàng loạt.")
-
-# --- Manual Absence Check for Admin/Boss ---
-class AbsenceCheckPayload(BaseModel):
-    check_date: str
-
-@app.post("/api/attendance/run-absence-check", response_class=JSONResponse)
-async def trigger_absence_check(
-    request: Request,
-    payload: AbsenceCheckPayload,
-    background_tasks: BackgroundTasks,
-):
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện chức năng này.")
-
-    try:
-        target_date = datetime.strptime(payload.check_date, "%Y-%m-%d").date()
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Định dạng ngày không hợp lệ. Vui lòng dùng YYYY-MM-DD.")
-
-    # Chạy tác vụ trong nền để không block request
-    background_tasks.add_task(run_daily_absence_check, target_date=target_date)
-
-    return JSONResponse(
-        content={
-            "status": "success",
-            "message": f"Đã yêu cầu cập nhật điểm danh vắng cho ngày {target_date.strftime('%d/%m/%Y')}. Quá trình sẽ chạy trong nền."
-        }
-    )
-
-
-# --- Manual Record Management for Admin/Boss ---
-
-def parse_form_datetime(dt_str: str) -> Optional[datetime]:
-    """Hàm helper để parse datetime từ form của modal sửa/thêm."""
-    if not dt_str:
-        return None
-    try:
-        # Frontend sends 'dd/mm/yyyy HH:MM' after conversion
-        return VN_TZ.localize(datetime.strptime(dt_str, "%d/%m/%Y %H:%M"))
-    except (ValueError, TypeError):
-        return None
-
-@app.get("/api/users/search-checkers", response_class=JSONResponse)
-def search_checkers(q: str = "", db: Session = Depends(get_db)):
-    """API để tìm kiếm người dùng có quyền điểm danh (lễ tân, ql, ktv, admin, boss)."""
-    if not q:
-        return JSONResponse(content=[])
-    
-    search_pattern = f"%{q}%"
-    allowed_roles = ["letan", "quanly", "ktv", "admin", "boss"]
-    
-    users = db.query(User).filter(
-        User.role.in_(allowed_roles),
-        or_(
-            User.code.ilike(search_pattern),
-            User.name.ilike(search_pattern)
-        )
-    ).limit(20).all()
-    
-    user_list = [
-        {"code": user.code, "name": user.name}
-        for user in users
-    ]
-    return JSONResponse(content=user_list)
-
-@app.post("/api/attendance/manual-record", response_class=JSONResponse)
-async def create_manual_record(
-    request: Request,
-    db: Session = Depends(get_db),
-    record_type: str = Form(...),
-    ma_nv: str = Form(...),
-    thoi_gian: str = Form(...),
-    nguoi_thuc_hien: Optional[str] = Form(None),
-    chi_nhanh_lam: Optional[str] = Form(None),
-    la_tang_ca: bool = Form(False),
-    ghi_chu: Optional[str] = Form(""),
-    so_cong_nv: Optional[float] = Form(1.0),
-    dich_vu: Optional[str] = Form(""),
-    so_phong: Optional[str] = Form(""),
-    so_luong: Optional[str] = Form(""),
-):
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
-        raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới có quyền thực hiện.")
-
-    employee = db.query(User).filter(User.code == ma_nv).first()
-    if not employee:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy nhân viên với mã: {ma_nv}")
-
-    dt_obj = parse_form_datetime(thoi_gian)
-    if not dt_obj:
-        raise HTTPException(status_code=400, detail="Định dạng thời gian không hợp lệ. Cần: dd/mm/yyyy HH:MM")
-
-    # ✅ Logic xác định tăng ca cho quản lý và KTV
-    final_la_tang_ca = la_tang_ca
-    if employee.role in ["ktv", "quanly"]:
-        final_la_tang_ca = (so_cong_nv or 0) > 1.0
-
-    is_ktv_or_quanly = employee.role in ["ktv", "quanly"]
-    final_chi_nhanh_lam = chi_nhanh_lam if not is_ktv_or_quanly else employee.branch
-    if not final_chi_nhanh_lam:
-        raise HTTPException(status_code=400, detail="Không thể xác định chi nhánh làm việc.")
-
-    final_nguoi_thuc_hien = nguoi_thuc_hien if not is_ktv_or_quanly else employee.code
-    if not final_nguoi_thuc_hien:
-        # Nếu không có người thực hiện, mặc định là người đang đăng nhập
-        final_nguoi_thuc_hien = user.get("code")
-
-    try:
-        if record_type == 'attendance':
-            new_record = AttendanceRecord(
-                ngay_diem_danh=dt_obj.date(),
-                gio_diem_danh=dt_obj.time(),
-                nguoi_diem_danh=final_nguoi_thuc_hien,
-                ma_nv=ma_nv,
-                ten_nv=employee.name,
-                chi_nhanh_chinh=employee.branch,
-                chi_nhanh_lam=final_chi_nhanh_lam,
-                la_tang_ca=final_la_tang_ca,
-                so_cong_nv=so_cong_nv or 1.0,
-                ghi_chu=ghi_chu
-            )
-            db.add(new_record)
-        elif record_type == 'service':
-            new_record = ServiceRecord(
-                ngay_cham=dt_obj.date(),
-                gio_cham=dt_obj.time(),
-                nguoi_cham=final_nguoi_thuc_hien,
-                ma_nv=ma_nv,
-                ten_nv=employee.name,
-                chi_nhanh_chinh=employee.branch,
-                chi_nhanh_lam=final_chi_nhanh_lam,
-                la_tang_ca=final_la_tang_ca,
-                dich_vu=dich_vu,
-                so_phong=so_phong,
-                so_luong=so_luong,
-                ghi_chu=ghi_chu
-            )
-            db.add(new_record)
-        else:
-            raise HTTPException(status_code=400, detail="Loại bản ghi không hợp lệ.")
-        
-        db.commit()
-        return JSONResponse({"status": "success", "message": "Đã thêm bản ghi thành công."})
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi cơ sở dữ liệu: {e}")
-
-@app.post("/api/attendance/manual-record/{record_type}/{record_id}", response_class=JSONResponse)
-async def update_manual_record(
-    record_type: str,
-    record_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    ma_nv: str = Form(...),
-    thoi_gian: str = Form(...),
-    nguoi_thuc_hien: Optional[str] = Form(None),
-    chi_nhanh_lam: Optional[str] = Form(None),
-    la_tang_ca: bool = Form(False),
-    ghi_chu: Optional[str] = Form(""),
-    so_cong_nv: Optional[float] = Form(1.0),
-    dich_vu: Optional[str] = Form(""),
-    so_phong: Optional[str] = Form(""),
-    so_luong: Optional[str] = Form(""),
-):
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
-        raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới có quyền thực hiện.")
-
-    employee = db.query(User).filter(User.code == ma_nv).first()
-    if not employee:
-        raise HTTPException(status_code=404, detail=f"Không tìm thấy nhân viên với mã: {ma_nv}")
-
-    dt_obj = parse_form_datetime(thoi_gian)
-    if not dt_obj:
-        raise HTTPException(status_code=400, detail="Định dạng thời gian không hợp lệ. Cần: dd/mm/yyyy HH:MM")
-
-    # ✅ Logic xác định tăng ca cho quản lý và KTV
-    final_la_tang_ca = la_tang_ca
-    if employee.role in ["ktv", "quanly"]:
-        final_la_tang_ca = (so_cong_nv or 0) > 1.0
-
-    is_ktv_or_quanly = employee.role in ["ktv", "quanly"]
-    final_chi_nhanh_lam = chi_nhanh_lam if not is_ktv_or_quanly else employee.branch
-    if not final_chi_nhanh_lam:
-        raise HTTPException(status_code=400, detail="Không thể xác định chi nhánh làm việc.")
-
-    final_nguoi_thuc_hien = nguoi_thuc_hien if not is_ktv_or_quanly else employee.code
-    if not final_nguoi_thuc_hien:
-        # Khi cập nhật, người thực hiện phải luôn được cung cấp cho các role khác KTV/QL
-        raise HTTPException(status_code=400, detail="Không thể xác định người thực hiện.")
-
-    try:
-        if record_type == 'attendance':
-            record = db.query(AttendanceRecord).filter(AttendanceRecord.id == record_id).first()
-            if not record:
-                raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi điểm danh.")
-            
-            record.ngay_diem_danh = dt_obj.date()
-            record.gio_diem_danh = dt_obj.time()
-            record.nguoi_diem_danh = final_nguoi_thuc_hien
-            record.ma_nv = ma_nv
-            record.ten_nv = employee.name
-            record.chi_nhanh_chinh = employee.branch
-            record.chi_nhanh_lam = final_chi_nhanh_lam
-            record.la_tang_ca = final_la_tang_ca
-            record.so_cong_nv = so_cong_nv or 1.0
-            record.ghi_chu = ghi_chu
-
-        elif record_type == 'service':
-            record = db.query(ServiceRecord).filter(ServiceRecord.id == record_id).first()
-            if not record:
-                raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi dịch vụ.")
-
-            record.ngay_cham = dt_obj.date()
-            record.gio_cham = dt_obj.time()
-            record.nguoi_cham = final_nguoi_thuc_hien
-            record.ma_nv = ma_nv
-            record.ten_nv = employee.name
-            record.chi_nhanh_chinh = employee.branch
-            record.chi_nhanh_lam = final_chi_nhanh_lam
-            record.la_tang_ca = final_la_tang_ca
-            record.dich_vu = dich_vu
-            record.so_phong = so_phong
-            record.so_luong = so_luong
-            record.ghi_chu = ghi_chu
-        else:
-            raise HTTPException(status_code=400, detail="Loại bản ghi không hợp lệ.")
-        
-        db.commit()
-        return JSONResponse({"status": "success", "message": "Đã cập nhật bản ghi thành công."})
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi cơ sở dữ liệu: {e}")
-
-@app.delete("/api/attendance/record/{record_type}/{record_id}", response_class=JSONResponse)
-async def delete_manual_record(
-    record_type: str,
-    record_id: int,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
-        raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới có quyền thực hiện.")
-        
-    try:
-        if record_type == 'attendance':
-            record = db.query(AttendanceRecord).filter(AttendanceRecord.id == record_id).first()
-        elif record_type == 'service':
-            record = db.query(ServiceRecord).filter(ServiceRecord.id == record_id).first()
-        else:
-            raise HTTPException(status_code=400, detail="Loại bản ghi không hợp lệ.")
-
-        if not record:
-            raise HTTPException(status_code=404, detail="Không tìm thấy bản ghi.")
-        
-        db.delete(record)
-        db.commit()
-        return JSONResponse({"status": "success", "message": "Đã xóa bản ghi thành công."})
-    except SQLAlchemyError as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi cơ sở dữ liệu: {e}")
-
-# --- QR Checkin APIs ---
-
-@app.get("/attendance/checkin")
-def attendance_checkin(request: Request, token: str, db: Session = Depends(get_db)):
-    log = db.query(AttendanceLog).filter_by(token=token).first()
-    if not log:
-        return HTMLResponse("Token không hợp lệ!", status_code=400)
-
-    if log.checked_in:
-        return templates.TemplateResponse(
-            "qr_invalid.html",
-            {"request": request, "message": "Mã QR này đã được sử dụng để điểm danh và không còn hợp lệ."},
-            status_code=403
-        )
-
-    user = db.query(User).filter_by(code=log.user_code).first()
-    if not user:
-        return HTMLResponse("Không tìm thấy user!", status_code=400)
-
-    user_data = {
-        "code": user.code,
-        "role": user.role,
-        "branch": user.branch,
-        "name": user.name
-    }
-
-    request.session.pop("user", None)
-    request.session["pending_user"] = user_data
-    role = user_data.get("role", "")
-
-    return templates.TemplateResponse("attendance.html", {
-        "request": request,
-        "role": role,
-        "branch_id": user.branch,
-        "csrf_token": get_csrf_token(request),
-        "user": user_data,
-        "login_code": user.code,
-        "token": token
-    })
-
-@app.post("/attendance/checkin_success")
-async def checkin_success(request: Request, db: Session = Depends(get_db)):
-    # ✅ Boss & Admin: bỏ qua điểm danh, vào thẳng hệ thống
-    pending = request.session.get("pending_user") or request.session.get("user")
-    if pending and pending.get("role") in ["boss", "admin"]:
-        request.session["user"] = dict(pending)  # copy toàn bộ thông tin
-        request.session["after_checkin"] = "choose_function"
-        request.session.pop("pending_user", None)
-        return JSONResponse({"success": True, "redirect_to": "/choose-function"})
-
-    # ✅ Các role khác: tiếp tục xử lý điểm danh
-    data = await request.json()
-    token = data.get("token")
-    user_code = None
-    work_date, shift = get_current_work_shift()
-    log = None
-    user = None
-
-    # Luồng 1: Điểm danh qua QR code (desktop có token)
-    if token:
-        log = db.query(AttendanceLog).filter_by(token=token).first()
-        if not log:
-            return JSONResponse({"success": False, "error": "Token không hợp lệ"}, status_code=400)
-
-        user_code = log.user_code
-        user = db.query(User).filter_by(code=user_code).first()
-        # ✅ Xác định shift_value nhất quán theo role
-        shift_value = _get_log_shift_for_user(user.role, log.shift) if user else log.shift
-
-    # Luồng 2: Mobile (không có token)
-    else:
-        pending = request.session.get("pending_user")
-        if not pending or not pending.get("code"):
-            return JSONResponse(
-                {"success": False, "error": "Không tìm thấy pending_user trong session."},
-                status_code=403
-            )
-
-        user_code = pending["code"]
-        user = db.query(User).filter_by(code=user_code).first()
-        if not user:
-            return JSONResponse({"success": False, "error": "Không tìm thấy người dùng"}, status_code=404)
-
-        # ✅ shift_value: ktv/quanly = None, còn lại theo ca
-        shift_value = _get_log_shift_for_user(user.role, shift)
-
-        # Query log theo shift_value (tránh sinh 2 log)
-        log = db.query(AttendanceLog).filter_by(
-            user_code=user_code,
-            date=work_date,
-            shift=shift_value
-        ).first()
-
-        # Nếu chưa có log thì tạo mới
-        if not log:
-            log = AttendanceLog(
-                user_code=user_code,
-                date=work_date,
-                shift=shift_value,
-                checked_in=False,
-                token=secrets.token_urlsafe(24)
-            )
-            db.add(log)
-            db.commit()
-
-    # ✅ Cập nhật check-in
-    if not log:
-        return JSONResponse({"success": False, "error": "Không tìm thấy bản ghi điểm danh."}, status_code=404)
-
-    log.checked_in = True
-    db.commit()
-
-    # ✅ Cập nhật session chính thức
-    if user:
-        request.session["user"] = {
-            "code": user.code,
-            "role": user.role,
-            "branch": user.branch,
-            "name": user.name
-        }
-        request.session["after_checkin"] = "choose_function"
-        request.session.pop("pending_user", None)
-        return JSONResponse({"success": True, "redirect_to": "/choose-function"})
-
-    return JSONResponse({"success": False, "error": "Không tìm thấy người dùng"}, status_code=404)
-
-@app.get("/attendance/checkin_status")
-async def checkin_status(request: Request, token: str, db: Session = Depends(get_db)):
-    log = db.query(AttendanceLog).filter_by(token=token).first()
-    if not log:
-        return JSONResponse(content={"checked_in": False})
-
-    if log.checked_in:
-        user = db.query(User).filter_by(code=log.user_code).first()
-        if user:
-            # Đăng nhập cho user ở session của máy tính
-            request.session["user"] = {
-                "code": user.code,
-                "role": user.role,
-                "branch": user.branch,
-                "name": user.name,
+            function renderPagination(currentPageNum, totalPages, totalRecords) {
+                const paginationEl = document.getElementById('pagination-controls');
+                const recordCountEl = document.getElementById('record-count');
+                paginationEl.innerHTML = '';
+
+                if (totalRecords === 0) {
+                    recordCountEl.textContent = 'Không có bản ghi nào.';
+                    return;
+                }
+
+                recordCountEl.textContent = `Hiển thị ${allRecords.length} trên tổng số ${totalRecords} bản ghi.`;
+
+                if (totalPages <= 1) return;
+
+                const createButton = (text, page, isDisabled = false, isCurrent = false) => {
+                    const button = document.createElement('button');
+                    button.textContent = text;
+                    button.dataset.page = page;
+                    let baseClasses = 'px-3 py-1 rounded-md border text-sm font-medium transition';
+                    if (isCurrent) {
+                        button.className = `${baseClasses} bg-blue-600 text-white border-blue-600 cursor-default`;
+                        button.disabled = true;
+                    } else if (isDisabled) {
+                        button.className = `${baseClasses} bg-gray-100 text-gray-400 border-gray-300 cursor-not-allowed`;
+                        button.disabled = true;
+                    } else {
+                        button.className = `${baseClasses} bg-white border-gray-300 hover:bg-gray-50`;
+                        button.addEventListener('click', () => {
+                            currentPage = page;
+                            fetchData();
+                        });
+                    }
+                    return button;
+                };
+
+                paginationEl.appendChild(createButton('<<', 1, currentPageNum === 1));
+                paginationEl.appendChild(createButton('<', currentPageNum - 1, currentPageNum === 1));
+
+                let startPage, endPage;
+                if (totalPages <= 7) {
+                    startPage = 1; endPage = totalPages;
+                } else {
+                    if (currentPageNum <= 4) { startPage = 1; endPage = 5; }
+                    else if (currentPageNum + 3 >= totalPages) { startPage = totalPages - 4; endPage = totalPages; }
+                    else { startPage = currentPageNum - 2; endPage = currentPageNum + 2; }
+                }
+
+                if (startPage > 1) {
+                    paginationEl.appendChild(createButton('1', 1));
+                    if (startPage > 2) paginationEl.insertAdjacentHTML('beforeend', `<span class="px-3 py-1 text-sm">...</span>`);
+                }
+
+                for (let i = startPage; i <= endPage; i++) {
+                    paginationEl.appendChild(createButton(i, i, false, i === currentPageNum));
+                }
+
+                if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) paginationEl.insertAdjacentHTML('beforeend', `<span class="px-3 py-1 text-sm">...</span>`);
+                    paginationEl.appendChild(createButton(totalPages, totalPages));
+                }
+
+                paginationEl.appendChild(createButton('>', currentPageNum + 1, currentPageNum === totalPages));
+                paginationEl.appendChild(createButton('>>', totalPages, currentPageNum === totalPages));
             }
-            request.session.pop("pending_user", None)
-            return JSONResponse(content={"checked_in": True, "redirect_to": "choose-function"})
 
-    return JSONResponse(content={"checked_in": False})
+            function handleData(data) {
+                lastCheckedCheckbox = null; // Reset on new data
+                loadingEl.classList.add('hidden');
+                if (data && data.records && data.records.length > 0) {
+                    tableEl.classList.remove('hidden');
+                    allRecords = data.records;
+                    renderTable(data.records);                    
+                    renderPagination(data.currentPage, data.totalPages, data.totalRecords);
+                } else {
+                    tbodyEl.innerHTML = `<tr><td colspan="15" class="text-center py-6 text-gray-500">Không có dữ liệu.</td></tr>`;
+                    document.getElementById('pagination-controls').innerHTML = '';
+                    document.getElementById('record-count').textContent = 'Không có bản ghi nào.';
+                }
+            }
 
-@app.get("/favicon.ico")
-def favicon():
-    # Nếu có file favicon.ico trong static thì trả về file đó
-    favicon_path = os.path.join("static", "favicon.ico")
-    if os.path.exists(favicon_path):
-        return FileResponse(favicon_path)
-    # Nếu không có, trả về 1x1 PNG trắng
-    png_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\xdac\xf8\xff\xff?\x00\x05\xfe\x02\xfeA\x0b\x0c\x00\x00\x00\x00IEND\xaeB`\x82'
-    return Response(content=png_data, media_type="image/png")
+            function handleError(error) {
+                console.error('Error fetching attendance data:', error);
+                loadingEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+            }
+
+            applyFiltersBtn.addEventListener('click', () => {
+                currentPage = 1;
+                fetchData();
+            });
+
+            clearFiltersBtn.addEventListener('click', () => {
+                filterDateEl.value = '';
+                if (filterNhanVienEl) filterNhanVienEl.value = '';
+                if (filterChucVuEl) filterChucVuEl.selectedIndex = 0;
+                if (filterCnLamEl) filterCnLamEl.value = '';
+                filterSoCongEl.value = '';
+                if (filterTangCaEl) filterTangCaEl.value = 'all';
+                if (filterGhiChuEl) filterGhiChuEl.value = '';
+                if (isAdminOrBoss) {
+                    filterNguoiThucHienEl.value = '';
+                }
+                if (filterTypeEl) {
+                    filterTypeEl.value = 'all';
+                }
+                const filterDichVuEl = document.getElementById('filter-dich-vu');
+                const filterSoPhongEl = document.getElementById('filter-so-phong');
+                if (filterDichVuEl) filterDichVuEl.value = '';
+                if (filterSoPhongEl) filterSoPhongEl.value = '';
+
+                currentPage = 1;
+                fetchData();
+            });
+
+            if (filterTypeEl) {
+                filterTypeEl.addEventListener('change', () => {
+                    currentPage = 1;
+                    toggleFilterVisibility();
+                    fetchData();
+                });
+            }
+
+            // --- Modal Logic ---
+            if (isAdminOrBoss) {
+                // --- Absence Check Modal Logic ---
+                const openAbsenceModalBtn = document.getElementById('open-absence-modal-btn');
+                const absenceCheckModal = document.getElementById('absence-check-modal');
+                const absenceModalCloseBtn = document.getElementById('absence-modal-close-btn');
+                const runAbsenceBtn = document.getElementById('run-absence-check-btn');
+                const absenceDateInput = document.getElementById('absence-check-date');
+                const absenceStatusEl = document.getElementById('absence-check-status');
+
+                if (openAbsenceModalBtn) {
+                    openAbsenceModalBtn.addEventListener('click', () => absenceCheckModal.classList.remove('hidden'));
+                }
+                if (absenceModalCloseBtn) {
+                    absenceModalCloseBtn.addEventListener('click', () => absenceCheckModal.classList.add('hidden'));
+                }
+                if (runAbsenceBtn) {
+                    runAbsenceBtn.addEventListener('click', function() {
+                        const dateValue = absenceDateInput.value.trim();
+                        const button = this;
+
+                        if (!dateValue) {
+                            alert('Vui lòng chọn ngày.');
+                            return;
+                        }
+
+                        const parts = dateValue.split('/');
+                        if (parts.length !== 3 || !parts[2] || parts[2].length !== 4) {
+                            alert('Định dạng ngày không hợp lệ. Vui lòng dùng dd/mm/yyyy.');
+                            return;
+                        }
+                        const [d, m, y] = parts;
+                        const formattedDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+
+                        button.disabled = true;
+                        button.textContent = 'Đang xử lý...';
+                        absenceStatusEl.textContent = 'Đang gửi yêu cầu...';
+                        absenceStatusEl.className = 'mt-2 text-sm font-bold text-blue-600';
+                        fetch('/api/attendance/run-absence-check', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ check_date: formattedDate })
+                        })
+                        .then(response => response.ok ? response.json() : response.json().then(err => Promise.reject(err)))
+                        .then(data => {
+                            if (data.status === 'success') {
+                                absenceStatusEl.textContent = data.message;
+                                absenceStatusEl.className = 'mt-2 text-sm font-bold text-green-600';
+                                setTimeout(() => {
+                                    alert('Yêu cầu cập nhật đã được gửi. Kết quả sẽ được áp dụng sau vài phút.');
+                                    absenceCheckModal.classList.add('hidden');
+                                }, 1000);
+                            } else {
+                                absenceStatusEl.textContent = 'Lỗi: ' + (data.detail || 'Không rõ nguyên nhân.');
+                                absenceStatusEl.className = 'mt-2 text-sm font-bold text-red-600';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            absenceStatusEl.textContent = 'Đã xảy ra lỗi: ' + (error.detail || 'Không thể gửi yêu cầu đến server.');
+                            absenceStatusEl.className = 'mt-2 text-sm font-bold text-red-600';
+                        })
+                        .finally(() => {
+                            setTimeout(() => {
+                                button.disabled = false;
+                                button.textContent = 'Chạy cập nhật';
+                            }, 2000);
+                        });
+                    });
+                }
+
+                // --- Export to Excel Logic ---
+                const exportBtn = document.getElementById('export-attendance-btn');
+                if (exportBtn) {
+                    exportBtn.addEventListener('click', function() {
+                        const params = new URLSearchParams();
+                        const filterType = document.getElementById('filter-type') ? document.getElementById('filter-type').value : '';
+                        const filterDateInput = document.getElementById('filter-date');
+                        let filterDate = '';
+                        if (filterDateInput && filterDateInput.value) {
+                            const parts = filterDateInput.value.split('/');
+                            if (parts.length === 3 && parts[2] && parts[2].length === 4) {
+                                filterDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                            }
+                        }
+                        const filterNhanVien = document.getElementById('filter-nhan-vien') ? document.getElementById('filter-nhan-vien').value : '';
+                        const filterChucVu = document.getElementById('filter-chuc-vu') ? document.getElementById('filter-chuc-vu').value : '';
+                        const filterCnLam = document.getElementById('filter-cn-lam') ? document.getElementById('filter-cn-lam').value : '';
+                        const filterSoCong = document.getElementById('filter-so-cong') ? document.getElementById('filter-so-cong').value : '';
+                        const filterTangCa = document.getElementById('filter-tang-ca') ? document.getElementById('filter-tang-ca').value : '';
+                        const filterGhiChu = document.getElementById('filter-ghi-chu') ? document.getElementById('filter-ghi-chu').value : '';
+                        const filterNguoiThucHien = document.getElementById('filter-nguoi-thuc-hien') ? document.getElementById('filter-nguoi-thuc-hien').value : '';
+                        const filterDichVu = document.getElementById('filter-dich-vu') ? document.getElementById('filter-dich-vu').value : '';
+                        const filterSoPhong = document.getElementById('filter-so-phong') ? document.getElementById('filter-so-phong').value : '';
+
+                        if (filterType && filterType !== 'all') params.append('filter_type', filterType);
+                        if (filterDate) params.append('filter_date', filterDate);
+                        if (filterNhanVien) params.append('filter_nhan_vien', filterNhanVien);
+                        if (filterChucVu) params.append('filter_chuc_vu', filterChucVu);
+                        if (filterCnLam) params.append('filter_cn_lam', filterCnLam);
+                        if (filterSoCong) params.append('filter_so_cong', filterSoCong);
+                        if (filterTangCa && filterTangCa !== 'all') params.append('filter_tang_ca', filterTangCa);
+                        if (filterGhiChu) params.append('filter_ghi_chu', filterGhiChu);
+                        if (filterNguoiThucHien) params.append('filter_nguoi_thuc_hien', filterNguoiThucHien);
+                        if (filterDichVu) params.append('filter_dich_vu', filterDichVu);
+                        if (filterSoPhong) params.append('filter_so_phong', filterSoPhong);
+
+                        const exportUrl = `/api/attendance/export-excel?${params.toString()}`;
+                        window.open(exportUrl, '_blank');
+                    });
+                }
+
+                const modalRecordId = document.getElementById('modal-record-id');
+                const modalPerformerContainer = document.getElementById('modal-performer-container');
+                const modalNguoiThucHienSearch = document.getElementById('modal-nguoi-thuc-hien-search');
+                const modalNguoiThucHienCode = document.getElementById('modal-nguoi-thuc-hien-code');
+                const performerSearchResults = document.getElementById('performer-search-results');
+                const modalThoiGian = document.getElementById('modal-thoi-gian');
+                const modalChiNhanhLam = document.getElementById('modal-chi-nhanh-lam');
+                const modalLaTangCa = document.getElementById('modal-la-tang-ca');
+                const modalGhiChu = document.getElementById('modal-ghi-chu');
+                const modalSoCongNv = document.getElementById('modal-so-cong-nv');
+                const modalDichVu = document.getElementById('modal-dich-vu');
+                const modalSoPhong = document.getElementById('modal-so-phong');
+                const modalSoLuong = document.getElementById('modal-so-luong');
+                const attendanceFields = document.getElementById('modal-attendance-fields');
+                const serviceFields = document.getElementById('modal-service-fields');
+                const modalRecordType = document.getElementById('modal-record-type');
+                const modalTypeContainer = document.getElementById('modal-type-selector-container');
+                const modalMaNvSearch = document.getElementById('modal-ma-nv-search');
+                const modalMaNv = document.getElementById('modal-ma-nv');
+                const employeeSearchResults = document.getElementById('employee-search-results');
+
+                const closeModal = () => recordModal.classList.add('hidden');
+
+                const updateOvertimeStatus = () => {
+                    const chiNhanhChinh = recordForm.dataset.chiNhanhChinh;
+                    // Chỉ chạy khi có thông tin chi nhánh chính (tức là trong mode edit cho non-KTV/QL)
+                    if (!chiNhanhChinh) return;
+
+                    const chiNhanhLam = modalChiNhanhLam.value;
+                    const soCong = parseFloat(modalSoCongNv.value);
+
+                    // Tăng ca là true nếu chi nhánh làm khác chi nhánh chính, HOẶC số công > 1.
+                    // Đối với bản ghi dịch vụ, soCong sẽ là NaN, nên (soCong > 1) sẽ là false.
+                    const isOvertime = (chiNhanhLam !== chiNhanhChinh) || (soCong > 1);
+                    modalLaTangCa.checked = isOvertime;
+                };
+
+                // Thêm event listener để tự động cập nhật khi người dùng thay đổi
+                modalChiNhanhLam.addEventListener('change', updateOvertimeStatus);
+                modalSoCongNv.addEventListener('input', updateOvertimeStatus);
+
+                const openModal = (mode, record = null) => {
+                    recordForm.reset();
+                    // Xóa data attribute và bật lại checkbox khi mở modal
+                    recordForm.removeAttribute('data-employee-role');
+                    recordForm.removeAttribute('data-chi-nhanh-chinh');
+                    modalLaTangCa.disabled = false;
+
+                    let recordType = 'attendance'; // Default for add mode
+                    modalTypeContainer.style.display = mode === 'add' ? 'block' : 'none';
+
+                    if (mode === 'edit' && record) {
+                        modalTitle.textContent = 'Chỉnh sửa bản ghi';
+                        recordType = record.type === 'Điểm danh' ? 'attendance' : 'service';
+                        modalRecordId.value = record.id;
+
+                        // Populate common form fields first
+                        modalMaNv.value = record.ma_nv;
+                        modalMaNvSearch.value = record.ten_nv;
+                        modalGhiChu.value = record.ghi_chu_raw;
+
+                        // Populate time and work units (so_cong) BEFORE calculating overtime
+                        const [datePart, timePart] = record.thoi_gian.split(' ');
+                        const [h, min] = timePart.split(':');
+                        modalThoiGian.value = `${datePart} ${h}:${min}`;
+
+                        if (recordType === 'attendance') {
+                            const soCong = record.so_cong;
+                            if (soCong != null) {
+                                modalSoCongNv.value = (soCong % 1 === 0) ? parseInt(soCong, 10) : soCong;
+                            } else {
+                                modalSoCongNv.value = '1'; // Default if null
+                            }
+                        } else {
+                            modalSoCongNv.value = ''; // Bản ghi dịch vụ không có số công
+                            modalDichVu.value = record.dich_vu;
+                            modalSoPhong.value = record.so_phong;
+                            modalSoLuong.value = record.so_luong;
+                        }
+
+                        // Now, handle role-specific UI and overtime logic
+                        const isKtvOrQuanLy = record.chuc_vu === 'Kỹ thuật viên' || record.chuc_vu === 'Quản lý';
+                        recordForm.dataset.chiNhanhChinh = record.chi_nhanh_chinh || '';
+                        const cnLamContainer = document.getElementById('modal-cn-lam-container');
+                        const tangCaContainer = document.getElementById('modal-tang-ca-container');
+                        const performerContainer = document.getElementById('modal-performer-container');
+
+                        if (isKtvOrQuanLy) {
+                            // Hide fields not applicable to KTV/Manager
+                            cnLamContainer.style.display = 'none';
+                            modalChiNhanhLam.disabled = true;
+                            tangCaContainer.style.display = 'none';
+                            performerContainer.style.display = 'none';
+                            modalLaTangCa.disabled = true;
+
+                            // Set implicit values
+                            modalChiNhanhLam.value = record.chi_nhanh_chinh;
+                            modalNguoiThucHienCode.value = record.ma_nv;
+                            modalNguoiThucHienSearch.value = record.ma_nv;
+                            
+                            // Set overtime based on so_cong, which is now populated
+                            modalLaTangCa.checked = (record.so_cong || 0) > 1.0;
+                        } else {
+                            // Show fields and enable automatic overtime logic for other roles
+                            modalLaTangCa.disabled = true; // User can't manually check it
+                            cnLamContainer.style.display = 'block';
+                            modalChiNhanhLam.disabled = false;
+                            tangCaContainer.style.display = 'block';
+                            performerContainer.style.display = 'block';
+
+                            // Set values from record
+                            modalChiNhanhLam.value = record.chi_nhanh_lam;
+                            modalNguoiThucHienCode.value = record.nguoi_thuc_hien;
+                            modalNguoiThucHienSearch.value = record.nguoi_thuc_hien;
+                            
+                            // This will now work correctly because so_cong is set
+                            updateOvertimeStatus();
+                        }
+
+                    } else { // 'add' mode
+                        modalTitle.textContent = 'Thêm bản ghi mới';
+                        modalRecordId.value = '';
+                        recordForm.dataset.chiNhanhChinh = ''; // Xóa thông tin chi nhánh chính cũ
+                        recordType = modalRecordType.value;
+                        
+                        // Hiển thị tất cả các trường mặc định khi thêm mới
+                        document.getElementById('modal-cn-lam-container').style.display = 'block';
+                        modalChiNhanhLam.disabled = false;
+                        document.getElementById('modal-tang-ca-container').style.display = 'block';
+                        document.getElementById('modal-performer-container').style.display = 'block';
+                        // Vô hiệu hóa ô tăng ca cho đến khi một nhân viên được chọn
+                        modalLaTangCa.disabled = true; 
+                        modalLaTangCa.checked = false;
+                        
+                        // Default performer to current user
+                        modalNguoiThucHienSearch.value = '{{ user.code }}'; // Show code
+                        modalNguoiThucHienCode.value = '{{ user.code }}';
+                    }
+
+                    toggleModalFields(recordType);
+                    recordModal.classList.remove('hidden');
+                };
+
+                const toggleModalFields = (type) => {
+                    if (type === 'attendance') {
+                        attendanceFields.style.display = 'block';
+                        serviceFields.style.display = 'none';
+                        modalSoCongNv.required = true;
+                    } else {
+                        attendanceFields.style.display = 'none';
+                        serviceFields.style.display = 'block';
+                        modalSoCongNv.required = false;
+                    }
+                };
+
+                addRecordBtn.addEventListener('click', () => openModal('add'));
+                modalCloseBtn.addEventListener('click', closeModal);
+                modalCancelBtn.addEventListener('click', closeModal);
+                modalRecordType.addEventListener('change', () => toggleModalFields(modalRecordType.value));
+
+                tbodyEl.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('edit-btn')) {
+                        const recordRow = e.target.closest('tr');
+                        const record = JSON.parse(recordRow.dataset.record);
+                        openModal('edit', record);
+                    }
+                    if (e.target.classList.contains('delete-btn')) {
+                        const recordId = e.target.dataset.id;
+                        const recordType = e.target.dataset.type;
+                        if (confirm('Bạn có chắc chắn muốn xóa bản ghi này không?')) {
+                            fetch(`/api/attendance/record/${recordType}/${recordId}`, { method: 'DELETE' })
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.status === 'success') {
+                                        alert('Đã xóa bản ghi thành công.');
+                                        fetchData();
+                                    } else {
+                                        throw new Error(data.detail || 'Lỗi không xác định');
+                                    }
+                                })
+                                .catch(err => alert(`Lỗi khi xóa: ${err.message}`));
+                        }
+                    }
+                });
+
+                recordForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    const recordId = modalRecordId.value;
+                    const isEdit = !!recordId;
+
+                    // --- VALIDATION LOGIC FOR ADD MODE ---
+                    if (!isEdit) {
+                        const employeeRole = recordForm.dataset.employeeRole || '';
+                        const isKtvOrQuanLy = employeeRole === 'ktv' || employeeRole === 'quanly';
+                        const recordType = modalRecordType.value;
+
+                        const validateField = (input, message, checkNumeric = false) => {
+                            const value = input.value.trim();
+                            let searchInput;
+                            if (input.id === 'modal-ma-nv') {
+                                searchInput = document.getElementById('modal-ma-nv-search');
+                            } else if (input.id === 'modal-nguoi-thuc-hien-code') {
+                                searchInput = document.getElementById('modal-nguoi-thuc-hien-search');
+                            }
+                            const targetInput = searchInput || input;
+
+                            if (!value) {
+                                alert(message);
+                                targetInput.focus();
+                                return false;
+                            }
+                            if (checkNumeric && (isNaN(parseFloat(value)) || parseFloat(value) <= 0)) {
+                                alert(message);
+                                targetInput.focus();
+                                return false;
+                            }
+                            return true;
+                        };
+
+                        if (!validateField(modalMaNv, 'Vui lòng chọn một nhân viên.')) return;
+                        if (!isKtvOrQuanLy && !validateField(modalNguoiThucHienCode, 'Vui lòng chọn người thực hiện.')) return;
+                        if (!validateField(modalThoiGian, 'Vui lòng nhập thời gian.')) return;
+                        if (!isKtvOrQuanLy && !validateField(modalChiNhanhLam, 'Vui lòng chọn chi nhánh làm việc.')) return;
+
+                        if (recordType === 'attendance') {
+                            if (!validateField(modalSoCongNv, 'Vui lòng nhập số công hợp lệ (lớn hơn 0).', true)) return;
+                        } else { // service
+                            if (!validateField(modalDichVu, 'Vui lòng chọn dịch vụ.')) return;
+                            if (!validateField(modalSoPhong, 'Vui lòng nhập số phòng.')) return;
+                            if (!validateField(modalSoLuong, 'Vui lòng nhập số lượng.')) return;
+                        }
+                    }
+                    // --- END VALIDATION ---
+
+                    const formData = new FormData(recordForm);
+                    // Handle checkbox value
+                    formData.set('la_tang_ca', modalLaTangCa.checked);
+
+                    const recordType = isEdit ? (allRecords.find(r => r.id == recordId).type === 'Điểm danh' ? 'attendance' : 'service') : modalRecordType.value;
+
+                    const url = isEdit ? `/api/attendance/manual-record/${recordType}/${recordId}` : '/api/attendance/manual-record';
+
+                    fetch(url, { method: 'POST', body: formData })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                alert(data.message);
+                                closeModal();
+                                fetchData();
+                            } else {
+                                throw new Error(data.detail || 'Lỗi không xác định');
+                            }
+                        })
+                        .catch(err => alert(`Lỗi khi lưu: ${err.message}`));
+                });
+
+                // Performer search in modal
+                let performerSearchTimeout;
+                modalNguoiThucHienSearch.addEventListener('input', () => {
+                    clearTimeout(performerSearchTimeout);
+                    modalNguoiThucHienCode.value = ''; // Invalidate on any input
+                    const query = modalNguoiThucHienSearch.value.trim();
+                    // If the search box is cleared, also clear the hidden code input.
+                    if (query === '') {
+                        performerSearchResults.classList.add('hidden');
+                        return;
+                    }
+                    if (query.length < 2) {
+                        return;
+                    }
+                    performerSearchTimeout = setTimeout(() => {
+                        fetch(`/api/users/search-checkers?q=${encodeURIComponent(query)}`)
+                            .then(res => res.json())
+                            .then(performers => {
+                                performerSearchResults.innerHTML = '';
+                                if (performers.length > 0) {
+                                    performers.forEach(p => {
+                                        const div = document.createElement('div');
+                                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                        div.textContent = `${p.name} (${p.code})`;
+                                        div.onclick = () => {
+                                            modalNguoiThucHienSearch.value = p.name;
+                                            modalNguoiThucHienCode.value = p.code;
+                                            performerSearchResults.classList.add('hidden');
+                                        };
+                                        performerSearchResults.appendChild(div);
+                                    });
+                                    performerSearchResults.classList.remove('hidden');
+                                } else {
+                                    performerSearchResults.classList.add('hidden');
+                                }
+                            });
+                    }, 300);
+                });
+                // Employee search in modal
+                let searchTimeout;
+                modalMaNvSearch.addEventListener('input', () => {
+                    clearTimeout(searchTimeout);
+                    modalMaNv.value = ''; // Invalidate on any input
+                    const query = modalMaNvSearch.value.trim();
+                    // If the search box is cleared, also clear the hidden code input.
+                    if (query === '') {
+                        employeeSearchResults.classList.add('hidden');
+                        return;
+                    }
+                    if (query.length < 2) {
+                        employeeSearchResults.classList.add('hidden');
+                        return;
+                    }
+                    searchTimeout = setTimeout(() => {
+                        fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}`)
+                            .then(res => res.json())
+                            .then(employees => {
+                                employeeSearchResults.innerHTML = '';
+                                if (employees.length > 0) {
+                                    employees.forEach(emp => {
+                                        const div = document.createElement('div');
+                                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                        div.textContent = `${emp.name} (${emp.code})`;
+                                        div.onclick = () => {
+                                            modalMaNvSearch.value = emp.name;
+                                            modalMaNv.value = emp.code;
+                                            employeeSearchResults.classList.add('hidden');
+
+                                            // Đối với chế độ 'Thêm mới', áp dụng logic theo vai trò sau khi chọn nhân viên
+                                            if (modalRecordId.value === '') {
+                                                const isKtvOrQuanLy = emp.department === 'ktv' || emp.department === 'quanly';
+                                                recordForm.dataset.chiNhanhChinh = emp.branch || '';
+                                            recordForm.dataset.employeeRole = emp.department || '';
+
+                                                const cnLamContainer = document.getElementById('modal-cn-lam-container');
+                                                const tangCaContainer = document.getElementById('modal-tang-ca-container');
+                                                const performerContainer = document.getElementById('modal-performer-container');
+
+                                                if (isKtvOrQuanLy) {
+                                                    cnLamContainer.style.display = 'none';
+                                                    modalChiNhanhLam.disabled = true;
+                                                    tangCaContainer.style.display = 'none';
+                                                    performerContainer.style.display = 'none';
+                                                    modalChiNhanhLam.value = emp.branch;
+                                                    modalNguoiThucHienCode.value = emp.code;
+                                                    modalNguoiThucHienSearch.value = emp.code;
+                                                    modalLaTangCa.checked = false;
+                                                    modalLaTangCa.disabled = true;
+                                                } else {
+                                                    // Đảm bảo các trường được hiển thị và kích hoạt logic tự động
+                                                    cnLamContainer.style.display = 'block';
+                                                    modalChiNhanhLam.disabled = false;
+                                                    tangCaContainer.style.display = 'block';
+                                                    performerContainer.style.display = 'block';
+                                                    updateOvertimeStatus();
+                                                }
+                                            }
+                                        };
+                                        employeeSearchResults.appendChild(div);
+                                    });
+                                    employeeSearchResults.classList.remove('hidden');
+                                } else {
+                                    employeeSearchResults.classList.add('hidden');
+                                }
+                            });
+                    }, 300);
+                });
+
+                // Hide search results when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!modalMaNvSearch.contains(e.target) && !employeeSearchResults.contains(e.target)) {
+                        employeeSearchResults.classList.add('hidden');
+                    }
+                    if (filterNhanVienEl && !filterNhanVienEl.contains(e.target) && employeeFilterResults && !employeeFilterResults.contains(e.target)) {
+                        employeeFilterResults.classList.add('hidden');
+                    }
+                });
+
+                // Performer filter search
+                let performerFilterTimeout;
+                filterNguoiThucHienEl.addEventListener('input', () => {
+                    clearTimeout(performerFilterTimeout);
+                    const query = filterNguoiThucHienEl.value.trim();
+                    if (query === '') {
+                        performerFilterResults.classList.add('hidden');
+                        return;
+                    }
+                    if (query.length < 2) return;
+
+                    performerFilterTimeout = setTimeout(() => {
+                        fetch(`/api/users/search-checkers?q=${encodeURIComponent(query)}`)
+                            .then(res => res.json())
+                            .then(performers => {
+                                performerFilterResults.innerHTML = '';
+                                if (performers.length > 0) {
+                                    performers.forEach(p => {
+                                        const div = document.createElement('div');
+                                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                        div.textContent = `${p.name} (${p.code})`;
+                                        div.onclick = () => {
+                                            filterNguoiThucHienEl.value = p.code;
+                                            performerFilterResults.classList.add('hidden');
+                                        };
+                                        performerFilterResults.appendChild(div);
+                                    });
+                                    performerFilterResults.classList.remove('hidden');
+                                } else {
+                                    performerFilterResults.classList.add('hidden');
+                                }
+                            });
+                    }, 300);
+                });
+            }
+
+            // Sorting listener
+            if (!theadEl.dataset.sortListenerAdded) {
+                theadEl.addEventListener('click', (e) => {
+                    const header = e.target.closest('.sortable');
+                    if (!header) return;
+
+                    const sortBy = header.dataset.sort;
+                    if (!sortBy) return;
+
+                    if (currentSortBy === sortBy) {
+                        currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        currentSortBy = sortBy;
+                        currentSortOrder = 'desc';
+                    }
+                    currentPage = 1;
+                    fetchData();
+                });
+                theadEl.dataset.sortListenerAdded = 'true';
+            }
+
+            // Employee filter search (for the main filter bar)
+            let employeeFilterTimeout;
+            if (filterNhanVienEl && employeeFilterResults) {
+                filterNhanVienEl.addEventListener('input', () => {
+                    clearTimeout(employeeFilterTimeout);
+                    const query = filterNhanVienEl.value.trim();
+                    if (query === '') {
+                        employeeFilterResults.classList.add('hidden');
+                        return;
+                    }
+                    if (query.length < 2) return;
+
+                    employeeFilterTimeout = setTimeout(() => {
+                        fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}&context=results_filter`)
+                            .then(res => res.json())
+                            .then(employees => {
+                                employeeFilterResults.innerHTML = '';
+                                if (employees.length > 0) {
+                                    employees.forEach(emp => {
+                                        const div = document.createElement('div');
+                                        div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
+                                        div.textContent = `${emp.name} (${emp.code})`;
+                                        div.onclick = () => {
+                                            filterNhanVienEl.value = emp.name;
+                                            employeeFilterResults.classList.add('hidden');
+                                        };
+                                        employeeFilterResults.appendChild(div);
+                                    });
+                                    employeeFilterResults.classList.remove('hidden');
+                                } else {
+                                    employeeFilterResults.classList.add('hidden');
+                                }
+                            });
+                }, 300);
+                });
+            }
+
+            // Initial data fetch
+            fetchData();
+            setupSoCongFilter();
+            toggleFilterVisibility(); // Initial check
+
+            // Initialize Flatpickr date pickers
+            flatpickr("#filter-date", {
+                dateFormat: "d/m/Y",
+                allowInput: true,
+            });
+            if (isAdminOrBoss) {
+                flatpickr("#absence-check-date", {
+                    dateFormat: "d/m/Y",
+                    allowInput: true,
+                });
+                flatpickr("#modal-thoi-gian", { enableTime: true, dateFormat: "d/m/Y H:i", time_24hr: true, allowInput: true });
+            }
+        });
+    </script>
+    <script>
+        function checkAndLogoutForShiftChange() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+
+            // Tự động đăng xuất lúc 6:59 sáng
+            const isMorningLogout = (hours === 6 && minutes === 59); // Giữ nguyên hoặc thay đổi để test
+
+            // Tự động đăng xuất lúc 18:59 tối
+            const isEveningLogout = (hours === 18 && minutes === 59); // <-- THAY ĐỔI GIỜ VÀ PHÚT Ở ĐÂY
+
+            if (isMorningLogout || isEveningLogout) {
+                console.log("Đã đến giờ chuyển ca, tự động đăng xuất...");
+                // Chuyển hướng về trang đăng xuất để xóa session
+                window.location.href = '/logout';
+            }
+        }
+
+        // Kiểm tra thời gian mỗi 30 giây để đảm bảo không bỏ lỡ
+        setInterval(checkAndLogoutForShiftChange, 30000);
+    </script>
+</body>
+</html>
