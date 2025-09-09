@@ -18,12 +18,6 @@ if "postgresql+psycopg2://" in DATABASE_URL:
 elif "postgresql://" in DATABASE_URL and "+psycopg" not in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
-# Thêm sslmode=require cho kết nối Supabase pooler để đảm bảo kết nối an toàn
-# và tránh lỗi "server closed the connection unexpectedly".
-if "pooler.supabase.com" in DATABASE_URL and "sslmode" not in DATABASE_URL:
-    separator = "&" if "?" in DATABASE_URL else "?"
-    DATABASE_URL += f"{separator}sslmode=require"
-
 SMTP_CONFIG = {
     "host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
     "port": int(os.getenv("SMTP_PORT", 587)),
