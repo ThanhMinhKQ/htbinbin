@@ -2,19 +2,24 @@ from sqlalchemy import create_engine, NullPool
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from config import DATABASE_URL
+import re
 
-# Chuẩn bị các đối số kết nối
-connect_args = {"prepare_threshold": None}
+# For Supabase's connection pooler, it's mandatory to use sslmode=require.
+# The most robust way to ensure this is to modify the URL string directly,
+# replacing any existing sslmode value. The `connect_args` approach can be
+# unreliable if the URL already contains a conflicting sslmode.
+final_db_url = DATABASE_URL
+if "pooler.supabase.com" in final_db_url:
+    if "sslmode=" in final_db_url:
+        final_db_url = re.sub(r'sslmode=[^&]*', 'sslmode=require', final_db_url)
+    else:
+        separator = "&" if "?" in final_db_url else "?"
+        final_db_url += f"{separator}sslmode=require"
 
-# Nếu kết nối đến Supabase pooler, bắt buộc phải có sslmode=require
-if "pooler.supabase.com" in DATABASE_URL:
-    connect_args["sslmode"] = "require"
-
-# Tạo engine kết nối đến database từ URL trong file config.
-# Thêm connect_args để tắt prepared statements, tương thích với PgBouncer trên Render.
-# Thêm poolclass=NullPool để SQLAlchemy không quản lý pool, giao cho PgBouncer.
 engine = create_engine(
-    DATABASE_URL, connect_args=connect_args, poolclass=NullPool
+    final_db_url,
+    connect_args={"prepare_threshold": None}, # For PgBouncer on Render
+    poolclass=NullPool # Delegate pooling to PgBouncer
 )
 
 # Tạo một lớp Session để quản lý các phiên làm việc với DB
