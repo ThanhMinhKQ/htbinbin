@@ -3,13 +3,18 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from config import DATABASE_URL
 
+# Chuẩn bị các đối số kết nối
+connect_args = {"prepare_threshold": None}
+
+# Nếu kết nối đến Supabase pooler, bắt buộc phải có sslmode=require
+if "pooler.supabase.com" in DATABASE_URL:
+    connect_args["sslmode"] = "require"
+
 # Tạo engine kết nối đến database từ URL trong file config.
 # Thêm connect_args để tắt prepared statements, tương thích với PgBouncer trên Render.
 # Thêm poolclass=NullPool để SQLAlchemy không quản lý pool, giao cho PgBouncer.
 engine = create_engine(
-    DATABASE_URL,
-    connect_args={"prepare_threshold": None},
-    poolclass=NullPool
+    DATABASE_URL, connect_args=connect_args, poolclass=NullPool
 )
 
 # Tạo một lớp Session để quản lý các phiên làm việc với DB
