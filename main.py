@@ -2608,24 +2608,38 @@ async def batch_delete_records(
     if not user or user.get("role") not in ["admin", "boss"]:
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới có quyền xóa hàng loạt.")
 
+    # --- Tối ưu hóa: Gom ID để xóa hàng loạt ---
+    attendance_ids_to_delete = []
+    service_ids_to_delete = []
+
+    for record_info in payload.records:
+        if record_info.type == 'attendance':
+            attendance_ids_to_delete.append(record_info.id)
+        elif record_info.type == 'service':
+            service_ids_to_delete.append(record_info.id)
+
     deleted_count = 0
     try:
-        for record_info in payload.records:
-            if record_info.type == 'attendance':
-                record = db.query(AttendanceRecord).filter(AttendanceRecord.id == record_info.id).first()
-            elif record_info.type == 'service':
-                record = db.query(ServiceRecord).filter(ServiceRecord.id == record_info.id).first()
-            else:
-                continue
+        # Thực hiện xóa hàng loạt cho từng loại bản ghi
+        if attendance_ids_to_delete:
+            # .delete() trả về số dòng đã xóa
+            num_deleted = db.query(AttendanceRecord).filter(
+                AttendanceRecord.id.in_(attendance_ids_to_delete)
+            ).delete(synchronize_session=False)
+            deleted_count += num_deleted
 
-            if record:
-                db.delete(record)
-                deleted_count += 1
+        if service_ids_to_delete:
+            num_deleted = db.query(ServiceRecord).filter(
+                ServiceRecord.id.in_(service_ids_to_delete)
+            ).delete(synchronize_session=False)
+            deleted_count += num_deleted
+
         db.commit()
-        return JSONResponse({"status": "success", "message": f"Đã xóa {deleted_count} bản ghi.", "deleted_count": deleted_count})
+        return JSONResponse({"status": "success", "message": f"Đã xóa thành công {deleted_count} bản ghi.", "deleted_count": deleted_count})
     except SQLAlchemyError as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi cơ sở dữ liệu: {e}")
+        logger.error(f"Lỗi khi xóa hàng loạt: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Lỗi cơ sở dữ liệu khi xóa hàng loạt.")
 
 # --- Manual Absence Check for Admin/Boss ---
 class AbsenceCheckPayload(BaseModel):
