@@ -38,15 +38,3 @@ def init_db():
     print("Đang khởi tạo database và tạo các bảng nếu chưa tồn tại...")
     Base.metadata.create_all(bind=engine)
     print("Hoàn tất khởi tạo database.")
-
-if __name__ == "__main__":
-    print("--- SCRIPT TẠO BẢNG DATABASE ---")
-    print("Cảnh báo: Script này sẽ tạo các bảng trong database nếu chúng chưa tồn tại.")
-    # Hiển thị một phần URL để xác nhận, nhưng giấu thông tin nhạy cảm
-    print(f"Kết nối tới database tại: ...{str(engine.url).split('@')[-1]}")
-    
-    confirm = input("Bạn có chắc chắn muốn tiếp tục? (y/n): ")
-    if confirm.lower() == 'y':
-        init_db()
-    else:
-        print("Đã hủy thao tác.")
