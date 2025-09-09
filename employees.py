@@ -83,6 +83,7 @@ employees = [
     {"code": "BPTC01", "name": "Lê Trọng Phúc", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc1", "role": "buongphong"},
     {"code": "BPTC02", "name": "Trần Ngọc Ánh", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc2", "role": "buongphong"},
     {"code": "BPTC03", "name": "Võ Thị Diệu Lý", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc3", "role": "buongphong"},
+    {"code": "BPTC04", "name": "Nguyễn Thị Kim Tuyến", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc4", "role": "buongphong"},
 #--------------------------------------- QUẢN LÍ VÀ KTV --------------------------------------------#
     {"code": "KTV", "name": "Lê Trọng Phúc", "department": "Kỹ Thuật Viên", "branch": "ktv", "role": "ktv"},
     {"code": "QL01", "name": "Trần Phát Nguyên", "department": "Quản Lý", "branch": "quanly1", "role": "quanly"},
