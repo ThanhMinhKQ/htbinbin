@@ -11,13 +11,6 @@ engine = create_engine(
     connect_args={"prepare_threshold": None},
     poolclass=NullPool
 )
-engine_options = {
-    "poolclass": NullPool, # Giao connection pool cho PgBouncer
-    "connect_args": {
-        "prepare_threshold": None # Tắt prepared statements, tương thích PgBouncer
-    }
-}
-engine = create_engine(DATABASE_URL, **engine_options)
 
 # Tạo một lớp Session để quản lý các phiên làm việc với DB
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
