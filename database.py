@@ -1,9 +1,16 @@
 from sqlalchemy import create_engine, NullPool
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from config import DATABASE_URL, logger
+from config import DATABASE_URL
 
 # Tạo engine kết nối đến database từ URL trong file config.
+# Thêm connect_args để tắt prepared statements, tương thích với PgBouncer trên Render.
+# Thêm poolclass=NullPool để SQLAlchemy không quản lý pool, giao cho PgBouncer.
+engine = create_engine(
+    DATABASE_URL,
+    connect_args={"prepare_threshold": None},
+    poolclass=NullPool
+)
 engine_options = {
     "poolclass": NullPool, # Giao connection pool cho PgBouncer
     "connect_args": {
@@ -20,13 +27,11 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
-    """Dependency to get a DB session with logging."""
+    """Dependency to get a DB session."""
     db: Session = SessionLocal()
-    logger.debug(f"DB Session {id(db)} created.")
     try:
         yield db
     finally:
-        logger.debug(f"DB Session {id(db)} closed.")
         db.close()
 
 def init_db():
