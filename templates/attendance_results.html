@@ -287,6 +287,7 @@
                      <div id="modal-cn-lam-container">
                         <label for="modal-chi-nhanh-lam" class="block text-sm font-medium text-gray-700">Chi nhánh làm</label>
                         <select id="modal-chi-nhanh-lam" name="chi_nhanh_lam" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <option value="" disabled selected>-- Chọn chi nhánh --</option>
                             <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option><option value="B5">B5</option><option value="B6">B6</option><option value="B7">B7</option><option value="B8">B8</option><option value="B9">B9</option><option value="B10">B10</option><option value="B11">B11</option><option value="B12">B12</option><option value="B14">B14</option><option value="B15">B15</option><option value="B16">B16</option>
                         </select>
                     </div>
@@ -383,13 +384,14 @@
             const modalCancelBtn = document.getElementById('modal-cancel-btn');
             const recordForm = document.getElementById('record-form');
             const addRecordBtn = document.getElementById('add-record-btn');
-
+    
             // Filter controls
             const applyFiltersBtn = document.getElementById('apply-filters');
             const clearFiltersBtn = document.getElementById('clear-filters');
             const filterTypeEl = document.getElementById('filter-type');
             const filterDateEl = document.getElementById('filter-date');
             const filterNhanVienEl = document.getElementById('filter-nhan-vien');
+                const employeeFilterResults = document.getElementById('employee-filter-results');
             const filterChucVuEl = document.getElementById('filter-chuc-vu');
             const filterCnLamEl = document.getElementById('filter-cn-lam');
             const filterSoCongEl = document.getElementById('filter-so-cong');
@@ -397,7 +399,6 @@
             const filterGhiChuEl = document.getElementById('filter-ghi-chu');
             const filterNguoiThucHienEl = document.getElementById('filter-nguoi-thuc-hien');
             const performerFilterResults = document.getElementById('performer-filter-results');
-            const employeeFilterResults = document.getElementById('employee-filter-results');
 
             const deleteSelectedBtn = document.getElementById('delete-selected-btn');
 
@@ -406,12 +407,12 @@
             const containerChucVu = document.getElementById('container-filter-chuc-vu');
             const containerDichVu = document.getElementById('container-filter-dich-vu');
             const containerSoPhong = document.getElementById('container-filter-so-phong');
-
+    
             let allRecords = [];
             let lastCheckedCheckbox = null;
             let currentSortBy = 'thoi_gian';
             let currentSortOrder = 'desc';
-
+    
             function fetchData() {
                 loadingEl.classList.remove('hidden');
                 tableEl.classList.add('hidden');
@@ -427,7 +428,7 @@
                     .then(handleData)
                     .catch(handleError);
             }
-
+    
             let currentPage = 1;
             let recordsPerPage = parseInt(localStorage.getItem('recordsPerPage')) || 100;
             const perPageSelect = document.getElementById('per-page-select');
@@ -441,7 +442,7 @@
                     fetchData();
                 });
             }
-
+    
             function buildQueryString() {
                 const params = new URLSearchParams();
                 params.append('page', currentPage);
@@ -480,7 +481,7 @@
 
                 return params.toString();
             }
-            
+    
             function toggleFilterVisibility() {
                 const selectedType = filterTypeEl ? filterTypeEl.value : 'all';
                 if (selectedType === 'Dịch vụ') {
@@ -495,7 +496,7 @@
                     if (containerSoPhong) containerSoPhong.style.display = 'none';
                 }
             }
-
+    
             function updateSelectAllCheckboxState() {
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
                 if (!selectAllCheckbox) return;
@@ -521,7 +522,7 @@
                     selectAllCheckbox.indeterminate = false;
                 }
             }
-
+    
             function updateDeleteButtonState() {
                 if (!isAdminOrBoss || !deleteSelectedBtn) return;
                 const selectedCheckboxes = tbodyEl.querySelectorAll('.row-checkbox:checked');
@@ -531,7 +532,7 @@
                     deleteSelectedBtn.classList.add('hidden');
                 }
             }
-
+    
             function setupCheckboxListeners() {
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
                 if (selectAllCheckbox) {
@@ -571,7 +572,7 @@
                     tbodyEl.dataset.clickListenerAdded = 'true';
                 }
             }
-
+    
             if (deleteSelectedBtn) {
                 deleteSelectedBtn.addEventListener('click', () => {
                     const selected = [];
@@ -604,12 +605,12 @@
                     }
                 });
             }
-
+    
             function setupSoCongFilter() {
                 const filterType = filterTypeEl ? filterTypeEl.value : 'all';
                 filterSoCongEl.innerHTML = '<option value="">Tất cả</option>'; // Default option
 
-                const options = ['0.5', '1', '1.5', '2'];
+                const options = ['0', '0.5', '1', '1.5', '2'];
                 containerSoCong.style.display = 'block';
 
                 options.forEach(opt => {
@@ -619,8 +620,8 @@
                     filterSoCongEl.appendChild(optionEl);
                 });
             }
-
-
+    
+    
             function renderTable(records) {
                 let headersHtml = '';
                 let rowsHtml = '';
@@ -701,7 +702,7 @@
                     updateSelectAllCheckboxState();
                 }
             }
-
+    
             function renderPagination(currentPageNum, totalPages, totalRecords) {
                 const paginationEl = document.getElementById('pagination-controls');
                 const recordCountEl = document.getElementById('record-count');
@@ -766,7 +767,7 @@
                 paginationEl.appendChild(createButton('>', currentPageNum + 1, currentPageNum === totalPages));
                 paginationEl.appendChild(createButton('>>', totalPages, currentPageNum === totalPages));
             }
-
+    
             function handleData(data) {
                 lastCheckedCheckbox = null; // Reset on new data
                 loadingEl.classList.add('hidden');
@@ -781,13 +782,13 @@
                     document.getElementById('record-count').textContent = 'Không có bản ghi nào.';
                 }
             }
-
+    
             function handleError(error) {
                 console.error('Error fetching attendance data:', error);
                 loadingEl.classList.add('hidden');
                 errorEl.classList.remove('hidden');
             }
-
+    
             applyFiltersBtn.addEventListener('click', () => {
                 currentPage = 1;
                 fetchData();
@@ -815,7 +816,7 @@
                 currentPage = 1;
                 fetchData();
             });
-
+    
             if (filterTypeEl) {
                 filterTypeEl.addEventListener('change', () => {
                     currentPage = 1;
@@ -823,7 +824,7 @@
                     fetchData();
                 });
             }
-
+    
             // --- Modal Logic ---
             if (isAdminOrBoss) {
                 // --- Absence Check Modal Logic ---
@@ -833,7 +834,7 @@
                 const runAbsenceBtn = document.getElementById('run-absence-check-btn');
                 const absenceDateInput = document.getElementById('absence-check-date');
                 const absenceStatusEl = document.getElementById('absence-check-status');
-
+    
                 if (openAbsenceModalBtn) {
                     openAbsenceModalBtn.addEventListener('click', () => absenceCheckModal.classList.remove('hidden'));
                 }
@@ -894,7 +895,7 @@
                         });
                     });
                 }
-
+    
                 // --- Export to Excel Logic ---
                 const exportBtn = document.getElementById('export-attendance-btn');
                 if (exportBtn) {
@@ -935,7 +936,7 @@
                         window.open(exportUrl, '_blank');
                     });
                 }
-
+    
                 const modalRecordId = document.getElementById('modal-record-id');
                 const modalPerformerContainer = document.getElementById('modal-performer-container');
                 const modalNguoiThucHienSearch = document.getElementById('modal-nguoi-thuc-hien-search');
@@ -956,23 +957,26 @@
                 const modalMaNvSearch = document.getElementById('modal-ma-nv-search');
                 const modalMaNv = document.getElementById('modal-ma-nv');
                 const employeeSearchResults = document.getElementById('employee-search-results');
-
+    
                 const closeModal = () => recordModal.classList.add('hidden');
-
+    
                 const updateOvertimeStatus = () => {
                     const chiNhanhChinh = recordForm.dataset.chiNhanhChinh;
-                    // Chỉ chạy khi có thông tin chi nhánh chính (tức là trong mode edit cho non-KTV/QL)
-                    if (!chiNhanhChinh) return;
-
+                    // Nếu chưa có chi nhánh chính (chưa chọn NV), thì không thể xác định tăng ca khác chi nhánh.
+                    // Chỉ có thể dựa vào số công.
+    
                     const chiNhanhLam = modalChiNhanhLam.value;
                     const soCong = parseFloat(modalSoCongNv.value);
-
+    
                     // Tăng ca là true nếu chi nhánh làm khác chi nhánh chính, HOẶC số công > 1.
                     // Đối với bản ghi dịch vụ, soCong sẽ là NaN, nên (soCong > 1) sẽ là false.
-                    const isOvertime = (chiNhanhLam !== chiNhanhChinh) || (soCong > 1);
+                    let isOvertime = (soCong > 1);
+                    if (chiNhanhChinh && chiNhanhLam) { // Chỉ kiểm tra khác chi nhánh khi có đủ thông tin
+                        isOvertime = isOvertime || (chiNhanhLam !== chiNhanhChinh);
+                    }
                     modalLaTangCa.checked = isOvertime;
                 };
-
+    
                 // Thêm event listener để tự động cập nhật khi người dùng thay đổi
                 modalChiNhanhLam.addEventListener('change', updateOvertimeStatus);
                 modalSoCongNv.addEventListener('input', updateOvertimeStatus);
@@ -983,28 +987,28 @@
                     recordForm.removeAttribute('data-employee-role');
                     recordForm.removeAttribute('data-chi-nhanh-chinh');
                     modalLaTangCa.disabled = false;
-
+    
                     let recordType = 'attendance'; // Default for add mode
                     modalTypeContainer.style.display = mode === 'add' ? 'block' : 'none';
-
+    
                     if (mode === 'edit' && record) {
                         modalTitle.textContent = 'Chỉnh sửa bản ghi';
                         recordType = record.type === 'Điểm danh' ? 'attendance' : 'service';
-                        modalRecordId.value = record.id;
-
+                        modalRecordId.value = record.id; // Đặt ID cho form
+    
                         // Populate common form fields first
                         modalMaNv.value = record.ma_nv;
                         modalMaNvSearch.value = record.ten_nv;
                         modalGhiChu.value = record.ghi_chu_raw;
 
-                        // Populate time and work units (so_cong) BEFORE calculating overtime
+                        // Điền thời gian và số công TRƯỚC khi tính toán tăng ca
                         const [datePart, timePart] = record.thoi_gian.split(' ');
                         const [h, min] = timePart.split(':');
                         modalThoiGian.value = `${datePart} ${h}:${min}`;
-
+    
                         if (recordType === 'attendance') {
                             const soCong = record.so_cong;
-                            if (soCong != null) {
+                            if (soCong != null) { // Check for null/undefined
                                 modalSoCongNv.value = (soCong % 1 === 0) ? parseInt(soCong, 10) : soCong;
                             } else {
                                 modalSoCongNv.value = '1'; // Default if null
@@ -1015,64 +1019,105 @@
                             modalSoPhong.value = record.so_phong;
                             modalSoLuong.value = record.so_luong;
                         }
-
-                        // Now, handle role-specific UI and overtime logic
+    
+                        // Bây giờ, xử lý UI và logic tăng ca theo vai trò
                         const isKtvOrQuanLy = record.chuc_vu === 'Kỹ thuật viên' || record.chuc_vu === 'Quản lý';
                         recordForm.dataset.chiNhanhChinh = record.chi_nhanh_chinh || '';
                         const cnLamContainer = document.getElementById('modal-cn-lam-container');
                         const tangCaContainer = document.getElementById('modal-tang-ca-container');
                         const performerContainer = document.getElementById('modal-performer-container');
-
+    
                         if (isKtvOrQuanLy) {
-                            // Hide fields not applicable to KTV/Manager
+                            // Ẩn các trường không áp dụng cho KTV/Quản lý
                             cnLamContainer.style.display = 'none';
                             modalChiNhanhLam.disabled = true;
                             tangCaContainer.style.display = 'none';
                             performerContainer.style.display = 'none';
                             modalLaTangCa.disabled = true;
-
-                            // Set implicit values
+    
+                            // Đặt các giá trị ngầm định
                             modalChiNhanhLam.value = record.chi_nhanh_chinh;
                             modalNguoiThucHienCode.value = record.ma_nv;
                             modalNguoiThucHienSearch.value = record.ma_nv;
-                            
-                            // Set overtime based on so_cong, which is now populated
+    
+                            // Đặt tăng ca dựa trên số công (đã được điền)
                             modalLaTangCa.checked = (record.so_cong || 0) > 1.0;
                         } else {
-                            // Show fields and enable automatic overtime logic for other roles
-                            modalLaTangCa.disabled = true; // User can't manually check it
+                            // Hiển thị các trường và bật logic tăng ca tự động cho các vai trò khác
+                            modalLaTangCa.disabled = true; // Người dùng không thể tự tick
                             cnLamContainer.style.display = 'block';
                             modalChiNhanhLam.disabled = false;
                             tangCaContainer.style.display = 'block';
                             performerContainer.style.display = 'block';
-
-                            // Set values from record
+    
+                            // Đặt giá trị từ bản ghi
                             modalChiNhanhLam.value = record.chi_nhanh_lam;
                             modalNguoiThucHienCode.value = record.nguoi_thuc_hien;
                             modalNguoiThucHienSearch.value = record.nguoi_thuc_hien;
-                            
+    
                             // This will now work correctly because so_cong is set
                             updateOvertimeStatus();
                         }
-
+    
                     } else { // 'add' mode
                         modalTitle.textContent = 'Thêm bản ghi mới';
                         modalRecordId.value = '';
-                        recordForm.dataset.chiNhanhChinh = ''; // Xóa thông tin chi nhánh chính cũ
-                        recordType = modalRecordType.value;
+                        recordForm.dataset.chiNhanhChinh = ''; // Clear old data
+    
+                        // --- ✨ LOGIC AUTOFILL MỚI TỪ BỘ LỌC ---
+                        const filterType = document.getElementById('filter-type').value;
+                        if (filterType && filterType !== 'all') {
+                            modalRecordType.value = (filterType === 'Điểm danh') ? 'attendance' : 'service';
+                        } else {
+                            modalRecordType.value = 'attendance'; // Mặc định
+                        }
+    
+                        const filterDate = document.getElementById('filter-date').value;
+                        if (filterDate) {
+                            const now = new Date();
+                            const hours = String(now.getHours()).padStart(2, '0');
+                            const minutes = String(now.getMinutes()).padStart(2, '0');
+                            modalThoiGian.value = `${filterDate} ${hours}:${minutes}`;
+                        }
+    
+                        const filterNguoiThucHien = document.getElementById('filter-nguoi-thuc-hien').value;
+                        if (filterNguoiThucHien) {
+                            modalNguoiThucHienSearch.value = filterNguoiThucHien;
+                            modalNguoiThucHienCode.value = filterNguoiThucHien;
+                        } else {
+                            modalNguoiThucHienSearch.value = '{{ user.code }}';
+                            modalNguoiThucHienCode.value = '{{ user.code }}';
+                        }
+
+                        const filterNhanVien = document.getElementById('filter-nhan-vien').value;
+                        if (filterNhanVien) modalMaNvSearch.value = filterNhanVien;
+
+                        const filterCnLam = document.getElementById('filter-cn-lam').value;
+                        modalChiNhanhLam.value = filterCnLam || ''; // Để trống nếu không có filter
+
+                        const filterDichVu = document.getElementById('filter-dich-vu').value;
+                        if (filterDichVu) modalDichVu.value = filterDichVu;
+
+                        const filterSoPhong = document.getElementById('filter-so-phong').value;
+                        if (filterSoPhong) modalSoPhong.value = filterSoPhong;
+
+                        const filterSoCong = document.getElementById('filter-so-cong').value;
+                        if (filterSoCong) modalSoCongNv.value = filterSoCong;
+
+                        const filterGhiChu = document.getElementById('filter-ghi-chu').value;
+                        if (filterGhiChu) modalGhiChu.value = filterGhiChu;
                         
-                        // Hiển thị tất cả các trường mặc định khi thêm mới
                         document.getElementById('modal-cn-lam-container').style.display = 'block';
                         modalChiNhanhLam.disabled = false;
                         document.getElementById('modal-tang-ca-container').style.display = 'block';
                         document.getElementById('modal-performer-container').style.display = 'block';
-                        // Vô hiệu hóa ô tăng ca cho đến khi một nhân viên được chọn
                         modalLaTangCa.disabled = true; 
-                        modalLaTangCa.checked = false;
-                        
-                        // Default performer to current user
-                        modalNguoiThucHienSearch.value = '{{ user.code }}'; // Show code
-                        modalNguoiThucHienCode.value = '{{ user.code }}';
+                        recordType = modalRecordType.value;
+
+                        // ✨ FIX: Gọi updateOvertimeStatus sau khi autofill để kiểm tra logic tăng ca ban đầu.
+                        // Cần một khoảng trễ nhỏ để đảm bảo DOM đã cập nhật giá trị từ các bộ lọc.
+                        setTimeout(updateOvertimeStatus, 50);
+
                     }
 
                     toggleModalFields(recordType);
@@ -1155,8 +1200,8 @@
                             return true;
                         };
 
-                        if (!validateField(modalMaNv, 'Vui lòng chọn một nhân viên.')) return;
                         if (!isKtvOrQuanLy && !validateField(modalNguoiThucHienCode, 'Vui lòng chọn người thực hiện.')) return;
+                        if (!validateField(modalMaNv, 'Vui lòng chọn một nhân viên.')) return;
                         if (!validateField(modalThoiGian, 'Vui lòng nhập thời gian.')) return;
                         if (!isKtvOrQuanLy && !validateField(modalChiNhanhLam, 'Vui lòng chọn chi nhánh làm việc.')) return;
 
@@ -1260,7 +1305,7 @@
                                             modalMaNv.value = emp.code;
                                             employeeSearchResults.classList.add('hidden');
 
-                                            // Đối với chế độ 'Thêm mới', áp dụng logic theo vai trò sau khi chọn nhân viên
+                                            // Áp dụng logic theo vai trò sau khi chọn nhân viên
                                             if (modalRecordId.value === '') {
                                                 const isKtvOrQuanLy = emp.department === 'ktv' || emp.department === 'quanly';
                                                 recordForm.dataset.chiNhanhChinh = emp.branch || '';
@@ -1285,6 +1330,9 @@
                                                     cnLamContainer.style.display = 'block';
                                                     modalChiNhanhLam.disabled = false;
                                                     tangCaContainer.style.display = 'block';
+                                                    // ✨ FIX: Khi chọn nhân viên mới, logic tăng ca cần được kiểm tra lại
+                                                    // vì `chi_nhanh_chinh` của nhân viên đã thay đổi.
+                                                    modalLaTangCa.disabled = true; // Vẫn khóa không cho người dùng tự tick
                                                     performerContainer.style.display = 'block';
                                                     updateOvertimeStatus();
                                                 }
@@ -1299,7 +1347,7 @@
                             });
                     }, 300);
                 });
-
+    
                 // Hide search results when clicking outside
                 document.addEventListener('click', (e) => {
                     if (!modalMaNvSearch.contains(e.target) && !employeeSearchResults.contains(e.target)) {
@@ -1309,7 +1357,7 @@
                         employeeFilterResults.classList.add('hidden');
                     }
                 });
-
+    
                 // Performer filter search
                 let performerFilterTimeout;
                 filterNguoiThucHienEl.addEventListener('input', () => {
@@ -1345,7 +1393,7 @@
                     }, 300);
                 });
             }
-
+    
             // Sorting listener
             if (!theadEl.dataset.sortListenerAdded) {
                 theadEl.addEventListener('click', (e) => {
@@ -1366,7 +1414,7 @@
                 });
                 theadEl.dataset.sortListenerAdded = 'true';
             }
-
+    
             // Employee filter search (for the main filter bar)
             let employeeFilterTimeout;
             if (filterNhanVienEl && employeeFilterResults) {
@@ -1403,12 +1451,12 @@
                 }, 300);
                 });
             }
-
+    
             // Initial data fetch
             fetchData();
             setupSoCongFilter();
             toggleFilterVisibility(); // Initial check
-
+    
             // Initialize Flatpickr date pickers
             flatpickr("#filter-date", {
                 dateFormat: "d/m/Y",
