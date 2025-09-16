@@ -383,12 +383,15 @@ def view_attendance_results(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
 
     user_data = request.session.get("user")
+    
+    # Tạo một bản sao của ROLE_MAP và loại bỏ vai trò 'khac' để không hiển thị trong bộ lọc
+    roles_for_filter = {k: v for k, v in ROLE_MAP.items() if k != 'khac'}
 
     return templates.TemplateResponse("attendance_results.html", {
         "request": request,
         "user": user_data,
         "branches": BRANCHES,
-        "roles": ROLE_MAP,
+        "roles": roles_for_filter,
         "dashboard_stats": None
     })
 
@@ -439,6 +442,10 @@ def view_attendance_calendar(
     current_month = month if month else now.month
     current_year = year if year else now.year
 
+    # Mở rộng khoảng thời gian query để lấy ca đêm của ngày cuối tháng trước và ca đêm của ngày cuối tháng này
+    start_query_date = date(current_year, current_month, 1) - timedelta(days=1)
+    end_query_date = date(current_year, current_month, calendar.monthrange(current_year, current_month)[1]) + timedelta(days=1)
+
     _, num_days = calendar.monthrange(current_year, current_month)
     
     employee_data = defaultdict(lambda: {
@@ -480,7 +487,8 @@ def view_attendance_calendar(
             att_q = select(
                 literal_column("'attendance'").label("type"),
                 AttendanceRecord.ma_nv, AttendanceRecord.ten_nv, User.role, User.branch.label("main_branch"),
-                AttendanceRecord.ngay_diem_danh.label("date"),
+                AttendanceRecord.ngay_diem_danh.label("date_col"),
+                AttendanceRecord.gio_diem_danh.label("time_col"),
                 AttendanceRecord.so_cong_nv.label("value"),
                 AttendanceRecord.la_tang_ca,
                 AttendanceRecord.chi_nhanh_lam.label("work_branch"),
@@ -488,8 +496,7 @@ def view_attendance_calendar(
             ).join(
                 User, User.code == AttendanceRecord.ma_nv, isouter=True
             ).filter(
-                extract('month', AttendanceRecord.ngay_diem_danh) == current_month,
-                extract('year', AttendanceRecord.ngay_diem_danh) == current_year,
+                AttendanceRecord.ngay_diem_danh.between(start_query_date, end_query_date),
                 att_location_filter
             )
 
@@ -497,7 +504,8 @@ def view_attendance_calendar(
             svc_q = select(
                 literal_column("'service'").label("type"),
                 ServiceRecord.ma_nv, ServiceRecord.ten_nv, User.role, User.branch.label("main_branch"),
-                ServiceRecord.ngay_cham.label("date"),
+                ServiceRecord.ngay_cham.label("date_col"),
+                ServiceRecord.gio_cham.label("time_col"),
                 cast(ServiceRecord.so_luong, Float).label("value"),
                 ServiceRecord.la_tang_ca,
                 ServiceRecord.chi_nhanh_lam.label("work_branch"),
@@ -505,19 +513,26 @@ def view_attendance_calendar(
             ).join(
                 User, User.code == ServiceRecord.ma_nv, isouter=True
             ).filter(
-                extract('month', ServiceRecord.ngay_cham) == current_month,
-                extract('year', ServiceRecord.ngay_cham) == current_year,
+                ServiceRecord.ngay_cham.between(start_query_date, end_query_date),
                 svc_location_filter
             )
 
             # Gộp 2 query
             combined_query = union_all(att_q, svc_q).alias("combined")
-            records = db.execute(select(combined_query).order_by(combined_query.c.ten_nv, combined_query.c.date)).all()
+            records = db.execute(select(combined_query).order_by(combined_query.c.ten_nv, combined_query.c.date_col)).all()
 
         # Process records into the desired structure
         for rec in records:
-            day_of_month = rec.date.day
             emp_code = rec.ma_nv
+
+            # Xác định ngày làm việc (ca đêm < 7h sáng tính cho ngày hôm trước)
+            work_date = rec.date_col - timedelta(days=1) if rec.time_col.hour < 7 else rec.date_col
+
+            # Bỏ qua các bản ghi không thuộc tháng đang xem
+            if work_date.month != current_month or work_date.year != current_year:
+                continue
+
+            day_of_month = work_date.day
 
             if not employee_data[emp_code]["name"]:
                 employee_data[emp_code]["name"] = rec.ten_nv
