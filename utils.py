@@ -73,11 +73,11 @@ def format_datetime_display(value: Optional[datetime], with_time: bool = False) 
     if not isinstance(value, datetime):
         return ""
 
-    # Nếu datetime từ DB không có múi giờ (naive), giả định nó là UTC
+    # Nếu datetime từ DB không có thông tin múi giờ (naive), ta phải giả định nó là UTC.
+    # Đây là cách SQLAlchemy thường hoạt động với `timezone=True`.
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
 
-    # Chuyển đổi datetime về múi giờ Việt Nam để hiển thị chính xác
     dt_vn = value.astimezone(VN_TZ)
     
     # Định dạng theo yêu cầu
