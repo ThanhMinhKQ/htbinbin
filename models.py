@@ -1,5 +1,6 @@
 # models.py
-from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON, Float, Time
+import enum
+from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON, Float, Time, Enum as SQLAlchemyEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from database import Base
 
@@ -70,3 +71,30 @@ class ServiceRecord(Base):
     so_phong = Column(String(50))
     so_luong = Column(String(50))
     ghi_chu = Column(Text)
+
+class LostItemStatus(str, enum.Enum):
+    STORED = "Đang lưu giữ"
+    RETURNED = "Đã trả khách"
+    DISPOSED = "Thanh lý"
+    DELETED = "Đã xoá"
+
+class LostAndFoundItem(Base):
+    __tablename__ = "lost_and_found_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    item_name = Column(String, nullable=False)
+    description = Column(String)
+    found_date = Column(DateTime(timezone=True), nullable=False)
+    found_location = Column(String, nullable=False)
+    recorded_by = Column(String, nullable=False)
+    status = Column(SQLAlchemyEnum(LostItemStatus, native_enum=False), default=LostItemStatus.STORED, nullable=False)
+    owner_name = Column(String, nullable=True)
+    owner_contact = Column(String, nullable=True)
+    return_date = Column(DateTime(timezone=True))
+    reported_by = Column(String)
+    notes = Column(String)
+    chi_nhanh = Column(String, nullable=False)
+    disposed_by = Column(String, nullable=True)
+    disposed_amount = Column(Float, nullable=True)
+    deleted_by = Column(String, nullable=True)
+    deleted_date = Column(DateTime(timezone=True), nullable=True)
