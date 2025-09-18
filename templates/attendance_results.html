@@ -52,6 +52,14 @@
         .sortable:hover .sort-indicator {
             opacity: 0.8;
         }
+        /* Modal animation */
+        #record-modal { transition: opacity 0.2s ease-in-out; }
+        #record-modal > div { transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out; }
+        #record-modal.hidden > div { transform: translateY(1rem) scale(0.98); opacity: 0; }
+        .focus-ring:focus { outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+        .animate-fadeIn { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -243,102 +251,109 @@
     </div>
 
     <!-- Modal for Add/Edit Record -->
-    <div id="record-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 z-50 flex items-center justify-center p-4">
-        <div class="p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[95vh] overflow-y-auto">
-            <div class="flex justify-between items-center pb-3 border-b">
-                <h3 id="modal-title" class="text-xl font-bold text-gray-900">Thêm bản ghi mới</h3>
-                <button id="modal-close-btn" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
-                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+    <div id="record-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div class="relative w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col animate-fadeIn">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="grid place-items-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                        </svg>
+                    </div>
+                    <h3 id="modal-title" class="text-lg font-semibold text-slate-800 dark:text-white">Thêm bản ghi mới</h3>
+                </div>
+                <button id="modal-close-btn" class="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <form id="record-form" class="mt-4 space-y-4">
+            <!-- Form -->
+            <form id="record-form" class="p-5 space-y-5 overflow-y-auto">
                 <input type="hidden" id="modal-record-id" name="record_id">
                 
-                <div id="modal-type-selector-container">
-                    <label for="modal-record-type" class="block text-sm font-medium text-gray-700">Loại bản ghi</label>
-                    <select id="modal-record-type" name="record_type" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        <option value="attendance">Điểm danh</option>
-                        <option value="service">Dịch vụ</option>
-                    </select>
-                </div>
-
-                <!-- Performer field -->
-                <div id="modal-performer-container" class="relative">
-                    <label for="modal-nguoi-thuc-hien-search" class="block text-sm font-medium text-gray-700">Người thực hiện</label>
-                    <input type="text" id="modal-nguoi-thuc-hien-search" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                    <input type="hidden" id="modal-nguoi-thuc-hien-code" name="nguoi_thuc_hien">
-                    <div id="performer-search-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="relative">
-                        <label for="modal-ma-nv-search" class="block text-sm font-medium text-gray-700">Nhân viên</label>
-                        <input type="text" id="modal-ma-nv-search" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                        <input type="hidden" id="modal-ma-nv" name="ma_nv">
-                        <div id="employee-search-results" class="hidden absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto"></div>
-                    </div>
-                    <div>
-                        <label for="modal-thoi-gian" class="block text-sm font-medium text-gray-700">Thời gian</label>
-                        <input type="text" id="modal-thoi-gian" name="thoi_gian" required placeholder="dd/mm/yyyy HH:MM" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div id="modal-cn-lam-container">
-                        <label for="modal-chi-nhanh-lam" class="block text-sm font-medium text-gray-700">Chi nhánh làm</label>
-                        <select id="modal-chi-nhanh-lam" name="chi_nhanh_lam" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                            <option value="" disabled selected>-- Chọn chi nhánh --</option>
-                            <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option><option value="B5">B5</option><option value="B6">B6</option><option value="B7">B7</option><option value="B8">B8</option><option value="B9">B9</option><option value="B10">B10</option><option value="B11">B11</option><option value="B12">B12</option><option value="B14">B14</option><option value="B15">B15</option><option value="B16">B16</option>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div id="modal-type-selector-container">
+                        <label for="modal-record-type" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Loại bản ghi <span class="text-rose-500">*</span></label>
+                        <select id="modal-record-type" name="record_type" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="attendance">Điểm danh</option>
+                            <option value="service">Dịch vụ</option>
                         </select>
                     </div>
-                    <div id="modal-tang-ca-container" class="flex items-end">
-                        <label class="flex items-center space-x-2">
-                            <input type="checkbox" id="modal-la-tang-ca" name="la_tang_ca" class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
-                            <span class="text-sm text-gray-700">Tăng ca</span>
+                    <div id="modal-performer-container" class="relative">
+                        <label for="modal-nguoi-thuc-hien-search" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người thực hiện <span class="text-rose-500">*</span></label>
+                        <input type="text" id="modal-nguoi-thuc-hien-search" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <input type="hidden" id="modal-nguoi-thuc-hien-code" name="nguoi_thuc_hien">
+                        <div id="performer-search-results" class="hidden absolute z-20 mt-1 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <div class="relative">
+                        <label for="modal-ma-nv-search" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Nhân viên <span class="text-rose-500">*</span></label>
+                        <input type="text" id="modal-ma-nv-search" placeholder="Tìm theo mã hoặc tên..." autocomplete="off" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <input type="hidden" id="modal-ma-nv" name="ma_nv">
+                        <div id="employee-search-results" class="hidden absolute z-20 mt-1 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <div>
+                        <label for="modal-thoi-gian" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Thời gian <span class="text-rose-500">*</span></label>
+                        <input type="text" id="modal-thoi-gian" name="thoi_gian" required placeholder="dd/mm/yyyy HH:MM" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+                    <div id="modal-cn-lam-container">
+                        <label for="modal-chi-nhanh-lam" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Chi nhánh làm <span class="text-rose-500">*</span></label>
+                        <select id="modal-chi-nhanh-lam" name="chi_nhanh_lam" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="" disabled selected>-- Chọn chi nhánh --</option>
+                            {% for branch in branches %}
+                            <option value="{{ branch }}">{{ branch }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="modal-tang-ca-container" class="flex items-end pb-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="modal-la-tang-ca" name="la_tang_ca" class="h-4 w-4 rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500">
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Tăng ca</span>
                         </label>
                     </div>
                 </div>
 
                 <!-- Attendance-specific fields -->
-                <div id="modal-attendance-fields">
+                <fieldset id="modal-attendance-fields" class="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <legend class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Thông tin điểm danh</legend>
                     <div>
-                        <label for="modal-so-cong-nv" class="block text-sm font-medium text-gray-700">Số công</label>
-                        <input type="number" step="0.5" min="0.5" id="modal-so-cong-nv" name="so_cong_nv" value="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <label for="modal-so-cong-nv" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Số công <span class="text-rose-500">*</span></label>
+                        <input type="number" step="0.5" min="0.5" id="modal-so-cong-nv" name="so_cong_nv" value="1" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                     </div>
-                </div>
+                </fieldset>
 
                 <!-- Service-specific fields -->
-                <div id="modal-service-fields" class="hidden space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <fieldset id="modal-service-fields" class="hidden border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <legend class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Thông tin dịch vụ</legend>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
-                            <label for="modal-dich-vu" class="block text-sm font-medium text-gray-700">Dịch vụ</label>
-                            <select id="modal-dich-vu" name="dich_vu" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <label for="modal-dich-vu" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Dịch vụ <span class="text-rose-500">*</span></label>
+                            <select id="modal-dich-vu" name="dich_vu" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                                 <option value="" disabled selected>Chọn dịch vụ</option>
                                 <option value="Giặt">Giặt</option>
                                 <option value="Ủi">Ủi</option>
                             </select>
                         </div>
                         <div>
-                            <label for="modal-so-phong" class="block text-sm font-medium text-gray-700">Số phòng</p></label>
-                            <input type="text" id="modal-so-phong" name="so_phong" placeholder="VD: 201, 202" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <label for="modal-so-phong" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Số phòng <span class="text-rose-500">*</span></label>
+                            <input type="text" id="modal-so-phong" name="so_phong" placeholder="VD: 201, 202" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         </div>
                         <div>
-                            <label for="modal-so-luong" class="block text-sm font-medium text-gray-700">Số lượng</label>
-                            <input type="text" id="modal-so-luong" name="so_luong" placeholder="VD: 2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                            <label for="modal-so-luong" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Số lượng <span class="text-rose-500">*</span></label>
+                            <input type="text" id="modal-so-luong" name="so_luong" placeholder="VD: 2" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         </div>
                     </div>
-                </div>
+                </fieldset>
 
                 <div>
-                    <label for="modal-ghi-chu" class="block text-sm font-medium text-gray-700">Ghi chú</label>
-                    <textarea id="modal-ghi-chu" name="ghi_chu" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"></textarea>
-                </div>
-
-                <div class="pt-4 flex justify-end gap-3 border-t">
-                    <button type="button" id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Hủy</button>
-                    <button type="submit" id="modal-submit-btn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Lưu</button>
+                    <label for="modal-ghi-chu" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Ghi chú</label>
+                    <textarea id="modal-ghi-chu" name="ghi_chu" rows="2" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></textarea>
                 </div>
             </form>
+            <!-- Footer with buttons -->
+            <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button type="button" id="modal-cancel-btn" class="px-5 py-2.5 text-center text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">Hủy</button>
+                <button type="submit" id="modal-submit-btn" form="record-form" class="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-lg shadow-blue-500/20">Lưu lại</button>
+            </div>
         </div>
     </div>
 
@@ -403,6 +418,7 @@
             const deleteSelectedBtn = document.getElementById('delete-selected-btn');
 
             const containerSoCong = document.getElementById('container-filter-so-cong');
+            // containerTangCa và containerChucVu không được sử dụng, có thể xóa
             const containerTangCa = document.getElementById('container-filter-tang-ca');
             const containerChucVu = document.getElementById('container-filter-chuc-vu');
             const containerDichVu = document.getElementById('container-filter-dich-vu');
@@ -412,6 +428,10 @@
             let lastCheckedCheckbox = null;
             let currentSortBy = 'thoi_gian';
             let currentSortOrder = 'desc';
+
+            // Cờ để đảm bảo listener chỉ được gắn một lần
+            let listenersAttached = false;
+
     
             function fetchData() {
                 loadingEl.classList.remove('hidden');
@@ -533,11 +553,13 @@
                 }
             }
     
+            // Hàm này sẽ được gọi một lần duy nhất để gắn các listener tĩnh
             function setupCheckboxListeners() {
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
                 if (selectAllCheckbox) {
                     selectAllCheckbox.addEventListener('change', (e) => {
                         const isChecked = e.target.checked;
+                        lastCheckedCheckbox = null; // Reset shift-click state
                         tbodyEl.querySelectorAll('.row-checkbox').forEach(checkbox => {
                             checkbox.checked = isChecked;
                         });
@@ -546,31 +568,29 @@
                     });
                 }
 
-                if (!tbodyEl.dataset.changeListenerAdded) {
-                    tbodyEl.addEventListener('click', (e) => {
-                        if (e.target.tagName === 'INPUT' && e.target.classList.contains('row-checkbox')) {
-                            const checkbox = e.target;
+                // Sử dụng event delegation cho tbody
+                tbodyEl.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'INPUT' && e.target.classList.contains('row-checkbox')) {
+                        const checkbox = e.target;
 
-                            if (e.shiftKey && lastCheckedCheckbox && lastCheckedCheckbox !== checkbox) {
-                                const checkboxes = Array.from(tbodyEl.querySelectorAll('.row-checkbox'));
-                                const start = checkboxes.indexOf(lastCheckedCheckbox);
-                                const end = checkboxes.indexOf(checkbox);
+                        if (e.shiftKey && lastCheckedCheckbox && lastCheckedCheckbox !== checkbox) {
+                            const checkboxes = Array.from(tbodyEl.querySelectorAll('.row-checkbox'));
+                            const start = checkboxes.indexOf(lastCheckedCheckbox);
+                            const end = checkboxes.indexOf(checkbox);
 
-                                const rangeStart = Math.min(start, end);
-                                const rangeEnd = Math.max(start, end);
-                                const isChecked = checkbox.checked;
-                                for (let i = rangeStart; i <= rangeEnd; i++) {
-                                    checkboxes[i].checked = isChecked;
-                                }
-                            } else {
-                                lastCheckedCheckbox = checkbox;
+                            const rangeStart = Math.min(start, end);
+                            const rangeEnd = Math.max(start, end);
+                            const isChecked = checkbox.checked;
+                            for (let i = rangeStart; i <= rangeEnd; i++) {
+                                checkboxes[i].checked = isChecked;
                             }
-                            updateDeleteButtonState();
-                            updateSelectAllCheckboxState();
+                        } else {
+                            lastCheckedCheckbox = checkbox;
                         }
-                    });
-                    tbodyEl.dataset.clickListenerAdded = 'true';
-                }
+                        updateDeleteButtonState();
+                        updateSelectAllCheckboxState();
+                    }
+                });
             }
     
             if (deleteSelectedBtn) {
@@ -696,11 +716,6 @@
                 } else {
                     lastCheckedCheckbox = null; // Reset for new table render
                 }
-                if (isAdminOrBoss) {
-                    setupCheckboxListeners();
-                    updateDeleteButtonState();
-                    updateSelectAllCheckboxState();
-                }
             }
     
             function renderPagination(currentPageNum, totalPages, totalRecords) {
@@ -780,6 +795,11 @@
                     tbodyEl.innerHTML = `<tr><td colspan="15" class="text-center py-6 text-gray-500">Không có dữ liệu.</td></tr>`;
                     document.getElementById('pagination-controls').innerHTML = '';
                     document.getElementById('record-count').textContent = 'Không có bản ghi nào.';
+                }
+                // Sau khi render bảng lần đầu, cập nhật trạng thái các checkbox
+                if (isAdminOrBoss) {
+                    updateDeleteButtonState();
+                    updateSelectAllCheckboxState();
                 }
             }
     
@@ -1301,42 +1321,44 @@
                                         div.className = 'p-2 hover:bg-gray-100 cursor-pointer';
                                         div.textContent = `${emp.name} (${emp.code})`;
                                         div.onclick = () => {
+                                            // --- START: LOGIC KHI CHỌN NHÂN VIÊN MỚI ---
                                             modalMaNvSearch.value = emp.name;
                                             modalMaNv.value = emp.code;
                                             employeeSearchResults.classList.add('hidden');
-
-                                            // Áp dụng logic theo vai trò sau khi chọn nhân viên
-                                            if (modalRecordId.value === '') {
-                                                const isKtvOrQuanLy = emp.department === 'ktv' || emp.department === 'quanly';
-                                                recordForm.dataset.chiNhanhChinh = emp.branch || '';
+    
+                                            // Cập nhật dataset của form với thông tin nhân viên mới
+                                            recordForm.dataset.chiNhanhChinh = emp.branch || '';
                                             recordForm.dataset.employeeRole = emp.department || '';
-
-                                                const cnLamContainer = document.getElementById('modal-cn-lam-container');
-                                                const tangCaContainer = document.getElementById('modal-tang-ca-container');
-                                                const performerContainer = document.getElementById('modal-performer-container');
-
-                                                if (isKtvOrQuanLy) {
-                                                    cnLamContainer.style.display = 'none';
-                                                    modalChiNhanhLam.disabled = true;
-                                                    tangCaContainer.style.display = 'none';
-                                                    performerContainer.style.display = 'none';
-                                                    modalChiNhanhLam.value = emp.branch;
-                                                    modalNguoiThucHienCode.value = emp.code;
-                                                    modalNguoiThucHienSearch.value = emp.code;
-                                                    modalLaTangCa.checked = false;
-                                                    modalLaTangCa.disabled = true;
-                                                } else {
-                                                    // Đảm bảo các trường được hiển thị và kích hoạt logic tự động
-                                                    cnLamContainer.style.display = 'block';
-                                                    modalChiNhanhLam.disabled = false;
-                                                    tangCaContainer.style.display = 'block';
-                                                    // ✨ FIX: Khi chọn nhân viên mới, logic tăng ca cần được kiểm tra lại
-                                                    // vì `chi_nhanh_chinh` của nhân viên đã thay đổi.
-                                                    modalLaTangCa.disabled = true; // Vẫn khóa không cho người dùng tự tick
-                                                    performerContainer.style.display = 'block';
-                                                    updateOvertimeStatus();
-                                                }
+    
+                                            const isKtvOrQuanLy = emp.department === 'ktv' || emp.department === 'quanly';
+                                            const cnLamContainer = document.getElementById('modal-cn-lam-container');
+                                            const tangCaContainer = document.getElementById('modal-tang-ca-container');
+                                            const performerContainer = document.getElementById('modal-performer-container');
+    
+                                            if (isKtvOrQuanLy) {
+                                                // Ẩn các trường không áp dụng cho KTV/Quản lý
+                                                cnLamContainer.style.display = 'none';
+                                                modalChiNhanhLam.disabled = true;
+                                                tangCaContainer.style.display = 'none';
+                                                performerContainer.style.display = 'none';
+                                                // Đặt các giá trị ngầm định
+                                                modalChiNhanhLam.value = emp.branch;
+                                                modalNguoiThucHienCode.value = emp.code;
+                                                modalNguoiThucHienSearch.value = emp.code;
+                                                modalLaTangCa.disabled = true;
+                                            } else {
+                                                // Hiển thị các trường cho các vai trò khác
+                                                cnLamContainer.style.display = 'block';
+                                                modalChiNhanhLam.disabled = false;
+                                                tangCaContainer.style.display = 'block';
+                                                performerContainer.style.display = 'block';
+                                                modalLaTangCa.disabled = true; // Vẫn khóa không cho người dùng tự tick
                                             }
+    
+                                            // ✅ FIX: Luôn gọi updateOvertimeStatus sau khi chọn nhân viên mới
+                                            // để kiểm tra lại logic tăng ca dựa trên chi nhánh chính mới.
+                                            updateOvertimeStatus();
+                                            // --- END: LOGIC KHI CHỌN NHÂN VIÊN MỚI ---
                                         };
                                         employeeSearchResults.appendChild(div);
                                     });
@@ -1394,25 +1416,32 @@
                 });
             }
     
-            // Sorting listener
-            if (!theadEl.dataset.sortListenerAdded) {
+            // --- Gắn các listener tĩnh một lần duy nhất ---
+            function attachStaticListeners() {
+                if (listenersAttached) return; // Chỉ chạy một lần
+
+                // Sorting listener
                 theadEl.addEventListener('click', (e) => {
-                    const header = e.target.closest('.sortable');
-                    if (!header) return;
+                        const header = e.target.closest('.sortable');
+                        if (!header) return;
+                        const sortBy = header.dataset.sort;
+                        if (!sortBy) return;
 
-                    const sortBy = header.dataset.sort;
-                    if (!sortBy) return;
-
-                    if (currentSortBy === sortBy) {
-                        currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        currentSortBy = sortBy;
-                        currentSortOrder = 'desc';
-                    }
-                    currentPage = 1;
-                    fetchData();
+                        if (currentSortBy === sortBy) {
+                            currentSortOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+                        } else {
+                            currentSortBy = sortBy;
+                            currentSortOrder = 'desc';
+                        }
+                        currentPage = 1;
+                        fetchData();
                 });
-                theadEl.dataset.sortListenerAdded = 'true';
+
+                if (isAdminOrBoss) {
+                    setupCheckboxListeners();
+                }
+
+                listenersAttached = true;
             }
     
             // Employee filter search (for the main filter bar)
@@ -1455,6 +1484,7 @@
             // Initial data fetch
             fetchData();
             setupSoCongFilter();
+            attachStaticListeners(); // Gắn các listener tĩnh
             toggleFilterVisibility(); // Initial check
     
             // Initialize Flatpickr date pickers
