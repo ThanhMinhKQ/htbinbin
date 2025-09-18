@@ -8,7 +8,10 @@ from config import DATABASE_URL
 # Thêm poolclass=NullPool để SQLAlchemy không quản lý pool, giao cho PgBouncer.
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"prepare_threshold": None},
+    connect_args={
+        "prepare_threshold": None,
+        "options": "-c TimeZone=Asia/Ho_Chi_Minh"
+    },
     poolclass=NullPool
 )
 
@@ -33,7 +36,7 @@ def init_db():
     Nó import tất cả các model và tạo bảng trong database nếu chúng chưa tồn tại.
     """
     # Import tất cả các model để chúng được đăng ký
-    from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord
+    from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord, LostAndFoundItem
 
     print("Đang khởi tạo database và tạo các bảng nếu chưa tồn tại...")
     Base.metadata.create_all(bind=engine)
