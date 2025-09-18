@@ -60,7 +60,7 @@
             <!-- Feature Cards -->
             <div class="mt-16 flex flex-wrap items-stretch justify-center gap-8">
                 <!-- Card: Quản lý Công việc -->
-                <a href="/home" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 hover:-translate-y-1">
+                <a href="/home" class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-blue-400 dark:hover:border-blue-500 hover:-translate-y-1">
                     <div class="inline-block p-5 bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
                         <lord-icon src="https://cdn.lordicon.com/oqaajvyl.json" trigger="hover" colors="primary:#3b82f6,secondary:#6366f1" style="width:40px;height:40px"></lord-icon>
                     </div>
@@ -70,7 +70,7 @@
 
                 <!-- Card: Chấm Dịch vụ -->
                 {% if user and user.role == 'letan' %}
-                <a href="/attendance/service" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-500 hover:-translate-y-1">
+                <a href="/attendance/service" class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-purple-400 dark:hover:border-purple-500 hover:-translate-y-1">
                     <div class="inline-block p-5 bg-gradient-to-br from-purple-100 to-fuchsia-200 dark:from-purple-900/50 dark:to-fuchsia-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
                         <lord-icon src="https://cdn.lordicon.com/qznlhdss.json" trigger="hover" colors="primary:#a855f7,secondary:#d946ef" style="width:40px;height:40px"></lord-icon>
                     </div>
@@ -80,7 +80,7 @@
                 {% endif %}
 
                 <!-- Card: Xem Kết quả Điểm danh -->
-                <a href="/attendance/results" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 hover:-translate-y-1">
+                <a href="/attendance/results" class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-emerald-400 dark:hover:border-emerald-500 hover:-translate-y-1">
                     <div class="inline-block p-5 bg-gradient-to-br from-emerald-100 to-teal-200 dark:from-emerald-900/50 dark:to-teal-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
                         <lord-icon src="https://cdn.lordicon.com/jvucoldz.json" trigger="hover" colors="primary:#10b981,secondary:#14b8a6" style="width:40px;height:40px"></lord-icon>
                     </div>
@@ -90,7 +90,7 @@
 
                 <!-- Card: Xem Lịch Chấm Công -->
                 {% if user and user.role in ['admin', 'boss', 'quanly', 'letan', 'ktv'] %}
-                <a href="/attendance/calendar-view" class="group block w-full sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-cyan-400 dark:hover:border-cyan-500 hover:-translate-y-1">
+                <a href="/attendance/calendar-view" class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-cyan-400 dark:hover:border-cyan-500 hover:-translate-y-1">
                     <div class="inline-block p-5 bg-gradient-to-br from-cyan-100 to-sky-200 dark:from-cyan-900/50 dark:to-sky-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
                         <lord-icon src="https://cdn.lordicon.com/wmlleaaf.json" trigger="hover" colors="primary:#06b6d4,secondary:#0ea5e9" style="width:40px;height:40px"></lord-icon>
                     </div>
@@ -99,41 +99,33 @@
                 </a>
                 {% endif %}
 
-                <!-- Card: Giao ca -->
-                <div class="group block w-full sm:w-80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-8 text-center opacity-70 cursor-not-allowed">
-                    <div class="inline-block p-5 bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-blue-900/50 dark:to-indigo-900/50 rounded-2xl mb-6">
-                        <lord-icon src="https://cdn.lordicon.com/ogkflacg.json" trigger="hover" 
-                            colors="primary:#3b82f6,secondary:#6366f1" style="width:40px;height:40px">
-                        </lord-icon>
-                    </div>
-                    <h3 class="font-semibold text-xl text-gray-500 dark:text-gray-400">Giao ca</h3>
-                    <p class="text-gray-400 mt-2 text-sm">Chức năng đang phát triển, vui lòng quay lại sau.</p>
-                </div>
-
                 <!-- Card: Ghi nhận đồ khách để quên -->
-                <div class="group block w-full sm:w-80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-8 text-center opacity-70 cursor-not-allowed">
-                    <div class="inline-block p-5 bg-gradient-to-br from-amber-100 to-yellow-200 dark:from-amber-900/50 dark:to-yellow-900/50 rounded-2xl mb-6">
-                        <lord-icon src="https://cdn.lordicon.com/ghhwiltn.json" trigger="hover" 
-                            colors="primary:#f59e0b,secondary:#fbbf24" style="width:40px;height:40px">
+                {% if user and user.role != 'ktv' %}
+                <a href="/lost-and-found" class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-amber-400 dark:hover:border-amber-500 hover:-translate-y-1">
+                    <div class="inline-block p-5 bg-gradient-to-br from-amber-100 to-yellow-200 dark:from-amber-900/50 dark:to-yellow-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
+                        <lord-icon src="https://cdn.lordicon.com/ghhwiltn.json" trigger="hover" colors="primary:#f59e0b,secondary:#fbbf24" style="width:40px;height:40px"></lord-icon>
+                    </div>
+                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Đồ Khách Để Quên</h3>
+                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Ghi nhận và quản lý các vật dụng khách hàng bỏ lại.</p>
+                </a>
+                {% endif %}
+
+                <!-- Card: Bàn giao ca (Coming soon) -->
+                {% if user and user.role in ['letan', 'quanly'] %}
+                <div class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-orange-400 dark:hover:border-orange-500 hover:-translate-y-1 cursor-not-allowed">
+                    <div class="inline-block p-5 bg-gradient-to-br from-orange-100 to-rose-200 dark:from-orange-900/50 dark:to-rose-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
+                        <lord-icon
+                            src="https://cdn.lordicon.com/dqrpfjei.json"
+                            trigger="hover"
+                            colors="primary:#f97316,secondary:#f43f5e"
+                            style="width:40px;height:40px">
                         </lord-icon>
                     </div>
-                    <h3 class="font-semibold text-xl text-gray-500 dark:text-gray-400">Đồ Khách Để Quên</h3>
-                    <p class="text-gray-400 mt-2 text-sm">Chức năng đang phát triển, vui lòng quay lại sau.</p>
-                </div>
-
-
-                <!-- Card: Đồng bộ Nhân viên -->
-                {% if user and user.role in ['admin', 'boss'] %}
-                <div class="group block w-full sm:w-80 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border border-dashed border-gray-300 dark:border-slate-700 rounded-2xl p-8 text-center opacity-70 cursor-not-allowed">
-                    <div class="inline-block p-5 bg-gradient-to-br from-rose-100 to-pink-200 dark:from-rose-900/50 dark:to-pink-900/50 rounded-2xl mb-6">
-                        <lord-icon src="https://cdn.lordicon.com/dklbhvrt.json" trigger="hover" 
-                            colors="primary:#f43f5e,secondary:#ec4899" style="width:40px;height:40px">
-                        </lord-icon>
-                    </div>
-                    <h3 class="font-semibold text-xl text-gray-500 dark:text-gray-400">Đồng Bộ Nhân Viên</h3>
-                    <p class="text-gray-400 mt-2 text-sm">Chức năng đang phát triển, vui lòng quay lại sau.</p>
+                    <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Bàn Giao Ca</h3>
+                    <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Chức năng đang phát triển, vui lòng quay lại sau.</p>
                 </div>
                 {% endif %}
+
             </div>
         </main>
     </div>
