@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full scroll-smooth">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Quản lý Đồ thất lạc</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/vn.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root { --safe-bottom: env(safe-area-inset-bottom, 0px); }
+        html { font-family: 'Inter', sans-serif; }
+        [x-cloak] { display: none !important; }
+        .modal { transition: opacity 0.2s ease-in-out; }
+        .modal > div { transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out; }
+
+        /* Accordion row transition */
+        .details-row > td > div {
+            transition: grid-template-rows 0.3s ease-in-out, padding 0.3s ease-in-out;
+            display: grid;
+            grid-template-rows: 0fr;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        .details-row.expanded > td > div {
+            grid-template-rows: 1fr;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+        }
+        .details-row-inner {
+            overflow: hidden;
+        }
+
+        .sortable { cursor: pointer; user-select: none; position: relative; }
+        .sortable .sort-indicator {
+            position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+            opacity: 0.5; font-size: 0.8em; color: #6b7280; line-height: 1;
+        }
+        .sortable.asc .sort-indicator, .sortable.desc .sort-indicator {
+            opacity: 1; color: #2563eb;
+        }
+        .sortable:hover .sort-indicator { opacity: 0.8; }
+
+        .modal.hidden { opacity: 0; pointer-events: none; }
+        .modal.hidden > div { transform: translateY(1rem) scale(0.98); opacity: 0; }
+        .focus-ring:focus { outline: none; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 antialiased" x-data="lostAndFound()">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="sticky top-0 z-30 backdrop-blur-lg supports-[backdrop-filter]:bg-white/80 bg-white/95 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 pt-[env(safe-area-inset-top)]">
+            <div class="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">Đồ Khách Để Quên</h1>
+                    {% if user.role == 'letan' %}
+                    <p class="text-sm text-gray-600 dark:text-slate-400 mt-1" x-show="displayBranch">Các bản ghi tại: <strong class="text-blue-600" x-text="displayBranch"></strong></p>
+                    {% endif %}
+                </div>
+                <a href="/choose-function" class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-slate-200 font-semibold hover:bg-gray-300 dark:hover:bg-slate-600 transition">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 12H5M12 5l-7 7 7 7"/>
+                    </svg>
+                    <span>Quay lại</span>
+                </a>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Thay đổi grid layout dựa trên vai trò của người dùng -->
+            <div id="search-filters" class="grid grid-cols-1 sm:grid-cols-2 {% if user.role in ['admin', 'boss'] %}lg:grid-cols-6{% else %}lg:grid-cols-4{% endif %} gap-4 mb-8 p-4 border dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-800/30 shadow-sm">
+                <div class="{% if user.role in ['admin', 'boss'] %}lg:col-span-2{% else %}sm:col-span-2 lg:col-span-1{% endif %}">
+                    <label for="search" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Tìm kiếm chung</label>
+                    <input type="search" id="search" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" placeholder="Tên đồ, vị trí, mô tả...">
+                </div>
+                <div>
+                    <label for="status" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Trạng thái</label>
+                    <select id="status" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="">Tất cả trạng thái</option>
+                        {% for s in statuses %}
+                        <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                        {% if user.role in ['admin', 'boss'] %}
+                        <option value="Đã xoá" class="text-rose-600 font-medium">Đã xoá</option>
+                        {% endif %}
+                    </select>
+                </div>
+                <div>
+                    <label for="found_date" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Ngày phát hiện</label>
+                    <input type="text" id="found_date" placeholder="dd/mm/yyyy" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                </div>
+                <div class="relative">
+                    <label for="reported_by" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Người báo cáo</label>
+                    <input type="text" id="reported_by" placeholder="Tên hoặc mã NV..." autocomplete="off"
+                           @input.debounce.300ms="searchFilterReporters($event.target.value)"
+                           @focus="searchFilterReporters($event.target.value)"
+                           class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                    <div x-show="filterReporterSuggestions.length > 0" @click.outside="filterReporterSuggestions = []"
+                         class="absolute z-20 mt-1 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-auto">
+                        <template x-for="reporter in filterReporterSuggestions" :key="reporter.code">
+                            <div @click="selectFilterReporter(reporter)" class="cursor-pointer select-none relative py-2 px-3 text-slate-900 dark:text-slate-200 hover:bg-blue-500 hover:text-white" x-text="`${reporter.name} (${reporter.code})`"></div>
+                        </template>
+                    </div>
+                </div>
+                {% if user.role in ['quanly', 'admin', 'boss'] %}
+                <div>
+                    <label for="chi_nhanh" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">Chi nhánh</label>
+                    <select id="chi_nhanh" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700/50 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                        <option value="" selected>Tất cả chi nhánh</option>
+                        {% for b in branches %}
+                        <option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-span-full flex items-end justify-start gap-3 pt-2">
+                    <button id="apply-filters" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-semibold shadow-sm hover:shadow-md active:scale-95">Áp dụng</button>
+                    <button id="clear-filters" class="px-5 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition text-sm font-medium">Xóa bộ lọc</button>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="my-6 flex flex-wrap justify-between items-center gap-4">
+                <div class="flex items-center gap-4">
+                    {% if user.role in ['letan', 'quanly', 'admin', 'boss'] %}
+                    <button id="delete-selected-btn" class="hidden px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition font-semibold text-sm flex items-center gap-2 shadow-sm hover:shadow-md active:scale-95">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        Xóa mục đã chọn
+                    </button>
+                    {% endif %}
+                    <div class="flex items-center gap-2">
+                        <label for="per-page-select" class="text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">Hiển thị:</label>
+                        <select id="per-page-select" class="block rounded-lg border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2 pl-3 pr-8 text-sm">
+                            <option value="9">9</option>
+                            <option value="18">18</option>
+                            <option value="36">36</option>
+                        </select>
+                    </div>
+                    <p id="record-count" class="text-sm text-slate-500 dark:text-slate-400 font-medium"></p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div>
+                        <button @click="openAddModal()" class="inline-flex items-center gap-2 text-sm px-4 py-2 rounded-lg bg-blue-600 text-white font-semibold shadow-md hover:bg-blue-700 transition active:scale-95 focus-ring">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                            <span>Thêm Mới</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading" class="text-center py-16"><p class="text-slate-500">Đang tải dữ liệu...</p></div>
+            <div id="error" class="hidden text-center py-16 bg-rose-100 text-rose-700 rounded-lg"><p>Có lỗi xảy ra khi tải dữ liệu.</p></div>
+
+            <!-- Grid View -->
+            <div id="results-card-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <!-- Grid cards will be generated here -->
+            </div>
+
+            <!-- Pagination -->
+            <div id="pagination-container" class="mt-8 flex justify-center">
+                <div id="pagination-controls" class="flex justify-center items-center gap-1"></div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div x-show="isAddModalOpen" @keydown.escape.window="closeAddModal()" class="modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" x-cloak>
+        <div @click.outside="closeAddModal()" class="relative w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="grid place-items-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                            <!-- Icon: Briefcase -->
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-lg font-semibold text-slate-800 dark:text-white">Ghi nhận đồ thất lạc</h2>
+                </div>
+                <button @click="closeAddModal()" class="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+    
+            <!-- Form -->
+            <form id="add-item-form" @submit.prevent="submitAddItemForm" class="p-5 space-y-5 overflow-y-auto">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Tên món đồ -->
+                    <div class="sm:col-span-2">
+                        <label for="add_item_name" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Tên món đồ <span class="text-rose-500">*</span></label>
+                        <input type="text" id="add_item_name" name="item_name" required placeholder="VD: Ví da màu đen, điện thoại iPhone 15..." class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+    
+                    <!-- Nơi phát hiện -->
+                    <div>
+                        <label for="add_found_location" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Nơi phát hiện <span class="text-rose-500">*</span></label>
+                        <input type="text" id="add_found_location" name="found_location" required placeholder="VD: Phòng 201, Lobby..." class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    </div>
+    
+                    <!-- Người báo cáo -->
+                    <div class="relative">
+                        <label for="add_reported_by" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người báo cáo <span class="text-rose-500">*</span></label>
+                        <input type="text" id="add_reported_by_search" placeholder="Tìm tên nhân viên..." autocomplete="off"
+                               @input.debounce.300ms="document.getElementById('add_reported_by').value = ''; searchReporters($event.target.value)"
+                               @focus="searchReporters($event.target.value)"
+                               class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <!-- Input ẩn này sẽ chứa giá trị thực sự được gửi đi -->
+                        <input type="hidden" id="add_reported_by" name="reported_by" required>
+                        <div x-show="reporterSuggestions.length > 0" @click.outside="reporterSuggestions = []"
+                             class="absolute z-20 mt-1 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-auto">
+                            <template x-for="reporter in reporterSuggestions" :key="reporter.code">
+                                <div @click="selectReporter(reporter)" class="cursor-pointer select-none relative py-2 px-3 text-slate-900 dark:text-slate-200 hover:bg-blue-500 hover:text-white" x-text="`${reporter.name} (${reporter.code})`"></div>
+                            </template>
+                        </div>
+                    </div>
+    
+                    <!-- Chi nhánh (conditional) -->
+                    {% if user.role in ['quanly', 'admin', 'boss'] %}
+                    <div class="sm:col-span-2">
+                        <label for="add_chi_nhanh" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Chi nhánh <span class="text-rose-500">*</span></label>
+                        <select id="add_chi_nhanh" name="chi_nhanh" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            <option value="" disabled selected>Chọn chi nhánh</option>
+                            {% for b in branches %}
+                            <option value="{{ b }}">{{ b }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Người ghi nhận (chỉ cho admin/boss) -->
+                    <div x-show="userRole === 'admin' || userRole === 'boss'" class="relative sm:col-span-2">
+                        <label for="add_recorded_by" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người ghi nhận</label>
+                        <input type="text" id="add_recorded_by" placeholder="Mặc định là bạn, hoặc tìm người khác..." autocomplete="off"
+                               @input.debounce.300ms="searchRecorders($event.target.value)"
+                               @focus="searchRecorders($event.target.value)"
+                               class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <input type="hidden" id="add_recorded_by_code" name="recorded_by">
+                        <div x-show="recorderSuggestions.length > 0" @click.outside="recorderSuggestions = []"
+                             class="absolute z-20 mt-1 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-auto">
+                            <template x-for="recorder in recorderSuggestions" :key="recorder.code">
+                                <div @click="selectRecorder(recorder)" class="cursor-pointer select-none relative py-2 px-3 text-slate-900 dark:text-slate-200 hover:bg-blue-500 hover:text-white" x-text="`${recorder.name} (${recorder.code})`"></div>
+                            </template>
+                        </div>
+                    </div>
+    
+                    <!-- Mô tả chi tiết -->
+                    <div class="sm:col-span-2">
+                        <label for="add_description" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Mô tả chi tiết</label>
+                        <textarea id="add_description" name="description" rows="2" placeholder="Đặc điểm nhận dạng, tình trạng món đồ..." class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></textarea>
+                    </div>
+    
+                    <!-- Ghi chú -->
+                    <div class="sm:col-span-2">
+                        <label for="add_notes" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Ghi chú</label>
+                        <textarea id="add_notes" name="notes" rows="2" placeholder="VD: Mức thưởng, tình trạng đặc biệt..." class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></textarea>
+                    </div>
+    
+                    <!-- Thông tin khách hàng (optional section) -->
+                    <fieldset class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4 space-y-4">
+                        <legend class="text-sm font-medium text-slate-500 dark:text-slate-400">Thông tin khách hàng</legend>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="add_owner_name" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Tên khách hàng <span class="text-rose-500">*</span></label>
+                                <input type="text" id="add_owner_name" name="owner_name" required placeholder="Nhập tên khách hàng" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                            </div>
+                            <div>
+                                <label for="add_owner_contact" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Thông tin liên hệ <span class="text-rose-500">*</span></label>
+                                <input type="text" id="add_owner_contact" name="owner_contact" required placeholder="SĐT, CCCD,..." class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                            </div>
+                        </div>
+                    </fieldset>
+                </div>
+            </form>
+    
+            <!-- Footer with buttons -->
+            <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button type="button" @click="closeAddModal()" class="px-5 py-2.5 text-center text-sm font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">Hủy</button>
+                <button type="submit" form="add-item-form" class="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-lg shadow-blue-500/20">Lưu lại</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details/Update Modal -->
+    <div x-show="isDetailsModalOpen" @keydown.escape.window="closeDetailsModal()" class="modal fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" x-cloak>
+        <div @click.outside="closeDetailsModal()" class="relative w-full max-w-2xl bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center gap-3">
+                    <div class="grid place-items-center w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50">
+                        <svg class="w-5 h-5 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-semibold text-slate-800 dark:text-white">Chi tiết đồ thất lạc</h2>
+                        <p class="text-sm text-slate-500" x-text="selectedItem.item_name"></p>
+                    </div>
+                </div>
+                <button @click="closeDetailsModal()" class="p-2 rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div class="p-5 space-y-6 overflow-y-auto">
+                <!-- Status Badge -->
+                <div class="flex justify-center">
+                    <span class="px-3 py-1 text-sm font-semibold rounded-full"
+                          :class="{
+                            'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300': selectedItem.status === 'Đang lưu giữ',
+                            'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300': selectedItem.status === 'Đã trả khách',
+                            'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300': selectedItem.status === 'Thanh lý',
+                            'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300': selectedItem.status === 'Đã xoá'
+                          }"
+                          x-text="selectedItem.status"></span>
+                </div>
+
+                <!-- Details Grid -->
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
+                    <div class="sm:col-span-2"><dt class="font-medium text-slate-500">Mô tả</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="selectedItem.description || 'Không có'"></dd></div>
+                    <div class="sm:col-span-2"><dt class="font-medium text-slate-500">Ghi chú ban đầu</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="selectedItem.notes || 'Không có'"></dd></div>
+                    <div x-show="userRole !== 'letan'"><dt class="font-medium text-slate-500">Chi nhánh</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="selectedItem.chi_nhanh"></dd></div>
+                    <div><dt class="font-medium text-slate-500">Nơi phát hiện</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="selectedItem.found_location"></dd></div>
+                    <div><dt class="font-medium text-slate-500">Ngày phát hiện</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="formatDate(selectedItem.found_date)"></dd></div>
+                    <div><dt class="font-medium text-slate-500">Người báo cáo</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="selectedItem.reported_by"></dd></div><div><dt class="font-medium text-slate-500">Người ghi nhận</dt><dd class="mt-1 text-slate-800 dark:text-slate-200" x-text="selectedItem.recorded_by"></dd></div>
+                </dl>
+
+                <!-- Update Form (for 'Đang lưu giữ' status) -->
+                <form id="update-item-form" @submit.prevent="submitUpdateForm" x-show="selectedItem.status === 'Đang lưu giữ' && canDelete" class="pt-4 border-t border-slate-200 dark:border-slate-700 space-y-4">
+                    <h4 class="font-semibold text-slate-800 dark:text-white">Cập nhật trạng thái</h4>
+                    <div class="space-y-3">
+                        <!-- Return to customer option -->
+                        <label class="block p-3 border rounded-xl cursor-pointer" :class="updateAction === 'return' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'">
+                            <div class="flex items-center">
+                                <input type="radio" value="return" x-model="updateAction" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-400">
+                                <span class="ml-3 font-medium text-slate-800 dark:text-slate-200">Đã trả khách</span>
+                            </div>
+                            <div x-show="updateAction === 'return'" class="mt-3 ml-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <input type="text" name="owner_name" placeholder="Tên khách nhận" :value="selectedItem.owner_name || ''" class="w-full py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm" x-ref="return_owner_name">
+                                <input type="text" name="owner_contact" placeholder="SĐT/CCCD khách" :value="selectedItem.owner_contact || ''" class="w-full py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')" x-ref="return_owner_contact">
+                            </div>
+                        </label>
+                        <!-- Dispose option -->
+                        <label class="block p-3 border rounded-xl cursor-pointer" :class="updateAction === 'dispose' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'">
+                            <div class="flex items-center">
+                                <input type="radio" value="dispose" x-model="updateAction" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-400">
+                                <span class="ml-3 font-medium text-slate-800 dark:text-slate-200">Thanh lý</span>
+                            </div>
+                            <div x-show="updateAction === 'dispose'" class="mt-3 ml-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <!-- Người thanh lý (đã cải tiến) -->
+                                <div class="relative">
+                                    <input type="text" id="update_disposed_by_search" placeholder="Tìm người thanh lý..." autocomplete="off"
+                                           @input.debounce.300ms="document.getElementById('update_disposed_by').value = ''; searchDisposers($event.target.value)"
+                                           @focus="searchDisposers($event.target.value)"
+                                           class="w-full py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm">
+                                    <input type="hidden" id="update_disposed_by" name="disposed_by">
+                                    <div x-show="disposerSuggestions.length > 0" @click.outside="disposerSuggestions = []"
+                                         class="absolute z-20 mt-1 w-full bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg max-h-48 overflow-auto">
+                                        <template x-for="disposer in disposerSuggestions" :key="disposer.code">
+                                            <div @click="selectDisposer(disposer)" class="cursor-pointer select-none relative py-2 px-3 text-slate-900 dark:text-slate-200 hover:bg-blue-500 hover:text-white" x-text="`${disposer.name} (${disposer.code})`"></div>
+                                        </template>
+                                    </div>
+                                </div>
+                                <!-- Input số tiền đã được cải tiến -->
+                                <div class="relative">
+                                    <input type="text" 
+                                           x-model="formattedDisposedAmount"
+                                           @input="handleAmountInput($event)"
+                                           inputmode="numeric" placeholder="Số tiền" 
+                                           class="w-full py-2 pl-3 pr-12 rounded-lg border border-slate-300 dark:border-slate-500 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-sm text-right">
+                                    <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-sm text-gray-500 dark:text-slate-400 pointer-events-none">VNĐ</span>
+                                    <input type="hidden" name="disposed_amount" :value="getRawAmount()">
+                                </div>
+                            </div>
+                        </label>
+                    </div>
+                    <div>
+                        <label for="update_notes" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Ghi chú cập nhật</label>
+                        <textarea id="update_notes" name="notes" rows="2" class="w-full py-2 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"></textarea>
+                    </div>
+                </form>
+
+                <!-- Returned Info -->
+                <div x-show="selectedItem.status === 'Đã trả khách'" class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                    <h4 class="font-semibold text-emerald-800 dark:text-emerald-200 mb-2">Thông tin trả đồ</h4>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                        <div><dt class="font-medium text-emerald-700 dark:text-emerald-300">Tên khách nhận</dt><dd class="mt-1" x-text="selectedItem.owner_name"></dd></div>
+                        <div><dt class="font-medium text-emerald-700 dark:text-emerald-300">Liên hệ</dt><dd class="mt-1" x-text="selectedItem.owner_contact"></dd></div>
+                        <div class="sm:col-span-2"><dt class="font-medium text-emerald-700 dark:text-emerald-300">Ngày trả</dt><dd class="mt-1" x-text="formatDate(selectedItem.return_date)"></dd></div>
+                    </dl>
+                </div>
+
+                <!-- Disposed Info -->
+                <div x-show="selectedItem.status === 'Thanh lý'" class="p-4 rounded-xl bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
+                    <h4 class="font-semibold text-slate-800 dark:text-slate-200 mb-2">Thông tin thanh lý</h4>
+                    <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                        <div><dt class="font-medium text-slate-500">Ngày thanh lý</dt><dd class="mt-1" x-text="formatDate(selectedItem.return_date)"></dd></div>
+                        <div><dt class="font-medium text-slate-500">Người thanh lý</dt><dd class="mt-1" x-text="selectedItem.disposed_by || 'Chưa có'"></dd></div>
+                        <div class="sm:col-span-2"><dt class="font-medium text-slate-500">Số tiền</dt><dd class="mt-1" x-text="selectedItem.disposed_amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedItem.disposed_amount) : 'Chưa có'"></dd></div>
+                    </dl>
+                </div>
+
+                <!-- Deleted Info -->
+                <div x-show="selectedItem.status === 'Đã xoá'" class="p-4 rounded-xl bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 space-y-3">
+                    <h4 class="font-semibold text-rose-800 dark:text-rose-200">Trạng thái: Đã Xóa</h4>
+                    <p class="text-sm text-rose-700 dark:text-rose-300">Món đồ này đã được nhân viên xóa và đang chờ quản trị viên xác nhận xóa vĩnh viễn.</p>
+                    <!-- Previous state before deletion (dựa vào return_date) -->
+                    <!-- Hiển thị nếu là đã trả khách (có return_date) VÀ KHÔNG PHẢI là thanh lý (không có disposed_by) -->
+                    <div x-show="!selectedItem.disposed_by && selectedItem.return_date" class="text-sm space-y-1 border-t border-rose-300/50 dark:border-rose-700/50 pt-2">
+                        <h5 class="font-medium text-rose-700/80 dark:text-rose-300/80">Thông tin đã trả (trước khi xóa)</h5>
+                        <p><strong>Khách nhận:</strong> <span x-text="selectedItem.owner_name"></span></p>
+                        <p><strong>Ngày trả:</strong> <span x-text="formatDate(selectedItem.return_date)"></span></p>
+                    </div>
+                    <!-- Hiển thị nếu là thanh lý (ưu tiên kiểm tra disposed_by) -->
+                    <div x-show="selectedItem.disposed_by" class="text-sm space-y-1 border-t border-rose-300/50 dark:border-rose-700/50 pt-2">
+                        <h5 class="font-medium text-rose-700/80 dark:text-rose-300/80">Thông tin thanh lý (trước khi xóa)</h5>
+                        <p><strong>Người thanh lý:</strong> <span x-text="selectedItem.disposed_by"></span></p>
+                        <p><strong>Số tiền:</strong> <span x-text="selectedItem.disposed_amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedItem.disposed_amount) : 'Không có'"></span></p>
+                        <p><strong>Ngày thanh lý:</strong> <span x-text="formatDate(selectedItem.return_date)"></span></p>
+                    </div>
+                    <!-- Deletion Info -->
+                    <div x-show="selectedItem.deleted_by" class="text-sm space-y-1 border-t border-rose-300/50 dark:border-rose-700/50 pt-2">
+                        <h5 class="font-medium text-rose-700/80 dark:text-rose-300/80">Thông tin xóa</h5>
+                        <p><strong>Người xóa:</strong> <span x-text="selectedItem.deleted_by"></span></p>
+                        <p><strong>Ngày xóa:</strong> <span x-text="formatDate(selectedItem.deleted_date)"></span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer with Action Buttons -->
+            <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <!-- Nút Xóa (soft delete) -->
+                <template x-if="canDelete && ['Đang lưu giữ', 'Đã trả khách', 'Thanh lý'].includes(selectedItem.status)">
+                    <button type="button" @click="deleteItem(selectedItem.id)" class="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 active:bg-rose-800 transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        <span>Xóa</span>
+                    </button>
+                </template>
+
+                <!-- Nút Lưu thay đổi (chỉ hiển thị khi đang lưu giữ) -->
+                <template x-if="canDelete && selectedItem.status === 'Đang lưu giữ'">
+                    <button type="submit" form="update-item-form" class="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-lg shadow-blue-500/20">Lưu thay đổi</button>
+                </template>
+
+                <!-- Nút Xóa Vĩnh Viễn (hard delete) -->
+                <template x-if="userRole === 'admin' || userRole === 'boss'">
+                    <button type="button" @click="deleteItem(selectedItem.id)" x-show="selectedItem.status === 'Đã xoá'" class="w-full sm:w-auto px-5 py-2.5 text-sm font-semibold text-white bg-rose-600 rounded-xl hover:bg-rose-700 active:bg-rose-800 transition-colors shadow-lg shadow-rose-500/20 flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                        <span>Xóa Vĩnh Viễn</span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script src="//unpkg.com/alpinejs" defer></script>
+    <script>
+        function lostAndFound() {
+            return {
+                isAddModalOpen: false,
+                isDetailsModalOpen: false,
+                selectedItem: {},
+                formattedDisposedAmount: '',
+                updateAction: 'return',
+                lastCheckedCheckbox: null, // Biến để theo dõi checkbox cuối cùng được chọn cho shift-click
+                userRole: '{{ user.role }}',
+                reporterSuggestions: [],
+                recorderSuggestions: [],
+                disposerSuggestions: [],
+                filterReporterSuggestions: [],
+                user: JSON.parse('{{ user | tojson | safe }}'),
+                canDelete: ['letan', 'quanly', 'admin', 'boss'].includes('{{ user.role }}'),
+                displayBranch: '',
+                
+                async searchReporters(query) {
+                    if (query.trim().length < 2) {
+                        this.reporterSuggestions = [];
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}&context=reporter_search`);
+                        if (!response.ok) throw new Error('Lỗi khi tìm kiếm');
+                        this.reporterSuggestions = await response.json();
+                    } catch (error) {
+                        console.error('Lỗi tìm người báo cáo:', error);
+                        this.reporterSuggestions = [];
+                    }
+                },
+
+                async searchRecorders(query) {
+                    if (query.trim().length < 2) {
+                        this.recorderSuggestions = [];
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/api/users/search-login-users?q=${encodeURIComponent(query)}`);
+                        if (!response.ok) throw new Error('Lỗi khi tìm kiếm');
+                        this.recorderSuggestions = await response.json();
+                    } catch (error) {
+                        console.error('Lỗi tìm người ghi nhận:', error);
+                    }
+                },
+
+                async searchDisposers(query) {
+                    if (query.trim().length < 2) {
+                        this.disposerSuggestions = [];
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}&context=all_users_search`);
+                        if (!response.ok) throw new Error('Lỗi khi tìm kiếm');
+                        this.disposerSuggestions = await response.json();
+                    } catch (error) {
+                        console.error('Lỗi tìm người thanh lý:', error);
+                        this.disposerSuggestions = [];
+                    }
+                },
+
+                async searchFilterReporters(query) {
+                    if (query.trim().length < 2) {
+                        this.filterReporterSuggestions = [];
+                        return;
+                    }
+                    try {
+                        const response = await fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}&context=reporter_search`);
+                        if (!response.ok) throw new Error('Lỗi khi tìm kiếm');
+                        this.filterReporterSuggestions = await response.json();
+                    } catch (error) {
+                        console.error('Lỗi tìm người báo cáo (filter):', error);
+                        this.filterReporterSuggestions = [];
+                    }
+                },
+
+                selectFilterReporter(reporter) {
+                    const input = document.getElementById('reported_by');
+                    input.value = `${reporter.name} (${reporter.code})`;
+                    this.filterReporterSuggestions = [];
+                },
+
+                // Data for dynamic table
+                records: [],
+                currentPage: 1,
+                recordsPerPage: parseInt(localStorage.getItem('lostAndFoundPerPage')) || 9,
+                totalRecords: 0,
+                totalPages: 0,
+                
+                // UI elements
+                loadingEl: null,
+                errorEl: null,
+                cardContainerEl: null,
+
+                init() {
+                    this.loadingEl = document.getElementById('loading'); // This should be inside init
+                    this.errorEl = document.getElementById('error');
+                    this.cardContainerEl = document.getElementById('results-card-container');
+
+                    // Gắn listener một lần duy nhất bằng event delegation
+                    document.getElementById('apply-filters').addEventListener('click', () => { this.currentPage = 1; this.fetchData(); });
+                    document.getElementById('clear-filters').addEventListener('click', () => {
+                        document.getElementById('search').value = '';
+                        document.getElementById('status').value = '';
+                        document.getElementById('found_date').value = '';
+                        document.getElementById('reported_by').value = '';
+                        const chiNhanhEl = document.getElementById('chi_nhanh');
+                        if (chiNhanhEl && this.userRole !== 'letan') chiNhanhEl.value = '';
+                        this.currentPage = 1;
+                        this.fetchData();
+                    });
+
+                    // Tự động lọc khi chọn chi nhánh
+                    const chiNhanhSelect = document.getElementById('chi_nhanh');
+                    if (chiNhanhSelect) {
+                        chiNhanhSelect.addEventListener('change', () => {
+                            this.displayBranch = chiNhanhSelect.value;
+                            this.currentPage = 1;
+                            this.fetchData();
+                        });
+                        // Set initial display branch for roles with dropdown
+                        this.displayBranch = chiNhanhSelect.value;
+                    } else {
+                        // Set initial display branch for roles without dropdown (e.g., letan)
+                        this.displayBranch = '{{ initial_branch_filter }}';
+                    }
+
+                    // Tự động lọc khi chọn trạng thái
+                    const statusSelect = document.getElementById('status');
+                    if (statusSelect) {
+                        statusSelect.addEventListener('change', () => { this.currentPage = 1; this.fetchData(); });
+                    }
+
+                    const perPageSelect = document.getElementById('per-page-select');
+                    perPageSelect.value = this.recordsPerPage;
+                    perPageSelect.addEventListener('change', (e) => {
+                        this.recordsPerPage = parseInt(e.target.value, 10);
+                        localStorage.setItem('lostAndFoundPerPage', this.recordsPerPage);
+                        this.currentPage = 1;
+                        this.fetchData();
+                    });
+
+                    this.fetchData();
+                },
+
+                buildQueryString() {
+                    const params = new URLSearchParams();
+                    params.append('page', this.currentPage);
+                    params.append('per_page', this.recordsPerPage);
+
+                    const search = document.getElementById('search').value;
+                    const status = document.getElementById('status').value;
+                    const chiNhanhEl = document.getElementById('chi_nhanh');
+                    const chi_nhanh = chiNhanhEl ? chiNhanhEl.value : '{{ initial_branch_filter }}';
+                    const found_date = document.getElementById('found_date').value;
+
+                    // Cập nhật lại chi nhánh hiển thị mỗi khi lọc
+                    this.displayBranch = chi_nhanh;
+                    const reported_by = document.getElementById('reported_by').value;
+                    
+                    if (search) params.append('search', search.trim());
+                    if (status) params.append('status', status);
+                    if (chi_nhanh) params.append('chi_nhanh', chi_nhanh);
+                    if (found_date) params.append('found_date', found_date);
+                    if (reported_by) params.append('reported_by', reported_by);
+                    
+                    return params.toString();
+                },
+
+                fetchData: async function() {
+                    this.loadingEl.classList.remove('hidden');
+                    this.errorEl.classList.add('hidden');
+                    this.cardContainerEl.innerHTML = ''; // Clear mobile view
+
+                    try {
+                        const response = await fetch(`/api/lost-and-found?${this.buildQueryString()}`);
+                        if (!response.ok) throw new Error('Network response was not ok');
+                        const data = await response.json();
+
+                        this.renderTable(data.records); // Dữ liệu đã được sắp xếp từ backend
+                        this.renderPagination(data.currentPage, data.totalPages, data.totalRecords);                        
+                        this.loadingEl.classList.add('hidden');
+
+                        // ✨ FIX: Cập nhật trạng thái các nút sau khi render xong
+                        this.$nextTick(() => {
+                            if (this.canDelete) this.updateSelectAllCheckboxState();
+                            this.updateDeleteButtonState();
+                        });
+                    } catch (err) {
+                        console.error('Fetch error:', err);
+                        this.loadingEl.classList.add('hidden');
+                        this.errorEl.classList.remove('hidden');
+                    }
+                },
+
+                renderTable: function(records) {
+                    let gridCardsHtml = '';
+
+                    if (records.length === 0) {
+                        gridCardsHtml = `<div class="md:col-span-2 xl:col-span-3 text-center py-16 text-slate-500">Không tìm thấy món đồ nào.</div>`;
+                    } else {
+                        records.forEach(item => {
+                            const statusValue = item.status;
+                            
+                            // --- LOGIC MỚI: KIỂM TRA ĐỒ QUÁ HẠN LƯU GIỮ ---
+                            const foundDate = new Date(item.found_date);
+                            const now = new Date();
+                            const diffTime = Math.abs(now - foundDate);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            const isOverdue = statusValue === 'Đang lưu giữ' && diffDays > 30;
+
+                            // --- LOGIC MỚI: ĐỊNH NGHĨA MÀU SẮC CHO TOÀN BỘ CARD ---
+                            let cardClasses = "bg-white dark:bg-slate-800/50 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600"; // Mặc định
+                            if (isOverdue || statusValue === 'Thanh lý') {
+                                cardClasses = "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500";
+                            } else if (statusValue === 'Đã trả khách') {
+                                cardClasses = "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400 dark:hover:border-emerald-600";
+                            } else if (statusValue === 'Đã xoá') {
+                                cardClasses = "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800/30 hover:border-rose-400 dark:hover:border-rose-600 opacity-70";
+                            }
+
+                            let statusBadge = '';
+                            if (isOverdue) {
+                                statusBadge = `<span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300">Có thể thanh lý</span>`;
+                            } else if (statusValue === 'Đang lưu giữ') {
+                                statusBadge = `<span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Đang lưu giữ</span>`;
+                            } else if (statusValue === 'Đã trả khách') {
+                                statusBadge = `<span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300">${statusValue}</span>`;
+                            } else if (statusValue === 'Đã xoá') {
+                                statusBadge = `<span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300">${statusValue}</span>`;
+                            } else {
+                                statusBadge = `<span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300">${statusValue}</span>`;
+                            }
+
+                            // --- Grid Card HTML ---
+                            gridCardsHtml += `
+                                <div @click='openDetailsModal(${JSON.stringify(item)})' 
+                                     class="rounded-2xl shadow-sm border p-5 space-y-4 transition-all duration-200 hover:shadow-lg hover:-translate-y-1 cursor-pointer ${cardClasses}">
+                                    <div class="flex justify-between items-start gap-3">
+                                        <div>
+                                            <p class="font-semibold text-slate-900 dark:text-white pr-2">${item.item_name || ''}</p>` +
+                                            // Chỉ hiển thị chi nhánh cho admin/boss
+                                            ((this.userRole === 'admin' || this.userRole === 'boss')
+                                                ? `<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Chi nhánh: <strong class="font-medium">${item.chi_nhanh || 'N/A'}</strong></p>`
+                                                : ''
+                                            ) +
+                                        `
+                                        </div>
+                                        ${statusBadge}
+                                    </div>
+                                    ${(() => {
+                                        if (item.status === 'Đã trả khách') {
+                                            return `<div class="text-sm text-emerald-700 dark:text-emerald-400 space-y-2 border-t border-emerald-200 dark:border-emerald-700 pt-4">
+                                                <p><strong class="font-medium text-emerald-600 dark:text-emerald-300">Khách nhận:</strong> ${item.owner_name || 'Không rõ'}</p>
+                                                <p><strong class="font-medium text-emerald-600 dark:text-emerald-300">Liên hệ:</strong> ${item.owner_contact || 'Không có'}</p>
+                                                <p><strong class="font-medium text-emerald-600 dark:text-emerald-300">Ngày trả:</strong> ${this.formatDate(item.return_date)}</p>
+                                            </div>`;
+                                        }
+                                        if (item.status === 'Thanh lý') {
+                                            return `<div class="text-sm text-slate-600 dark:text-slate-400 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                                                <p><strong class="font-medium text-slate-500 dark:text-slate-400">Người thanh lý:</strong> ${item.disposed_by || 'Chưa có'}</p>
+                                                <p><strong class="font-medium text-slate-500 dark:text-slate-400">Số tiền:</strong> ${item.disposed_amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.disposed_amount) : 'Không có'}</p>
+                                                <p><strong class="font-medium text-slate-500 dark:text-slate-400">Ngày thanh lý:</strong> ${this.formatDate(item.return_date)}</p>
+                                            </div>`;
+                                        }
+                                        if (item.status === 'Đã xoá') {
+                                            // Đối với các mục đã xóa, hiển thị thông tin dựa trên trạng thái trước đó của nó, nhưng với kiểu "đã xóa"
+                                            let innerHtml = '';
+                                            if (item.disposed_by) { // Ưu tiên 1: Trước đó đã Thanh lý
+                                                innerHtml = `
+                                                    <p><strong class="font-medium">Người thanh lý (đã xóa):</strong> ${item.disposed_by || 'Chưa có'}</p>
+                                                    <p><strong class="font-medium">Số tiền:</strong> ${item.disposed_amount ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(item.disposed_amount) : 'Không có'}</p>
+                                                    <p><strong class="font-medium">Ngày thanh lý:</strong> ${this.formatDate(item.return_date)}</p>
+                                                `;
+                                            } else if (item.return_date) { // Ưu tiên 2: Trước đó đã Trả khách (dựa vào ngày trả)
+                                                innerHtml = `
+                                                    <p><strong class="font-medium">Đã trả khách (đã xóa):</strong> ${item.owner_name || 'Không rõ'}</p>
+                                                    <p><strong class="font-medium">Liên hệ:</strong> ${item.owner_contact || 'Không có'}</p>
+                                                    <p><strong class="font-medium">Ngày trả:</strong> ${this.formatDate(item.return_date)}</p>
+                                                `;
+                                            } else { // Trước đó đang Lưu giữ
+                                                innerHtml = `
+                                                    <p><strong class="font-medium">Nơi phát hiện (đã xóa):</strong> ${item.found_location || ''}</p>
+                                                    <p><strong class="font-medium">Thời gian:</strong> ${this.formatDate(item.found_date)}</p>
+                                                `;
+                                            }
+                                            // Thêm thông tin người xóa
+                                            if (item.deleted_by) {
+                                                innerHtml += `<div class="mt-2 pt-2 border-t border-rose-300/50 dark:border-rose-700/50">
+                                                    <p><strong class="font-medium text-rose-600 dark:text-rose-300">Người xóa:</strong> ${item.deleted_by || ''}</p>
+                                                    <p><strong class="font-medium text-rose-600 dark:text-rose-300">Ngày xóa:</strong> ${this.formatDate(item.deleted_date)}</p></div>`;
+                                            }
+                                            return `<div class="text-sm text-rose-700 dark:text-rose-400 space-y-2 border-t border-rose-200 dark:border-rose-700 pt-4">${innerHtml}</div>`;
+                                        }
+                                        // Mặc định cho 'Đang lưu giữ'
+                                        if (isOverdue) {
+                                            // Nếu quá hạn, dùng màu của "Thanh lý"
+                                            return `<div class="text-sm text-slate-600 dark:text-slate-400 space-y-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                                                <p><strong class="font-medium text-slate-500 dark:text-slate-400">Thông tin khách:</strong> ${item.owner_name ? `${item.owner_name} (${item.owner_contact || 'Không có SĐT'})` : 'Chưa có'}</p>
+                                                <p><strong class="font-medium text-slate-500 dark:text-slate-400">Nơi phát hiện:</strong> ${item.found_location || ''}</p>
+                                                <p><strong class="font-medium text-slate-500 dark:text-slate-400">Thời gian:</strong> ${this.formatDate(item.found_date)}</p>
+                                            </div>`;
+                                        } else {
+                                            // Nếu chưa quá hạn, giữ màu vàng
+                                            return `<div class="text-sm text-amber-700 dark:text-amber-400 space-y-2 border-t border-amber-200 dark:border-amber-700 pt-4">
+                                                <p><strong class="font-medium text-amber-600 dark:text-amber-300">Thông tin khách:</strong> ${item.owner_name ? `${item.owner_name} (${item.owner_contact || 'Không có SĐT'})` : 'Chưa có'}</p>
+                                                <p><strong class="font-medium text-amber-600 dark:text-amber-300">Nơi phát hiện:</strong> ${item.found_location || ''}</p>
+                                                <p><strong class="font-medium text-amber-600 dark:text-amber-300">Thời gian:</strong> ${this.formatDate(item.found_date)}</p>
+                                            </div>`;
+                                        }
+                                    })()}
+                                </div>`;
+                        });
+                    }
+                    this.cardContainerEl.innerHTML = gridCardsHtml;
+                },
+
+                renderPagination: function(currentPageNum, totalPages, totalRecords) {
+                    const paginationEl = document.getElementById('pagination-controls');
+                    const recordCountEl = document.getElementById('record-count');
+                    paginationEl.innerHTML = '';
+
+                    if (totalRecords === 0) {
+                        recordCountEl.textContent = 'Không có bản ghi nào.';
+                        return;
+                    }
+                    recordCountEl.textContent = `Tổng số ${totalRecords} mục.`;
+                    if (totalPages <= 1) return;
+
+                    const createButton = (text, page, isDisabled = false, isCurrent = false) => {
+                        const button = document.createElement('button');
+                        button.innerHTML = text;
+                        button.dataset.page = page;
+                        let baseClasses = 'px-3 py-1 rounded-lg border text-sm font-semibold transition-colors';
+                        if (isCurrent) button.className = `${baseClasses} bg-blue-600 text-white border-blue-600 cursor-default shadow-sm`;
+                        else if (isDisabled) button.className = `${baseClasses} bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed`;
+                        else button.className = `${baseClasses} bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700`;
+                        if (!isDisabled && !isCurrent) button.addEventListener('click', () => { this.currentPage = page; this.fetchData(); });
+                        return button;
+                    };
+
+                    paginationEl.appendChild(createButton('&laquo;', 1, currentPageNum === 1));
+                    paginationEl.appendChild(createButton('&lsaquo;', currentPageNum - 1, currentPageNum === 1));
+
+                    let startPage = Math.max(1, currentPageNum - 2);
+                    let endPage = Math.min(totalPages, currentPageNum + 2);
+                    if (currentPageNum <= 3) endPage = Math.min(5, totalPages);
+                    if (currentPageNum > totalPages - 3) startPage = Math.max(1, totalPages - 4);
+
+                    if (startPage > 1) {
+                        paginationEl.appendChild(createButton('1', 1));
+                        if (startPage > 2) paginationEl.insertAdjacentHTML('beforeend', `<span class="px-2 text-slate-400">...</span>`);
+                    }
+                    for (let i = startPage; i <= endPage; i++) {
+                        paginationEl.appendChild(createButton(i, i, false, i === currentPageNum));
+                    }
+                    if (endPage < totalPages) {
+                        if (endPage < totalPages - 1) paginationEl.insertAdjacentHTML('beforeend', `<span class="px-2 text-slate-400">...</span>`);
+                        paginationEl.appendChild(createButton(totalPages, totalPages));
+                    }
+
+                    paginationEl.appendChild(createButton('&rsaquo;', currentPageNum + 1, currentPageNum === totalPages));
+                    paginationEl.appendChild(createButton('&raquo;', totalPages, currentPageNum === totalPages));
+                },
+
+                // Modal and form methods
+                openAddModal: function() {
+                    this.isAddModalOpen = true;
+                    // Sử dụng $nextTick để đảm bảo form đã hiển thị trong DOM trước khi reset.
+                    // Điều này giúp xóa sạch dữ liệu từ lần nhập trước.
+                    this.$nextTick(() => {
+                        const form = document.getElementById('add-item-form');
+                        if (form) {
+                            form.reset();
+                            // Xóa cả giá trị hiển thị của ô tìm kiếm người báo cáo
+                            const searchInput = document.getElementById('add_reported_by_search');
+                            if (searchInput) searchInput.value = '';
+                        }
+                        this.reporterSuggestions = []; // Xóa danh sách gợi ý người báo cáo cũ
+                        this.recorderSuggestions = []; // Xóa danh sách gợi ý người ghi nhận cũ
+                    });
+                },
+                closeAddModal: function() { this.isAddModalOpen = false; },
+
+                openDetailsModal: function(item) {
+                    // Reset form state when opening
+                    const updateNotes = document.getElementById('update_notes');
+                    if (updateNotes) updateNotes.value = '';
+                    const returnForm = document.querySelector('form[x-show="updateAction === \'return\'"]');
+                    if(returnForm) returnForm.reset();
+                    this.selectedItem = item;
+                    this.updateAction = 'return'; // Reset
+                    this.isDetailsModalOpen = true;
+                },
+                closeDetailsModal: function() { this.isDetailsModalOpen = false; },
+
+                handleAmountInput: function(event) {
+                    let rawValue = event.target.value.replace(/[^0-9]/g, '');
+                    if (rawValue) {
+                        this.formattedDisposedAmount = new Intl.NumberFormat('vi-VN').format(parseInt(rawValue, 10));
+                    } else {
+                        this.formattedDisposedAmount = '';
+                    }
+                },
+
+                getRawAmount: function() {
+                    if (!this.formattedDisposedAmount) return '';
+                    return this.formattedDisposedAmount.replace(/[^0-9]/g, '');
+                },
+
+                formatDate: function(dateString) {
+                    if (!dateString) return 'N/A';
+                    // Luôn chỉ định múi giờ Việt Nam (UTC+7) khi hiển thị
+                    const options = { 
+                        day: '2-digit', month: '2-digit', year: 'numeric', 
+                        hour: '2-digit', minute: '2-digit',
+                        timeZone: 'Asia/Ho_Chi_Minh' 
+                    };
+                    return new Date(dateString).toLocaleString('vi-VN', options);
+                },
+
+                submitAddItemForm: async function(event) {
+                    const submitBtn = event.target.closest('.modal').querySelector('button[type="submit"]');
+                    const originalBtnText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = 'Đang lưu...';
+
+                    const formData = new FormData(event.target);
+
+                    // --- VALIDATION MỚI ---
+                    // Kiểm tra xem người báo cáo đã được chọn từ danh sách hay chưa (giá trị trong input ẩn)
+                    const reportedBy = formData.get('reported_by').trim();
+                    if (!reportedBy) {
+                        alert('Vui lòng chọn một "Người báo cáo" từ danh sách gợi ý.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        return;
+                    }
+
+                    // Thêm lại validation cho thông tin khách hàng
+                    const ownerName = formData.get('owner_name').trim();
+                    const ownerContact = formData.get('owner_contact').trim();
+
+                    if (!ownerName || !ownerContact) {
+                        alert('Vui lòng nhập đầy đủ Tên khách hàng và Thông tin liên hệ.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/lost-and-found/add', {
+                            method: 'POST',
+                            body: formData,
+                        });
+                        if (!response.ok) throw new Error('Server error');
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            alert(result.message);
+                            this.closeAddModal();
+                            this.currentPage = 1;
+                            this.fetchData(); // Tải lại dữ liệu thay vì reload trang
+                        } else {
+                            alert('Lỗi: ' + result.message);
+                        }
+                    } catch (error) {
+                        alert('Lỗi kết nối. Vui lòng thử lại.');
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                    }
+                },
+
+                selectReporter(reporter) {
+                    const searchInput = document.getElementById('add_reported_by_search');
+                    const hiddenInput = document.getElementById('add_reported_by');
+                    const valueToSet = `${reporter.name} (${reporter.code})`;
+                    searchInput.value = valueToSet;
+                    hiddenInput.value = valueToSet; // Cập nhật giá trị cho input ẩn
+                    this.reporterSuggestions = [];
+                },
+
+                openDetailsModal: function(item) {
+                    this.selectedItem = item;
+                    this.updateAction = 'return'; // Reset
+                    this.formattedDisposedAmount = item.disposed_amount ? new Intl.NumberFormat('vi-VN').format(item.disposed_amount) : '';
+                    this.isDetailsModalOpen = true;
+                },
+
+                selectRecorder(recorder) {
+                    const input = document.getElementById('add_recorded_by');
+                    const hiddenInput = document.getElementById('add_recorded_by_code');
+                    input.value = `${recorder.name} (${recorder.code})`;
+                    hiddenInput.value = recorder.code;
+                    this.recorderSuggestions = [];
+                },
+
+                selectDisposer(disposer) {
+                    const searchInput = document.getElementById('update_disposed_by_search');
+                    const hiddenInput = document.getElementById('update_disposed_by');
+                    const valueToSet = `${disposer.name} (${disposer.code})`;
+                    searchInput.value = valueToSet;
+                    hiddenInput.value = valueToSet;
+                    this.disposerSuggestions = [];
+                },
+
+                submitUpdateForm: async function(event) {
+                    const submitBtn = event.target.closest('.modal').querySelector('button[type="submit"]');
+                    const originalBtnText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = 'Đang lưu...';
+
+                    const formData = new FormData(event.target);
+
+                    // --- VALIDATION LOGIC ---
+                    if (this.updateAction === 'return') {
+                        const ownerName = formData.get('owner_name').trim();
+                        const ownerContact = formData.get('owner_contact').trim();
+                        if (!ownerName || !ownerContact) {
+                            alert('Vui lòng nhập đầy đủ Tên khách nhận và Thông tin liên hệ.');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnText;
+                            return; // Stop submission
+                        }
+                    } else if (this.updateAction === 'dispose') {
+                        const disposedBy = document.getElementById('update_disposed_by').value.trim();
+                        const disposedAmount = this.getRawAmount(); // Use the raw amount from Alpine data
+                        if (!disposedBy || !disposedAmount) {
+                            alert('Vui lòng chọn "Người thanh lý" từ danh sách và nhập "Số tiền".');
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalBtnText;
+                            return; // Stop submission
+                        }
+                    } else {
+                        alert('Vui lòng chọn một hành động: Đã trả khách hoặc Thanh lý.');
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        return;
+                    }
+
+                    formData.append('action', this.updateAction);
+
+                    try {
+                        const response = await fetch(`/lost-and-found/update/${this.selectedItem.id}`, {
+                            method: 'POST',
+                            body: formData,
+                        });
+                        if (!response.ok) throw new Error('Server error');
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            alert(result.message);
+                            this.closeDetailsModal();
+                            this.fetchData(); // Tải lại dữ liệu thay vì reload trang
+                        } else {
+                            alert('Lỗi: ' + result.message);
+                        }
+                    } catch (error) {
+                        alert('Lỗi kết nối. Vui lòng thử lại.');
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                    }
+                },
+
+                deleteItem: async function (itemId) {
+                    const isHardDelete = this.userRole === 'admin' || this.userRole === 'boss';
+                    const confirmMessage = isHardDelete
+                        ? 'Bạn có chắc chắn muốn XÓA VĨNH VIỄN món đồ này không? Hành động này không thể hoàn tác.'
+                        : 'Bạn có chắc chắn muốn xoá món đồ này không?';
+
+                    if (!confirm(confirmMessage)) return;
+
+                    try {
+                        const response = await fetch(`/lost-and-found/delete/${itemId}`, {
+                            method: 'POST',
+                        });
+                        if (!response.ok) {
+                            const err = await response.json();
+                            throw new Error(err.detail || 'Lỗi server');
+                        }
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            alert(result.message);
+                            this.closeDetailsModal();
+                            this.fetchData();
+                        } else {
+                            alert('Lỗi: ' + result.message);
+                        }
+                    } catch (error) {
+                        alert('Lỗi khi xóa: ' + error.message);
+                    }
+                }
+            };  
+        }
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("#found_date", {
+                dateFormat: "Y-m-d", // Định dạng gửi đi cho backend
+                altInput: true,      // Tạo một ô input hiển thị khác cho người dùng
+                altFormat: "d/m/Y",  // Định dạng hiển thị cho người dùng
+                locale: "vn",        // Sử dụng ngôn ngữ tiếng Việt
+                allowInput: true,    // Cho phép người dùng tự nhập
+            });
+        });
+    </script>
+</body>
+</html>
