@@ -3,17 +3,17 @@ from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTa
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates, Jinja2Templates
+from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from utils import parse_datetime_input, format_datetime_display, is_overdue
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Request
-from typing import Optional
+from typing import Optional, List
 from config import logger
 
 from database import SessionLocal, get_db, Base
-from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord
+from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord, LostAndFoundItem, LostItemStatus
 from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
 from database import init_db
 from sqlalchemy.orm import Session
@@ -48,6 +48,7 @@ from email.message import EmailMessage
 from datetime import datetime, timedelta, date
 from pytz import timezone
 from services.email_service import send_alert_email
+from fastapi.encoders import jsonable_encoder
 
 from employees import employees  # import danh sách nhân viên tĩnh
 
@@ -118,6 +119,7 @@ app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="binbin-hotel-secret")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+templates.env.filters['to_json_serializable'] = jsonable_encoder
 
 BRANCHES = [
     "B1", "B2", "B3",
@@ -1115,6 +1117,32 @@ def search_employees(
             )
         )
         employees = query.limit(50).all()
+    elif context == 'reporter_search':
+        # --- LOGIC MỚI: Dùng cho tìm kiếm người báo cáo trong module Đồ thất lạc ---
+        # Trả về tất cả nhân viên trừ admin và boss
+        query = db.query(User).filter(
+            ~User.role.in_(['admin', 'boss']),
+            or_(
+                User.code.ilike(search_pattern),
+                User.name.ilike(search_pattern)
+            )
+        )
+        employees = query.limit(20).all()
+        employee_list = [{"code": emp.code, "name": emp.name} for emp in employees]
+        return JSONResponse(content=employee_list)
+    elif context == 'all_users_search':
+        # --- LOGIC MỚI: Dùng cho tìm kiếm tất cả người dùng (bao gồm admin/boss) ---
+        # Được sử dụng cho ô "Người thanh lý" trong module Đồ thất lạc.
+        query = db.query(User).filter(
+            or_(
+                User.code.ilike(search_pattern),
+                User.name.ilike(search_pattern)
+            )
+        )
+        employees = query.limit(20).all()
+        employee_list = [{"code": emp.code, "name": emp.name} for emp in employees]
+        return JSONResponse(content=employee_list)
+
     else:
         # --- LOGIC CŨ: Dùng cho các trường hợp khác (trang điểm danh, admin/boss, etc.) ---
         query = db.query(User).filter(
@@ -1778,7 +1806,7 @@ from datetime import datetime
 from employees import employees
 
 # Danh sách các bảng có cột id SERIAL cần reset sequence
-TABLES_WITH_SERIAL_ID = ["tasks", "attendance_log", "attendance_records", "service_records"]
+TABLES_WITH_SERIAL_ID = ["tasks", "attendance_log", "attendance_records", "service_records", "lost_and_found_items"]
 
 def reset_sequence(db, table_name: str, id_col: str = "id"):
     """
@@ -1837,6 +1865,342 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
+
+def get_lan_ip():
+    """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Không cần phải kết nối được, chỉ là một mẹo để lấy IP
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1' # Fallback nếu không lấy được IP
+    finally:
+        s.close()
+    return IP
+
+def get_active_branch(request: Request, db: Session, user_data: dict) -> Optional[str]:
+    """
+    Xác định chi nhánh hoạt động của người dùng theo thứ tự ưu tiên:
+    1. Chi nhánh từ session (vừa quét GPS trong phiên này).
+    2. Chi nhánh hoạt động cuối cùng đã lưu trong DB.
+    3. Chi nhánh mặc định của user (fallback).
+    """
+    username = user_data.get("code")
+    if not username:
+        return None
+
+    # 1. Lấy từ session (ưu tiên cao nhất)
+    active_branch = request.session.get("active_branch")
+    if active_branch:
+        return active_branch
+
+    # 2. Lấy từ DB
+    user_from_db = db.query(User).filter(User.code == username).first()
+    if user_from_db and hasattr(user_from_db, 'last_active_branch') and user_from_db.last_active_branch:
+        return user_from_db.last_active_branch
+
+    # 3. Lấy từ chi nhánh mặc định
+    return user_data.get("branch")
+
+@app.get("/api/lost-and-found", response_class=JSONResponse)
+async def api_lost_and_found_items(
+    request: Request,
+    db: Session = Depends(get_db),
+    page: int = 1,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    chi_nhanh: Optional[str] = None,
+    sort_by: Optional[str] = 'found_date',
+    sort_order: Optional[str] = 'desc',
+    found_date: Optional[str] = None,
+    reported_by: Optional[str] = None,
+):
+    user_data = request.session.get("user")
+    if not user_data: # Mở quyền cho tất cả user đã đăng nhập
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    query = db.query(LostAndFoundItem)
+
+    role = user_data.get("role")
+    # Tất cả các vai trò không phải admin/boss sẽ không thấy các mục đã bị "xóa mềm"
+    if role not in ["admin", "boss"]:
+        query = query.filter(LostAndFoundItem.status != LostItemStatus.DELETED)
+
+    role = user_data.get("role")
+    branch_to_filter = ""
+    if role == 'letan':
+        active_branch = get_active_branch(request, db, user_data)
+        branch_to_filter = chi_nhanh or active_branch
+    else: # quanly, admin, boss
+        branch_to_filter = chi_nhanh
+
+    if branch_to_filter:
+        query = query.filter(LostAndFoundItem.chi_nhanh == branch_to_filter)
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(or_(
+            LostAndFoundItem.item_name.ilike(search_pattern),
+            LostAndFoundItem.description.ilike(search_pattern),
+            LostAndFoundItem.found_location.ilike(search_pattern),
+            LostAndFoundItem.recorded_by.ilike(search_pattern),
+            LostAndFoundItem.owner_name.ilike(search_pattern),
+            LostAndFoundItem.reported_by.ilike(search_pattern),
+        ))
+
+    if status:
+        try:
+            # Chuyển đổi chuỗi status thành enum member để đảm bảo type safety
+            status_enum = LostItemStatus(status)
+            query = query.filter(LostAndFoundItem.status == status_enum)
+        except ValueError:
+            pass # Bỏ qua nếu status không hợp lệ
+
+    if found_date:
+        try:
+            # 1. Parse ngày người dùng chọn từ bộ lọc.
+            parsed_date = datetime.strptime(found_date, "%Y-%m-%d").date()
+
+            # 2. Tạo khoảng thời gian bắt đầu và kết thúc của ngày đó THEO MÚI GIỜ VIỆT NAM.
+            # Bắt đầu từ 00:00:00 của ngày đã chọn.
+            start_of_day_vn = VN_TZ.localize(datetime.combine(parsed_date, datetime.min.time()))
+            # Kết thúc vào 23:59:59 của ngày đã chọn.
+            end_of_day_vn = VN_TZ.localize(datetime.combine(parsed_date, datetime.max.time()))
+
+            # 3. Lọc các bản ghi có found_date nằm trong khoảng thời gian trên.
+            # SQLAlchemy sẽ tự động xử lý việc chuyển đổi múi giờ khi so sánh với DB.
+            query = query.filter(LostAndFoundItem.found_date.between(start_of_day_vn, end_of_day_vn))
+        except (ValueError, TypeError):
+            pass # Bỏ qua nếu định dạng ngày không hợp lệ
+
+    if reported_by:
+        query = query.filter(LostAndFoundItem.reported_by.ilike(f"%{reported_by}%"))
+
+    # Sắp xếp theo logic mới:
+    # 1. Ưu tiên trạng thái: Đang lưu giữ > Đã trả khách > Thanh lý > Đã xoá
+    # 2. Sau đó theo ngày mới nhất (ưu tiên ngày trả, fallback về ngày tìm thấy)
+    status_order = case(
+        {
+            LostItemStatus.STORED: 1,
+            LostItemStatus.RETURNED: 2,
+            LostItemStatus.DISPOSED: 3,
+            LostItemStatus.DELETED: 4,
+        },
+        value=LostAndFoundItem.status,
+        else_=99
+    )
+    sort_expression = desc(func.coalesce(LostAndFoundItem.return_date, LostAndFoundItem.found_date))
+
+    # Apply sorting
+    query = query.order_by(asc(status_order), sort_expression)
+
+    total_records = query.count()
+    items = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    return {"records": jsonable_encoder(items), "currentPage": page, "totalPages": math.ceil(total_records / per_page), "totalRecords": total_records}
+
+class BatchDeleteLostItemsPayload(BaseModel):
+    ids: List[int]
+
+
+# --- Lost & Found Endpoints ---
+
+@app.get("/lost-and-found", response_class=HTMLResponse)
+async def lost_and_found_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    chi_nhanh: Optional[str] = None
+):
+    user_data = request.session.get("user")
+    if not user_data: # Mở quyền cho tất cả user đã đăng nhập
+        return RedirectResponse("/choose-function", status_code=303)
+
+    role = user_data.get("role")
+    if role == 'letan':
+        active_branch = get_active_branch(request, db, user_data)
+    else:
+        active_branch = ""
+    
+    return templates.TemplateResponse("lost_and_found.html", {
+        "request": request,
+        "user": user_data,
+        "statuses": [s.value for s in LostItemStatus if s != LostItemStatus.DELETED],
+        "initial_branch_filter": active_branch,
+        "branches": BRANCHES,
+        "branch_filter": chi_nhanh,
+        "status_filter": status,
+    })
+
+@app.post("/lost-and-found/add", response_class=JSONResponse)
+async def add_lost_item(request: Request, db: Session = Depends(get_db)):
+    user_data = request.session.get("user")
+    if not user_data:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    form_data = await request.form()
+    role = user_data.get("role")
+    chi_nhanh_form = form_data.get("chi_nhanh")
+
+    # Lễ tân sẽ tự động gán chi nhánh hiện tại. Các role khác có thể chọn.
+    if role == 'letan':
+        active_branch = get_active_branch(request, db, user_data)
+        item_branch = active_branch
+    else:
+        item_branch = chi_nhanh_form
+
+    # Admin/Boss có thể ghi nhận cho người khác, các role khác tự động ghi nhận là chính mình.
+    recorded_by_code = user_data.get("code") # Mặc định là người đang đăng nhập
+    if role in ['admin', 'boss']:
+        # Lấy mã người ghi nhận từ form, nếu có
+        recorded_by_from_form = form_data.get("recorded_by")
+        # Chỉ ghi đè nếu có giá trị được gửi lên và không rỗng
+        if recorded_by_from_form:
+            recorded_by_code = recorded_by_from_form
+
+    new_item = LostAndFoundItem(
+        item_name=form_data.get("item_name"),
+        description=form_data.get("description"),
+        found_location=form_data.get("found_location"),
+        reported_by=form_data.get("reported_by"),
+        owner_name=form_data.get("owner_name"),
+        owner_contact=form_data.get("owner_contact"),
+        notes=form_data.get("notes"),
+        chi_nhanh=item_branch,
+        found_date=datetime.now(VN_TZ),
+        recorded_by=recorded_by_code
+    )
+    db.add(new_item)
+    db.commit()
+    return JSONResponse({"status": "success", "message": "Đã thêm món đồ thành công."})
+
+@app.post("/lost-and-found/update/{item_id}", response_class=JSONResponse)
+async def update_lost_item(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user_data = request.session.get("user")
+    if not user_data: # Mở quyền cho tất cả user đã đăng nhập
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    item = db.query(LostAndFoundItem).filter(LostAndFoundItem.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    form_data = await request.form()
+    action = form_data.get("action")
+
+    if action == "return":
+        item.status = LostItemStatus.RETURNED
+        item.owner_name = form_data.get("owner_name")
+        item.owner_contact = form_data.get("owner_contact")
+        item.return_date = datetime.now(VN_TZ)
+    elif action == "dispose":
+        item.status = LostItemStatus.DISPOSED
+        item.disposed_by = form_data.get("disposed_by")
+        item.return_date = datetime.now(VN_TZ)
+        try:
+            disposed_amount_str = form_data.get("disposed_amount")
+            if disposed_amount_str:
+                item.disposed_amount = float(disposed_amount_str)
+            else:
+                item.disposed_amount = None
+        except (ValueError, TypeError):
+            item.disposed_amount = None
+
+    # Chỉ cập nhật ghi chú nếu người dùng nhập nội dung mới.
+    # Nếu để trống, ghi chú cũ sẽ được giữ lại để tránh mất dữ liệu.
+    updated_notes = form_data.get("notes")
+    if updated_notes:
+        item.notes = updated_notes
+    db.commit()
+    return JSONResponse({"status": "success", "message": "Đã cập nhật trạng thái."})
+
+@app.post("/lost-and-found/delete/{item_id}", response_class=JSONResponse)
+async def delete_lost_item(item_id: int, request: Request, db: Session = Depends(get_db)):
+    user_data = request.session.get("user")
+    if not user_data: # Mở quyền cho tất cả user đã đăng nhập
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    user_role = user_data.get("role")
+    if user_role in ["admin", "boss"]:
+        # Admin/Boss: Xóa vĩnh viễn (hard delete)
+        item = db.query(LostAndFoundItem).filter(LostAndFoundItem.id == item_id).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found")
+        db.delete(item)
+        db.commit()
+        return JSONResponse({"status": "success", "message": "Đã xóa vĩnh viễn món đồ."})
+    else:
+        # Các vai trò khác: Cập nhật trạng thái thành "Đã xoá" (soft delete)
+        # Sử dụng query.update() để đảm bảo chỉ có một câu lệnh UPDATE được thực thi,
+        # tránh các vấn đề tiềm ẩn về trạng thái của object.
+        deleter_info = f"{user_data.get('name', '')} ({user_data.get('code', '')})"
+        updated_count = db.query(LostAndFoundItem).filter(LostAndFoundItem.id == item_id).update(
+            {
+                "status": LostItemStatus.DELETED.value,
+                "deleted_by": deleter_info,
+                "deleted_date": datetime.now(VN_TZ)
+            }, synchronize_session=False
+        )
+        if updated_count == 0:
+            db.rollback()
+            raise HTTPException(status_code=404, detail="Item not found to delete.")
+        db.commit()
+        return JSONResponse({"status": "success", "message": "Đã xóa món đồ thành công."})
+
+@app.post("/lost-and-found/batch-delete", response_class=JSONResponse)
+async def batch_delete_lost_items(
+    payload: BatchDeleteLostItemsPayload,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    user_data = request.session.get("user")
+    user_role = user_data.get("role") if user_data else None
+    if not user_role: # Mở quyền cho tất cả user đã đăng nhập
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    if not payload.ids:
+        return JSONResponse({"status": "noop", "message": "Không có mục nào được chọn để xóa."})
+
+    try:
+        if user_role in ["admin", "boss"]:
+            # Admin/Boss: Xóa vĩnh viễn
+            num_deleted = db.query(LostAndFoundItem).filter(LostAndFoundItem.id.in_(payload.ids)).delete(synchronize_session=False)
+            db.commit()
+            return JSONResponse({"status": "success", "message": f"Đã xóa vĩnh viễn {num_deleted} mục."})
+        else:
+            # Các vai trò khác: Ẩn đi
+            num_updated = db.query(LostAndFoundItem).filter(LostAndFoundItem.id.in_(payload.ids)).update({"status": LostItemStatus.DELETED.value}, synchronize_session=False)
+            db.commit()
+            return JSONResponse({"status": "success", "message": f"Đã xóa thành công {num_updated} mục."})
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Lỗi khi xóa hàng loạt đồ thất lạc: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Lỗi server khi xóa.")
+
+@app.get("/api/users/search-login-users", response_class=JSONResponse)
+def search_login_users(q: str = "", db: Session = Depends(get_db)):
+    """API để tìm kiếm người dùng có quyền đăng nhập (lễ tân, ql, ktv, admin, boss)."""
+    if not q:
+        return JSONResponse(content=[])
+    
+    search_pattern = f"%{q}%"
+    allowed_roles = ["letan", "quanly", "ktv", "admin", "boss"]
+    
+    users = db.query(User).filter(
+        User.role.in_(allowed_roles),
+        or_(
+            User.code.ilike(search_pattern),
+            User.name.ilike(search_pattern)
+        )
+    ).limit(20).all()
+    
+    user_list = [
+        {"code": user.code, "name": user.name}
+        for user in users
+    ]
+    return JSONResponse(content=user_list)
 
 def get_lan_ip():
     """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
