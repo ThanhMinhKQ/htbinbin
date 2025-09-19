@@ -121,6 +121,15 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters['to_json_serializable'] = jsonable_encoder
 
+@app.api_route("/ping", methods=["GET", "HEAD"])
+async def ping():
+    """
+    Endpoint công khai để giữ cho dịch vụ (và database) luôn "thức".
+    UptimeRobot hoặc các dịch vụ tương tự có thể gọi endpoint này định kỳ.
+    Hỗ trợ cả GET và HEAD request để tương thích với nhiều dịch vụ monitoring.
+    """
+    return {"status": "ok"}
+
 BRANCHES = [
     "B1", "B2", "B3",
     "B5", "B6", "B7",
