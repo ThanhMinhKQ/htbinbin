@@ -1,6 +1,7 @@
 employees = [
 #--------------------------------------- BIN BIN HOTEL 1 --------------------------------------------#
     {"code": "B1LTCS", "name": "Phạm Thị Quỳnh Như", "department": "Lễ tân", "branch": "B1", "role": "letan"},
+    {"code": "B1LTCS02", "name": "Tô Thị Cẩm Tú", "department": "Lễ tân", "branch": "B1", "role": "letan"},
     {"code": "B1LTCT", "name": "Trần Thị Mỹ Diễm", "department": "Lễ tân", "branch": "B1", "role": "letan"},
     {"code": "B1BPCS", "name": "Đỗ Kim Phượng", "department": "Buồng phòng", "branch": "B1", "role": "buongphong"},
 #--------------------------------------- BIN BIN HOTEL 2 --------------------------------------------#
