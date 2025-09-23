@@ -1,5 +1,5 @@
 import secrets
-from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTasks, Response
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +9,7 @@ from utils import parse_datetime_input, format_datetime_display, is_overdue
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Request
-from typing import Optional, List
+from typing import Optional, List, Any
 from config import logger
 
 from database import SessionLocal, get_db, Base
@@ -49,6 +49,22 @@ from datetime import datetime, timedelta, date
 from pytz import timezone
 from services.email_service import send_alert_email
 from fastapi.encoders import jsonable_encoder
+
+# --- Tối ưu Logging: Lọc bỏ các request polling không cần thiết ---
+import logging
+
+class NoCheckinStatusFilter(logging.Filter):
+    """
+    Filter để ngăn uvicorn ghi log cho endpoint polling /attendance/checkin_status.
+    """
+    def filter(self, record: logging.LogRecord) -> bool:
+        # args của access log thường là (client_addr, method, path, http_version, status_code)
+        # Kiểm tra xem có phải là access log và có đúng path cần lọc không.
+        if len(record.args) >= 3 and isinstance(record.args[2], str):
+            return not record.args[2].startswith("/attendance/checkin_status")
+        return True
+
+logging.getLogger("uvicorn.access").addFilter(NoCheckinStatusFilter())
 
 from employees import employees  # import danh sách nhân viên tĩnh
 
@@ -155,7 +171,7 @@ branchCoordinates = {
     "B14": [10.742557513695218,106.69945313180673],
     "B15": [10.775572501574938,106.75167172807936],
     "B16": [10.760347394497392,106.69043939445082],
-    "B17": [10.705910214361237, 106.70783236311274],
+    "B17": [10.705910214361237, 106.70783236311274], # Đã có B17, đảm bảo nó không bị comment
 }
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -1048,11 +1064,15 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             others = [emp for emp in others if match_shift(emp.code)]
             employees = sorted(lt_self + others, key=lambda e: e.name)
 
-        elif user and user.get("role") in ["quanly", "ktv"]:
-            # ✅ Quản lý và KTV chỉ thấy chính họ (bỏ lọc chi nhánh, bỏ shift)
-            employees = db.query(User).filter(
-                User.code == user.get("code")
-            ).all()
+        elif user and user.get("role") == "ktv":
+            # ✅ KTV: Nếu ở chi nhánh "KTV", thấy tất cả KTV. Nếu ở chi nhánh khác, chỉ thấy mình.
+            if branch_id == "ktv":
+                employees = db.query(User).filter(User.role == "ktv").order_by(User.name).all()
+            else:
+                employees = db.query(User).filter(User.code == user.get("code")).all()
+        elif user and user.get("role") == "quanly":
+            # ✅ Quản lý chỉ thấy chính họ
+            employees = db.query(User).filter(User.code == user.get("code")).all()
 
         elif user and user.get("role") in ["admin", "boss"]:
             # ✅ Admin và Boss thấy tất cả nhân viên của chi nhánh, không lọc shift
