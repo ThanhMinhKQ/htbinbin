@@ -135,7 +135,7 @@ BRANCHES = [
     "B5", "B6", "B7",
     "B8", "B9", "B10",
     "B11", "B12", "B14",
-    "B15", "B16"
+    "B15", "B16", "B17"
 ]
 
 from math import radians, cos, sin, sqrt, atan2
@@ -155,6 +155,7 @@ branchCoordinates = {
     "B14": [10.742557513695218,106.69945313180673],
     "B15": [10.775572501574938,106.75167172807936],
     "B16": [10.760347394497392,106.69043939445082],
+    "B17": [10.705910214361237, 106.70783236311274],
 }
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -489,8 +490,11 @@ def view_attendance_calendar(
             svc_location_filter = (User.code.startswith(prefix_to_filter))
         elif chi_nhanh in BRANCHES:
             # Lọc theo chi nhánh làm việc
-            att_location_filter = (AttendanceRecord.chi_nhanh_lam == chi_nhanh)
-            svc_location_filter = (ServiceRecord.chi_nhanh_lam == chi_nhanh)
+            # Lấy các bản ghi CÓ chi nhánh làm việc là chi nhánh đang xem,
+            # HOẶC các bản ghi của nhân viên CÓ chi nhánh chính là chi nhánh đang xem.
+            # Điều này đảm bảo nhân viên của chi nhánh luôn hiện diện, kể cả khi họ đi làm ở nơi khác.
+            att_location_filter = or_(AttendanceRecord.chi_nhanh_lam == chi_nhanh, User.branch == chi_nhanh)
+            svc_location_filter = or_(ServiceRecord.chi_nhanh_lam == chi_nhanh, User.branch == chi_nhanh)
         
         # Chỉ thực hiện query nếu có bộ lọc hợp lệ
         if att_location_filter is not None:
