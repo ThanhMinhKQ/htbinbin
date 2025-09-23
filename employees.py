@@ -76,6 +76,10 @@ employees = [
     {"code": "B16LTCT", "name": "Lê Hữu Nghĩa", "department": "Lễ tân", "branch": "B16", "role": "letan"},
     {"code": "B16BPCT", "name": "Trần Thanh Phú", "department": "Buồng phòng", "branch": "B16", "role": "buongphong"},
     {"code": "B16BPCS", "name": "Lê Thị Tám", "department": "Buồng phòng", "branch": "B16", "role": "buongphong"},
+# --------------------------------------- BIN BIN HOTEL 17 --------------------------------------------#
+#     {"code": "B17LTCS", "name": "Tên Lễ Tân Ca Sáng", "department": "Lễ tân", "branch": "B17", "role": "letan"},
+#     {"code": "B17LTCT", "name": "Tên Lễ Tân Ca Tối", "department": "Lễ tân", "branch": "B17", "role": "letan"},
+#     {"code": "B17BPCS", "name": "Tên Buồng Phòng Ca Sáng", "department": "Buồng phòng", "branch": "B17", "role": "buongphong"},
 #--------------------------------------- LỄ TÂN CHẠY CA --------------------------------------------#
     {"code": "LTTC01", "name": "Lê Minh Trung", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc1", "role": "letan"},
     {"code": "LTTC02", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc3", "role": "letan"},
