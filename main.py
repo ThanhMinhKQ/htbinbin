@@ -1,5 +1,5 @@
 import secrets
-from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTasks, Response
+from fastapi import FastAPI, Request, Form, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, FileResponse, Response, StreamingResponse
 from pydantic import BaseModel
 from fastapi.staticfiles import StaticFiles
@@ -9,7 +9,7 @@ from utils import parse_datetime_input, format_datetime_display, is_overdue
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Request
-from typing import Optional, List, Any
+from typing import Optional, List
 from config import logger
 
 from database import SessionLocal, get_db, Base
@@ -49,22 +49,6 @@ from datetime import datetime, timedelta, date
 from pytz import timezone
 from services.email_service import send_alert_email
 from fastapi.encoders import jsonable_encoder
-
-# --- Tối ưu Logging: Lọc bỏ các request polling không cần thiết ---
-import logging
-
-class NoCheckinStatusFilter(logging.Filter):
-    """
-    Filter để ngăn uvicorn ghi log cho endpoint polling /attendance/checkin_status.
-    """
-    def filter(self, record: logging.LogRecord) -> bool:
-        # args của access log thường là (client_addr, method, path, http_version, status_code)
-        # Kiểm tra xem có phải là access log và có đúng path cần lọc không.
-        if len(record.args) >= 3 and isinstance(record.args[2], str):
-            return not record.args[2].startswith("/attendance/checkin_status")
-        return True
-
-logging.getLogger("uvicorn.access").addFilter(NoCheckinStatusFilter())
 
 from employees import employees  # import danh sách nhân viên tĩnh
 
@@ -137,12 +121,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 templates.env.filters['to_json_serializable'] = jsonable_encoder
 
-@app.api_route("/ping", methods=["GET", "HEAD"])
+@app.get("/ping")
 async def ping():
     """
     Endpoint công khai để giữ cho dịch vụ (và database) luôn "thức".
     UptimeRobot hoặc các dịch vụ tương tự có thể gọi endpoint này định kỳ.
-    Hỗ trợ cả GET và HEAD request để tương thích với nhiều dịch vụ monitoring.
     """
     return {"status": "ok"}
 
@@ -171,7 +154,7 @@ branchCoordinates = {
     "B14": [10.742557513695218,106.69945313180673],
     "B15": [10.775572501574938,106.75167172807936],
     "B16": [10.760347394497392,106.69043939445082],
-    "B17": [10.705910214361237, 106.70783236311274], # Đã có B17, đảm bảo nó không bị comment
+    "B17": [10.70590976421059, 106.7078826381241], # TODO: Cập nhật tọa độ GPS chính xác cho chi nhánh B17
 }
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -487,6 +470,42 @@ def view_attendance_calendar(
     })
 
     if chi_nhanh:
+        # --- BƯỚC 1: Lấy danh sách nhân viên cơ sở thuộc về chi nhánh/vai trò đang xem ---
+        # Điều này đảm bảo tất cả nhân viên chính thức sẽ luôn xuất hiện trong lịch,
+        # ngay cả khi họ không có ngày công nào trong tháng.
+        base_employee_query = db.query(User.code, User.name, User.role, User.branch)
+        
+        role_map_filter = {"KTV": "ktv", "Quản lý": "quanly"}
+        code_prefix_filter = {"LTTC": "LTTC", "BPTC": "BPTC"}
+
+        if chi_nhanh in role_map_filter:
+            base_employee_query = base_employee_query.filter(User.role == role_map_filter[chi_nhanh])
+        elif chi_nhanh in code_prefix_filter:
+            base_employee_query = base_employee_query.filter(User.code.startswith(code_prefix_filter[chi_nhanh]))
+        elif chi_nhanh in BRANCHES:
+            base_employee_query = base_employee_query.filter(User.branch == chi_nhanh)
+        else:
+            base_employee_query = None # Không có bộ lọc hợp lệ
+
+        if base_employee_query:
+            base_employees = base_employee_query.all()
+            for emp in base_employees:
+                emp_code = emp.code
+                if emp_code not in employee_data:
+                    employee_data[emp_code]["name"] = emp.name
+                    employee_data[emp_code]["main_branch"] = emp.branch
+
+                    # Xác định role_key để sắp xếp, ưu tiên LTTC/BPTC
+                    emp_role_key = emp.role or "khac"
+                    if "LTTC" in emp_code.upper():
+                        emp_role_key = "lttc"
+                    elif "BPTC" in emp_code.upper():
+                        emp_role_key = "bptc"
+                    
+                    employee_data[emp_code]["role_key"] = emp_role_key
+                    employee_data[emp_code]["role"] = map_role_to_vietnamese(emp.role)
+
+
         # --- Xây dựng bộ lọc dựa trên lựa chọn ---
         att_location_filter = None
         svc_location_filter = None
@@ -494,7 +513,7 @@ def view_attendance_calendar(
         role_map_filter = {"KTV": "ktv", "Quản lý": "quanly"}
         code_prefix_filter = {"LTTC": "LTTC", "BPTC": "BPTC"}
 
-        if chi_nhanh in role_map_filter:
+        if chi_nhanh in role_map_filter: # Lọc bản ghi theo vai trò
             # Lọc theo vai trò nếu chọn KTV hoặc Quản lý
             role_to_filter = role_map_filter[chi_nhanh]
             att_location_filter = (User.role == role_to_filter)
@@ -504,13 +523,13 @@ def view_attendance_calendar(
             prefix_to_filter = code_prefix_filter[chi_nhanh]
             att_location_filter = (User.code.startswith(prefix_to_filter))
             svc_location_filter = (User.code.startswith(prefix_to_filter))
-        elif chi_nhanh in BRANCHES:
-            # Lọc theo chi nhánh làm việc
-            # Lấy các bản ghi CÓ chi nhánh làm việc là chi nhánh đang xem,
-            # HOẶC các bản ghi của nhân viên CÓ chi nhánh chính là chi nhánh đang xem.
-            # Điều này đảm bảo nhân viên của chi nhánh luôn hiện diện, kể cả khi họ đi làm ở nơi khác.
-            att_location_filter = or_(AttendanceRecord.chi_nhanh_lam == chi_nhanh, User.branch == chi_nhanh)
-            svc_location_filter = or_(ServiceRecord.chi_nhanh_lam == chi_nhanh, User.branch == chi_nhanh)
+        elif chi_nhanh in BRANCHES: # Lọc bản ghi theo chi nhánh
+            # Chỉ lấy các bản ghi chấm công/dịch vụ được thực hiện TẠI chi nhánh đang xem.
+            # Danh sách nhân viên đầy đủ của chi nhánh đã được lấy ở Bước 1,
+            # nên ở đây ta không cần lấy tất cả các bản ghi của họ ở những nơi khác nữa.
+            att_location_filter = (AttendanceRecord.chi_nhanh_lam == chi_nhanh)
+            svc_location_filter = (ServiceRecord.chi_nhanh_lam == chi_nhanh)
+
         
         # Chỉ thực hiện query nếu có bộ lọc hợp lệ
         if att_location_filter is not None:
@@ -1064,15 +1083,11 @@ def get_employees_by_branch(branch_id: str, db: Session = Depends(get_db), reque
             others = [emp for emp in others if match_shift(emp.code)]
             employees = sorted(lt_self + others, key=lambda e: e.name)
 
-        elif user and user.get("role") == "ktv":
-            # ✅ KTV: Nếu ở chi nhánh "KTV", thấy tất cả KTV. Nếu ở chi nhánh khác, chỉ thấy mình.
-            if branch_id == "ktv":
-                employees = db.query(User).filter(User.role == "ktv").order_by(User.name).all()
-            else:
-                employees = db.query(User).filter(User.code == user.get("code")).all()
-        elif user and user.get("role") == "quanly":
-            # ✅ Quản lý chỉ thấy chính họ
-            employees = db.query(User).filter(User.code == user.get("code")).all()
+        elif user and user.get("role") in ["quanly", "ktv"]:
+            # ✅ Quản lý và KTV chỉ thấy chính họ (bỏ lọc chi nhánh, bỏ shift)
+            employees = db.query(User).filter(
+                User.code == user.get("code")
+            ).all()
 
         elif user and user.get("role") in ["admin", "boss"]:
             # ✅ Admin và Boss thấy tất cả nhân viên của chi nhánh, không lọc shift
