@@ -1311,7 +1311,11 @@
                         return;
                     }
                     searchTimeout = setTimeout(() => {
-                        fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}`)
+                        // Kiểm tra xem có đang thêm bản ghi dịch vụ không
+                        const isServiceMode = document.getElementById('modal-record-type').value === 'service';
+                        const roleFilterParam = isServiceMode ? '&role_filter=buongphong' : '';
+
+                        fetch(`/attendance/api/employees/search?q=${encodeURIComponent(query)}${roleFilterParam}`)
                             .then(res => res.json())
                             .then(employees => {
                                 employeeSearchResults.innerHTML = '';
