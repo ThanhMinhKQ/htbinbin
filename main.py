@@ -12,10 +12,10 @@ from fastapi import Request
 from typing import Optional, List
 from config import logger
 
-from database import SessionLocal, get_db, Base
+from database import SessionLocal, get_db, Base, engine
 from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord, LostAndFoundItem, LostItemStatus
 from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
-from database import init_db
+from sqlalchemy.pool import NullPool
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, cast, Date, desc
 from sqlalchemy.exc import SQLAlchemyError
@@ -127,7 +127,25 @@ async def ping():
     Endpoint công khai để giữ cho dịch vụ (và database) luôn "thức".
     UptimeRobot hoặc các dịch vụ tương tự có thể gọi endpoint này định kỳ.
     """
-    return {"status": "ok"}
+    pool = engine.pool
+    
+    if isinstance(pool, NullPool):
+        pool_status = {
+            "status": "ok",
+            "pool_class": "NullPool",
+            "message": "SQLAlchemy connection pooling is disabled (using NullPool)."
+        }
+    else:
+        pool_status = {
+            "status": "ok",
+            "pool_class": type(pool).__name__,
+            "pool_size": pool.size(),
+            "connections_in_pool": pool.checkedin(),
+            "connections_checked_out": pool.checkedout(),
+            "overflow": pool.overflow(),
+        }
+    logger.info(f"[DB_POOL_STATUS] {pool_status}")
+    return pool_status
 
 BRANCHES = [
     "B1", "B2", "B3",
@@ -835,13 +853,14 @@ def login_form(request: Request):
     user = request.session.get("user")
     if user:
         today = date.today()
-        db = SessionLocal()
-        try:
-            log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
-            if log and log.checked_in:
-                    return RedirectResponse(url="/choose-function", status_code=303)
-        finally:
-            db.close()
+        with SessionLocal() as db:
+            try:
+                log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+                if log and log.checked_in:
+                        return RedirectResponse(url="/choose-function", status_code=303)
+            except Exception as e:
+                logger.error(f"Lỗi khi kiểm tra log đăng nhập trong /login: {e}", exc_info=True)
+
     error = request.query_params.get("error", "")
     role = request.query_params.get("role", "")
     response = templates.TemplateResponse("login.html", {
@@ -989,21 +1008,22 @@ def require_checked_in_user(request: Request):
         return True
 
     work_date, _ = get_current_work_shift()
-    db = SessionLocal()
-    try:
-        # Kiểm tra xem có bất kỳ log nào đã check-in trong ngày làm việc hiện tại không
-        # (ca ngày hoặc ca đêm).
-        log = db.query(AttendanceLog).filter(
-            AttendanceLog.user_code == user["code"],
-            AttendanceLog.date == work_date,
-            AttendanceLog.checked_in == True
-        ).first()
+    with SessionLocal() as db:
+        try:
+            # Kiểm tra xem có bất kỳ log nào đã check-in trong ngày làm việc hiện tại không
+            # (ca ngày hoặc ca đêm).
+            log = db.query(AttendanceLog).filter(
+                AttendanceLog.user_code == user["code"],
+                AttendanceLog.date == work_date,
+                AttendanceLog.checked_in == True
+            ).first()
 
-        # Cho phép vào nếu có log checked_in trong DB hoặc vừa quét QR xong
-        if (log and log.checked_in) or request.session.get("after_checkin") == "choose_function":
-            return True
-    finally:
-        db.close()
+            # Cho phép vào nếu có log checked_in trong DB hoặc vừa quét QR xong
+            if (log and log.checked_in) or request.session.get("after_checkin") == "choose_function":
+                return True
+        except Exception as e:
+            logger.error(f"Lỗi khi kiểm tra trạng thái đăng nhập trong middleware: {e}", exc_info=True)
+            return False # An toàn là trên hết, nếu lỗi DB thì không cho vào
 
     return False
 
@@ -1736,6 +1756,7 @@ async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
 from employees import employees
 from database import SessionLocal
 from models import User
+
 def sync_employees_from_source(db: Session, employees: list[dict], force_delete: bool = False):
     allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
     seen_codes = set()
@@ -1798,10 +1819,9 @@ def sync_employees_endpoint(request: Request):
     user = request.session.get("user")
     if not user or user.get("role") not in ["admin", "boss"]:
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
-    db = SessionLocal()
-    sync_employees_from_source(db=db, employees=employees, force_delete=True)
-    db.close()
-    return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py"}
+    with SessionLocal() as db:
+        sync_employees_from_source(db=db, employees=employees, force_delete=True)
+    return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py."}
 
 @app.get("/logout")
 def logout(request: Request):
@@ -1809,7 +1829,7 @@ def logout(request: Request):
     return RedirectResponse("/login", status_code=303)
 
 from sqlalchemy import text
-from database import SessionLocal, init_db
+from database import SessionLocal
 import os, time, threading, atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
@@ -1821,37 +1841,29 @@ def update_overdue_tasks_status():
     Sử dụng một câu lệnh UPDATE duy nhất để tối ưu hiệu suất và bộ nhớ.
     So sánh thời gian đầy đủ (datetime) để đảm bảo tính chính xác.
     """
-    db = SessionLocal()
-    try:
-        # Lấy thời gian hiện tại theo múi giờ Việt Nam
-        now_vn = datetime.now(VN_TZ)
-        
-        # Thực hiện một câu lệnh UPDATE trực tiếp trên DB.
-        # So sánh thời gian đầy đủ của han_hoan_thanh với thời gian hiện tại.
-        # Một công việc được coi là quá hạn nếu thời gian hiện tại đã vượt qua hạn hoàn thành.
-        updated_count = db.query(Task).filter(
-            Task.trang_thai == "Đang chờ",
-            Task.han_hoan_thanh < now_vn
-        ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
-        
-        db.commit()
+    with SessionLocal() as db:
+        try:
+            # Lấy thời gian hiện tại theo múi giờ Việt Nam
+            now_vn = datetime.now(VN_TZ)
+            
+            # Thực hiện một câu lệnh UPDATE trực tiếp trên DB.
+            # So sánh thời gian đầy đủ của han_hoan_thanh với thời gian hiện tại.
+            # Một công việc được coi là quá hạn nếu thời gian hiện tại đã vượt qua hạn hoàn thành.
+            updated_count = db.query(Task).filter(
+                Task.trang_thai == "Đang chờ",
+                Task.han_hoan_thanh < now_vn
+            ).update({"trang_thai": "Quá hạn"}, synchronize_session=False)
+            
+            db.commit()
 
-        if updated_count > 0:
-            logger.info(f"[AUTO_UPDATE_STATUS] Đã cập nhật {updated_count} công việc sang trạng thái 'Quá hạn'.")
-        else:
-            logger.info("[AUTO_UPDATE_STATUS] Không có công việc nào cần cập nhật trạng thái.")
+            if updated_count > 0:
+                logger.info(f"[AUTO_UPDATE_STATUS] Đã cập nhật {updated_count} công việc sang trạng thái 'Quá hạn'.")
+            else:
+                logger.info("[AUTO_UPDATE_STATUS] Không có công việc nào cần cập nhật trạng thái.")
 
-    except Exception as e:
-        logger.error(f"[AUTO_UPDATE_STATUS] Lỗi khi cập nhật trạng thái công việc quá hạn: {e}", exc_info=True)
-        db.rollback()
-    finally:
-        db.close()
-
-from database import SessionLocal, init_db
-import os, time, threading, atexit
-from apscheduler.schedulers.background import BackgroundScheduler
-from datetime import datetime
-from employees import employees
+        except Exception as e:
+            logger.error(f"[AUTO_UPDATE_STATUS] Lỗi khi cập nhật trạng thái công việc quá hạn: {e}", exc_info=True)
+            db.rollback()
 
 # Danh sách các bảng có cột id SERIAL cần reset sequence
 TABLES_WITH_SERIAL_ID = ["tasks", "attendance_log", "attendance_records", "service_records", "lost_and_found_items"]
@@ -1873,22 +1885,18 @@ def reset_sequence(db, table_name: str, id_col: str = "id"):
 def startup():
     logger.info("🚀 Khởi động ứng dụng...")
 
-    # --- 1. Init DB ---
-    init_db()
-
-    # --- 2. Reset sequence cho các bảng ---
+    # --- 1. Reset sequence cho các bảng ---
     with SessionLocal() as db:
         for table in TABLES_WITH_SERIAL_ID:
             reset_sequence(db, table)
-
-        # --- 3. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
+        # --- 2. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
         try:
             sync_employees_from_source(db=db, employees=employees, force_delete=False)
             logger.info("Hoàn tất đồng bộ nhân viên từ employees.py")
         except Exception as e:
             logger.error("Không thể đồng bộ nhân viên", exc_info=True)
 
-    # --- 4. Lập lịch các tác vụ nền ---
+    # --- 3. Lập lịch các tác vụ nền ---
     def auto_logout_job():
         logger.info("Kích hoạt đăng xuất tự động cho tất cả client.")
 
@@ -1904,7 +1912,7 @@ def startup():
     scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
     scheduler.start()
 
-    # --- 5. Shutdown scheduler khi app stop ---
+    # --- 4. Shutdown scheduler khi app stop ---
     atexit.register(lambda: scheduler.shutdown())
 
     logger.info("✅ Startup hoàn tất: DB init, reset sequence, sync nhân viên, lập lịch các tác vụ nền.")
@@ -2315,8 +2323,6 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
         "user": user
     })
 
-from services.attendance_service import push_bulk_checkin
-
 @app.post("/attendance/checkin_bulk")
 async def attendance_checkin_bulk(
     request: Request,
@@ -2352,7 +2358,6 @@ async def attendance_checkin_bulk(
     if user_role in special_roles:
         active_branch_from_payload = user_branch
 
-    normalized_data = []
     attendance_db_records = []
     service_db_records = []
     now_vn = datetime.now(VN_TZ)
@@ -2361,23 +2366,6 @@ async def attendance_checkin_bulk(
         # Luôn sử dụng thời gian từ server để đảm bảo tính chính xác và tránh sai lệch múi giờ từ client.
         thoi_gian_dt = now_vn
         thoi_gian_str = thoi_gian_dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        # Dữ liệu cho Google Sheets (giữ nguyên)
-        normalized_data.append({
-            "sheet": rec.get("sheet"),
-            "thoi_gian": thoi_gian_str, # Sử dụng thời gian server đã định dạng
-            "nguoi_diem_danh": nguoi_diem_danh_code,
-            "ma_nv": rec.get("ma_nv"),
-            "ten_nv": rec.get("ten_nv"),
-            "chi_nhanh_chinh": rec.get("chi_nhanh_chinh"),
-            "chi_nhanh_lam": active_branch_from_payload,
-            "la_tang_ca": "x" if rec.get("la_tang_ca") else "",
-            "so_cong_nv": rec.get("so_cong_nv") or 1,
-            "ghi_chu": rec.get("ghi_chu", ""),
-            "dich_vu": rec.get("dich_vu") or rec.get("service") or "",
-            "so_phong": rec.get("so_phong") or rec.get("room_count") or "",
-            "so_luong": rec.get("so_luong") or rec.get("item_count") or ""
-        })
 
         # Phân loại record để lưu vào DB
         is_service_record = any(rec.get(key) for key in ["dich_vu", "service", "so_phong", "room_count"])
@@ -2441,11 +2429,9 @@ async def attendance_checkin_bulk(
         db.rollback()
         logger.error(f"Lỗi khi lưu điểm danh/dịch vụ: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Lỗi khi lưu kết quả vào cơ sở dữ liệu.")
-
-    # Chạy push_bulk_checkin ở background để ghi vào Google Sheets
-    background_tasks.add_task(push_bulk_checkin, normalized_data)
-
-    logger.info(f"{nguoi_diem_danh_code} gửi {len(normalized_data)} record (ghi DB & queue ghi Sheets)")
+    
+    inserted_count = len(attendance_db_records) + len(service_db_records)
+    logger.info(f"{nguoi_diem_danh_code} đã ghi {inserted_count} bản ghi vào DB.")
 
     # Nếu đây là lần điểm danh ngay sau khi đăng nhập (trên mobile),
     # thì hoàn tất phiên đăng nhập và trả về URL để chuyển hướng.
@@ -2471,9 +2457,9 @@ async def attendance_checkin_bulk(
             }
             request.session["after_checkin"] = "choose_function"
             request.session.pop("pending_user", None)
-            return {"status": "queued", "inserted": len(normalized_data), "redirect_to": "/choose-function"}
+            return {"status": "success", "inserted": inserted_count, "redirect_to": "/choose-function"}
 
-    return {"status": "queued", "inserted": len(normalized_data)}
+    return {"status": "success", "inserted": inserted_count}
 
 @app.get("/api/attendance/last-checked-in-bp", response_class=JSONResponse)
 def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
