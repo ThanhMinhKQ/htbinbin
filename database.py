@@ -12,7 +12,10 @@ engine = create_engine(
         "prepare_threshold": None,
         "options": "-c TimeZone=Asia/Ho_Chi_Minh"
     },
-    poolclass=NullPool
+    poolclass=NullPool,
+    pool_pre_ping=True, # Kiểm tra kết nối trước mỗi lần checkout
+    pool_recycle=300,   # Tái sử dụng kết nối sau 300 giây
+    echo=False          # Tắt logging SQL query để tránh làm rối log
 )
 
 # Tạo một lớp Session để quản lý các phiên làm việc với DB
@@ -29,15 +32,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-def init_db():
-    """
-    Hàm này sẽ được gọi khi ứng dụng khởi động.
-    Nó import tất cả các model và tạo bảng trong database nếu chúng chưa tồn tại.
-    """
-    # Import tất cả các model để chúng được đăng ký
-    from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord, LostAndFoundItem
-
-    print("Đang khởi tạo database và tạo các bảng nếu chưa tồn tại...")
-    Base.metadata.create_all(bind=engine)
-    print("Hoàn tất khởi tạo database.")
