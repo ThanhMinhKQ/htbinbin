@@ -224,8 +224,8 @@
     /* Helpers */
     function escapeHtml(s){ return String(s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
     function escapeAttr(s){ return String(s||"").replaceAll('"','&quot;'); }
-    function departmentDisplay(dep){ const map={ letan:"Lễ tân",buongphong:"Buồng phòng",baove:"Bảo vệ", "hỗ trợ tăng ca": "Hỗ Trợ Tăng Ca" }; return map[dep?.toLowerCase()] || dep || ""; }
-    function branchDisplay(branch){ const map={ B1:"Bin Bin Hotel 1", B2:"Bin Bin Hotel 2", B3:"Bin Bin Hotel 3", B5:"Bin Bin Hotel 5", B6:"Bin Bin Hotel 6", B7:"Bin Bin Hotel 7", B8:"Bin Bin Hotel 8", B9:"Bin Bin Hotel 9", B10:"Bin Bin Hotel 10", B11:"Bin Bin Hotel 11", B12:"Bin Bin Hotel 12", B14:"Bin Bin Hotel 14", B15:"Bin Bin Hotel 15", B16:"Bin Bin Hotel 16", B17:"Bin Bin Hotel 17" }; return map[branch] || branch || ""; }
+    function departmentDisplay(dep){ const map={ letan:"Lễ tân",buongphong:"Buồng phòng",baove:"Bảo vệ", "hỗ trợ tăng ca": "Hỗ Trợ Tăng Ca", "kỹ thuật viên": "Kỹ thuật viên" }; return map[dep?.toLowerCase()] || dep || ""; }
+    function branchDisplay(branch){ const map={ B1:"Bin Bin Hotel 1", B2:"Bin Bin Hotel 2", B3:"Bin Bin Hotel 3", B5:"Bin Bin Hotel 5", B6:"Bin Bin Hotel 6", B7:"Bin Bin Hotel 7", B8:"Bin Bin Hotel 8", B9:"Bin Bin Hotel 9", B10:"Bin Bin Hotel 10", B11:"Bin Bin Hotel 11", B12:"Bin Bin Hotel 12", B14:"Bin Bin Hotel 14", B15:"Bin Bin Hotel 15", B16:"Bin Bin Hotel 16", B17:"Bin Bin Hotel 17", KTV:"Chi nhánh KTV" }; return map[branch] || branch || ""; }
 
     /* ===== Status Modal Logic ===== */
     function updateEmployeeOvertime(emp) {
