@@ -1140,6 +1140,7 @@ def search_employees(
     only_bp: bool = False,
     loginCode: Optional[str] = None,
     context: Optional[str] = None,
+    role_filter: Optional[str] = None, # Thêm tham số mới
     db: Session = Depends(get_db)
 ):
     """
@@ -1148,6 +1149,7 @@ def search_employees(
     - Nếu only_bp=True thì chỉ trả về nhân viên buồng phòng (mã chứa 'BP') từ TẤT CẢ các chi nhánh.
     - Mặc định loại bỏ role lễ tân, ngoại trừ lễ tân đang đăng nhập (loginCode) trong các context khác.
     - Thêm context='results_filter' để chỉ gợi ý nhân viên mà user đã chấm công.
+    - Thêm role_filter='buongphong' để chỉ tìm nhân viên buồng phòng.
     - Giới hạn 20 kết quả.
     """
     if not q:
@@ -1222,6 +1224,10 @@ def search_employees(
 
         if branch_id and not only_bp:
             query = query.filter(User.branch == branch_id)
+
+        # Lọc theo vai trò nếu được chỉ định
+        if role_filter:
+            query = query.filter(User.role == role_filter)
 
         employees = query.limit(50).all()
 
