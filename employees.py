@@ -7,7 +7,7 @@ employees = [
 #--------------------------------------- BIN BIN HOTEL 2 --------------------------------------------#
     {"code": "B2LTCS", "name": "Phan Phương Thúy", "department": "Lễ tân", "branch": "B2", "role": "letan"},
     {"code": "B2LTCT", "name": "Ngô Bảo Trân", "department": "Lễ tân", "branch": "B2", "role": "letan"},
-    {"code": "B2BPCS", "name": "Nguyễn Thị Ngọc Linh", "department": "Buồng phòng", "branch": "B2", "role": "buongphong"},
+    {"code": "B2BPCS", "name": "Nguyễn Vũ Phi Ngọc", "department": "Buồng phòng", "branch": "B2", "role": "buongphong"},
     {"code": "B2BPCT", "name": "Cao Đức Thẫm", "department": "Buồng phòng", "branch": "B2", "role": "buongphong"},
 #--------------------------------------- BIN BIN HOTEL 3 --------------------------------------------#
     {"code": "B3LTCS", "name": "Võ Thị Ngọc Trân", "department": "Lễ tân", "branch": "B3", "role": "letan"},
