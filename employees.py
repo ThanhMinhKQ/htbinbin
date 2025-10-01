@@ -67,13 +67,11 @@ employees = [
     {"code": "B15LTCT", "name": "Lê Trường Giang", "department": "Lễ tân", "branch": "B15", "role": "letan"},
     {"code": "B15BPCS1", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     #{"code": "B15BPCS02", "name": "?", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
-    {"code": "B15BPCS3", "name": "Ngô Thị Thanh", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BPCT", "name": "Trần Thị Thanh Nhãn", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BVCT", "name": "Bùi Minh Nghĩa", "department": "Bảo vệ", "branch": "B15", "role": "baove"},
 #--------------------------------------- BIN BIN HOTEL 16 --------------------------------------------#
     {"code": "B16LTCS", "name": "Nguyễn Hoàng Thanh Minh", "department": "Lễ tân", "branch": "B16", "role": "letan"},
     {"code": "B16LTCT", "name": "Lê Hữu Nghĩa", "department": "Lễ tân", "branch": "B16", "role": "letan"},
-    {"code": "B16BPCT", "name": "Trần Thanh Phú", "department": "Buồng phòng", "branch": "B16", "role": "buongphong"},
     {"code": "B16BPCS", "name": "Lê Thị Tám", "department": "Buồng phòng", "branch": "B16", "role": "buongphong"},
 #--------------------------------------- BIN BIN HOTEL 17 --------------------------------------------#
     {"code": "B17LTCS", "name": "Trần Thị Mỹ Diễm", "department": "Lễ tân", "branch": "B17", "role": "letan"},
