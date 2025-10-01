@@ -1762,51 +1762,55 @@ async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
 from employees import employees
 from database import SessionLocal
 from models import User
+from sqlalchemy.orm import Session
 
-def sync_employees_from_source(db: Session, employees: list[dict], force_delete: bool = False):
+def sync_employees_from_source(db: Session, employees_source: list[dict], force_delete: bool = False):
+    """
+    Đồng bộ nhân viên từ file nguồn vào DB.
+    - force_delete=True: Xóa các nhân viên trong DB không có trong file nguồn.
+    - force_delete=False: Chỉ thêm mới hoặc cập nhật, không xóa.
+    """
     allowed_login_roles = ["letan", "quanly", "ktv", "admin", "boss"]
-    seen_codes = set()
 
-    # --- Bước 1: Thu thập danh sách code từ employees ---
-    incoming_codes = set()
-    for emp in employees:
-        code = emp.get("code", "").strip()
-        if code:
-            incoming_codes.add(code)
+    # Bước 1: Lấy tất cả nhân viên hiện có trong DB vào một dictionary để truy cập nhanh
+    existing_users_dict = {user.code: user for user in db.query(User).all()}
+    
+    # Bước 2: Lấy danh sách mã nhân viên từ file nguồn
+    source_codes = {emp.get("code", "").strip() for emp in employees_source if emp.get("code")}
 
-    # --- Bước 2: Xóa nhân viên không còn trong employees (nếu force_delete=True) ---
+    # Bước 3: Xóa các nhân viên không còn trong file nguồn (nếu force_delete=True)
     if force_delete:
-        db.query(User).filter(~User.code.in_(incoming_codes)).delete(synchronize_session=False)
-        db.commit()
-        logger.info("[SYNC] Đã xóa các nhân viên không còn trong danh sách nguồn.")
+        codes_to_delete = set(existing_users_dict.keys()) - source_codes
+        if codes_to_delete:
+            db.query(User).filter(User.code.in_(codes_to_delete)).delete(synchronize_session=False)
+            logger.info(f"[SYNC] Đã xóa {len(codes_to_delete)} nhân viên không còn trong file nguồn: {', '.join(codes_to_delete)}")
 
-    # --- Bước 3: Đồng bộ từng nhân viên ---
-    for emp in employees:
+    # Bước 4: Thêm mới hoặc cập nhật nhân viên từ file nguồn
+    for emp in employees_source:
         code = emp.get("code", "").strip()
-        if not code or code in seen_codes:
+        if not code:
             continue
-        seen_codes.add(code)
 
         name = emp.get("name", "").strip()
         branch = emp.get("branch", "").strip()
         role = emp.get("role", "").strip()
 
-        # Nếu chưa có role thì suy từ code
+        # Tự động suy ra vai trò nếu chưa được định nghĩa
         if not role:
             role_map = {"LT": "letan", "BP": "buongphong", "BV": "baove",
                         "QL": "quanly", "KTV": "ktv"}
             role = next((v for k, v in role_map.items() if k in code.upper()), "khac")
             if code.lower() in ["admin", "boss"]:
                 role = code.lower()
-
-        existing = db.query(User).filter(User.code == code).first()
+        
+        existing = existing_users_dict.get(code)
         if existing:
-            # Cập nhật thông tin khác (KHÔNG reset password)
+            # Cập nhật thông tin nếu đã tồn tại
             existing.name = name
             existing.role = role
             existing.branch = branch
         else:
-            # Tạo user mới → set mật khẩu một lần
+            # Tạo user mới nếu chưa tồn tại
             password = emp.get("password")
             if not password:
                 password = "999" if role in allowed_login_roles else ""
@@ -1826,7 +1830,7 @@ def sync_employees_endpoint(request: Request):
     if not user or user.get("role") not in ["admin", "boss"]:
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
     with SessionLocal() as db:
-        sync_employees_from_source(db=db, employees=employees, force_delete=True)
+        sync_employees_from_source(db=db, employees_source=employees, force_delete=True)
     return {"status": "success", "message": "Đã đồng bộ lại danh sách nhân viên từ employees.py."}
 
 @app.get("/logout")
@@ -1897,7 +1901,7 @@ def startup():
             reset_sequence(db, table)
         # --- 2. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
         try:
-            sync_employees_from_source(db=db, employees=employees, force_delete=False)
+            sync_employees_from_source(db=db, employees_source=employees, force_delete=False)
             logger.info("Hoàn tất đồng bộ nhân viên từ employees.py")
         except Exception as e:
             logger.error("Không thể đồng bộ nhân viên", exc_info=True)
