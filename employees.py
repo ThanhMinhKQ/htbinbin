@@ -24,8 +24,8 @@ employees = [
 #--------------------------------------- BIN BIN HOTEL 7 --------------------------------------------#
     {"code": "B7LTCS", "name": "Nguyễn Thị Băng Huyền", "department": "Lễ tân", "branch": "B7", "role": "letan"},
     {"code": "B7LTCT", "name": "Phạm Thành Trí", "department": "Lễ tân", "branch": "B7", "role": "letan"},
-    {"code": "B7BPCS01", "name": "Thạch Thị Bô Na", "department": "Buồng phòng", "branch": "B7", "role": "buongphong"},
-    {"code": "B7BPCS02", "name": "Trần Thị Tuyết Nga", "department": "Buồng phòng", "branch": "B7", "role": "buongphong"},
+    {"code": "B7BPCS1", "name": "Thạch Thị Bô Na", "department": "Buồng phòng", "branch": "B7", "role": "buongphong"},
+    {"code": "B7BPCS2", "name": "Trần Thị Tuyết Nga", "department": "Buồng phòng", "branch": "B7", "role": "buongphong"},
     {"code": "B7BPCT", "name": "Trần Thị Yến", "department": "Buồng phòng", "branch": "B7", "role": "buongphong"},
 #--------------------------------------- BIN BIN HOTEL 8 --------------------------------------------#
     {"code": "B8LTCS", "name": "Tô Phương Mai", "department": "Lễ tân", "branch": "B8", "role": "letan"},
@@ -47,8 +47,8 @@ employees = [
 #--------------------------------------- BIN BIN HOTEL 11 --------------------------------------------#
     {"code": "B11LTCS", "name": "Bùi Thị Thanh Trúc", "department": "Lễ tân", "branch": "B11", "role": "letan"},
     {"code": "B11LTCT", "name": "Khổng Quang Chung", "department": "Lễ tân", "branch": "B11", "role": "letan"},
-    {"code": "B11BPCS01", "name": "Phạm Thị Hằng", "department": "Buồng phòng", "branch": "B11", "role": "buongphong"},
-    {"code": "B11BPCS02", "name": "Lê Thị Hồng Yến", "department": "Buồng phòng", "branch": "B11", "role": "buongphong"},
+    {"code": "B11BPCS1", "name": "Phạm Thị Hằng", "department": "Buồng phòng", "branch": "B11", "role": "buongphong"},
+    {"code": "B11BPCS2", "name": "Lê Thị Hồng Yến", "department": "Buồng phòng", "branch": "B11", "role": "buongphong"},
     {"code": "B11BPCT", "name": "Phạm Tố Uyên", "department": "Buồng phòng", "branch": "B11", "role": "buongphong"},
     {"code": "B11BVCS", "name": "Tạ Văn Hoàng", "department": "Bảo vệ", "branch": "B11", "role": "baove"},
     {"code": "B11BVCT", "name": "Võ Quốc Thái", "department": "Bảo vệ", "branch": "B11", "role": "baove"},
@@ -65,8 +65,8 @@ employees = [
 #--------------------------------------- BIN BIN HOTEL 15 --------------------------------------------#
     {"code": "B15LTCS", "name": "Lê Thị Yến Oanh", "department": "Lễ tân", "branch": "B15", "role": "letan"},
     {"code": "B15LTCT", "name": "Lê Trường Giang", "department": "Lễ tân", "branch": "B15", "role": "letan"},
-    {"code": "B15BPCS01", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
-    #{"code": "B15BPCS02", "name": "?", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
+    {"code": "B15BPCS1", "name": "Nguyễn Thị Mỹ Trúc", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
+    #{"code": "B15BPCS2", "name": "?", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BPCT", "name": "Trần Thị Thanh Nhãn", "department": "Buồng phòng", "branch": "B15", "role": "buongphong"},
     {"code": "B15BVCT", "name": "Bùi Minh Nghĩa", "department": "Bảo vệ", "branch": "B15", "role": "baove"},
 #--------------------------------------- BIN BIN HOTEL 16 --------------------------------------------#
@@ -79,20 +79,20 @@ employees = [
     {"code": "B17BPCS", "name": "Nguyễn Thị Điệp", "department": "Buồng phòng", "branch": "B17", "role": "buongphong"},
     #{"code": "B17BPCT", "name": "?", "department": "Buồng phòng", "branch": "B17", "role": "buongphong"},
 #--------------------------------------- LỄ TÂN CHẠY CA --------------------------------------------#
-    {"code": "LTTC01", "name": "Lê Minh Trung", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc1", "role": "letan"},
-    {"code": "LTTC02", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc3", "role": "letan"},
-    {"code": "LTTC03", "name": "Trần Thiện Tín", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc4", "role": "letan"},
+    {"code": "LTTC1", "name": "Lê Minh Trung", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc1", "role": "letan"},
+    {"code": "LTTC2", "name": "Nguyễn Đỗ Minh Luân", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc3", "role": "letan"},
+    {"code": "LTTC3", "name": "Trần Thiện Tín", "department": "Hỗ Trợ Tăng Ca", "branch": "lttc4", "role": "letan"},
 #--------------------------------------- BUỒNG PHÒNG CHẠY CA --------------------------------------------#
-    {"code": "BPTC01", "name": "Lê Trọng Phúc", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc1", "role": "buongphong"},
-    {"code": "BPTC02", "name": "Trần Ngọc Ánh", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc2", "role": "buongphong"},
-    {"code": "BPTC03", "name": "Võ Thị Diệu Lý", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc3", "role": "buongphong"},
-    {"code": "BPTC04", "name": "Nguyễn Thị Kim Tuyến", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc4", "role": "buongphong"},
+    {"code": "BPTC1", "name": "Lê Trọng Phúc", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc1", "role": "buongphong"},
+    {"code": "BPTC2", "name": "Trần Ngọc Ánh", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc2", "role": "buongphong"},
+    {"code": "BPTC3", "name": "Võ Thị Diệu Lý", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc3", "role": "buongphong"},
+    {"code": "BPTC4", "name": "Nguyễn Thị Kim Tuyến", "department": "Hỗ Trợ Tăng Ca", "branch": "bptc4", "role": "buongphong"},
 #--------------------------------------- QUẢN LÍ VÀ KTV --------------------------------------------#
     {"code": "KTV", "name": "Lê Trọng Phúc", "department": "Kỹ Thuật Viên", "branch": "ktv", "role": "ktv"},
-    {"code": "QL01", "name": "Trần Phát Nguyên", "department": "Quản Lý", "branch": "quanly1", "role": "quanly"},
-    {"code": "QL02", "name": "Trần Ngọc Ánh", "department": "Quản Lý", "branch": "quanly2", "role": "quanly"},
-    {"code": "QL03", "name": "Nguyễn Đỗ Minh Luân", "department": "Quản Lý", "branch": "quanly3", "role": "quanly"},
-    {"code": "QL04", "name": "Mr. Thuật", "department": "Quản Lý", "branch": "quanly4", "role": "quanly"},
+    {"code": "QL1", "name": "Trần Phát Nguyên", "department": "Quản Lý", "branch": "quanly1", "role": "quanly"},
+    {"code": "QL2", "name": "Trần Ngọc Ánh", "department": "Quản Lý", "branch": "quanly2", "role": "quanly"},
+    {"code": "QL3", "name": "Nguyễn Đỗ Minh Luân", "department": "Quản Lý", "branch": "quanly3", "role": "quanly"},
+    {"code": "QL4", "name": "Mr. Thuật", "department": "Quản Lý", "branch": "quanly4", "role": "quanly"},
 #--------------------------------------- ADMIN --------------------------------------------#
     {"code": "Admin", "name": "Vincent Minh", "department": "Quản Lý", "branch": "admin", "role": "admin"},
     {"code": "Boss", "name": "Sếp Bin", "department": "Giám Đốc", "branch": "boss", "role": "boss"},
