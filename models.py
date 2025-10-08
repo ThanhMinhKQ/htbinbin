@@ -1,19 +1,22 @@
 # models.py
 import enum
 from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON, Float, Time, Enum as SQLAlchemyEnum
-from sqlalchemy.dialects.postgresql import JSONB
 from database import Base
+from sqlalchemy.dialects.postgresql import ARRAY
 
 class User(Base):
     __tablename__ = "users"
 
-    code = Column(String(50), primary_key=True, index=True)  # Supabase chấp nhận varchar
+    code = Column(String(50), primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     password = Column(String(255), nullable=True)
     role = Column(String(50), nullable=False)
     branch = Column(String(50), nullable=False)
-    last_checked_in_bp = Column(JSONB, nullable=True)  # Dùng JSONB chuẩn PostgreSQL
-    last_active_branch = Column(String, nullable=True) # Lưu chi nhánh hoạt động cuối cùng
+    
+    # === THAY ĐỔI CHÍNH Ở ĐÂY ===
+    # Sửa từ JSONB thành ARRAY(Text) để khớp với kiểu text[] trong database
+    last_checked_in_bp = Column(ARRAY(Text), nullable=True)
+    last_active_branch = Column(String, nullable=True)
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -49,6 +52,7 @@ class AttendanceRecord(Base):
     nguoi_diem_danh = Column(String(50), nullable=False, index=True)
     ma_nv = Column(String(50), nullable=False, index=True)
     ten_nv = Column(String(100))
+    role = Column(String(50))
     chi_nhanh_chinh = Column(String(50))
     chi_nhanh_lam = Column(String(50), index=True)
     la_tang_ca = Column(Boolean, default=False)
@@ -64,6 +68,7 @@ class ServiceRecord(Base):
     nguoi_cham = Column(String(50), nullable=False, index=True)
     ma_nv = Column(String(50), nullable=False, index=True)
     ten_nv = Column(String(100))
+    role = Column(String(50))
     chi_nhanh_chinh = Column(String(50))
     chi_nhanh_lam = Column(String(50), index=True)
     la_tang_ca = Column(Boolean, default=False)
@@ -87,7 +92,7 @@ class LostAndFoundItem(Base):
     found_date = Column(DateTime(timezone=True), nullable=False)
     found_location = Column(String, nullable=False)
     recorded_by = Column(String, nullable=False)
-    status = Column(SQLAlchemyEnum(LostItemStatus, native_enum=False), default=LostItemStatus.STORED, nullable=False)
+    status = Column(SQLAlchemyEnum(LostItemStatus, name="lostitemstatus", native_enum=True), default=LostItemStatus.STORED, nullable=False)
     owner_name = Column(String, nullable=True)
     owner_contact = Column(String, nullable=True)
     return_date = Column(DateTime(timezone=True))
