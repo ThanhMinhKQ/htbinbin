@@ -25,14 +25,18 @@
         [x-cloak] {
             display: none !important;
         }
+        #particle-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
     </style>
 </head>
 <body class="bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-200 antialiased">
-    <!-- Soft, blurred background aurora -->
-    <div class="absolute inset-0 -z-10 overflow-hidden">
-        <div class="absolute top-0 -left-4 h-full w-1/2 bg-gradient-to-br from-white via-sky-100 to-blue-200 opacity-60 filter blur-3xl dark:from-slate-950 dark:via-sky-900/40 dark:to-blue-900/30"></div>
-        <div class="absolute top-0 -right-4 h-full w-1/2 bg-gradient-to-bl from-white via-rose-100 to-purple-200 opacity-60 filter blur-3xl dark:from-slate-950 dark:via-rose-900/40 dark:to-purple-900/30"></div>
-    </div>
+    <canvas id="particle-canvas"></canvas>
     <div class="min-h-screen flex flex-col justify-center items-center p-4 sm:p-6 lg:p-8">
         <!-- Top Bar: Buttons -->
         <div class="absolute top-0 left-0 right-0 w-full p-6 flex justify-between items-center z-10">
@@ -130,12 +134,7 @@
                 {% if user and user.role in ['admin', 'boss'] %}
                 <a href="#" id="sync-employees-btn" class="group block w-full max-w-sm sm:w-80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-gray-200 dark:border-slate-800 rounded-2xl p-8 text-center transition-all duration-300 hover:shadow-lg hover:border-rose-400 dark:hover:border-rose-500 hover:-translate-y-1">
                     <div class="inline-block p-5 bg-gradient-to-br from-rose-100 to-red-200 dark:from-rose-900/50 dark:to-red-900/50 rounded-2xl mb-6 transition-transform duration-300 group-hover:scale-110">
-                        <lord-icon
-                            src="https://cdn.lordicon.com/dflvdonr.json"
-                            trigger="hover"
-                            colors="primary:#f43f5e,secondary:#ef4444"
-                            style="width:40px;height:40px">
-                        </lord-icon>
+                        <lord-icon src="https://cdn.lordicon.com/frjgvxce.json" trigger="hover" colors="primary:#f43f5e,secondary:#ef4444" style="width:40px;height:40px"></lord-icon>
                     </div>
                     <h3 class="font-semibold text-xl text-gray-800 dark:text-white">Đồng bộ Nhân viên</h3>
                     <p class="text-gray-500 dark:text-slate-400 mt-2 text-sm">Cập nhật lại toàn bộ danh sách nhân viên từ file nguồn.</p>
@@ -211,6 +210,90 @@
         }
     </script>
     <script>
+        // Particle Network Background
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let animationFrameId;
+
+        const setupCanvas = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            particles = [];
+            const particleCount = Math.floor(canvas.width * canvas.height / 15000);
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 0.5,
+                    vy: (Math.random() - 0.5) * 0.5,
+                    radius: Math.random() * 1.5 + 1
+                });
+            }
+        };
+
+        const draw = () => {
+            const isDark = document.documentElement.classList.contains('dark');
+            const particleColor = isDark ? 'rgba(203, 213, 225, 0.8)' : 'rgba(100, 116, 139, 0.8)';
+            const lineColor = isDark ? 'rgba(100, 116, 139, 0.2)' : 'rgba(148, 163, 184, 0.2)';
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+
+                if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = particleColor;
+                ctx.fill();
+            });
+
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dist = Math.hypot(particles[i].x - particles[j].x, particles[i].y - particles[j].y);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = lineColor;
+                        ctx.lineWidth = 1 - dist / 120;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(draw);
+        };
+
+        const startAnimation = () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            setupCanvas();
+            draw();
+        };
+
+        // Initial setup
+        startAnimation();
+
+        // Re-setup on window resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(startAnimation, 200);
+        });
+
+        // Re-draw with new colors on theme change
+        const themeToggleObserver = new MutationObserver(startAnimation);
+        themeToggleObserver.observe(document.documentElement, {
+            attributes: true, attributeFilter: ['class']
+        });
+
         function checkAndLogoutForShiftChange() {
             const now = new Date();
             const hours = now.getHours();
