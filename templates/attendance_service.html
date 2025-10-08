@@ -481,7 +481,13 @@ Notes:
   let unsaved = false;
   window.addEventListener('beforeunload', (e)=>{ if(unsaved){ e.preventDefault(); e.returnValue = ''; }});
 
-  async function saveService(){
+  async function saveService(event){
+    const submitBtn = event.target.closest('button');
+    if (submitBtn.disabled) return; // Prevent double-click
+
+    submitBtn.disabled = true;
+    submitBtn.querySelector('span').textContent = 'Đang lưu...';
+
     if (!serviceRows || serviceRows.length === 0) {
       showStatusModal('error', "Danh sách trống, không có gì để lưu.");
       return;
@@ -548,10 +554,13 @@ Notes:
 
     } catch (e) {
       showStatusModal('error', e.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.querySelector('span').textContent = 'Lưu dịch vụ';
     }
   }
 
-  document.getElementById("serviceSaveBtn").onclick = saveService;
+  document.getElementById("serviceSaveBtn").addEventListener('click', saveService);
 
   // Debounce helper
   const debounce = (fn, d=250)=>{ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d); }; };
