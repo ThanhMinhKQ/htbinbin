@@ -7,10 +7,10 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50 font-sans text-gray-800">
-
-  <div class="container mx-auto p-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
+  <!-- Thay đổi: Thêm ID và class transition cho container chính -->
+  <!-- Thay đổi: Áp dụng chế độ xem toàn bộ làm mặc định -->
+  <div id="main-container" class="p-6 transition-all duration-300 px-1 sm:px-2">
+    <div class="flex flex-wrap justify-between items-center mb-8 gap-4">
         <!-- Header -->
         <div class="mb-8 text-center">
         <h1 class="text-3xl md:text-4xl font-light text-gray-800 tracking-wide">
@@ -81,15 +81,18 @@
     </form>
 
     <!-- Bảng Chấm Công -->
-    <div class="overflow-x-auto bg-white rounded-2xl shadow-lg border border-gray-100">
-      <table class="min-w-full text-sm border-collapse border border-gray-200">
+    <!-- Thay đổi: Áp dụng chế độ xem toàn bộ làm mặc định -->
+    <div id="calendar-table-container" class="bg-white rounded-2xl shadow-lg border border-gray-100">
+      <table id="calendar-table" class="w-full table-fixed text-xs border-collapse border border-gray-200">
         <thead class="bg-gray-100 sticky top-0 z-20 border-b border-gray-200">
           <tr>
             <th class="sticky left-0 bg-gray-100 px-6 py-3 text-left font-semibold text-gray-700 z-30 border-r border-gray-200">
-              Nhân viên
+              <!-- Thay đổi: Thêm ID cho cột header nhân viên -->
+              <div id="employee-header-col">Nhân viên</div>
             </th>
             {% for day in range(1, num_days + 1) %}
-            <th class="px-4 py-3 text-center font-medium text-gray-600 border-r border-gray-200 
+            <!-- Thay đổi: Áp dụng chế độ xem toàn bộ làm mặc định -->
+            <th class="calendar-header-cell px-0.5 py-2 text-center font-medium text-gray-600 border-r border-gray-200 
                        {% if day % 2 == 0 %}bg-gray-50{% else %}bg-white{% endif %}
                        {% if day == current_day %}bg-indigo-50 text-indigo-700{% endif %}">
               {{ day }}
@@ -99,8 +102,11 @@
         </thead>
         <tbody>
           {% for code, emp in employee_data.items() %}
-          <tr class="border-b border-gray-200 hover:bg-gray-50 transition">
-            <td class="sticky left-0 bg-white px-4 py-3 whitespace-nowrap z-10 border-r border-gray-200 group-hover:bg-gray-50">
+          <!-- Thay đổi: Thêm class employee-row -->
+          <tr class="employee-row border-b border-gray-200 hover:bg-gray-50 transition">
+            <!-- Thay đổi: Thêm ID cho cột cell nhân viên -->
+            <!-- Thay đổi: Áp dụng chế độ xem toàn bộ làm mặc định -->
+            <td id="employee-cell-{{ code }}" class="sticky left-0 bg-white px-4 py-3 break-words z-10 border-r border-gray-200 group-hover:bg-gray-50">
               <div class="flex items-center justify-between">
                 <div>
                   <div class="font-medium text-gray-800">
@@ -141,25 +147,27 @@
                 {% endif %}
 
                 {# Logic xác định nội dung ô #}
-                {% set cell_content = work_units %}
+                {% set formatted_work_units = work_units|int if work_units % 1 == 0 else work_units %}
+                {% set cell_content = formatted_work_units %}
                 {# Chỉ hiển thị chi nhánh làm thêm cho LTTC/BPTC khi ở bộ lọc của họ. Các trường hợp tăng ca khác chỉ được tô màu. #}
                 {% if is_overtime_flag and overtime_branch and emp.role_key in ['lttc', 'bptc'] and selected_branch in ['LTTC', 'BPTC'] %}
-                  {% set cell_content = '{}<br><span class="text-red-500 text-xs font-semibold">{}</span>'.format(work_units, overtime_branch) %}
+                  {% set cell_content = '{}<br><span class="text-red-500 text-xs font-semibold">{}</span>'.format(formatted_work_units, overtime_branch) %}
                 {% endif %}
               {% endif %}
-              <td class="px-2 py-2 text-center align-top {{ cell_class }} border-r border-gray-200 min-w-[70px]">
-                <div class="text-gray-700" title="{{ services | join(', ') }}">{{ cell_content | safe }}</div>
+              <!-- Thay đổi: Áp dụng chế độ xem toàn bộ làm mặc định -->
+              <td class="calendar-day-cell px-0.5 py-2 text-center align-top {{ cell_class }} border-r border-gray-200 transition-all duration-300 break-words">
+                <div class="text-sm text-gray-700" title="{{ services | join(', ') }}">{{ cell_content | safe }}</div>
                 {% if services %}
-                <div class="text-xs text-indigo-700 mt-1 truncate">{{ services | join(', ') | safe }}</div>
+                <div class="text-xs text-indigo-700 mt-1">{{ services | join(', ') | safe }}</div>
                 {% endif %}
               </td>
             {% endfor %}
           </tr>
           {% if emp.dashboard_stats %}
           <tr id="dashboard-{{ code }}" class="hidden bg-gray-50 border-b-2 border-gray-300">
-            <td class="sticky left-0 bg-gray-50 p-4 z-10 border-r border-gray-200">
-                <div class="overflow-x-auto">
-                <div class="flex space-x-4">
+            <td colspan="{{ num_days + 1 }}" class="bg-gray-50 p-4">
+                <div class="flex justify-center">
+                <div class="flex flex-wrap justify-center gap-4">
                     <div class="bg-blue-100 p-3 rounded-lg shadow-sm flex-shrink-0 w-32 text-center">
                         <p class="text-xs text-blue-700 font-semibold">Số ngày làm</p>
                         <p class="text-2xl font-bold text-blue-800">{{ emp.dashboard_stats.so_ngay_lam }}</p>
@@ -205,7 +213,6 @@
                 </div>
                 </div>
             </td>
-            <td colspan="{{ num_days }}" class="bg-gray-50">&nbsp;</td>
           </tr>
           {% endif %}
           {% else %}
@@ -351,6 +358,14 @@
             modal.classList.add('hidden');
         }, 300); // Phải khớp với thời gian transition
     }
+
+    // --- Logic cho cột nhân viên ở chế độ xem toàn bộ ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const employeeHeaderCol = document.getElementById('employee-header-col');
+        if (employeeHeaderCol) {
+            employeeHeaderCol.parentElement.style.width = '150px';
+        }
+    });
   </script>
 </body>
 </html>
