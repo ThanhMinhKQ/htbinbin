@@ -635,22 +635,28 @@
 
                     try {
                         const response = await fetch(`/api/lost-and-found?${this.buildQueryString()}`);
-                        if (!response.ok) throw new Error('Network response was not ok');
+                        if (!response.ok) {
+                            // Try to get a more specific error message from the server response
+                            let errorDetail = 'Network response was not ok';
+                            try {
+                                const errorData = await response.json();
+                                errorDetail = errorData.detail || errorData.message || JSON.stringify(errorData);
+                            } catch (e) {
+                                // The response body was not JSON or was empty
+                            }
+                            throw new Error(errorDetail);
+                        }
                         const data = await response.json();
 
                         this.renderTable(data.records); // Dữ liệu đã được sắp xếp từ backend
                         this.renderPagination(data.currentPage, data.totalPages, data.totalRecords);                        
                         this.loadingEl.classList.add('hidden');
-
-                        // ✨ FIX: Cập nhật trạng thái các nút sau khi render xong
-                        this.$nextTick(() => {
-                            if (this.canDelete) this.updateSelectAllCheckboxState();
-                            this.updateDeleteButtonState();
-                        });
                     } catch (err) {
                         console.error('Fetch error:', err);
                         this.loadingEl.classList.add('hidden');
                         this.errorEl.classList.remove('hidden');
+                        // Display the more detailed error message to the user
+                        this.errorEl.querySelector('p').textContent = `Có lỗi xảy ra: ${err.message}`;
                     }
                 },
 
