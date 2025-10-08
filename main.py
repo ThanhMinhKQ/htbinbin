@@ -12,7 +12,7 @@ from fastapi import Request
 from typing import Optional, List
 from config import logger
 
-from database import SessionLocal, get_db, Base, engine
+from database import SessionLocal, get_db, engine
 from models import User, Task, AttendanceLog, AttendanceRecord, ServiceRecord, LostAndFoundItem, LostItemStatus
 from config import DATABASE_URL, SMTP_CONFIG, ALERT_EMAIL
 from sqlalchemy.pool import NullPool
@@ -43,11 +43,9 @@ import os, re, math, io, calendar
 from collections import defaultdict
 import openpyxl
 from openpyxl.utils import get_column_letter
-import socket, threading, time
 from email.message import EmailMessage
 from datetime import datetime, timedelta, date
 from pytz import timezone
-from services.email_service import send_alert_email
 from fastapi.encoders import jsonable_encoder
 
 from employees import employees  # import danh sách nhân viên tĩnh
@@ -323,60 +321,7 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     response.headers["Expires"] = "0"
     return response
 
-def _get_filtered_tasks_query(
-    db: Session,
-    user_data: dict,
-    chi_nhanh: str = "",
-    search: str = "",
-    trang_thai: str = "",
-    han_hoan_thanh: str = ""
-):
-    """
-    Hàm helper để xây dựng và trả về câu truy vấn SQLAlchemy cho các công việc
-    dựa trên các bộ lọc được cung cấp.
-    """
-    role = user_data.get("role")
 
-    tasks_query = db.query(Task)
-
-    # Loại bỏ công việc đã xoá cho các vai trò không phải quản lý cấp cao
-    if role not in ["quanly", "admin", "boss"]:
-        tasks_query = tasks_query.filter(Task.trang_thai != "Đã xoá")
-
-    # Lọc theo chi nhánh (nếu có).
-    # `chi_nhanh` ở đây đã được xác định một cách chính xác ở hàm `home`.
-    if chi_nhanh:
-        tasks_query = tasks_query.filter(Task.chi_nhanh == chi_nhanh)
-
-    # Lọc theo từ khóa
-    if search:
-        clean_search = re.sub(r'\s+', ' ', search).strip()
-        search_pattern = f"%{clean_search}%"
-        tasks_query = tasks_query.filter(
-            or_(
-                Task.chi_nhanh.ilike(search_pattern),
-                Task.phong.ilike(search_pattern),
-                Task.mo_ta.ilike(search_pattern),
-                Task.trang_thai.ilike(search_pattern),
-                Task.nguoi_tao.ilike(search_pattern),
-                Task.nguoi_thuc_hien.ilike(search_pattern),
-                Task.ghi_chu.ilike(search_pattern)
-            )
-        )
-
-    # Lọc theo trạng thái
-    if trang_thai:
-        tasks_query = tasks_query.filter(Task.trang_thai == trang_thai)
-
-    # Lọc theo hạn hoàn thành
-    if han_hoan_thanh:
-        try:
-            han_date = datetime.strptime(han_hoan_thanh, "%Y-%m-%d").date()
-            tasks_query = tasks_query.filter(func.date(Task.han_hoan_thanh) == han_date)
-        except (ValueError, TypeError):
-            pass  # Bỏ qua nếu định dạng ngày không hợp lệ
-
-    return tasks_query
 
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
@@ -439,7 +384,7 @@ def view_attendance_calendar(
 
     # Tạo danh sách chi nhánh để hiển thị trong bộ lọc
     display_branches = BRANCHES.copy()
-    if user_data.get("role") in ["admin", "boss"]:
+    if user_data.get("role") in ["admin", "boss", "quanly"]:
         display_branches.extend(["KTV", "Quản lý", "LTTC", "BPTC"])
 
     # Nếu chưa có chi nhánh được chọn từ filter, đặt giá trị mặc định theo vai trò
@@ -524,7 +469,9 @@ def view_attendance_calendar(
                     employee_data[emp_code]["role"] = map_role_to_vietnamese(emp.role)
 
 
-        # --- Xây dựng bộ lọc dựa trên lựa chọn ---
+        # main.py - bên trong hàm view_attendance_calendar
+
+        # --- Xây dựng bộ lọc dựa trên lựa chọn (ĐÃ CẬP NHẬT) ---
         att_location_filter = None
         svc_location_filter = None
 
@@ -532,60 +479,59 @@ def view_attendance_calendar(
         code_prefix_filter = {"LTTC": "LTTC", "BPTC": "BPTC"}
 
         if chi_nhanh in role_map_filter: # Lọc bản ghi theo vai trò
-            # Lọc theo vai trò nếu chọn KTV hoặc Quản lý
             role_to_filter = role_map_filter[chi_nhanh]
-            att_location_filter = (User.role == role_to_filter)
-            svc_location_filter = (User.role == role_to_filter)
-        elif chi_nhanh in code_prefix_filter:
-            # Lọc theo mã nhân viên nếu chọn LTTC/BPTC
+            # Lọc trực tiếp trên cột role của bản ghi
+            att_location_filter = (AttendanceRecord.role == role_to_filter)
+            svc_location_filter = (ServiceRecord.role == role_to_filter)
+        elif chi_nhanh in code_prefix_filter: # Lọc theo mã nhân viên
             prefix_to_filter = code_prefix_filter[chi_nhanh]
-            att_location_filter = (User.code.startswith(prefix_to_filter))
-            svc_location_filter = (User.code.startswith(prefix_to_filter))
-        elif chi_nhanh in BRANCHES: # Lọc bản ghi theo chi nhánh
-            # Chỉ lấy các bản ghi chấm công/dịch vụ được thực hiện TẠI chi nhánh đang xem.
-            # Danh sách nhân viên đầy đủ của chi nhánh đã được lấy ở Bước 1,
-            # nên ở đây ta không cần lấy tất cả các bản ghi của họ ở những nơi khác nữa.
+            # Lọc trực tiếp trên mã nv của bản ghi
+            att_location_filter = (AttendanceRecord.ma_nv.startswith(prefix_to_filter))
+            svc_location_filter = (ServiceRecord.ma_nv.startswith(prefix_to_filter))
+        elif chi_nhanh in BRANCHES: # Lọc bản ghi theo chi nhánh làm việc
             att_location_filter = (AttendanceRecord.chi_nhanh_lam == chi_nhanh)
             svc_location_filter = (ServiceRecord.chi_nhanh_lam == chi_nhanh)
 
-        
+
         # Chỉ thực hiện query nếu có bộ lọc hợp lệ
         if att_location_filter is not None:
-            # Query cho điểm danh
+            # Query cho điểm danh (ĐÃ SỬA: Không join với User, lấy dữ liệu snapshot)
             att_q = select(
                 literal_column("'attendance'").label("type"),
-                AttendanceRecord.ma_nv, AttendanceRecord.ten_nv, User.role, User.branch.label("main_branch"),
+                AttendanceRecord.ma_nv,
+                AttendanceRecord.ten_nv,
+                AttendanceRecord.role,  # <-- Lấy từ bản ghi snapshot
+                AttendanceRecord.chi_nhanh_chinh.label("main_branch"), # <-- Lấy từ bản ghi snapshot
                 AttendanceRecord.ngay_diem_danh.label("date_col"),
                 AttendanceRecord.gio_diem_danh.label("time_col"),
                 AttendanceRecord.so_cong_nv.label("value"),
                 AttendanceRecord.la_tang_ca,
                 AttendanceRecord.chi_nhanh_lam.label("work_branch"),
                 literal_column("''").label("dich_vu")
-            ).join(
-                User, User.code == AttendanceRecord.ma_nv, isouter=True
             ).filter(
                 AttendanceRecord.ngay_diem_danh.between(start_query_date, end_query_date),
                 att_location_filter
             )
 
-            # Query cho dịch vụ
+            # Query cho dịch vụ (ĐÃ SỬA: Không join với User, lấy dữ liệu snapshot)
             svc_q = select(
                 literal_column("'service'").label("type"),
-                ServiceRecord.ma_nv, ServiceRecord.ten_nv, User.role, User.branch.label("main_branch"),
+                ServiceRecord.ma_nv,
+                ServiceRecord.ten_nv,
+                ServiceRecord.role, # <-- Lấy từ bản ghi snapshot
+                ServiceRecord.chi_nhanh_chinh.label("main_branch"), # <-- Lấy từ bản ghi snapshot
                 ServiceRecord.ngay_cham.label("date_col"),
                 ServiceRecord.gio_cham.label("time_col"),
                 cast(ServiceRecord.so_luong, Float).label("value"),
                 ServiceRecord.la_tang_ca,
                 ServiceRecord.chi_nhanh_lam.label("work_branch"),
                 ServiceRecord.dich_vu
-            ).join(
-                User, User.code == ServiceRecord.ma_nv, isouter=True
             ).filter(
                 ServiceRecord.ngay_cham.between(start_query_date, end_query_date),
                 svc_location_filter
             )
 
-            # Gộp 2 query
+            # Gộp 2 query và thực thi
             combined_query = union_all(att_q, svc_q).alias("combined")
             records = db.execute(select(combined_query).order_by(combined_query.c.ten_nv, combined_query.c.date_col)).all()
 
@@ -1659,106 +1605,6 @@ async def edit_submit(
 
     return RedirectResponse(f"/home?success=1&action=update{('&' + redirect_query) if redirect_query else ''}", status_code=303)
 
-@app.get("/send-overdue-alerts")
-async def send_overdue_alerts(request: Request, db: Session = Depends(get_db)):
-    try:
-        now = datetime.now(VN_TZ)
-
-        # Cập nhật trạng thái "Quá hạn"
-        overdue_to_update = db.query(Task).filter(
-            Task.trang_thai == "Đang chờ",
-            Task.han_hoan_thanh < now
-        ).all()
-        for task in overdue_to_update:
-            task.trang_thai = "Quá hạn"
-        if overdue_to_update:
-            db.commit()
-
-        # Lấy công việc quá hạn
-        tasks = db.query(Task).filter(
-            Task.trang_thai == "Quá hạn"
-        ).order_by(Task.chi_nhanh.asc(), Task.phong.asc()).all()
-
-        if not tasks:
-            return JSONResponse({"message": "Không có công việc quá hạn."})
-
-        from collections import defaultdict
-        grouped = defaultdict(list)
-        for t in tasks:
-            grouped[t.chi_nhanh].append(t)
-
-        base_url = str(request.base_url).rstrip("/")
-        total_sent = 0
-
-        for chi_nhanh, task_list in grouped.items():
-            # Bảng HTML có kẻ dòng, căn giữa tiêu đề, chữ căn đều
-            rows_html = "\n".join([
-                f"""
-                <tr style="border-bottom:1px solid #e5e7eb;">
-                    <td style="padding:10px;">{t.phong}</td>
-                    <td style="padding:10px;">
-                        <a href="{base_url}/edit/{t.id}" target="_blank" style="color:#2563eb; text-decoration:none;">
-                            {t.mo_ta}
-                        </a>
-                    </td>
-                    <td style="padding:10px;">{t.ghi_chu or ''}</td>
-                </tr>
-                """ for t in task_list
-            ])
-
-            subject = f"🕹 CẢNH BÁO: {len(task_list)} công việc quá hạn tại {chi_nhanh}"
-
-            body = f"""
-            <html>
-            <body style="font-family:Segoe UI, sans-serif; font-size:15px; color:#1f2937; background-color:#f9fafb; padding:24px;">
-                <div style="max-width:700px; margin:auto; background:white; padding:24px; border-radius:8px; border:1px solid #e5e7eb; text-align:justify;">
-                    <h2 style="color:#dc2626; font-weight:600; margin-bottom:16px; font-size:20px; text-align:center;">
-                        {chi_nhanh} CẢNH BÁO CÔNG VIỆC QUÁ HẠN
-                    </h2>
-
-                    <p style="font-size:15px; line-height:1.6;">
-                        🍀 Hệ thống ghi nhận có <strong>{len(task_list)} công việc</strong> tại chi nhánh <strong>{chi_nhanh}</strong> đang quá hạn xử lý.<br></p>
-                    
-                    <table style="
-                        width:100%;
-                        border-collapse:collapse;
-                        margin-top:20px;
-                        font-size:14px;
-                        background-color:white;
-                        box-shadow:0 0 8px rgba(0,0,0,0.04);
-                    ">
-                        <thead style="background-color: #f3f4f6;">
-                            <tr style="border-bottom:1px solid #d1d5db;">
-                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Phòng</th>
-                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Mô tả</th>
-                                <th style="text-align:center; padding:10px; border:1px solid #d1d5db;">Ghi chú</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {rows_html}
-                        </tbody>
-                    </table>
-
-                    <p style="font-size:15px; line-height:1.6;"> ❗️ Vui lòng kiểm tra và xử lý kịp thời để đảm bảo tiến độ công việc. </p>
-
-                    <p style="margin-top:16px; font-size:13px; color:#9ca3af;">
-                        (Email tự động từ hệ thống quản lý công việc Bin Bin Hotel.)
-                    </p>
-                </div>
-            </body>
-            </html>
-            """
-
-            await send_alert_email(ALERT_EMAIL, subject, body, html=True)
-            total_sent += len(task_list)
-
-        return JSONResponse({"sent_total": total_sent, "branches": list(grouped.keys())})
-
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
- 
 from employees import employees
 from database import SessionLocal
 from models import User
@@ -1838,7 +1684,6 @@ def logout(request: Request):
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
 
-from sqlalchemy import text
 from database import SessionLocal
 import os, time, threading, atexit
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -1882,6 +1727,7 @@ def reset_sequence(db, table_name: str, id_col: str = "id"):
     """
     Reset sequence cho bảng cụ thể, đảm bảo id không bị trùng.
     """
+    from sqlalchemy import text
     seq_name = f"{table_name}_{id_col}_seq"
     sql = f"SELECT setval('{seq_name}', (SELECT COALESCE(MAX({id_col}), 0) + 1 FROM {table_name}), false)"
     try:
@@ -1933,6 +1779,7 @@ if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 def get_lan_ip():
+    import socket
     """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -2047,14 +1894,11 @@ async def api_lost_and_found_items(
     # Sắp xếp theo logic mới:
     # 1. Ưu tiên trạng thái: Đang lưu giữ > Đã trả khách > Thanh lý > Đã xoá
     # 2. Sau đó theo ngày mới nhất (ưu tiên ngày trả, fallback về ngày tìm thấy)
-    status_order = case(
-        {
-            LostItemStatus.STORED: 1,
-            LostItemStatus.RETURNED: 2,
-            LostItemStatus.DISPOSED: 3,
-            LostItemStatus.DELETED: 4,
-        },
-        value=LostAndFoundItem.status,
+    status_order = case(    
+        (LostAndFoundItem.status == LostItemStatus.STORED, 1),
+        (LostAndFoundItem.status == LostItemStatus.RETURNED, 2),
+        (LostAndFoundItem.status == LostItemStatus.DISPOSED, 3),
+        (LostAndFoundItem.status == LostItemStatus.DELETED, 4),
         else_=99
     )
     sort_expression = desc(func.coalesce(LostAndFoundItem.return_date, LostAndFoundItem.found_date))
@@ -2269,6 +2113,7 @@ def search_login_users(q: str = "", db: Session = Depends(get_db)):
     return JSONResponse(content=user_list)
 
 def get_lan_ip():
+    import socket
     """Hàm này lấy địa chỉ IP nội bộ (LAN) của máy chủ."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -2333,6 +2178,10 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
         "user": user
     })
 
+# Bỏ biến global `processing_checkin = set()` ở đây đi, 
+# vì cơ chế lock đó không hiệu quả trong môi trường production.
+# Chúng ta sẽ xử lý chống double-click ở phía frontend.
+
 @app.post("/attendance/checkin_bulk")
 async def attendance_checkin_bulk(
     request: Request,
@@ -2341,135 +2190,141 @@ async def attendance_checkin_bulk(
 ):
     validate_csrf(request)
 
-    # Xác định xem đây là luồng điểm danh khi đăng nhập hay điểm danh thông thường
     is_login_flow = "pending_user" in request.session and "user" not in request.session
-
     user = request.session.get("user") or request.session.get("pending_user")
     if not user:
         raise HTTPException(status_code=403, detail="Không có quyền điểm danh.")
 
-    raw_data = await request.json()
-    if not isinstance(raw_data, list):
-        raise HTTPException(status_code=400, detail="Payload phải là danh sách")
+    nguoi_diem_danh_code = user.get("code")
 
-    # Lấy chi nhánh làm việc từ payload để cập nhật trạng thái.
-    # Giả định tất cả record trong 1 lần gửi đều thuộc cùng 1 chi nhánh làm việc.
-    active_branch_from_payload = None
-    if raw_data: # Đảm bảo raw_data không rỗng
+    try:
+        raw_data = await request.json()
+        if not isinstance(raw_data, list) or not raw_data:
+            # Nếu payload rỗng thì không làm gì cả, trả về thành công
+            logger.info(f"Payload điểm danh từ {nguoi_diem_danh_code} rỗng.")
+            return {"status": "success", "inserted": 0}
+
         active_branch_from_payload = raw_data[0].get("chi_nhanh_lam")
 
-    nguoi_diem_danh_code = user.get("code")
-    user_role = user.get("role")
-    user_branch = user.get("branch")
-    special_roles = ["quanly", "ktv", "admin", "boss"]
+        # === BẮT ĐẦU LOGIC "SNAPSHOT" DỮ LIỆU ===
 
-    # Đối với các vai trò đặc biệt (QL, KTV, admin, boss), họ chỉ điểm danh cho chính mình.
-    # Chi nhánh làm việc sẽ được tự động gán bằng chi nhánh chính của họ, không cần chọn từ UI.
-    if user_role in special_roles:
-        active_branch_from_payload = user_branch
+        # 1. Gom tất cả mã nhân viên từ payload để truy vấn một lần duy nhất
+        employee_codes = {rec.get("ma_nv") for rec in raw_data if rec.get("ma_nv")}
+        if not employee_codes:
+            raise HTTPException(status_code=400, detail="Không có mã nhân viên nào trong payload.")
 
-    attendance_db_records = []
-    service_db_records = []
-    now_vn = datetime.now(VN_TZ)
+        # 2. Truy vấn DB một lần để lấy thông tin "sống" của tất cả nhân viên
+        employees_in_db = db.query(User).filter(User.code.in_(employee_codes)).all()
+        employee_map = {emp.code: emp for emp in employees_in_db}
 
-    for rec in raw_data:
-        # Luôn sử dụng thời gian từ server để đảm bảo tính chính xác và tránh sai lệch múi giờ từ client.
-        thoi_gian_dt = now_vn
-        thoi_gian_str = thoi_gian_dt.strftime("%Y-%m-%d %H:%M:%S")
+        # === KẾT THÚC LOGIC "SNAPSHOT" ===
 
-        # Phân loại record để lưu vào DB
-        is_service_record = any(rec.get(key) for key in ["dich_vu", "service", "so_phong", "room_count"])
+        attendance_db_records = []
+        service_db_records = []
+        now_vn = datetime.now(VN_TZ)
 
-        if is_service_record:
-            # Tạo bản ghi dịch vụ
-            service_db_records.append(ServiceRecord(
-                ngay_cham=thoi_gian_dt.date(),
-                gio_cham=thoi_gian_dt.time(), # Sử dụng time() từ datetime object đã nhận đúng múi giờ
-                nguoi_cham=nguoi_diem_danh_code,
-                ma_nv=rec.get("ma_nv"),
-                ten_nv=rec.get("ten_nv"),
-                chi_nhanh_chinh=rec.get("chi_nhanh_chinh"),
-                chi_nhanh_lam=active_branch_from_payload,
-                la_tang_ca=bool(rec.get("la_tang_ca")),
-                dich_vu=rec.get("dich_vu") or rec.get("service") or "N/A",
-                so_phong=rec.get("so_phong") or rec.get("room_count") or "",
-                so_luong=rec.get("so_luong") or rec.get("item_count") or "",
-                ghi_chu=rec.get("ghi_chu", "")
-            ))
-        else:
-            # Tạo bản ghi điểm danh
-            attendance_db_records.append(AttendanceRecord(
-                ngay_diem_danh=thoi_gian_dt.date(),
-                gio_diem_danh=thoi_gian_dt.time(), # Sử dụng time() từ datetime object đã nhận đúng múi giờ
-                nguoi_diem_danh=nguoi_diem_danh_code,
-                ma_nv=rec.get("ma_nv"),
-                ten_nv=rec.get("ten_nv"),
-                chi_nhanh_chinh=rec.get("chi_nhanh_chinh"),
-                chi_nhanh_lam=active_branch_from_payload,
-                la_tang_ca=bool(rec.get("la_tang_ca")),
-                so_cong_nv=float(rec.get("so_cong_nv") or 1.0),
-                ghi_chu=rec.get("ghi_chu", "")
-            ))
+        for rec in raw_data:
+            ma_nv = rec.get("ma_nv")
+            # Lấy thông tin snapshot của nhân viên
+            employee_snapshot = employee_map.get(ma_nv)
 
-    # Lấy danh sách mã nhân viên BP vừa được điểm danh
-    bp_codes = [
-        rec.get("ma_nv") for rec in raw_data
-        if "BP" in rec.get("ma_nv", "").upper()
-    ]
+            # Nếu không tìm thấy thông tin nhân viên trong DB, ghi log và bỏ qua
+            if not employee_snapshot:
+                logger.warning(f"Bỏ qua chấm công cho mã NV không tồn tại trong bảng users: {ma_nv}")
+                continue
 
-    # Cập nhật DB cho lễ tân đang đăng nhập và lưu các bản ghi
-    try:
-        # Lưu các bản ghi mới vào DB
+            # Xác định đây là bản ghi dịch vụ hay điểm danh
+            is_service_record = any(rec.get(key) for key in ["dich_vu", "so_phong"])
+
+            if is_service_record:
+                service_db_records.append(ServiceRecord(
+                    ngay_cham=now_vn.date(),
+                    gio_cham=now_vn.time(),
+                    nguoi_cham=nguoi_diem_danh_code,
+                    ma_nv=ma_nv,
+                    # Sử dụng dữ liệu snapshot để đảm bảo tính lịch sử
+                    ten_nv=employee_snapshot.name,
+                    role=employee_snapshot.role,
+                    chi_nhanh_chinh=employee_snapshot.branch,
+                    # Dữ liệu còn lại lấy từ payload
+                    chi_nhanh_lam=active_branch_from_payload,
+                    la_tang_ca=bool(rec.get("la_tang_ca")),
+                    dich_vu=rec.get("dich_vu", "N/A"),
+                    so_phong=rec.get("so_phong", ""),
+                    so_luong=rec.get("so_luong", ""),
+                    ghi_chu=rec.get("ghi_chu", "")
+                ))
+            else:
+                attendance_db_records.append(AttendanceRecord(
+                    ngay_diem_danh=now_vn.date(),
+                    gio_diem_danh=now_vn.time(),
+                    nguoi_diem_danh=nguoi_diem_danh_code,
+                    ma_nv=ma_nv,
+                    # Sử dụng dữ liệu snapshot để đảm bảo tính lịch sử
+                    ten_nv=employee_snapshot.name,
+                    role=employee_snapshot.role,
+                    chi_nhanh_chinh=employee_snapshot.branch,
+                    # Dữ liệu còn lại lấy từ payload
+                    chi_nhanh_lam=active_branch_from_payload,
+                    la_tang_ca=bool(rec.get("la_tang_ca")),
+                    so_cong_nv=float(rec.get("so_cong_nv") or 1.0),
+                    ghi_chu=rec.get("ghi_chu", "")
+                ))
+
+        # Lấy mã nhân viên buồng phòng để cập nhật cho lần chấm dịch vụ sau
+        bp_codes = [rec.get("ma_nv") for rec in raw_data if "BP" in (rec.get("ma_nv") or "").upper()]
+
+        # Thêm các bản ghi vào session và commit
         if attendance_db_records:
             db.add_all(attendance_db_records)
         if service_db_records:
             db.add_all(service_db_records)
 
-        # Cập nhật thông tin cho người điểm danh
+        # Cập nhật thông tin cho người chấm công (Lễ tân)
         if nguoi_diem_danh_code:
             checker_user = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
             if checker_user:
-                checker_user.last_checked_in_bp = bp_codes
+                # Chỉ cập nhật last_checked_in_bp nếu có nhân viên BP trong danh sách
+                if bp_codes:
+                    checker_user.last_checked_in_bp = bp_codes
                 if active_branch_from_payload and hasattr(checker_user, 'last_active_branch'):
                     checker_user.last_active_branch = active_branch_from_payload
                     request.session["active_branch"] = active_branch_from_payload
-
+        
         db.commit()
+
+        inserted_count = len(attendance_db_records) + len(service_db_records)
+        logger.info(f"{nguoi_diem_danh_code} đã ghi {inserted_count} bản ghi vào DB.")
+
+        # Xử lý luồng đăng nhập
+        if is_login_flow and nguoi_diem_danh_code:
+            user_in_db = employee_map.get(nguoi_diem_danh_code) # Tái sử dụng dữ liệu đã query
+            if user_in_db:
+                work_date, shift = get_current_work_shift()
+                shift_value = _get_log_shift_for_user(user_in_db.role, shift)
+                
+                # Dùng update() để hiệu quả hơn
+                db.query(AttendanceLog).filter_by(
+                    user_code=user_in_db.code,
+                    date=work_date,
+                    shift=shift_value
+                ).update({"checked_in": True})
+                db.commit()
+
+                request.session["user"] = {
+                    "code": user_in_db.code, "role": user_in_db.role,
+                    "branch": user_in_db.branch, "name": user_in_db.name
+                }
+                request.session["after_checkin"] = "choose_function"
+                request.session.pop("pending_user", None)
+                return {"status": "success", "inserted": inserted_count, "redirect_to": "/choose-function"}
+
+        return {"status": "success", "inserted": inserted_count}
+
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Lỗi khi lưu điểm danh/dịch vụ: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Lỗi khi lưu kết quả vào cơ sở dữ liệu.")
-    
-    inserted_count = len(attendance_db_records) + len(service_db_records)
-    logger.info(f"{nguoi_diem_danh_code} đã ghi {inserted_count} bản ghi vào DB.")
-
-    # Nếu đây là lần điểm danh ngay sau khi đăng nhập (trên mobile),
-    # thì hoàn tất phiên đăng nhập và trả về URL để chuyển hướng.
-    if is_login_flow and nguoi_diem_danh_code:
-        user_in_db = db.query(User).filter(User.code == nguoi_diem_danh_code).first()
-        if user_in_db:
-            # Đánh dấu bản ghi log điểm danh là đã check-in thành công
-            work_date, shift = get_current_work_shift()
-            shift_value = None if user_in_db.role in ["ktv", "quanly"] else shift
-            log = db.query(AttendanceLog).filter_by(
-                user_code=user_in_db.code,
-                date=work_date,
-                shift=shift_value
-            ).first()
-            if log:
-                log.checked_in = True
-                db.commit()
-
-            # Chuyển từ pending_user sang user chính thức trong session
-            request.session["user"] = {
-                "code": user_in_db.code, "role": user_in_db.role,
-                "branch": user_in_db.branch, "name": user_in_db.name
-            }
-            request.session["after_checkin"] = "choose_function"
-            request.session.pop("pending_user", None)
-            return {"status": "success", "inserted": inserted_count, "redirect_to": "/choose-function"}
-
-    return {"status": "success", "inserted": inserted_count}
 
 @app.get("/api/attendance/last-checked-in-bp", response_class=JSONResponse)
 def get_last_checked_in_bp(request: Request, db: Session = Depends(get_db)):
