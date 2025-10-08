@@ -549,6 +549,11 @@
     /* ===== Save attendance (giữ nguyên payload/endpoint) ===== */
     async function saveAttendance(){
       vibrate();
+      const saveBtn = document.getElementById('saveBtn');
+      if (saveBtn.disabled) return; // Prevent double-click
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'ĐANG LƯU...';
+
       if (employees.length === 0){ showStatusModal('error', "Danh sách trống, không có gì để lưu."); return; }
       showStatusModal('loading', 'Đang lưu dữ liệu...');
       const payload = employees.map(emp => ({
@@ -583,43 +588,37 @@
             throw new Error(errorMsg);
         }
         const doc = await res.json().catch(()=>null);
-
-        // Luồng 1 (Ưu tiên): Backend yêu cầu chuyển hướng (dành cho đăng nhập mobile)
-        if (doc && doc.redirect_to) {
-          window.location.replace(doc.redirect_to);
-          return; // Dừng xử lý tại đây
+        
+        // Luồng 1 (Ưu tiên): Backend trả về yêu cầu chuyển hướng (dành cho lần đăng nhập đầu tiên)
+        if (doc && doc.redirect_to && doc.status === 'success') {
+            showStatusModal('success', 'Điểm danh thành công! Đang chuyển hướng...', 1500, () => {
+                window.location.replace(doc.redirect_to);
+            });
+            return;
         }
 
-        // Luồng 2: Xử lý các trường hợp còn lại (điểm danh thường, hoặc quét QR)
-        if (doc && doc.status === 'queued') {
-          const token = new URLSearchParams(window.location.search).get("token");
-          if (token) {
-            // Đây là luồng quét QR từ desktop, cần gọi checkin_success để hoàn tất đăng nhập cho desktop
-            const checkinPayload = { token };
-            const checkinRes = await fetch("/attendance/checkin_success", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(checkinPayload)
-            });
-            const data = await checkinRes.json();
-            if (data && data.success && data.redirect_to) {
-              window.location.replace(data.redirect_to);
-              return;
-            }
-            const errorMsg = data && data.error ? data.error : "Lỗi không xác định";
-            showStatusModal('error', "Điểm danh thất bại: " + errorMsg);
-          } else {
-            // Đây là luồng điểm danh thông thường (không phải đăng nhập)
+        // Luồng 2: Điểm danh thành công nhưng không cần chuyển hướng (ví dụ: điểm danh thêm)
+        if (doc && doc.status === 'success') {
             showStatusModal('success', 'Lưu điểm danh thành công!', 2000, () => {
-                employees = []; // Xóa danh sách sau khi lưu
-                renderAttendanceList();
+                // Nếu là KTV hoặc Quản lý, chỉ có họ trong danh sách, nên xóa đi là hợp lý.
+                // Nếu là Lễ tân, họ có thể muốn điểm danh tiếp cho người khác, nên không xóa.
+                const role = (userRole||"").toLowerCase();
+                if (["quanly","ktv","boss","admin"].includes(role)){
+                    employees = []; 
+                    renderAttendanceList();
+                }
+                // Với Lễ tân, có thể làm mới danh sách mặc định nếu cần, hoặc để trống.
+                // Hiện tại, không làm gì để họ có thể điểm danh tiếp.
             });
-          }
+
         } else {
           showStatusModal('error', "Lưu xong nhưng server trả về không chuẩn.");
         }
       }catch(err){
         showStatusModal('error', "Lỗi khi lưu điểm danh: " + (err?.message || err));
+      } finally {
+        saveBtn.disabled = false; // Re-enable button on error or completion
+        saveBtn.textContent = 'LƯU ĐIỂM DANH';
       }
     }
 
