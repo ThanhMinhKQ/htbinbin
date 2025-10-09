@@ -1,6 +1,6 @@
 # models.py
 import enum
-from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, JSON, Float, Time, Enum as SQLAlchemyEnum
+from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time, Enum as SQLAlchemyEnum
 from database import Base
 from sqlalchemy.dialects.postgresql import ARRAY
 
