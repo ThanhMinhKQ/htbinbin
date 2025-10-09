@@ -2,7 +2,7 @@
 import enum
 from sqlalchemy import Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time, Enum as SQLAlchemyEnum
 from database import Base
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import ARRAY
 
 class User(Base):
     __tablename__ = "users"
@@ -12,10 +12,7 @@ class User(Base):
     password = Column(String(255), nullable=True)
     role = Column(String(50), nullable=False)
     branch = Column(String(50), nullable=False)
-    
-    # === THAY ĐỔI CHÍNH Ở ĐÂY ===
-    # Sửa từ JSONB thành ARRAY(Text) để khớp với kiểu text[] trong database
-    last_checked_in_bp = Column(JSONB, nullable=True)
+    last_checked_in_bp = Column(ARRAY(Text), nullable=True)
     last_active_branch = Column(String, nullable=True)
 
 class Task(Base):
