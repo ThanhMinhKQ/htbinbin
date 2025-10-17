@@ -323,14 +323,11 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
 
 
 
-# SỬA LẠI NHƯ THẾ NÀY (ĐÚNG)
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
     """Route gốc, chuyển hướng người dùng dựa trên trạng thái đăng nhập."""
     if request.session.get("user"):
-        # Nếu đã đăng nhập, chuyển đến trang chọn chức năng
-        return RedirectResponse("/choose-function", status_code=303) 
-    # Nếu chưa, chuyển đến trang đăng nhập
+        return RedirectResponse("/login", status_code=303) 
     return RedirectResponse("/login", status_code=303)
 
 # --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
@@ -798,14 +795,13 @@ def view_attendance_calendar(
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
+    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chọn chức năng
     user = request.session.get("user")
     if user:
-        # today = date.today() # XÓA DÒNG NÀY ĐI
-        work_date, _ = get_current_work_shift() # THÊM DÒNG NÀY
+        today = date.today()
         with SessionLocal() as db:
             try:
-                # SỬA LẠI BIẾN Ở ĐÂY
-                log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=work_date).first()
+                log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
                 if log and log.checked_in:
                         return RedirectResponse(url="/choose-function", status_code=303)
             except Exception as e:
