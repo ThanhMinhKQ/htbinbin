@@ -323,11 +323,14 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
 
 
 
+# SỬA LẠI NHƯ THẾ NÀY (ĐÚNG)
 @app.get("/", response_class=HTMLResponse)
 def root(request: Request):
     """Route gốc, chuyển hướng người dùng dựa trên trạng thái đăng nhập."""
     if request.session.get("user"):
-        return RedirectResponse("/login", status_code=303) 
+        # Nếu đã đăng nhập, chuyển đến trang chọn chức năng
+        return RedirectResponse("/choose-function", status_code=303) 
+    # Nếu chưa, chuyển đến trang đăng nhập
     return RedirectResponse("/login", status_code=303)
 
 # --- Sử dụng middleware này ở các route yêu cầu đăng nhập ---
