@@ -798,13 +798,14 @@ def view_attendance_calendar(
 
 @app.get("/login", response_class=HTMLResponse)
 def login_form(request: Request):
-    # Nếu người dùng đã đăng nhập VÀ đã điểm danh QR thành công hôm nay thì chuyển về trang chọn chức năng
     user = request.session.get("user")
     if user:
-        today = date.today()
+        # today = date.today() # XÓA DÒNG NÀY ĐI
+        work_date, _ = get_current_work_shift() # THÊM DÒNG NÀY
         with SessionLocal() as db:
             try:
-                log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=today).first()
+                # SỬA LẠI BIẾN Ở ĐÂY
+                log = db.query(AttendanceLog).filter_by(user_code=user["code"], date=work_date).first()
                 if log and log.checked_in:
                         return RedirectResponse(url="/choose-function", status_code=303)
             except Exception as e:
