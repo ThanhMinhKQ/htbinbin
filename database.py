@@ -1,5 +1,3 @@
-# database.py
-
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
@@ -10,10 +8,13 @@ engine = create_engine(
     connect_args={
         "options": "-c TimeZone=Asia/Ho_Chi_Minh"
     },
-    pool_pre_ping=True, # GIỮ NGUYÊN: Rất quan trọng để kiểm tra kết nối
-    pool_recycle=240,   # SỬA LẠI: Giảm từ 300 xuống 240 giây (4 phút)
-    pool_size=5,        
-    max_overflow=10,    
+    pool_pre_ping=True, # Vẫn giữ, cực kỳ quan trọng
+    pool_recycle=240,   # Vẫn giữ, rất tốt
+
+    # SỬA LẠI CÁC THAM SỐ NÀY
+    pool_size=3,        # Giữ 3 kết nối luôn mở
+    max_overflow=5,     # Cho phép tạo thêm tối đa 5 kết nối khi cần
+    
     echo=False
 )
 
