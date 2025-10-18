@@ -1747,7 +1747,7 @@ def startup():
             reset_sequence(db, table)
         # --- 2. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
         try:
-            sync_employees_from_source(db=db, employees_source=employees, force_delete=False)
+            # sync_employees_from_source(db=db, employees_source=employees, force_delete=False)
             logger.info("Hoàn tất đồng bộ nhân viên từ employees.py")
         except Exception as e:
             logger.error("Không thể đồng bộ nhân viên", exc_info=True)
