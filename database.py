@@ -2,18 +2,24 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from config import DATABASE_URL
+from sqlalchemy.pool import NullPool  # <-- 1. THÊM DÒNG NÀY
 
 # Tạo engine kết nối đến database từ URL trong file config.
 engine = create_engine(
     DATABASE_URL,
     connect_args={
-        # Bỏ "prepare_threshold": None, không cần thiết với cấu hình mới
+        # Giữ lại cài đặt TimeZone là tốt, không ảnh hưởng đến pool
         "options": "-c TimeZone=Asia/Ho_Chi_Minh"
     },
-    pool_pre_ping=True, # GIỮ LẠI: Đây là chìa khóa!
-    pool_recycle=300,   # GIỮ LẠI: Tái tạo kết nối sau 5 phút, trước khi Supabase ngắt.
-    pool_size=5,        # THÊM MỚI: Giữ 5 kết nối mở trong pool.
-    max_overflow=10,    # THÊM MỚI: Cho phép tạo thêm 10 kết nối nếu pool hết.
+    
+    # <-- 2. THAY THẾ TOÀN BỘ CẤU HÌNH POOL CŨ BẰNG DÒNG NÀY
+    poolclass=NullPool,
+    
+    # Bỏ tất cả các cài đặt cũ:
+    # pool_pre_ping, pool_recycle, pool_size, max_overflow
+    # Vì NullPool có nghĩa là "không có pool", nên các cài đặt đó
+    # không còn ý nghĩa và bị vô hiệu hóa.
+    
     echo=False
 )
 
@@ -25,9 +31,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def get_db():
-    """Dependency to get a DB session."""
+    """
+    Dependency để lấy một DB session.
+    Với NullPool, mỗi lần gọi hàm này sẽ TẠO MỘT KẾT NỐI MỚI.
+    """
     db: Session = SessionLocal()
     try:
         yield db
     finally:
+        # Lệnh close() này bây giờ sẽ THỰC SỰ ĐÓNG kết nối vật lý,
+        # ngay lập tức trả lại slot trống cho Supabase.
+        # Đây là chìa khóa để không bao giờ bị cạn kiệt kết nối.
         db.close()
