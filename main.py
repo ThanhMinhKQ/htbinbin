@@ -122,28 +122,11 @@ templates.env.filters['to_json_serializable'] = jsonable_encoder
 @app.get("/ping")
 async def ping():
     """
-    Endpoint công khai để giữ cho dịch vụ (và database) luôn "thức".
-    UptimeRobot hoặc các dịch vụ tương tự có thể gọi endpoint này định kỳ.
+    Endpoint công khai đơn giản để giữ cho dịch vụ "thức".
+    Chỉ trả về "alive" và không truy cập DB.
     """
-    pool = engine.pool
-    
-    if isinstance(pool, NullPool):
-        pool_status = {
-            "status": "ok",
-            "pool_class": "NullPool",
-            "message": "SQLAlchemy connection pooling is disabled (using NullPool)."
-        }
-    else:
-        pool_status = {
-            "status": "ok",
-            "pool_class": type(pool).__name__,
-            "pool_size": pool.size(),
-            "connections_in_pool": pool.checkedin(),
-            "connections_checked_out": pool.checkedout(),
-            "overflow": pool.overflow(),
-        }
-    logger.info(f"[DB_POOL_STATUS] {pool_status}")
-    return pool_status
+    logger.info("[PING] Service is alive.")
+    return {"status": "alive"}
 
 BRANCHES = [
     "B1", "B2", "B3",
