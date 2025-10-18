@@ -1737,41 +1737,68 @@ def reset_sequence(db, table_name: str, id_col: str = "id"):
     except Exception as e:
         logger.error(f"Lỗi khi reset sequence cho {table_name}: {e}", exc_info=True)
 
+def run_startup_db_tasks():
+    """
+    Hàm này chạy trong một thread nền để thực hiện các tác vụ DB
+    mà không làm block quá trình khởi động của app chính.
+    """
+    logger.info("[STARTUP_TASK] Bắt đầu tác vụ DB nền (reset sequence, sync nhân viên)...")
+    
+    # Tạo một DB session MỚI chỉ dành riêng cho thread này
+    try:
+        with SessionLocal() as db:
+            
+            # --- 1. Reset sequence ---
+            logger.info("[STARTUP_TASK] ...Đang reset sequences...")
+            for table in TABLES_WITH_SERIAL_ID:
+                try:
+                    reset_sequence(db, table)
+                except Exception as e:
+                    # Bắt lỗi cho từng bảng để không dừng toàn bộ quá trình
+                    logger.error(f"[STARTUP_TASK] Lỗi khi reset sequence cho bảng '{table}': {e}", exc_info=False) # exc_info=False để đỡ spam log
+
+            # --- 2. Đồng bộ nhân viên ---
+            logger.info("[STARTUP_TASK] ...Đang đồng bộ nhân viên...")
+            try:
+                # Bật lại dòng sync của bạn ở đây
+                sync_employees_from_source(db=db, employees_source=employees, force_delete=False)
+                logger.info("[STARTUP_TASK] Hoàn tất đồng bộ nhân viên.")
+            except Exception as e:
+                logger.error("[STARTUP_TASK] Lỗi nghiêm trọng khi đồng bộ nhân viên: {e}", exc_info=True)
+
+            logger.info("[STARTUP_TASK] ✅ Hoàn tất tất cả tác vụ DB nền.")
+            
+    except Exception as e:
+        # Bắt lỗi nếu ngay cả việc tạo SessionLocal() cũng thất bại (ví dụ: sai DATABASE_URL)
+        logger.error(f"[STARTUP_TASK] Lỗi nghiêm trọng, không thể khởi tạo session DB nền: {e}", exc_info=True)
+
+
 @app.on_event("startup")
 def startup():
-    logger.info("🚀 Khởi động ứng dụng...")
+    logger.info("🚀 Khởi động ứng dụng (main thread)...")
 
-    # --- 1. Reset sequence cho các bảng ---
-    with SessionLocal() as db:
-        for table in TABLES_WITH_SERIAL_ID:
-            reset_sequence(db, table)
-        # --- 2. Đồng bộ nhân viên (chạy 1 lần khi startup) ---
-        try:
-            # sync_employees_from_source(db=db, employees_source=employees, force_delete=False)
-            logger.info("Hoàn tất đồng bộ nhân viên từ employees.py")
-        except Exception as e:
-            logger.error("Không thể đồng bộ nhân viên", exc_info=True)
+    # --- 1. Kích hoạt tác vụ DB trong nền (NON-BLOCKING) ---
+    # Ứng dụng sẽ khởi động ngay mà không cần chờ DB
+    db_task_thread = threading.Thread(target=run_startup_db_tasks, daemon=True)
+    db_task_thread.start()
+    logger.info("...Đã kích hoạt tác vụ DB nền.")
 
-    # --- 3. Lập lịch các tác vụ nền ---
+    # --- 2. Lập lịch các tác vụ nền (Recurring) ---
     def auto_logout_job():
         logger.info("Kích hoạt đăng xuất tự động cho tất cả client.")
 
     scheduler = BackgroundScheduler(timezone=str(VN_TZ))
-    # Chạy tác vụ cập nhật trạng thái công việc mỗi 3 giờ để tiết kiệm tài nguyên.
-    # Điều này đảm bảo hệ thống phản ứng nhanh hơn và linh hoạt hơn với các
-    # nền tảng hosting có thể "ngủ" (sleep) khi không có traffic.
-    # misfire_grace_time=600: Nếu job bị lỡ, nó vẫn sẽ chạy nếu server thức dậy trong vòng 10 phút.
-    # Vô hiệu hóa tác vụ nền cập nhật trạng thái vì đã có cập nhật tức thì trong route /home.
-    # scheduler.add_job(update_overdue_tasks_status, 'interval', hours=3, id='update_overdue_tasks', misfire_grace_time=600)
+    # (Toàn bộ code scheduler của bạn giữ nguyên)
     scheduler.add_job(auto_logout_job, 'cron', hour=6, minute=59)
     scheduler.add_job(auto_logout_job, 'cron', hour=18, minute=59)
     scheduler.add_job(run_daily_absence_check, 'cron', hour=7, minute=0, misfire_grace_time=900)
     scheduler.start()
+    logger.info("...Đã khởi động scheduler cho các tác vụ định kỳ.")
 
-    # --- 4. Shutdown scheduler khi app stop ---
+    # --- 3. Shutdown scheduler khi app stop ---
     atexit.register(lambda: scheduler.shutdown())
 
-    logger.info("✅ Startup hoàn tất: DB init, reset sequence, sync nhân viên, lập lịch các tác vụ nền.")
+    logger.info("✅ Startup (main thread) hoàn tất. Ứng dụng sẵn sàng nhận request.")
 
 if __name__ == "__main__":
     import uvicorn
