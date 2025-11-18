@@ -4,19 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Đăng Nhập Hệ Thống</title>
+  
   <script src="https://cdn.tailwindcss.com"></script>
+
   <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: '#2563eb',
-            accent: '#111827'
+    // Hàm đệ quy kiểm tra xem tailwind đã load xong chưa
+    function initTailwindConfig() {
+      if (typeof tailwind === 'undefined') {
+        // Nếu chưa có, đợi 10ms rồi kiểm tra lại
+        setTimeout(initTailwindConfig, 10);
+        return;
+      }
+
+      // Khi đã có biến tailwind, mới tiến hành config
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#2563eb',
+              accent: '#111827'
+            }
           }
         }
       }
     }
+
+    // Bắt đầu kiểm tra
+    initTailwindConfig();
   </script>
  <style>
     html, body {
