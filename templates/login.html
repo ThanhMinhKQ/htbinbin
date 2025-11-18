@@ -4,34 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Đăng Nhập Hệ Thống</title>
-  
   <script src="https://cdn.tailwindcss.com"></script>
-
   <script>
-    // Hàm đệ quy kiểm tra xem tailwind đã load xong chưa
-    function initTailwindConfig() {
-      if (typeof tailwind === 'undefined') {
-        // Nếu chưa có, đợi 10ms rồi kiểm tra lại
-        setTimeout(initTailwindConfig, 10);
-        return;
-      }
-
-      // Khi đã có biến tailwind, mới tiến hành config
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              primary: '#2563eb',
-              accent: '#111827'
+    // Kiểm tra xem Tailwind đã tải thành công chưa
+    window.addEventListener('load', function() {
+        if (typeof tailwind === 'undefined') {
+            alert("Lỗi: Không thể tải thư viện giao diện. Vui lòng kiểm tra kết nối mạng hoặc tắt chặn quảng cáo (AdBlock).");
+            return;
+        }
+        
+        // Cấu hình chỉ chạy khi tailwind đã tồn tại
+        tailwind.config = {
+          darkMode: 'class',
+          theme: {
+            extend: {
+              colors: {
+                primary: '#2563eb',
+                accent: '#111827'
+              }
             }
           }
         }
-      }
-    }
-
-    // Bắt đầu kiểm tra
-    initTailwindConfig();
+    });
   </script>
  <style>
     html, body {
@@ -260,7 +254,7 @@
   </script>
 
 <!-- Canvas Cosmic Background -->
-<canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]"></canvas>
+<canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]" style="z-index: -1;"></canvas>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
