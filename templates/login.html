@@ -6,26 +6,17 @@
   <title>Đăng Nhập Hệ Thống</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    // Kiểm tra xem Tailwind đã tải thành công chưa
-    window.addEventListener('load', function() {
-        if (typeof tailwind === 'undefined') {
-            alert("Lỗi: Không thể tải thư viện giao diện. Vui lòng kiểm tra kết nối mạng hoặc tắt chặn quảng cáo (AdBlock).");
-            return;
-        }
-        
-        // Cấu hình chỉ chạy khi tailwind đã tồn tại
-        tailwind.config = {
-          darkMode: 'class',
-          theme: {
-            extend: {
-              colors: {
-                primary: '#2563eb',
-                accent: '#111827'
-              }
-            }
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            accent: '#111827'
           }
         }
-    });
+      }
+    }
   </script>
  <style>
     html, body {
@@ -254,7 +245,7 @@
   </script>
 
 <!-- Canvas Cosmic Background -->
-<canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]" style="z-index: -1;"></canvas>
+<canvas id="cosmicCanvas" class="fixed inset-0 z-[-10]"></canvas>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
