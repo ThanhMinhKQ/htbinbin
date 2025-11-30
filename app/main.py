@@ -33,42 +33,41 @@ app = FastAPI(
 
 # --- MIDDLEWARE ---
 
-# [SỬA ĐỔI QUAN TRỌNG] 1. Định nghĩa Middleware tùy chỉnh
 @app.middleware("http")
 async def ensure_active_branch_in_session(request: Request, call_next):
-    """
-    Middleware này chạy trước mỗi request.
-    Nếu User đã đăng nhập nhưng Session bị mất 'active_branch' (do reload trang hoặc vào thẳng link),
-    nó sẽ tự động vào DB lấy lại.
-    
-    CẬP NHẬT: Áp dụng cho TẤT CẢ nhân viên (thường + quản lý) để base.html luôn hiển thị chi nhánh.
-    """
-    # 1. Lấy thông tin từ session hiện tại
+    # 1. Lấy thông tin từ session
     user_data = request.session.get("user")
     active_branch = request.session.get("active_branch")
     
-    # 2. [ĐÃ XÓA] Logic kiểm tra special_roles
-    # Trước đây: special_roles = ["admin", "boss", "quanly", "ktv"]
-    
-    # 3. Kiểm tra điều kiện: Đã login + Chưa có branch trong session
-    # Bỏ điều kiện "if role in special_roles" để áp dụng cho tất cả mọi người
+    # 2. Logic: Nếu đã login (có user) nhưng chưa có active_branch (hoặc active_branch bị N/A)
     if user_data and not active_branch:
-        # Mở kết nối DB tạm thời
         db = SessionLocal()
         try:
-            # Truy vấn User để lấy last_active_branch mới nhất từ DB
+            # Truy vấn lại user mới nhất từ DB để lấy Role chuẩn
             current_user = db.query(User).filter(User.id == user_data.get("id")).first()
             
-            # Nếu trong DB có lưu chi nhánh lần cuối, nạp lại vào Session
-            if current_user and current_user.last_active_branch:
-                request.session["active_branch"] = current_user.last_active_branch
+            if current_user:
+                # Xử lý Role: chuyển về chữ thường và cắt khoảng trắng thừa
+                role = str(current_user.department.role_code if current_user.department else "").strip().lower()
+                
+                # Check danh sách quyền Admin mở rộng
+                admin_roles = ["admin", "superadmin", "quanly", "manager", "boss", "giamdoc"]
+                
+                if role in admin_roles:
+                    request.session["active_branch"] = "HỆ THỐNG"
+                    logger.info(f"Middleware: Đã set 'HỆ THỐNG' cho user {current_user.employee_code} (Role: {role})")
+                
+                elif current_user.last_active_branch:
+                    request.session["active_branch"] = current_user.last_active_branch
+                
+                else:
+                    request.session["active_branch"] = "Chưa phân bổ"
+
         except Exception as e:
-            # Chỉ log lỗi, không làm crash ứng dụng
-            logger.error(f"Middleware Error (Restore Branch): {e}")
+            logger.error(f"Middleware Error: {e}")
         finally:
             db.close()
     
-    # 4. Tiếp tục xử lý request như bình thường
     response = await call_next(request)
     return response
 
