@@ -2,49 +2,73 @@
 import enum
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time,
-    Enum as SQLAlchemyEnum, ForeignKey, BIGINT, NUMERIC, Index
+    Enum as SQLAlchemyEnum, ForeignKey, BIGINT, NUMERIC, Index, func
 )
-from sqlalchemy.dialects.postgresql import JSON
-from datetime import datetime
-from ..core.utils import VN_TZ
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
+from datetime import datetime
+
+# Import Base từ session đã cấu hình NullPool
 from .session import Base
 
 # ====================================================================
-# BẢNG DỮ LIỆU GỐC (MASTER DATA)
+# ENUM TYPES (Định nghĩa các tập giá trị cố định)
+# ====================================================================
+
+class LostItemStatus(str, enum.Enum):
+    STORED = "STORED"       
+    RETURNED = "RETURNED"
+    DISPOSED = "DISPOSED"
+    DISPOSABLE = "DISPOSABLE"
+    DELETED = "DELETED"
+
+class ShiftReportStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    CLOSED = "CLOSED"
+    DELETED = "DELETED"
+
+class TransactionType(str, enum.Enum):
+    CARD = "CARD"
+    UNC = "UNC"
+    OTA = "OTA"
+    COMPANY_ACCOUNT = "COMPANY_ACCOUNT"
+    BRANCH_ACCOUNT = "BRANCH_ACCOUNT"
+    CASH_EXPENSE = "CASH_EXPENSE"
+
+# ====================================================================
+# MASTER DATA (Dữ liệu nền)
 # ====================================================================
 
 class Branch(Base):
-    """Bảng quản lý danh sách các chi nhánh."""
+    """Chi nhánh - Dữ liệu ít thay đổi, quan trọng."""
     __tablename__ = "branches"
     
     id = Column(Integer, primary_key=True)
-    branch_code = Column(String(50), unique=True, nullable=False)
+    branch_code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     address = Column(Text)
     gps_lat = Column(NUMERIC(12, 9))
     gps_lng = Column(NUMERIC(12, 9))
-    created_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Department(Base):
-    """Bảng quản lý danh sách các phòng ban, vai trò."""
+    """Phòng ban / Vai trò."""
     __tablename__ = "departments"
     
     id = Column(Integer, primary_key=True)
-    role_code = Column(String(50), unique=True, nullable=False)
+    role_code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
 
 # ====================================================================
-# BẢNG NGƯỜI DÙNG (USERS)
+# CORE USER MODEL
 # ====================================================================
 
-class User(Base): # type: ignore
+class User(Base):
     __tablename__ = "users"
     
     id = Column(BIGINT, primary_key=True)
-    employee_id = Column(String(50), unique=True, nullable=False, index=True)
-    employee_code = Column(String(50), unique=True, nullable=False, index=True)
+    employee_id = Column(String(50), unique=True, nullable=False, index=True) # NV001
+    employee_code = Column(String(50), unique=True, nullable=False, index=True) # lt.nhuptq
     name = Column(String(100), nullable=False)
     password = Column(String(255), nullable=True)
     
@@ -53,66 +77,67 @@ class User(Base): # type: ignore
     
     shift = Column(String(10), nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     phone_number = Column(String(20))
     email = Column(String(255))
     last_active_branch = Column(String, nullable=True)
 
-    # ORM Relationships
+    # --- Relationships ---
     department = relationship("Department")
     main_branch = relationship("Branch")
     
-    # === CÁC MỐI QUAN HỆ HAI CHIỀU ĐÃ HOÀN CHỈNH ===
-
-    # -- Attendance --
-    attendance_logs = relationship("AttendanceLog", back_populates="user")
+    # [FIX] Sửa lại cú pháp foreign_keys: Dùng string KHÔNG có ngoặc vuông []
+    
+    # 1. Attendance
+    attendance_logs = relationship("AttendanceLog", back_populates="user", cascade="all, delete-orphan")
+    
     attendance_records_as_subject = relationship(
         "AttendanceRecord", 
-        foreign_keys="[AttendanceRecord.user_id]", 
-        back_populates="user",
+        foreign_keys="AttendanceRecord.user_id", # [FIXED]
+        back_populates="user", 
         cascade="all, delete-orphan"
     )
     attendance_records_as_checker = relationship(
         "AttendanceRecord", 
-        foreign_keys="[AttendanceRecord.checker_id]",
+        foreign_keys="AttendanceRecord.checker_id", # [FIXED]
         back_populates="checker"
     )
 
-    # -- Service --
+    # 2. Service Records
     service_records_as_subject = relationship(
         "ServiceRecord",
-        foreign_keys="[ServiceRecord.user_id]",
+        foreign_keys="ServiceRecord.user_id", # [FIXED]
         back_populates="user",
         cascade="all, delete-orphan"
     )
     service_records_as_checker = relationship(
         "ServiceRecord",
-        foreign_keys="[ServiceRecord.checker_id]",
+        foreign_keys="ServiceRecord.checker_id", # [FIXED]
         back_populates="checker"
     )
+    
+    # 3. Tasks
+    created_tasks = relationship("Task", foreign_keys="Task.author_id", back_populates="author")
+    assigned_tasks = relationship("Task", foreign_keys="Task.assignee_id", back_populates="assignee")
+    deleted_tasks = relationship("Task", foreign_keys="Task.deleter_id", back_populates="deleter")
 
-    # -- Tasks --
-    created_tasks = relationship("Task", foreign_keys="[Task.author_id]", back_populates="author")
-    assigned_tasks = relationship("Task", foreign_keys="[Task.assignee_id]", back_populates="assignee")
-    deleted_tasks = relationship("Task", foreign_keys="[Task.deleter_id]", back_populates="deleter")
+    # 4. Lost & Found
+    reported_lost_items = relationship("LostAndFoundItem", foreign_keys="LostAndFoundItem.reporter_id", back_populates="reporter")
+    recorded_lost_items = relationship("LostAndFoundItem", foreign_keys="LostAndFoundItem.recorder_id", back_populates="recorder")
+    disposed_lost_items = relationship("LostAndFoundItem", foreign_keys="LostAndFoundItem.disposer_id", back_populates="disposer")
+    deleted_lost_items = relationship("LostAndFoundItem", foreign_keys="LostAndFoundItem.deleter_id", back_populates="deleter")
 
-    # -- Lost & Found --
-    reported_lost_items = relationship("LostAndFoundItem", foreign_keys="[LostAndFoundItem.reporter_id]", back_populates="reporter")
-    recorded_lost_items = relationship("LostAndFoundItem", foreign_keys="[LostAndFoundItem.recorder_id]", back_populates="recorder")
-    disposed_lost_items = relationship("LostAndFoundItem", foreign_keys="[LostAndFoundItem.disposer_id]", back_populates="disposer")
-    deleted_lost_items = relationship("LostAndFoundItem", foreign_keys="[LostAndFoundItem.deleter_id]", back_populates="deleter")
+    # 5. Shift Transactions
+    recorded_shift_transactions = relationship("ShiftReportTransaction", foreign_keys="ShiftReportTransaction.recorder_id", back_populates="recorder")
+    closed_shift_transactions = relationship("ShiftReportTransaction", foreign_keys="ShiftReportTransaction.closer_id", back_populates="closer")
+    deleted_shift_transactions = relationship("ShiftReportTransaction", foreign_keys="ShiftReportTransaction.deleter_id", back_populates="deleter")
 
-    # === MỚI: MỐI QUAN HỆ GIAO CA ===
-    recorded_shift_transactions = relationship("ShiftReportTransaction", foreign_keys="[ShiftReportTransaction.recorder_id]", back_populates="recorder")
-    closed_shift_transactions = relationship("ShiftReportTransaction", foreign_keys="[ShiftReportTransaction.closer_id]", back_populates="closer")
-    deleted_shift_transactions = relationship("ShiftReportTransaction", foreign_keys="[ShiftReportTransaction.deleter_id]", back_populates="deleter")
-
-    # === MỚI: MỐI QUAN HỆ LỊCH SỬ KẾT CA ===
+    # 6. Shift Close Logs
     shift_close_logs = relationship("ShiftCloseLog", back_populates="closer")
 
 
 # ====================================================================
-# BẢNG GIAO DỊCH (TRANSACTIONAL TABLES)
+# TRANSACTIONAL MODELS (Nghiệp vụ hàng ngày)
 # ====================================================================
 
 class Task(Base):
@@ -127,21 +152,23 @@ class Task(Base):
     
     room_number = Column(String(50))
     description = Column(Text, nullable=False)
-    department = Column(String(100), nullable=True)
+    department = Column(String(100))
     status = Column(String(50), default='Đang chờ', index=True)
+    
     due_date = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
-    notes = Column(Text)
-    created_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     deleted_at = Column(DateTime(timezone=True))
+    notes = Column(Text)
 
-    # ORM Relationships
     branch = relationship("Branch")
+    # Ở class con, dùng list [column] cho foreign_keys là chuẩn nhất
     author = relationship("User", foreign_keys=[author_id], back_populates="created_tasks")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
     deleter = relationship("User", foreign_keys=[deleter_id], back_populates="deleted_tasks")
 
 class AttendanceLog(Base):
+    """Log thô (lúc quẹt thẻ/check-in)."""
     __tablename__ = "attendance_log"
     
     id = Column(BIGINT, primary_key=True)
@@ -150,11 +177,12 @@ class AttendanceLog(Base):
     shift = Column(String(10))
     token = Column(String(255), unique=True)
     checked_in = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="attendance_logs")
 
 class AttendanceRecord(Base):
+    """Bảng công chính thức."""
     __tablename__ = "attendance_records"
     
     id = Column(BIGINT, primary_key=True)
@@ -201,15 +229,8 @@ class ServiceRecord(Base):
     branch = relationship("Branch")
 
 # ====================================================================
-# BẢNG ĐỒ THẤT LẠC (LOST & FOUND)
+# LOST & FOUND (Đồ thất lạc)
 # ====================================================================
-
-class LostItemStatus(str, enum.Enum):
-    STORED = "STORED"       
-    RETURNED = "RETURNED"
-    DISPOSED = "DISPOSED"
-    DISPOSABLE = "DISPOSABLE"
-    DELETED = "DELETED"
 
 class LostAndFoundItem(Base):
     __tablename__ = "lost_and_found_items"
@@ -228,7 +249,6 @@ class LostAndFoundItem(Base):
     owner_name = Column(String(100))
     owner_contact = Column(String(100))
     return_datetime = Column(DateTime(timezone=True))
-
     receiver_name = Column(String, nullable=True)
     receiver_contact = Column(String, nullable=True)
     update_notes = Column(Text, nullable=True)
@@ -240,8 +260,7 @@ class LostAndFoundItem(Base):
     deleted_datetime = Column(DateTime(timezone=True))
     notes = Column(Text)
     
-    # --- CỘT CHO FULL-TEXT SEARCH ---
-    fts_vector = Column(TSVECTOR, index=True)
+    fts_vector = Column(TSVECTOR)
 
     branch = relationship("Branch")
     reporter = relationship("User", foreign_keys=[reporter_id], back_populates="reported_lost_items")
@@ -249,22 +268,13 @@ class LostAndFoundItem(Base):
     disposer = relationship("User", foreign_keys=[disposer_id], back_populates="disposed_lost_items")
     deleter = relationship("User", foreign_keys=[deleter_id], back_populates="deleted_lost_items")
 
-# ====================================================================
-# BẢNG GIAO DỊCH CA (SHIFT REPORT)
-# ====================================================================
+    __table_args__ = (
+        Index("ix_lost_items_fts", "fts_vector", postgresql_using="gin"),
+    )
 
-class ShiftReportStatus(str, enum.Enum):
-    PENDING = "PENDING"
-    CLOSED = "CLOSED"
-    DELETED = "DELETED"
-
-class TransactionType(str, enum.Enum):
-    CARD = "CARD"
-    UNC = "UNC"
-    OTA = "OTA"
-    COMPANY_ACCOUNT = "COMPANY_ACCOUNT"
-    BRANCH_ACCOUNT = "BRANCH_ACCOUNT"
-    CASH_EXPENSE = "CASH_EXPENSE"
+# ====================================================================
+# SHIFT REPORT (Giao ca)
+# ====================================================================
 
 class ShiftReportTransaction(Base):
     __tablename__ = "shift_report_transactions"
@@ -275,9 +285,9 @@ class ShiftReportTransaction(Base):
     recorder_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
     
     transaction_type = Column(SQLAlchemyEnum(TransactionType, name="transactiontype", native_enum=True), nullable=False, index=True)
-    amount = Column(BIGINT, nullable=False, index=True) # Dùng BIGINT cho tiền VNĐ
-    room_number = Column(String(50), nullable=True, index=True) # THÊM: Số phòng
-    transaction_info = Column(String(255), nullable=True) # THÊM: Thông tin giao dịch (VD: mã booking, tên khách)
+    amount = Column(BIGINT, nullable=False, index=True)
+    room_number = Column(String(50), nullable=True, index=True)
+    transaction_info = Column(String(255), nullable=True)
     status = Column(SQLAlchemyEnum(ShiftReportStatus, name="shiftreportstatus", native_enum=True), default=ShiftReportStatus.PENDING, index=True)
     
     created_datetime = Column(DateTime(timezone=True), nullable=False, index=True)
@@ -288,18 +298,17 @@ class ShiftReportTransaction(Base):
     deleter_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), index=True)
     deleted_datetime = Column(DateTime(timezone=True))
 
-    # --- CỘT CHO FULL-TEXT SEARCH ---
-    fts_vector = Column(TSVECTOR, index=True)
+    fts_vector = Column(TSVECTOR)
 
-    # ORM Relationships
     branch = relationship("Branch")
     recorder = relationship("User", foreign_keys=[recorder_id], back_populates="recorded_shift_transactions")
     closer = relationship("User", foreign_keys=[closer_id], back_populates="closed_shift_transactions")
     deleter = relationship("User", foreign_keys=[deleter_id], back_populates="deleted_shift_transactions")
 
-# ====================================================================
-# BẢNG GHI NHẬN LỊCH SỬ KẾT CA (SHIFT CLOSE LOG)
-# ====================================================================
+    __table_args__ = (
+        Index("ix_shift_trans_fts", "fts_vector", postgresql_using="gin"),
+    )
+
 class ShiftCloseLog(Base):
     __tablename__ = 'shift_close_logs'
 
@@ -311,9 +320,10 @@ class ShiftCloseLog(Base):
     closer_id = Column(BIGINT, ForeignKey('users.id'), nullable=False)
     closer = relationship("User", back_populates="shift_close_logs")
 
-    closed_datetime = Column(DateTime(timezone=True), default=lambda: datetime.now(VN_TZ), nullable=False)
+    closed_datetime = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     
     pms_revenue = Column(BIGINT, nullable=False, default=0)
     closed_online_revenue = Column(BIGINT, nullable=False, default=0)
     closed_branch_revenue = Column(BIGINT, nullable=False, default=0)
-    closed_transaction_ids = Column(JSON, nullable=True) # Lưu danh sách ID các giao dịch đã kết trong lần này
+    
+    closed_transaction_ids = Column(JSONB, nullable=True)
