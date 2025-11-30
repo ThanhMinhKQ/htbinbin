@@ -4,14 +4,14 @@ from sqlalchemy.orm import Session
 import os
 from typing import Optional, List
 from datetime import datetime, timedelta
-from pydantic import BaseModel
-from math import sin, cos, sqrt, atan2, radians
+from pydantic import BaseModel # <-- THÊM IMPORT
+from math import sin, cos, sqrt, atan2, radians # <-- THÊM IMPORT
 
 from ..db.session import get_db
 from ..db.models import User, AttendanceRecord, ServiceRecord, Branch, Department, AttendanceLog
 from ..core.security import get_csrf_token, require_checked_in_user, validate_csrf
 from ..core.utils import get_current_work_shift, VN_TZ, format_datetime_display
-
+# SỬA DÒNG DƯỚI ĐỂ IMPORT TỌA ĐỘ
 from ..core.config import logger, ROLE_MAP, BRANCHES, BRANCH_COORDINATES
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import cast, Date, select, or_, and_
@@ -57,120 +57,157 @@ class GpsPayload(BaseModel):
 class BranchSelectPayload(BaseModel):
     branch: str
 
+# === KẾT THÚC CODE THÊM MỚI ===
+
 @router.get("/", response_class=HTMLResponse)
 def attendance_ui(request: Request, db: Session = Depends(get_db)):
     user_data = request.session.get("user") or request.session.get("pending_user")
     if not user_data:
         return RedirectResponse("/login", status_code=303)
     
-    role = user_data.get("role", "").lower()
-    user_id = user_data.get("id")
-    
-    # === TỐI ƯU HÓA LOGIC LẤY CHI NHÁNH ===
-    # Middleware đã đảm bảo active_branch có trong session nếu user có lịch sử.
-    session_branch = request.session.get("active_branch", "")
-    final_branch_to_render = ""
-    
-    special_roles = ["quanly", "ktv", "boss", "admin"]
-    
-    if role in special_roles:
-        # Nhóm đặc biệt: Luôn tin tưởng Session (do Middleware nạp)
-        final_branch_to_render = session_branch
-    else:
-        # Nhóm thường (Lễ tân, BP...): Cần kiểm tra kỹ hơn
-        work_date, _ = get_current_work_shift()
-        
-        # Kiểm tra xem hôm nay đã điểm danh thành công chưa
-        log = db.query(AttendanceLog).filter(
-            AttendanceLog.user_id == user_id,
-            AttendanceLog.work_date == work_date
-        ).first()
-
-        if log and log.checked_in:
-            # Nếu ĐÃ điểm danh hôm nay: Cho phép dùng chi nhánh trong session (không bắt GPS lại)
-            final_branch_to_render = session_branch
+    # ... (Logic lấy active_branch giữ nguyên) ...
+    active_branch = request.session.get("active_branch")
+    if not active_branch:
+        user_from_db = db.query(User).filter(User.id == user_data.get("id")).first()
+        if user_from_db and user_from_db.last_active_branch:
+            active_branch = user_from_db.last_active_branch
         else:
-            # Nếu CHƯA điểm danh: Bắt buộc active_branch = "" để Frontend kích hoạt GPS check
-            final_branch_to_render = "" 
-
+            active_branch = user_data.get("branch", "")
+    
     csrf_token = get_csrf_token(request)
 
     response = templates.TemplateResponse("attendance.html", {
         "request": request,
-        "branch_id": final_branch_to_render, # Biến này quyết định GPS có chạy hay không
+        "branch_id": active_branch, 
         "csrf_token": csrf_token,
         "user": user_data,
         "login_code": user_data.get("code", ""),
-        "role": role,
+        "role": user_data.get("role", ""),
         "token": request.query_params.get("token", ""),
     })
     
+    # Các header chặn cache này vẫn giữ nguyên là rất tốt
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
 
-@router.post("/api/detect-branch")
-async def detect_branch(request: Request, payload: GpsPayload, db: Session = Depends(get_db)):
+# === API DETECT-BRANCH ĐÃ SỬA LẠI HOÀN CHỈNH ===
+@router.post("/api/detect-branch") # <-- SỬA TỪ @app VÀ BỎ /attendance
+async def detect_branch(
+    request: Request,
+    payload: GpsPayload, # <-- Dùng Pydantic model
+    db: Session = Depends(get_db)
+):
     special_roles = ["quanly", "ktv", "boss", "admin"]
+
     user_data = request.session.get("user") or request.session.get("pending_user")
-    
-    # 1. Role đặc biệt: Lấy từ Session (đã được Middleware xử lý)
+    user_in_db = None
+    if user_data:
+        # TỐI ƯU: Load sẵn main_branch để dùng
+        user_in_db = db.query(User).options(
+            joinedload(User.main_branch)
+        ).filter(User.employee_code == user_data["code"]).first()
+
+    # ===============================
+    # 1. Role đặc biệt → bỏ qua GPS
+    # ===============================
     if user_data and user_data.get("role") in special_roles:
-        active_branch = request.session.get("active_branch")
-        if active_branch:
-             return {"branch": active_branch, "distance_km": 0}
-        else:
-             # Fallback hiếm gặp: Nếu middleware chưa kịp nạp (gần như không xảy ra)
-             return JSONResponse({"error": "Không xác định được chi nhánh. Vui lòng chọn thủ công."}, status_code=400)
+        if user_in_db and user_in_db.main_branch:
+            # SỬA LỖI LOGIC: Dùng main_branch.branch_code
+            main_branch_code = user_in_db.main_branch.branch_code
+            request.session["active_branch"] = main_branch_code
+            user_in_db.last_active_branch = main_branch_code
+            db.commit()
+            return {"branch": main_branch_code, "distance_km": 0}
 
-    # 2. Role thường: Xử lý GPS
-    lat, lng = payload.lat, payload.lng
+        return JSONResponse(
+            {"error": "Không thể lấy chi nhánh chính. Vui lòng liên hệ quản trị."},
+            status_code=400,
+        )
+
+    # ===============================
+    # 2. Role thường → dùng GPS
+    # ===============================
+    lat, lng = payload.lat, payload.lng # <-- Lấy từ payload
     if lat is None or lng is None:
-        return JSONResponse({"error": "Vui lòng bật GPS để điểm danh."}, status_code=400)
+        # Nếu không có GPS, thử fallback về chi nhánh đã lưu
+        if user_in_db and user_in_db.last_active_branch:
+             request.session["active_branch"] = user_in_db.last_active_branch
+             return {"branch": user_in_db.last_active_branch, "distance_km": 0}
+        
+        # Nếu không có gì cả, báo lỗi
+        return JSONResponse(
+            {"error": "Bạn vui lòng mở định vị (GPS) trên điện thoại để lấy vị trí."},
+            status_code=400,
+        )
 
+    # Tìm chi nhánh trong bán kính 200m
     nearby_branches = []
+    # SỬA: Dùng biến BRANCH_COORDINATES đã import từ config.py
     for branch, coords in BRANCH_COORDINATES.items():
         dist = haversine(lat, lng, coords[0], coords[1])
-        if dist <= 0.2: # 200m
+        if dist <= 0.2:  # trong 200m
             nearby_branches.append((branch, dist))
 
     if not nearby_branches:
-        return JSONResponse({"error": "Bạn đang ở quá xa vị trí chi nhánh (ngoài 200m)."}, status_code=403)
+        return JSONResponse(
+            {"error": "Bạn đang ở quá xa khách sạn (ngoài 200m). Vui lòng điểm danh tại khách sạn."},
+            status_code=403,
+        )
 
     if len(nearby_branches) > 1:
-        choices = [{"branch": b, "distance_km": round(d, 3)} for b, d in sorted(nearby_branches, key=lambda x: x[1])]
+        choices = [
+            {"branch": b, "distance_km": round(d, 3)}
+            for b, d in sorted(nearby_branches, key=lambda x: x[1])
+        ]
         return {"choices": choices}
 
     chosen_branch, min_distance = nearby_branches[0]
-    
-    # Cập nhật session và DB
+
     request.session["active_branch"] = chosen_branch
-    if user_data:
-        user_in_db = db.query(User).filter(User.employee_code == user_data["code"]).first()
-        if user_in_db:
-            user_in_db.last_active_branch = chosen_branch
-            db.commit()
+    if user_in_db:
+        user_in_db.last_active_branch = chosen_branch
+        db.commit()
 
     return {"branch": chosen_branch, "distance_km": round(min_distance, 3)}
 
+# === API SELECT-BRANCH BỊ THIẾU ===
 @router.post("/api/select-branch")
-async def select_branch(payload: BranchSelectPayload, request: Request, db: Session = Depends(get_db)):
+async def select_branch(
+    payload: BranchSelectPayload,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    API được gọi khi Lễ tân tự chọn 1 chi nhánh từ popup.
+    Lưu lựa chọn này vào session và database.
+    """
     user_data = request.session.get("user") or request.session.get("pending_user")
     if not user_data:
         raise HTTPException(status_code=403, detail="Phiên làm việc hết hạn.")
 
-    if payload.branch not in BRANCH_COORDINATES:
+    chosen_branch = payload.branch
+    
+    # Kiểm tra xem chi nhánh có hợp lệ không
+    if chosen_branch not in BRANCH_COORDINATES:
          raise HTTPException(status_code=400, detail="Chi nhánh không hợp lệ.")
 
-    # Lưu session & DB
-    request.session["active_branch"] = payload.branch
+    # Lưu vào session
+    request.session["active_branch"] = chosen_branch
+    
+    # Lưu vào DB
     user_in_db = db.query(User).filter(User.employee_code == user_data["code"]).first()
     if user_in_db:
-        user_in_db.last_active_branch = payload.branch
+        user_in_db.last_active_branch = chosen_branch
         db.commit()
 
-    return {"status": "success", "branch": payload.branch}
+    return {"status": "success", "branch": chosen_branch}
+
+
+# --- CÁC API CÒN LẠI GIỮ NGUYÊN ---
+
+#
 
 @router.get("/api/employees/by-branch/{branch_code}", response_class=JSONResponse)
 def get_employees_by_branch(branch_code: str, db: Session = Depends(get_db), request: Request = None):
