@@ -12,6 +12,13 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        if (localStorage.getItem('sidebarCollapsed') === 'true') {
+            document.documentElement.classList.add('sidebar-closed');
+        }
+    </script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
@@ -114,6 +121,39 @@
         }
 
         .preload * { transition: none !important; }
+
+        /* [THÊM MỚI] Ép kiểu sidebar ngay lập tức khi có class sidebar-closed ở html */
+        html.sidebar-closed aside {
+            width: var(--sidebar-collapsed-width) !important;
+        }
+
+        /* Ẩn ngay lập tức các text khi đang load ở chế độ đóng */
+        html.sidebar-closed .nav-text, 
+        html.sidebar-closed .logo-text,
+        html.sidebar-closed .branch-status,
+        html.sidebar-closed .branch-icon {
+            display: none !important;
+        }
+
+        /* Ép hiển thị text dọc ngay lập tức */
+        html.sidebar-closed .branch-container {
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 0.5rem 0;
+        }
+        html.sidebar-closed .branch-name-text {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transform: rotate(180deg);
+            white-space: nowrap;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
     <script>
         tailwind.config = {
@@ -157,13 +197,18 @@
           toggleSidebar() {
               this.sidebarCollapsed = !this.sidebarCollapsed;
               localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
+              
+              // [QUAN TRỌNG] Đồng bộ class html để giữ trạng thái cho lần load sau
+              if(this.sidebarCollapsed) {
+                  document.documentElement.classList.add('sidebar-closed');
+              } else {
+                  document.documentElement.classList.remove('sidebar-closed');
+              }
           }
       }"
       x-init="
-          // Đợi render xong mới bỏ preload
           setTimeout(() => document.body.classList.remove('preload'), 100);
           
-          // Watcher để đồng bộ class CSS khi thay đổi state Alpine
           $watch('sidebarCollapsed', value => {
                if(value) $refs.sidebar.classList.add('is-collapsed');
                else $refs.sidebar.classList.remove('is-collapsed');
@@ -381,11 +426,6 @@
                 window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
             });
         })();
-
-        // Kích hoạt class collapsed ban đầu nếu có trong localStorage
-        if (localStorage.getItem('sidebarCollapsed') === 'true' || window.innerWidth < 1024) {
-             document.querySelector('aside').classList.add('is-collapsed');
-        }
 
         const currentUser = JSON.parse('{{ user | tojson | safe }}');
     </script>
