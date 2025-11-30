@@ -54,9 +54,9 @@ DEPARTMENTS = ["Chưa phân loại", "Nội bộ", "Sơn nước", "Thợ hồ",
 
 # Danh sách này có thể được thay thế bằng cách query từ bảng `branches` nếu muốn linh hoạt hơn
 BRANCHES = [
-    "Bin Bin Hotel 1", "Bin Bin Hotel 2", "Bin Bin Hotel 3", "Bin Bin Hotel 5", "Bin Bin Hotel 6", "Bin Bin Hotel 7", "Bin Bin Hotel 8", "Bin Bin Hotel 9", "Bin Bin Hotel 10",
-    "Bin Bin Hotel 11", "Bin Bin Hotel 12", "Bin Bin Hotel 14", "Bin Bin Hotel 15", "Bin Bin Hotel 16", "Bin Bin Hotel 17",
-    "DI DONG", "KTV", "Quản Lý"
+    "B1", "B2", "B3", "B5", "B6", "B7", "B8", "B9", "B10",
+    "B11", "B12", "B14", "B15", "B16", "B17",
+    "DI DONG", "KTV", "QL"
 ]
 
 # Map để dịch trạng thái Đồ thất lạc sang tiếng Việt
