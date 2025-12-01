@@ -1590,7 +1590,11 @@
                 loading: true, // Trạng thái tải chung
                 data: { 
                     by_branch: [], 
-                    by_type: { closed_online: 0, pending_online: 0, closed_branch: 0, pending_branch: 0 },
+                    by_type: { 
+                        closed_online: 0, pending_online: 0, 
+                        closed_branch: 0, pending_branch: 0,
+                        pending_expense: 0, closed_expense: 0
+                    },
                     total_pms_revenue: 0,
                     total_cash_revenue: 0,
                     recent_closes: []
@@ -1613,10 +1617,15 @@
                 return this.charts.data.by_type.closed_branch;
             },
             // THÊM: Getter để tính tổng doanh thu đang chờ xử lý
+            // THÊM: Getter để tính tổng doanh thu đang chờ xử lý
             get totalPendingRevenue() {
                 const pendingOnline = this.charts.data.by_type.pending_online || 0;
                 const pendingBranch = this.charts.data.by_type.pending_branch || 0;
-                return pendingOnline + pendingBranch;
+                // Cũ: return pendingOnline + pendingBranch;
+                
+                // Mới: Tổng doanh thu (không tính chi) = Online + Chi nhánh
+                // Lưu ý: Chi phí không được cộng vào doanh thu hiển thị, nhưng cần dùng để tính tiền mặt
+                return pendingOnline + pendingBranch; 
             },
 
             // Các getter tính toán tiền mặt
@@ -1624,11 +1633,20 @@
                 const pmsRaw = this.letanShiftClose.pmsRevenue.replace(/[^0-9]/g, '');
                 return parseFloat(pmsRaw) || 0;
             },
+            
+            // --- SỬA QUAN TRỌNG Ở ĐÂY ---
             get letanCounterCash() {
-                const pms = this.letanPmsRevenueValue;
+                const pms = this.letanPmsRevenueValue; 
+                
+                // Online và Branch bây giờ là số thuần (không bị trừ chi phí bậy bạ nữa)
                 const pendingOnline = this.charts.data.by_type.pending_online || 0;
                 const pendingBranch = this.charts.data.by_type.pending_branch || 0;
-                return pms - (pendingOnline + pendingBranch);
+                
+                // Lấy khoản chi phí riêng
+                const pendingExpense = this.charts.data.by_type.pending_expense || 0;
+
+                // CÔNG THỨC ĐÚNG: PMS - Online - Chi Nhánh - Chi Phí
+                return pms - (pendingOnline + pendingBranch) - pendingExpense;
             },
             get letanTotalCounter() {
                 return this.letanCounterCash + 1500000;
