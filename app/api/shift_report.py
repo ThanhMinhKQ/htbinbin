@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from datetime import datetime, timedelta
 import math
 import random
@@ -117,7 +117,7 @@ def _get_filtered_transactions(
     sort_by: Optional[str] = 'created_datetime', # THÊM
     sort_order: Optional[str] = 'desc', # THÊM
     active_branch_for_letan: Optional[str] = None
-) -> (List[ShiftReportTransaction], int):
+) -> Tuple[List[ShiftReportTransaction], int]:
     """
     Hàm dịch vụ để lấy danh sách các giao dịch đã được lọc và phân trang.
     """
@@ -993,9 +993,20 @@ async def get_dashboard_summary(
             (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', -ShiftReportTransaction.amount),
             else_=0
         )
+        # 1. Doanh thu Online CHỈ tính các khoản thu (OTA, CK, Thẻ...)
         online_revenue_case = case(
             (ShiftReportTransaction.transaction_type.in_(['COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD']), ShiftReportTransaction.amount),
-            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', -ShiftReportTransaction.amount),
+            else_=0 
+        )
+
+        # 2. Tạo biến riêng cho Chi Tiền Mặt
+        expense_case = case(
+            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', ShiftReportTransaction.amount),
+            else_=0
+        )
+
+        branch_revenue_case = case(
+            (ShiftReportTransaction.transaction_type == 'BRANCH_ACCOUNT', ShiftReportTransaction.amount),
             else_=0
         )
         branch_revenue_case = case(
@@ -1093,10 +1104,14 @@ async def get_dashboard_summary(
 
         # --- THỰC HIỆN CÁC TRUY VẤN ĐÃ LỌC ---
         
-        # 1. Query tổng doanh thu theo loại (từ tx_query đã lọc)
         revenue_by_type_and_status = tx_query.with_entities(
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, online_revenue_case), else_=0)).label('closed_online_revenue'),
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, online_revenue_case), else_=0)).label('pending_online_revenue'),
+            
+            # THÊM: Tính tổng chi phí
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, expense_case), else_=0)).label('closed_expense'),
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, expense_case), else_=0)).label('pending_expense'),
+
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, branch_revenue_case), else_=0)).label('closed_branch_revenue'),
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, branch_revenue_case), else_=0)).label('pending_branch_revenue')
         ).first()
@@ -1195,6 +1210,11 @@ async def get_dashboard_summary(
                 "by_type": {
                     "closed_online": float(revenue_by_type_and_status.closed_online_revenue or 0.0),
                     "pending_online": float(revenue_by_type_and_status.pending_online_revenue or 0.0),
+                    
+                    # THÊM MỚI 2 DÒNG NÀY:
+                    "closed_expense": float(revenue_by_type_and_status.closed_expense or 0.0),
+                    "pending_expense": float(revenue_by_type_and_status.pending_expense or 0.0),
+
                     "closed_branch": float(revenue_by_type_and_status.closed_branch_revenue or 0.0),
                     "pending_branch": float(revenue_by_type_and_status.pending_branch_revenue or 0.0),
                 }
