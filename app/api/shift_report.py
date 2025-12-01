@@ -979,46 +979,49 @@ async def get_dashboard_summary(
     Bao gồm:
     1. Doanh thu theo từng chi nhánh.
     2. Tổng doanh thu online và tại chi nhánh.
-    (ĐÃ SỬA: API này giờ đây chấp nhận bộ lọc)
+    (ĐÃ SỬA: Cập nhật logic tính CASH_EXPENSE là doanh thu online dương)
     """
     user_data = request.session.get("user")
-    # SỬA: Bất kỳ ai đăng nhập đều có thể gọi API này (Lễ tân, QL, Admin, Boss)
     if not user_data:
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     try:
-        # --- (Giữ nguyên các biểu thức case) ---
-        total_revenue_case = case(
-            (ShiftReportTransaction.transaction_type.in_(['COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'BRANCH_ACCOUNT']), ShiftReportTransaction.amount),
-            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', -ShiftReportTransaction.amount),
-            else_=0
-        )
-        # 1. Doanh thu Online CHỈ tính các khoản thu (OTA, CK, Thẻ...)
+        # --- CẬP NHẬT LOGIC TÍNH TOÁN ---
+
+        # 1. Doanh thu Online: Bao gồm OTA, Công ty, Thẻ... VÀ CẢ Chi Tiền Quầy (CASH_EXPENSE)
+        # Tất cả đều tính là dương (+)
         online_revenue_case = case(
-            (ShiftReportTransaction.transaction_type.in_(['COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD']), ShiftReportTransaction.amount),
+            (ShiftReportTransaction.transaction_type.in_([
+                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE'
+            ]), ShiftReportTransaction.amount),
             else_=0 
         )
 
-        # 2. Tạo biến riêng cho Chi Tiền Mặt
+        # 2. Doanh thu Chi nhánh
+        branch_revenue_case = case(
+            (ShiftReportTransaction.transaction_type == 'BRANCH_ACCOUNT', ShiftReportTransaction.amount),
+            else_=0
+        )
+
+        # 3. Tổng doanh thu (Dùng cho việc xếp hạng admin)
+        # Bao gồm tất cả các loại phi tiền mặt + chi tiền quầy
+        total_revenue_case = case(
+            (ShiftReportTransaction.transaction_type.in_([
+                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'BRANCH_ACCOUNT', 'CASH_EXPENSE'
+            ]), ShiftReportTransaction.amount),
+            else_=0
+        )
+
+        # 4. Biến phụ để tracking riêng expense (nếu cần hiển thị riêng, nhưng không trừ vào doanh thu)
         expense_case = case(
             (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', ShiftReportTransaction.amount),
             else_=0
         )
 
-        branch_revenue_case = case(
-            (ShiftReportTransaction.transaction_type == 'BRANCH_ACCOUNT', ShiftReportTransaction.amount),
-            else_=0
-        )
-        branch_revenue_case = case(
-            (ShiftReportTransaction.transaction_type == 'BRANCH_ACCOUNT', ShiftReportTransaction.amount),
-            else_=0
-        )
-
-        # --- SỬA: Xây dựng Base Query và áp dụng bộ lọc ---
+        # --- Xây dựng Base Query và áp dụng bộ lọc ---
 
         # 1. Base Query cho Bảng Giao Dịch (Transactions)
         active_branch_for_letan = None
-        # SỬA: Logic cho Lễ tân
         if user_data.get("role") == 'letan':
             # Lễ tân chỉ xem các giao dịch PENDING của chi nhánh mình
             active_branch_for_letan = get_active_branch(request, db, user_data)
@@ -1033,12 +1036,12 @@ async def get_dashboard_summary(
                 ShiftReportTransaction.status.in_([ShiftReportStatus.CLOSED.value, ShiftReportStatus.PENDING.value])
             )
 
-        # 2. Base Query cho Bảng Log Kết Ca (Logs) - Lọc theo chi nhánh cho Lễ tân
+        # 2. Base Query cho Bảng Log Kết Ca (Logs)
         log_query = db.query(ShiftCloseLog)
         if user_data.get("role") == 'letan':
             log_query = log_query.join(ShiftCloseLog.branch).filter(Branch.branch_code == active_branch_for_letan)
         
-        # 3. Base Query cho Xếp hạng (Ranking) - Sẽ được lọc sau
+        # 3. Base Query cho Xếp hạng (Ranking)
         ranking_tx_query = db.query(ShiftReportTransaction).filter(
              ShiftReportTransaction.status.in_([ShiftReportStatus.CLOSED.value, ShiftReportStatus.PENDING.value])
         )
@@ -1054,13 +1057,13 @@ async def get_dashboard_summary(
         # --- Áp dụng bộ lọc Ngày (hoặc Tháng hiện tại) ---
         if created_date:
             try:
-                filter_date = datetime.strptime(created_date, "%Y-%m-d").date()
+                filter_date = datetime.strptime(created_date, "%Y-%m-%d").date()
                 start_of_day = datetime.combine(filter_date, datetime.min.time()).replace(tzinfo=VN_TZ)
                 end_of_day = datetime.combine(filter_date, datetime.max.time()).replace(tzinfo=VN_TZ)
                 
-                # Lọc bảng transaction theo `created_datetime`
+                # Lọc bảng transaction
                 tx_query = tx_query.filter(ShiftReportTransaction.created_datetime.between(start_of_day, end_of_day))
-                # Lọc bảng log theo `closed_datetime`
+                # Lọc bảng log
                 log_query = log_query.filter(ShiftCloseLog.closed_datetime.between(start_of_day, end_of_day))
                 # Lọc bảng ranking
                 ranking_tx_query = ranking_tx_query.filter(ShiftReportTransaction.created_datetime.between(start_of_day, end_of_day))
@@ -1068,9 +1071,9 @@ async def get_dashboard_summary(
 
             except ValueError:
                 logger.warning(f"Định dạng ngày không hợp lệ cho dashboard: {created_date}")
-        # SỬA: Chỉ áp dụng lọc tháng hiện tại nếu không phải Lễ tân
+        
         elif user_data.get("role") != 'letan':
-            # NẾU KHÔNG CÓ BỘ LỌC NGÀY, MỚI DÙNG LOGIC THÁNG HIỆN TẠI
+            # NẾU KHÔNG CÓ BỘ LỌC NGÀY, MỚI DÙNG LOGIC THÁNG HIỆN TẠI (Cho Admin/Boss)
             now = datetime.now(VN_TZ)
             current_year = now.year
             current_month = now.month
@@ -1094,7 +1097,6 @@ async def get_dashboard_summary(
             )
 
         # --- Áp dụng các bộ lọc còn lại cho tx_query ---
-        # SỬA: Chỉ áp dụng bộ lọc status nếu không phải Lễ tân (vì Lễ tân luôn là PENDING)
         if status and user_data.get("role") != 'letan':
              tx_query = tx_query.filter(ShiftReportTransaction.status == status)
 
@@ -1104,11 +1106,12 @@ async def get_dashboard_summary(
 
         # --- THỰC HIỆN CÁC TRUY VẤN ĐÃ LỌC ---
         
+        # 1. Tổng hợp dữ liệu giao dịch hiện tại (Closed & Pending)
         revenue_by_type_and_status = tx_query.with_entities(
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, online_revenue_case), else_=0)).label('closed_online_revenue'),
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, online_revenue_case), else_=0)).label('pending_online_revenue'),
             
-            # THÊM: Tính tổng chi phí
+            # Tracking riêng chi phí (đã nằm trong online_revenue, chỉ lấy ra để hiển thị nếu cần)
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, expense_case), else_=0)).label('closed_expense'),
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, expense_case), else_=0)).label('pending_expense'),
 
@@ -1116,17 +1119,15 @@ async def get_dashboard_summary(
             func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, branch_revenue_case), else_=0)).label('pending_branch_revenue')
         ).first()
 
-        # 2. Query tổng hợp từ bảng log (chỉ chạy nếu không phải Lễ tân)
-        log_summary = None
+        # 2. Query tổng hợp từ bảng log (Lịch sử đã kết ca)
         log_summary = log_query.with_entities(
             func.sum(ShiftCloseLog.pms_revenue).label('total_pms'),
             func.sum(ShiftCloseLog.closed_online_revenue).label('total_closed_online'),
             func.sum(ShiftCloseLog.closed_branch_revenue).label('total_closed_branch')
         ).first()
 
-        # 3. Query xếp hạng (chỉ chạy nếu KHÔNG lọc chi nhánh)
+        # 3. Query xếp hạng (chỉ chạy nếu Admin/Boss và KHÔNG lọc chi nhánh)
         final_branch_ranking = []
-        # SỬA: Chỉ chạy nếu là admin/boss và không lọc chi nhánh
         if user_data.get("role") in ['admin', 'boss'] and not chi_nhanh:
             # Query xếp hạng PMS (từ ranking_log_query)
             branch_pms_ranking = ranking_log_query.join(ShiftCloseLog.branch).with_entities(
@@ -1150,7 +1151,7 @@ async def get_dashboard_summary(
                 pending_revenue_sum
             ).group_by(Branch.branch_code).all()
             
-            # Kết hợp dữ liệu (như cũ)
+            # Kết hợp dữ liệu
             branch_data_map = {
                 r.branch_code: {"closed_revenue": float(r.closed_revenue or 0.0), "pending_revenue": float(r.pending_revenue or 0.0)}
                 for r in revenue_by_branch
@@ -1166,33 +1167,33 @@ async def get_dashboard_summary(
                 })
 
         # 4. Lịch sử kết ca (từ log_query đã lọc)
-        recent_closes = []
-        recent_closes = log_query.join(ShiftCloseLog.branch
-    ).join(ShiftCloseLog.closer
-    ).with_entities(
-        ShiftCloseLog.id,
-        ShiftCloseLog.pms_revenue,
-        ShiftCloseLog.closed_online_revenue,
-        ShiftCloseLog.closed_branch_revenue,
-        ShiftCloseLog.closed_datetime,
-        Branch.branch_code,
-        User.name.label("closer_name")
-    ).order_by(
-        desc(ShiftCloseLog.closed_datetime)
-    ).limit(5).all()
+        recent_closes = log_query.join(ShiftCloseLog.branch).join(ShiftCloseLog.closer).with_entities(
+            ShiftCloseLog.id,
+            ShiftCloseLog.pms_revenue,
+            ShiftCloseLog.closed_online_revenue,
+            ShiftCloseLog.closed_branch_revenue,
+            ShiftCloseLog.closed_datetime,
+            Branch.branch_code,
+            User.name.label("closer_name")
+        ).order_by(
+            desc(ShiftCloseLog.closed_datetime)
+        ).limit(5).all()
 
-
-        # --- Trả về kết quả (Giữ nguyên cấu trúc) ---
+        # --- Trả về kết quả ---
         return JSONResponse(content={
             "status": "success",
             "data": {
                 "by_branch": final_branch_ranking,
                 "total_pms_revenue": float(log_summary.total_pms or 0.0),
+                
+                # Logic Tiền mặt: PMS - (Online + Branch)
+                # Vì Online đã bao gồm cả CASH_EXPENSE (dương), việc trừ đi là chính xác để ra tiền mặt thực tế.
                 "total_cash_revenue": (
                     float(log_summary.total_pms or 0.0) - 
                     float(log_summary.total_closed_online or 0.0) - 
                     float(log_summary.total_closed_branch or 0.0)
                 ),
+                
                 "recent_closes": (
                     [
                         {
@@ -1211,7 +1212,6 @@ async def get_dashboard_summary(
                     "closed_online": float(revenue_by_type_and_status.closed_online_revenue or 0.0),
                     "pending_online": float(revenue_by_type_and_status.pending_online_revenue or 0.0),
                     
-                    # THÊM MỚI 2 DÒNG NÀY:
                     "closed_expense": float(revenue_by_type_and_status.closed_expense or 0.0),
                     "pending_expense": float(revenue_by_type_and_status.pending_expense or 0.0),
 
