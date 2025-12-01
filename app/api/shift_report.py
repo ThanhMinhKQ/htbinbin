@@ -680,10 +680,14 @@ async def delete_shift_transaction( # SỬA
                 closed_branch_revenue = 0
                 
                 for tx in remaining_transactions:
-                    if tx.transaction_type in [TransactionType.OTA, TransactionType.UNC, TransactionType.CARD, TransactionType.COMPANY_ACCOUNT]:
+                    if tx.transaction_type in [
+                        TransactionType.OTA, 
+                        TransactionType.UNC, 
+                        TransactionType.CARD, 
+                        TransactionType.COMPANY_ACCOUNT,
+                        TransactionType.CASH_EXPENSE
+                    ]:
                         closed_online_revenue += tx.amount
-                    elif tx.transaction_type == TransactionType.CASH_EXPENSE:
-                        closed_online_revenue -= tx.amount
                     elif tx.transaction_type == TransactionType.BRANCH_ACCOUNT:
                         closed_branch_revenue += tx.amount
                 
@@ -786,10 +790,14 @@ async def batch_delete_shift_transactions( # SỬA
                         closed_online_revenue = 0
                         closed_branch_revenue = 0
                         for tx in remaining_transactions:
-                            if tx.transaction_type in [TransactionType.OTA, TransactionType.UNC, TransactionType.CARD, TransactionType.COMPANY_ACCOUNT]:
+                            if tx.transaction_type in [
+                                TransactionType.OTA, 
+                                TransactionType.UNC, 
+                                TransactionType.CARD, 
+                                TransactionType.COMPANY_ACCOUNT,
+                                TransactionType.CASH_EXPENSE # <--- THÊM VÀO ĐÂY
+                            ]:
                                 closed_online_revenue += tx.amount
-                            elif tx.transaction_type == TransactionType.CASH_EXPENSE:
-                                closed_online_revenue -= tx.amount
                             elif tx.transaction_type == TransactionType.BRANCH_ACCOUNT:
                                 closed_branch_revenue += tx.amount
                         log_entry.closed_online_revenue = closed_online_revenue
@@ -917,10 +925,13 @@ async def batch_close_transactions(
             # Tính toán doanh thu (sẽ là 0 nếu closed_transactions rỗng)
             closed_online_revenue = sum(
                 t.amount for t in closed_transactions 
-                if t.transaction_type in [TransactionType.OTA, TransactionType.UNC, TransactionType.CARD, TransactionType.COMPANY_ACCOUNT]
-            ) - sum(
-                t.amount for t in closed_transactions
-                if t.transaction_type == TransactionType.CASH_EXPENSE
+                if t.transaction_type in [
+                    TransactionType.OTA, 
+                    TransactionType.UNC, 
+                    TransactionType.CARD, 
+                    TransactionType.COMPANY_ACCOUNT,
+                    TransactionType.CASH_EXPENSE  # <--- THÊM VÀO ĐÂY
+                ]
             )
 
             closed_branch_revenue = sum(
@@ -994,7 +1005,7 @@ async def get_dashboard_summary(
             (ShiftReportTransaction.transaction_type.in_([
                 'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE'
             ]), ShiftReportTransaction.amount),
-            else_=0 
+            else_=0
         )
 
         # 2. Doanh thu Chi nhánh
@@ -1357,8 +1368,9 @@ async def get_monthly_summary(
     try:
         # Định nghĩa các biểu thức case cho từng loại doanh thu
         online_revenue_case = case(
-            (ShiftReportTransaction.transaction_type.in_(['COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD']), ShiftReportTransaction.amount),
-            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', -ShiftReportTransaction.amount),
+            (ShiftReportTransaction.transaction_type.in_([
+                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE'
+            ]), ShiftReportTransaction.amount),
             else_=0
         )
         branch_revenue_case = case(
@@ -1444,10 +1456,13 @@ async def undo_transaction_from_log(
 
         log_entry.closed_online_revenue = sum(
             t.amount for t in remaining_transactions 
-            if t.transaction_type in [TransactionType.OTA, TransactionType.UNC, TransactionType.CARD, TransactionType.COMPANY_ACCOUNT]
-        ) - sum(
-            t.amount for t in remaining_transactions
-            if t.transaction_type == TransactionType.CASH_EXPENSE
+            if t.transaction_type in [
+                TransactionType.OTA, 
+                TransactionType.UNC, 
+                TransactionType.CARD, 
+                TransactionType.COMPANY_ACCOUNT,
+                TransactionType.CASH_EXPENSE # <--- THÊM VÀO ĐÂY
+            ]
         )
         log_entry.closed_branch_revenue = sum(
             t.amount for t in remaining_transactions
@@ -1602,12 +1617,18 @@ async def delete_transaction_from_log(
         closed_online_revenue = 0
         closed_branch_revenue = 0
         for tx in remaining_transactions:
-            if tx.transaction_type in [TransactionType.OTA, TransactionType.UNC, TransactionType.CARD, TransactionType.COMPANY_ACCOUNT]:
-                closed_online_revenue += tx.amount
-            elif tx.transaction_type == TransactionType.CASH_EXPENSE:
-                closed_online_revenue -= tx.amount
-            elif tx.transaction_type == TransactionType.BRANCH_ACCOUNT:
-                closed_branch_revenue += tx.amount
+                    # SỬA: Thêm CASH_EXPENSE vào list cộng
+                    if tx.transaction_type in [
+                        TransactionType.OTA, 
+                        TransactionType.UNC, 
+                        TransactionType.CARD, 
+                        TransactionType.COMPANY_ACCOUNT,
+                        TransactionType.CASH_EXPENSE
+                    ]:
+                        closed_online_revenue += tx.amount
+                    
+                    elif tx.transaction_type == TransactionType.BRANCH_ACCOUNT:
+                        closed_branch_revenue += tx.amount
         
         log_entry.closed_online_revenue = closed_online_revenue
         log_entry.closed_branch_revenue = closed_branch_revenue
