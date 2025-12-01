@@ -1014,10 +1014,35 @@
                 loadEmployeesForBranch();
 
               } else if(data.choices) {
-                 // Logic chọn nhiều chi nhánh (nếu có)
-                 const html = data.choices.map(c => `...`).join(''); // (Giữ code cũ render list)
+                 // --- SỬA LỖI HIỂN THỊ POPUP ---
+                 
+                 // Tạo HTML danh sách các chi nhánh để lựa chọn
+                 const html = data.choices.map(c => `
+                    <div onclick="selectBranch('${c.branch}')" class="group relative flex items-center justify-between p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-lg dark:hover:shadow-blue-900/20 cursor-pointer transition-all duration-200 active:scale-95 mb-3">
+                        
+                        <div class="flex items-center gap-4">
+                            <div class="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold text-sm">
+                                ${c.branch}
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-slate-800 dark:text-white text-[15px]">
+                                    ${getBranchFullName(c.branch)}
+                                </h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                                    Khoảng cách: <span class="text-emerald-600 dark:text-emerald-400 font-bold">${(c.distance_km * 1000).toFixed(0)}m</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                        </div>
+                    </div>
+                 `).join('');
+                 
                  document.getElementById('branchChoices').innerHTML = html;
                  openModal('branchPopup');
+                 
                  // Lưu ý: Chưa unlock vội, đợi user chọn xong ở hàm selectBranch
              }
           } catch(e) { 
