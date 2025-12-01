@@ -1491,10 +1491,16 @@ async def get_pending_summary(
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     try:
-        # Biểu thức case để tính tổng doanh thu (bao gồm cả chi tiền mặt)
         total_revenue_case = case(
-            (ShiftReportTransaction.transaction_type.in_(['COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'BRANCH_ACCOUNT']), ShiftReportTransaction.amount),
-            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', -ShiftReportTransaction.amount),
+            (ShiftReportTransaction.transaction_type.in_([
+                'COMPANY_ACCOUNT', 
+                'OTA', 
+                'UNC', 
+                'CARD', 
+                'BRANCH_ACCOUNT', 
+                'CASH_EXPENSE' # <--- THÊM VÀO ĐÂY
+            ]), ShiftReportTransaction.amount),
+            # BỎ dòng trừ tiền, tất cả đều cộng
             else_=0
         )
 
