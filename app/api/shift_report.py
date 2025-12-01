@@ -939,7 +939,8 @@ async def batch_close_transactions(
                 if t.transaction_type == TransactionType.BRANCH_ACCOUNT
             )
 
-            pms_revenue_int = int(payload.pms_revenue.replace('.', '').replace(',', ''))
+            pms_val = str(payload.pms_revenue) 
+            pms_revenue_int = int(pms_val.replace('.', '').replace(',', ''))
             
             branch_obj = db.query(Branch).filter(Branch.branch_code == payload.branch).first()
             if not branch_obj:
