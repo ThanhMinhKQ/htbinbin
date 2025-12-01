@@ -261,7 +261,7 @@
         const ctx = canvas.getContext('2d');
         let width, height;
         let particles = [];
-        let currentTheme = 'dark'; // Mặc định là tối
+        let currentTheme = null; // Sửa thành null để kích hoạt hiệu ứng lần đầu
 
         function resize() {
             width = canvas.width = window.innerWidth;
