@@ -2751,7 +2751,7 @@
             // THÊM: Hàm xử lý submit kết ca của Lễ Tân
             submitLetanCloseShift: async function() {
                 // 1. LẤY DỮ LIỆU TỪ STATE (đã được nhập ở main page)
-                const branch = this.user.branch;
+                const branch = this.displayBranch;
                 const pmsRevenueRaw = this.letanShiftClose.pmsRevenue.replace(/[^0-9]/g, '');
 
                 // 2. VALIDATE LẠI (đề phòng)
