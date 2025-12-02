@@ -2,26 +2,39 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, time # Đảm bảo đã import time
 
 from ..db.session import get_db
 from ..db.models import User, ServiceRecord, Branch, Department, AttendanceRecord
 from ..core.security import get_csrf_token
 from ..core.utils import get_current_work_shift, VN_TZ
 from ..core.config import logger
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from sqlalchemy import cast, Date
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import cast, Date, and_
 from sqlalchemy.orm import joinedload
 
 from fastapi.templating import Jinja2Templates
 
 router = APIRouter()
 
-# Xác định đường dẫn tuyệt đối đến thư mục gốc của project 'app'
 APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-# Tạo đường dẫn tuyệt đối đến thư mục templates
 templates = Jinja2Templates(directory=os.path.join(APP_ROOT, "templates"))
+
+# --- Helper function ĐÃ ĐƯỢC CHỈNH SỬA ---
+def get_work_date_range(work_date):
+    """
+    Tạo khoảng thời gian cho ca làm việc chuẩn khách sạn:
+    Từ 07:00:00 sáng ngày work_date đến 07:00:00 sáng ngày hôm sau.
+    Ví dụ: Ngày 01/01 -> Từ 07:00 01/01 đến 07:00 02/01.
+    """
+    # [FIX] Bắt đầu từ 07:00:00 thay vì 00:00:00
+    start_dt = datetime.combine(work_date, time(7, 0, 0))
+    
+    # Kết thúc là 07:00:00 sáng hôm sau
+    # Dùng toán tử < end_dt sẽ lấy đến 06:59:59.999
+    end_dt = start_dt + timedelta(days=1)
+    
+    return start_dt, end_dt
 
 @router.get("", response_class=HTMLResponse)
 def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
@@ -32,24 +45,26 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     if user_data.get("role") in ["quanly", "ktv", "admin", "boss"]:
         return RedirectResponse("/choose-function", status_code=303)
 
-    # === TỐI ƯU HÓA: DỰA VÀO MIDDLEWARE ===
-    # Middleware (main.py) đã đảm bảo active_branch có trong session nếu user từng hoạt động.
-    # Ta không cần query User DB để tìm last_active_branch ở đây nữa => Giảm 1 query DB.
     active_branch_code = request.session.get("active_branch")
     
-    # Vẫn cần lấy object Branch để lấy ID cho việc lọc dữ liệu bên dưới
     active_branch_obj = None
     if active_branch_code:
         active_branch_obj = db.query(Branch).filter(Branch.branch_code == active_branch_code).first()
     
     # === LẤY DANH SÁCH NHÂN VIÊN ===
     checker_id = user_data.get("id")
+    
+    # Hàm này trả về ngày làm việc logic (VD: 2h sáng ngày 2/1 vẫn trả về ngày 1/1)
     work_date, _ = get_current_work_shift()
+    
+    # [LOGIC MỚI] Lấy range từ 7h sáng nay đến 7h sáng mai
+    start_dt, end_dt = get_work_date_range(work_date)
 
     buong_phong_dept = db.query(Department).filter(Department.role_code == 'buongphong').first()
     initial_employees = []
 
     if buong_phong_dept and active_branch_obj:
+        # Query lọc theo khoảng thời gian chuẩn 7h-7h
         recent_records = db.query(
             AttendanceRecord.employee_code_snapshot,
             AttendanceRecord.employee_name_snapshot,
@@ -58,8 +73,9 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
         ).filter(
             AttendanceRecord.checker_id == checker_id,
             User.department_id == buong_phong_dept.id,
-            cast(AttendanceRecord.attendance_datetime, Date) == work_date,
-            AttendanceRecord.branch_id == active_branch_obj.id 
+            AttendanceRecord.attendance_datetime >= start_dt,     # >= 07:00 sáng
+            AttendanceRecord.attendance_datetime < end_dt,        # < 07:00 sáng hôm sau
+            AttendanceRecord.branch_id == active_branch_obj.id
         ).distinct().all()
 
         initial_employees = [
@@ -76,8 +92,6 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     
     csrf_token = get_csrf_token(request)
     
-    # === RENDER TEMPLATE ===
-    # Đã loại bỏ key "branch_id" vì template không cần hiển thị nữa
     response = templates.TemplateResponse("service.html", {
         "request": request,
         "csrf_token": csrf_token,
@@ -85,7 +99,6 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
         "initial_employees": initial_employees,
     })
     
-    # Cache control headers
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
@@ -106,14 +119,12 @@ async def service_checkin_bulk(request: Request, db: Session = Depends(get_db)):
         if not isinstance(raw_data, list) or not raw_data:
             return {"status": "success", "inserted": 0}
 
-        # Lấy branch_id của nơi làm việc từ payload
         branch_code_from_payload = raw_data[0].get("chi_nhanh_lam")
         branch_obj = db.query(Branch).filter(Branch.branch_code == branch_code_from_payload).first()
         if not branch_obj:
             raise HTTPException(status_code=400, detail=f"Chi nhánh làm việc không hợp lệ: {branch_code_from_payload}")
         branch_id_lam = branch_obj.id
 
-        # Gom mã nhân viên để query một lần
         employee_codes = {rec.get("ma_nv") for rec in raw_data if rec.get("ma_nv")}
         employees_in_db = db.query(User).options(
             joinedload(User.main_branch), 
@@ -139,7 +150,7 @@ async def service_checkin_bulk(request: Request, db: Session = Depends(get_db)):
                 user_id=employee_snapshot.id,
                 checker_id=checker.id,
                 branch_id=branch_id_lam,
-                is_overtime=bool(rec.get("la_tang_ca")), # Giữ lại để tương thích, dù có thể không dùng
+                is_overtime=bool(rec.get("la_tang_ca")),
                 notes=rec.get("ghi_chu", ""),
                 employee_code_snapshot=employee_snapshot.employee_code,
                 employee_name_snapshot=employee_snapshot.name,
@@ -165,22 +176,28 @@ async def service_checkin_bulk(request: Request, db: Session = Depends(get_db)):
 @router.get("/api/get-checked-in-bp")
 def get_checked_in_bp_today(request: Request, db: Session = Depends(get_db)):
     """
-    API mới này chỉ phục vụ cho trang Dịch vụ,
-    lấy danh sách BP đã được Lễ tân check-in TRONG NGÀY.
+    API lấy danh sách Buồng phòng đã được CHÍNH user này check-in trong "NGÀY LÀM VIỆC" (7h-7h).
     """
     user_data = request.session.get("user")
     if not user_data or user_data.get("role") != 'letan':
         raise HTTPException(status_code=403, detail="Không có quyền truy cập.")
 
     checker_id = user_data.get("id")
-    work_date, _ = get_current_work_shift() # Lấy ngày làm việc hiện tại
+    work_date, _ = get_current_work_shift()
+    
+    # [FIX LOGIC] Áp dụng range 7h-7h cho API
+    start_dt, end_dt = get_work_date_range(work_date)
 
     buong_phong_dept = db.query(Department).filter(Department.role_code == 'buongphong').first()
     if not buong_phong_dept:
         return JSONResponse(content=[])
 
-    # Logic query này giống hệt logic khi tải trang
-    recent_records = db.query(
+    active_branch_code = request.session.get("active_branch")
+    active_branch_obj = None
+    if active_branch_code:
+        active_branch_obj = db.query(Branch).filter(Branch.branch_code == active_branch_code).first()
+
+    query = db.query(
         AttendanceRecord.employee_code_snapshot,
         AttendanceRecord.employee_name_snapshot,
         AttendanceRecord.main_branch_snapshot
@@ -188,8 +205,14 @@ def get_checked_in_bp_today(request: Request, db: Session = Depends(get_db)):
     ).filter(
         AttendanceRecord.checker_id == checker_id,
         User.department_id == buong_phong_dept.id,
-        cast(AttendanceRecord.attendance_datetime, Date) == work_date
-    ).distinct().all()
+        AttendanceRecord.attendance_datetime >= start_dt, # >= 07:00
+        AttendanceRecord.attendance_datetime < end_dt     # < 07:00 hôm sau
+    )
+
+    if active_branch_obj:
+        query = query.filter(AttendanceRecord.branch_id == active_branch_obj.id)
+
+    recent_records = query.distinct().all()
 
     initial_employees = [
         {
