@@ -37,9 +37,6 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
     user_id = user_session.get("id")
     user_role = user_session.get("role")
 
-    # Tạo alias để phân biệt User (người được điểm danh) và Checker (người điểm danh)
-    # Các cột được chọn ở đây sẽ quyết định những gì được xuất ra file Excel.
-    # Tên cột (label) nên thân thiện với người dùng.
     UserEmployee = aliased(User, name="user_employee")
     CheckerEmployee = aliased(User, name="checker_employee")
 
@@ -54,7 +51,16 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
         AttendanceRecord.employee_name_snapshot.label("TenNV"),
         AttendanceRecord.role_snapshot.label("ChucVu"),
         AttendanceRecord.main_branch_snapshot.label("ChiNhanhChinh"),
-        Branch.branch_code.label("ChiNhanhLam"),
+        
+        # --- [SỬA ĐỔI TẠI ĐÂY] ---
+        # Logic: Dữ liệu DB vẫn có branch_id để join không lỗi, 
+        # nhưng khi hiển thị ra API/Excel thì ẩn đi nếu là ngày nghỉ (0 công).
+        case(
+            (AttendanceRecord.work_units == 0, literal_column("''")), 
+            else_=Branch.branch_code
+        ).label("ChiNhanhLam"),
+        # -------------------------
+
         AttendanceRecord.work_units.label("SoCong"),
         AttendanceRecord.is_overtime.label("TangCa"),
         AttendanceRecord.notes.label("GhiChu"),
@@ -66,7 +72,7 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
     ).outerjoin(UserEmployee, AttendanceRecord.user_id == UserEmployee.id
     ).outerjoin(CheckerEmployee, AttendanceRecord.checker_id == CheckerEmployee.id)
 
-    # --- Query cho ServiceRecord ---
+    # --- Query cho ServiceRecord (Giữ nguyên không đổi) ---
     svc_q = select(
         ServiceRecord.id,
         literal_column("'Dịch vụ'").label("type"),
@@ -77,7 +83,7 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
         ServiceRecord.employee_name_snapshot.label("TenNV"),
         ServiceRecord.role_snapshot.label("ChucVu"),
         ServiceRecord.main_branch_snapshot.label("ChiNhanhChinh"),
-        Branch.branch_code.label("ChiNhanhLam"),
+        Branch.branch_code.label("ChiNhanhLam"), # Dịch vụ thì luôn có chi nhánh, không cần sửa
         literal_column("NULL").cast(Float).label("SoCong"),
         ServiceRecord.is_overtime.label("TangCa"),
         ServiceRecord.notes.label("GhiChu"),
