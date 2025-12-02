@@ -206,9 +206,6 @@ async def select_branch(
 
 
 # --- CÁC API CÒN LẠI GIỮ NGUYÊN ---
-
-#
-
 @router.get("/api/employees/by-branch/{branch_code}", response_class=JSONResponse)
 def get_employees_by_branch(branch_code: str, db: Session = Depends(get_db), request: Request = None):
     try:
@@ -221,7 +218,7 @@ def get_employees_by_branch(branch_code: str, db: Session = Depends(get_db), req
             return JSONResponse(status_code=404, content={"detail": "Không tìm thấy chi nhánh."})
 
         _, shift_name = get_current_work_shift()
-        current_shift_code = "CS" if shift_name == "day" else "CT"
+        current_shift_code = "CT" if shift_name == "day" else "CS"
         
         # Bắt đầu query cơ bản
         query = db.query(User).options(
@@ -452,7 +449,7 @@ async def attendance_checkin_bulk(
                 branch_id=branch_id_lam,
                 employee_code_snapshot=employee_snapshot.employee_code,
                 employee_name_snapshot=employee_snapshot.name,
-                role_snapshot=employee_snapshot.department.role_code if employee_snapshot.department else None,
+                role_snapshot=employee_snapshot.department.name if employee_snapshot.department else None,
                 main_branch_snapshot=employee_snapshot.main_branch.branch_code if employee_snapshot.main_branch else None,
                 attendance_datetime=now_vn,
                 work_units=float(rec.get("so_cong_nv", 1.0)),
@@ -472,7 +469,7 @@ async def attendance_checkin_bulk(
                 branch_id=branch_id_lam,
                 employee_code_snapshot=checker.employee_code,
                 employee_name_snapshot=checker.name,
-                role_snapshot=checker.department.role_code if checker.department else None,
+                role_snapshot=checker.department.name if checker.department else None,
                 main_branch_snapshot=checker.main_branch.branch_code if checker.main_branch else None,
                 attendance_datetime=now_vn,
                 work_units=1.0,
