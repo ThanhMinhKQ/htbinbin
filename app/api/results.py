@@ -40,7 +40,7 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
     UserEmployee = aliased(User, name="user_employee")
     CheckerEmployee = aliased(User, name="checker_employee")
 
-    # --- Query cho AttendanceRecord ---
+    # --- Query cho AttendanceRecord (Điểm danh) ---
     att_q = select(
         AttendanceRecord.id,
         literal_column("'Điểm danh'").label("type"),
@@ -49,17 +49,26 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
         func.coalesce(CheckerEmployee.name, 'Hệ thống').label("TenNguoiThucHien"),
         AttendanceRecord.employee_code_snapshot.label("MaNV"),
         AttendanceRecord.employee_name_snapshot.label("TenNV"),
-        AttendanceRecord.role_snapshot.label("ChucVu"),
+        
+        # [LOGIC MỚI] Chuyển đổi mã role sang tên Tiếng Việt hiển thị
+        case(
+            (func.lower(AttendanceRecord.role_snapshot) == 'letan', literal_column("'Lễ tân'")),
+            (func.lower(AttendanceRecord.role_snapshot) == 'buongphong', literal_column("'Buồng phòng'")),
+            (func.lower(AttendanceRecord.role_snapshot) == 'baove', literal_column("'Bảo vệ'")),
+            (func.lower(AttendanceRecord.role_snapshot) == 'quanly', literal_column("'Quản lý'")),
+            (func.lower(AttendanceRecord.role_snapshot) == 'ktv', literal_column("'Kỹ thuật viên'")),
+            (func.lower(AttendanceRecord.role_snapshot) == 'admin', literal_column("'Admin'")),
+            (func.lower(AttendanceRecord.role_snapshot) == 'boss', literal_column("'Boss'")),
+            else_=AttendanceRecord.role_snapshot # Giữ nguyên nếu không khớp (hoặc đã là tiếng Việt)
+        ).label("ChucVu"),
+
         AttendanceRecord.main_branch_snapshot.label("ChiNhanhChinh"),
         
-        # --- [SỬA ĐỔI TẠI ĐÂY] ---
-        # Logic: Dữ liệu DB vẫn có branch_id để join không lỗi, 
-        # nhưng khi hiển thị ra API/Excel thì ẩn đi nếu là ngày nghỉ (0 công).
+        # [LOGIC CŨ] Ẩn chi nhánh làm nếu là ngày nghỉ (0 công)
         case(
             (AttendanceRecord.work_units == 0, literal_column("''")), 
             else_=Branch.branch_code
         ).label("ChiNhanhLam"),
-        # -------------------------
 
         AttendanceRecord.work_units.label("SoCong"),
         AttendanceRecord.is_overtime.label("TangCa"),
@@ -72,7 +81,7 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
     ).outerjoin(UserEmployee, AttendanceRecord.user_id == UserEmployee.id
     ).outerjoin(CheckerEmployee, AttendanceRecord.checker_id == CheckerEmployee.id)
 
-    # --- Query cho ServiceRecord (Giữ nguyên không đổi) ---
+    # --- Query cho ServiceRecord (Dịch vụ) ---
     svc_q = select(
         ServiceRecord.id,
         literal_column("'Dịch vụ'").label("type"),
@@ -81,9 +90,21 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
         func.coalesce(CheckerEmployee.name, 'Hệ thống').label("TenNguoiThucHien"),
         ServiceRecord.employee_code_snapshot.label("MaNV"),
         ServiceRecord.employee_name_snapshot.label("TenNV"),
-        ServiceRecord.role_snapshot.label("ChucVu"),
+        
+        # [LOGIC MỚI] Áp dụng tương tự cho bảng Dịch vụ
+        case(
+            (func.lower(ServiceRecord.role_snapshot) == 'letan', literal_column("'Lễ tân'")),
+            (func.lower(ServiceRecord.role_snapshot) == 'buongphong', literal_column("'Buồng phòng'")),
+            (func.lower(ServiceRecord.role_snapshot) == 'baove', literal_column("'Bảo vệ'")),
+            (func.lower(ServiceRecord.role_snapshot) == 'quanly', literal_column("'Quản lý'")),
+            (func.lower(ServiceRecord.role_snapshot) == 'ktv', literal_column("'Kỹ thuật viên'")),
+            (func.lower(ServiceRecord.role_snapshot) == 'admin', literal_column("'Admin'")),
+            (func.lower(ServiceRecord.role_snapshot) == 'boss', literal_column("'Boss'")),
+            else_=ServiceRecord.role_snapshot
+        ).label("ChucVu"),
+
         ServiceRecord.main_branch_snapshot.label("ChiNhanhChinh"),
-        Branch.branch_code.label("ChiNhanhLam"), # Dịch vụ thì luôn có chi nhánh, không cần sửa
+        Branch.branch_code.label("ChiNhanhLam"), # Dịch vụ luôn có chi nhánh, không cần ẩn
         literal_column("NULL").cast(Float).label("SoCong"),
         ServiceRecord.is_overtime.label("TangCa"),
         ServiceRecord.notes.label("GhiChu"),
@@ -95,17 +116,17 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
     ).outerjoin(UserEmployee, ServiceRecord.user_id == UserEmployee.id
     ).outerjoin(CheckerEmployee, ServiceRecord.checker_id == CheckerEmployee.id)
 
-    # Lọc theo vai trò người dùng
+    # Lọc theo vai trò người dùng (Chỉ admin/boss mới xem được tất cả)
     if user_role not in ["admin", "boss"]:
         att_q = att_q.where(or_(AttendanceRecord.checker_id == user_id, AttendanceRecord.user_id == user_id))
         svc_q = svc_q.where(or_(ServiceRecord.checker_id == user_id, ServiceRecord.user_id == user_id))
 
-    # Gộp 2 query
+    # Gộp 2 query bằng UNION ALL
     u = union_all(att_q, svc_q).alias("u")
     final_query = select(u)
-    selected_columns = u.c # Giữ lại danh sách các cột đã chọn
+    selected_columns = u.c # Giữ lại danh sách các cột đã chọn để dùng sau này
 
-    # --- Áp dụng các bộ lọc ---
+    # --- Áp dụng các bộ lọc từ Frontend ---
     filter_type = query_params.get("filter_type")
     filter_date = query_params.get("filter_date")
     filter_nhan_vien = query_params.get("filter_nhan_vien")
@@ -118,20 +139,40 @@ def _get_filtered_records_query(db: Session, query_params: dict, user_session: d
     filter_tang_ca = query_params.get("filter_tang_ca")
     filter_so_cong_str = query_params.get("filter_so_cong")
 
-    if filter_type: final_query = final_query.where(u.c.type == filter_type)
+    if filter_type: 
+        final_query = final_query.where(u.c.type == filter_type)
+    
     if filter_date:
         try:
             parsed_date = datetime.strptime(filter_date, "%Y-%m-%d").date()
             final_query = final_query.where(cast(u.c.ThoiGian, Date) == parsed_date)
         except ValueError: pass
-    if filter_nhan_vien: final_query = final_query.where(or_(u.c.MaNV.ilike(f"%{filter_nhan_vien}%"), u.c.TenNV.ilike(f"%{filter_nhan_vien}%")))
-    if filter_chuc_vu: final_query = final_query.where(u.c.ChucVu.ilike(f"%{filter_chuc_vu}%"))
-    if filter_cn_lam: final_query = final_query.where(u.c.ChiNhanhLam == filter_cn_lam)
-    if filter_ghi_chu: final_query = final_query.where(u.c.GhiChu.ilike(f"%{filter_ghi_chu}%"))
-    if filter_dich_vu: final_query = final_query.where(u.c.DichVu.ilike(f"%{filter_dich_vu}%"))
-    if filter_so_phong: final_query = final_query.where(u.c.SoPhong.ilike(f"%{filter_so_phong}%"))
-    if filter_nguoi_thuc_hien and user_role in ['admin', 'boss']: final_query = final_query.where(or_(u.c.MaNguoiThucHien.ilike(f"%{filter_nguoi_thuc_hien}%"), u.c.TenNguoiThucHien.ilike(f"%{filter_nguoi_thuc_hien}%")))
-    if filter_tang_ca and filter_tang_ca != 'all': final_query = final_query.where(u.c.TangCa == (filter_tang_ca == 'yes'))
+        
+    if filter_nhan_vien: 
+        final_query = final_query.where(or_(u.c.MaNV.ilike(f"%{filter_nhan_vien}%"), u.c.TenNV.ilike(f"%{filter_nhan_vien}%")))
+        
+    if filter_chuc_vu: 
+        # Lọc theo chức vụ (đã được case sang tiếng Việt ở trên, nên ở đây filter theo tiếng Việt cũng sẽ khớp)
+        final_query = final_query.where(u.c.ChucVu.ilike(f"%{filter_chuc_vu}%"))
+        
+    if filter_cn_lam: 
+        final_query = final_query.where(u.c.ChiNhanhLam == filter_cn_lam)
+        
+    if filter_ghi_chu: 
+        final_query = final_query.where(u.c.GhiChu.ilike(f"%{filter_ghi_chu}%"))
+        
+    if filter_dich_vu: 
+        final_query = final_query.where(u.c.DichVu.ilike(f"%{filter_dich_vu}%"))
+        
+    if filter_so_phong: 
+        final_query = final_query.where(u.c.SoPhong.ilike(f"%{filter_so_phong}%"))
+        
+    if filter_nguoi_thuc_hien and user_role in ['admin', 'boss']: 
+        final_query = final_query.where(or_(u.c.MaNguoiThucHien.ilike(f"%{filter_nguoi_thuc_hien}%"), u.c.TenNguoiThucHien.ilike(f"%{filter_nguoi_thuc_hien}%")))
+        
+    if filter_tang_ca and filter_tang_ca != 'all': 
+        final_query = final_query.where(u.c.TangCa == (filter_tang_ca == 'yes'))
+        
     if filter_so_cong_str is not None:
         try:
             filter_so_cong = float(filter_so_cong_str)
