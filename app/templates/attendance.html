@@ -1078,11 +1078,20 @@
 
     // Initialize logic
     window.addEventListener("DOMContentLoaded", async () => {
-        // Night shift logic
+        // [CẢI TIẾN] Logic hiển thị thông báo Ca Đêm
         lockInterface();
         const h = new Date().getHours();
-        if(h < 7) {
-            const y = new Date(); y.setDate(y.getDate()-1);
+        
+        // Nếu giờ < 7 (Sáng sớm) HOẶC giờ >= 19 (Tối) -> Là Ca Đêm
+        if(h < 7 || h >= 19) {
+            // Tính toán ngày làm việc thực tế cho ca đêm
+            const y = new Date();
+            if (h < 7) {
+                // Nếu đang là 1h sáng ngày 2/12 -> Ca làm việc tính cho ngày 1/12
+                y.setDate(y.getDate()-1);
+            }
+            // Nếu h >= 19 -> Vẫn là ngày hôm nay, không cần lùi ngày
+
             document.getElementById('workDate').textContent = `${y.getDate()}/${y.getMonth()+1}/${y.getFullYear()}`;
             document.getElementById('nightShiftNotice').classList.remove('hidden');
         }
