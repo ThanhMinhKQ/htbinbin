@@ -205,7 +205,8 @@ async def select_branch(
     return {"status": "success", "branch": chosen_branch}
 
 
-# --- CÁC API CÒN LẠI GIỮ NGUYÊN ---
+# attendance.py
+
 @router.get("/api/employees/by-branch/{branch_code}", response_class=JSONResponse)
 def get_employees_by_branch(branch_code: str, db: Session = Depends(get_db), request: Request = None):
     try:
@@ -217,18 +218,23 @@ def get_employees_by_branch(branch_code: str, db: Session = Depends(get_db), req
         if not branch:
             return JSONResponse(status_code=404, content={"detail": "Không tìm thấy chi nhánh."})
 
-        # === [FIX LOGIC CA LÀM VIỆC] ===
-        # Hàm get_current_work_shift trả về shift_name là 'day' hoặc 'night'
+        # === [GOOGLE ENGINEER FIX] ===
+        # Lấy tên ca làm việc từ utility (đang trả về "Ca ngày" hoặc "Ca đêm")
         _, shift_name = get_current_work_shift()
         
-        # Logic CŨ (SAI): current_shift_code = "CT" if shift_name == "day" else "CS"
-        # -> Dẫn đến ban ngày tìm Ca Tối, ban đêm tìm Ca Sáng.
-        
-        # Logic MỚI (ĐÚNG): 
-        # Nếu là 'day' -> Lọc nhân viên Ca Sáng (CS). 
-        # Nếu là 'night' (19h-7h) -> Lọc nhân viên Ca Tối (CT).
-        current_shift_code = "CS" if shift_name == "day" else "CT"
-        
+        # Chuẩn hóa chuỗi về chữ thường để so sánh an toàn
+        # convert "Ca ngày" -> "ca ngày", "Ca đêm" -> "ca đêm"
+        shift_lower = str(shift_name).lower()
+
+        # Logic: Nếu chuỗi chứa chữ "ngày" hoặc "day" -> Là Ca Sáng (CS)
+        # Ngược lại (chứa "đêm", "night",...) -> Là Ca Tối (CT)
+        if "ngày" in shift_lower or "day" in shift_lower:
+            current_shift_code = "CS"
+        else:
+            current_shift_code = "CT"
+
+        # Debug (nếu cần): print(f"Shift Name: {shift_name} -> Code: {current_shift_code}")
+
         # Bắt đầu query cơ bản
         query = db.query(User).options(
             joinedload(User.department),
@@ -239,37 +245,31 @@ def get_employees_by_branch(branch_code: str, db: Session = Depends(get_db), req
 
         # ================= LOGIC PHÂN QUYỀN HIỂN THỊ =================
 
-        # 1. LỄ TÂN: Logic quan trọng nhất cần sửa
+        # 1. LỄ TÂN
         if user_role == "letan":
-            # Tối ưu: Chỉ query ID cần thiết để filter
             letan_dept_id = db.query(Department.id).filter(Department.role_code == 'letan').scalar()
             buongphong_dept_id = db.query(Department.id).filter(Department.role_code == 'buongphong').scalar()
             baove_dept_id = db.query(Department.id).filter(Department.role_code == 'baove').scalar()
 
-            # Logic lọc:
-            # 1. Thấy chính mình
-            # 2. HOẶC: Thấy BP/BV nếu:
-            #    - Cùng chi nhánh đang chọn (branch.id)
-            #    - Cùng ca làm việc hiện tại (current_shift_code đã fix ở trên)
             filter_logic = or_(
                 User.id == session_user["id"],
                 and_(
                     User.main_branch_id == branch.id,
-                    User.shift == current_shift_code, # Giờ đây biến này đã đúng (CT vào ban đêm)
+                    User.shift == current_shift_code, # Đã sửa đúng: "Ca ngày" -> CS
                     User.department_id.in_([buongphong_dept_id, baove_dept_id])
                 )
             )
             query = query.filter(filter_logic)
 
-        # 2. QUẢN LÝ & KTV: Chỉ hiển thị CHÍNH HỌ
+        # 2. QUẢN LÝ & KTV
         elif user_role in ["quanly", "ktv"]:
             query = query.filter(User.id == session_user["id"])
 
-        # 3. ADMIN & BOSS: Thấy TOÀN BỘ nhân viên thuộc chi nhánh đó
+        # 3. ADMIN & BOSS
         elif user_role in ["admin", "boss"]:
             query = query.filter(User.main_branch_id == branch.id)
         
-        # 4. Các vai trò khác: Mặc định chỉ thấy chính mình
+        # 4. Mặc định
         else:
             query = query.filter(User.id == session_user["id"])
 
