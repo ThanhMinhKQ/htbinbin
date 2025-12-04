@@ -846,17 +846,20 @@
           });
 
           item.addEventListener('click', (e) => {
-            // THÊM DÒNG KIỂM TRA NÀY:
-            // Nếu click trúng vào checkbox (hoặc phần tử con của nó),
-            // hãy bỏ qua và để sự kiện nổi bọt lên trên.
+            // 1. Nếu click trúng vào checkbox thì bỏ qua (để chọn xóa hàng loạt)
             if (e.target.closest('input.row-checkbox')) {
                 return;
             }
 
-            // Giữ logic cũ: Nếu click vào các phần còn lại của card,
-            // thì mới chặn sự kiện và mở modal sửa.
             e.stopPropagation();
-            openEditModal(item);
+            
+            // 2. Lấy dữ liệu task từ attribute data-task
+            // Lưu ý: data-task được cập nhật liên tục khi vuốt nên dữ liệu luôn mới
+            const taskData = JSON.parse(item.dataset.task);
+
+            // 3. Gọi hàm hiển thị chi tiết (Thay vì mở form sửa)
+            // Hàm này sẽ áp dụng logic ẩn/hiện nút Xóa/Sửa mà chúng ta đã làm ở bước trước
+            showTaskDetail(taskData);
         });
       });
     </script>
@@ -932,9 +935,15 @@
           const btnDelete = document.getElementById('btn-delete');
 
           // Ẩn/hiện nút dựa trên trạng thái
+          const canDelete = ['quanly', 'admin', 'boss'].includes(USER_ROLE) || 
+                  (USER_ROLE === 'letan' && task.chi_nhanh === USER_CHI_NHANH);
+          // 2. Xử lý hiển thị
           btnComplete.classList.toggle('hidden', task.trang_thai === 'Hoàn thành' || task.trang_thai === 'Đã xoá');
           btnEdit.classList.toggle('hidden', task.trang_thai === 'Đã xoá');
-          btnDelete.classList.toggle('hidden', task.trang_thai === 'Đã xoá');
+
+          // 3. Logic mới cho nút Xóa: 
+          // Ẩn nếu Task đã xóa HOẶC Người dùng không có quyền xóa (bao gồm KTV)
+          btnDelete.classList.toggle('hidden', task.trang_thai === 'Đã xoá' || !canDelete);
 
           // Gán lại sự kiện để tránh bị lặp
           btnEdit.onclick = () => {
