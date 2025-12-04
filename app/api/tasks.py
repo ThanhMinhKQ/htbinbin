@@ -419,6 +419,9 @@ async def soft_delete_task(task_id: int, request: Request, db: Session = Depends
     user_session = request.session.get("user")
     if not user_session:
         raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    if user_session.get("role") == "ktv":
+        raise HTTPException(status_code=403, detail="Kỹ thuật viên không có quyền xóa công việc.")
 
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
