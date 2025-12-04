@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 import os
-from datetime import datetime
+from datetime import datetime, timedelta  # <--- [FIX] Thêm timedelta
 
 from ..db.session import get_db
 from ..db.models import User, ServiceRecord, Branch, AttendanceRecord
@@ -40,15 +40,28 @@ def _resolve_current_branch(db: Session, request: Request, user_id: int):
     
     return None
 
-# --- [FIXED] Hàm Query tối ưu & Lọc trùng lặp ---
-def _get_active_buong_phong_query(db: Session, branch_obj: Branch):
+# --- [FIXED] Hàm Query tối ưu theo Ca 7h-7h & Lọc theo User ---
+def _get_active_buong_phong_query(db: Session, branch_obj: Branch, current_user_id: int):
+    """
+    Lấy danh sách BP:
+    1. Đúng chi nhánh.
+    2. Trong ca làm việc (7h sáng -> 7h sáng hôm sau).
+    3. [MỚI] Chỉ lấy nhân viên do chính `current_user_id` điểm danh.
+    """
     if not branch_obj:
         return []
 
-    # 1. Tối ưu Timezone (Dùng Range)
+    # 1. Xử lý Logic Ca làm việc (7:00 AM - 7:00 AM next day)
     now_vn = datetime.now(VN_TZ)
-    start_of_day = now_vn.replace(hour=0, minute=0, second=0, microsecond=0)
-    end_of_day = start_of_day.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
+    # Nếu hiện tại chưa tới 7h sáng (ví dụ 2h sáng), thì vẫn thuộc ca của ngày hôm qua
+    if now_vn.hour < 7:
+        start_of_shift = (now_vn - timedelta(days=1)).replace(hour=7, minute=0, second=0, microsecond=0)
+    else:
+        # Nếu đã qua 7h sáng, thì là ca của ngày hôm nay
+        start_of_shift = now_vn.replace(hour=7, minute=0, second=0, microsecond=0)
+    
+    end_of_shift = start_of_shift + timedelta(days=1)
 
     # 2. Tối ưu Data Transfer (Chỉ lấy cột cần thiết)
     query = db.query(
@@ -56,16 +69,26 @@ def _get_active_buong_phong_query(db: Session, branch_obj: Branch):
         AttendanceRecord.employee_name_snapshot,
         AttendanceRecord.main_branch_snapshot
     ).filter(
-        AttendanceRecord.attendance_datetime >= start_of_day,
-        AttendanceRecord.attendance_datetime <= end_of_day,
+        # A. Lọc theo khung giờ ca làm việc
+        AttendanceRecord.attendance_datetime >= start_of_shift,
+        AttendanceRecord.attendance_datetime < end_of_shift,
+        
+        # B. Đúng chi nhánh
         AttendanceRecord.branch_id == branch_obj.id, 
+        
+        # C. [MỚI] Chỉ lấy nhân viên do chính User này điểm danh (tránh lộn ca)
+        # Giả định model AttendanceRecord có trường `checker_id`. 
+        # Nếu tên trường khác (vd: created_by_id), bạn hãy sửa lại tên ở dòng dưới.
+        AttendanceRecord.checker_id == current_user_id,
+
+        # D. Lọc Role Buồng phòng/Tạp vụ
         or_(
             AttendanceRecord.employee_code_snapshot.ilike("bp%"),       
             AttendanceRecord.role_snapshot.ilike("%buồng phòng%"),     
             AttendanceRecord.role_snapshot.ilike("%buong phong%"),
             func.lower(AttendanceRecord.role_snapshot) == "buongphong"
         )
-    ).distinct()  # <--- [QUAN TRỌNG] Thêm dòng này để loại bỏ nhân viên trùng lặp
+    ).distinct()
 
     return query.all()
 
@@ -79,7 +102,8 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     if user_data.get("role") in ["quanly", "ktv", "admin", "boss"]:
         return RedirectResponse("/choose-function", status_code=303)
 
-    target_branch = _resolve_current_branch(db, request, user_data.get("id"))
+    user_id = user_data.get("id")
+    target_branch = _resolve_current_branch(db, request, user_id)
     
     initial_employees = []
     current_branch_display = ""
@@ -87,7 +111,8 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     if target_branch:
         current_branch_display = target_branch.branch_code
         try:
-            recent_records = _get_active_buong_phong_query(db, target_branch)
+            # [FIX] Truyền thêm user_id vào hàm query
+            recent_records = _get_active_buong_phong_query(db, target_branch, user_id)
             
             initial_employees = [
                 {
@@ -124,13 +149,15 @@ def get_checked_in_bp_today(request: Request, db: Session = Depends(get_db)):
     if not user_data:
         raise HTTPException(status_code=403, detail="Cấm truy cập.")
 
-    target_branch = _resolve_current_branch(db, request, user_data.get("id"))
+    user_id = user_data.get("id")
+    target_branch = _resolve_current_branch(db, request, user_id)
 
     if not target_branch:
         return JSONResponse(content=[])
 
     try:
-        records = _get_active_buong_phong_query(db, target_branch)
+        # [FIX] Truyền thêm user_id vào hàm query
+        records = _get_active_buong_phong_query(db, target_branch, user_id)
         result = [
             {
                 "code": r.employee_code_snapshot, 
