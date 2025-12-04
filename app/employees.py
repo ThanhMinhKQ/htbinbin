@@ -320,7 +320,7 @@ employees = [
     },
 #--------------------------------------- ADMIN & BAN GIÁM ĐỐC --------------------------------------------#
     {
-        "employee_id": "NV999", "code": "ad.vminh", "name": "Vincent Minh",
+        "employee_id": "NV999", "code": "TMinh", "name": "Vincent Minh",
         "role": "admin", "branch": "ADMIN", "shift": None
     },
     {
@@ -328,7 +328,8 @@ employees = [
         "role": "admin", "branch": "ADMIN", "shift": None
     },
     {
-        "employee_id": "NV997", "code": "boss.sbin", "name": "Sếp Bin",
+        "employee_id": "NV997", "code": "BINBIN", "name": "Sếp Bin",
         "role": "boss", "branch": "BOSS", "shift": None
     },
+
 ]
