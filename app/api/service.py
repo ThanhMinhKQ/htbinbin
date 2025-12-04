@@ -1,17 +1,16 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import os
-from datetime import datetime, time
+from datetime import datetime
 
 from ..db.session import get_db
 from ..db.models import User, ServiceRecord, Branch, AttendanceRecord
 from ..core.security import get_csrf_token
-from ..core.utils import VN_TZ # Import múi giờ VN
+from ..core.utils import VN_TZ 
 from ..core.config import logger
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import cast, Date, desc, or_, func
-from sqlalchemy.orm import joinedload
 
 from fastapi.templating import Jinja2Templates
 
@@ -20,44 +19,55 @@ router = APIRouter()
 APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 templates = Jinja2Templates(directory=os.path.join(APP_ROOT, "templates"))
 
-def _get_active_buong_phong_query(db: Session, branch_code: str):
+# --- Hàm hỗ trợ xác định chi nhánh ---
+def _resolve_current_branch(db: Session, request: Request, user_id: int):
     """
-    Hàm helper: Lấy danh sách Buồng phòng đã điểm danh HÔM NAY.
-    Dựa trực tiếp vào dữ liệu snapshot trong AttendanceRecord để đảm bảo chính xác.
+    Hàm hỗ trợ xác định chi nhánh hiện tại của user.
+    Ưu tiên: Session đang chọn -> Chi nhánh chính của user.
     """
-    # 1. Xác định "Hôm nay" theo giờ Việt Nam
-    today = datetime.now(VN_TZ).date()
+    # 1. Kiểm tra nếu user đã chọn chi nhánh (lưu trong session)
+    active_branch_code = request.session.get("active_branch")
+    if active_branch_code:
+        branch = db.query(Branch).filter(Branch.branch_code == active_branch_code).first()
+        if branch:
+            return branch
+
+    # 2. Nếu không, lấy chi nhánh chính của nhân viên
+    if user_id:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user and user.main_branch:
+            return user.main_branch
     
-    # 2. Truy vấn trực tiếp bảng AttendanceRecord
-    # Logic: 
-    # - Ngày điểm danh là hôm nay.
-    # - Chi nhánh làm việc khớp với chi nhánh hiện tại.
-    # - Vai trò là Buồng phòng (check nhiều trường hợp tên gọi).
-    
+    return None
+
+# --- [FIXED] Hàm Query tối ưu & Lọc trùng lặp ---
+def _get_active_buong_phong_query(db: Session, branch_obj: Branch):
+    if not branch_obj:
+        return []
+
+    # 1. Tối ưu Timezone (Dùng Range)
+    now_vn = datetime.now(VN_TZ)
+    start_of_day = now_vn.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = start_of_day.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    # 2. Tối ưu Data Transfer (Chỉ lấy cột cần thiết)
     query = db.query(
         AttendanceRecord.employee_code_snapshot,
         AttendanceRecord.employee_name_snapshot,
-        AttendanceRecord.main_branch_snapshot,
-        Branch.branch_code.label("checked_at_branch")
-    ).join(Branch, AttendanceRecord.branch_id == Branch.id  # Join để lấy mã chi nhánh làm việc
+        AttendanceRecord.main_branch_snapshot
     ).filter(
-        # Lọc theo ngày hôm nay (cast sang Date để bỏ qua giờ phút)
-        cast(AttendanceRecord.attendance_datetime, Date) == today,
-        
-        # Lọc đúng chi nhánh đang chọn
-        Branch.branch_code == branch_code,
-        
-        # Lọc vai trò: Kiểm tra linh hoạt nhiều kiểu viết tắt
+        AttendanceRecord.attendance_datetime >= start_of_day,
+        AttendanceRecord.attendance_datetime <= end_of_day,
+        AttendanceRecord.branch_id == branch_obj.id, 
         or_(
-            func.lower(AttendanceRecord.role_snapshot) == 'buongphong',
-            func.lower(AttendanceRecord.role_snapshot) == 'buồng phòng',
-            func.lower(AttendanceRecord.role_snapshot) == 'bp',
-            # [QUAN TRỌNG] Fallback: Nếu role sai, kiểm tra mã nhân viên bắt đầu bằng 'bp.'
-            AttendanceRecord.employee_code_snapshot.ilike('bp.%')
+            AttendanceRecord.employee_code_snapshot.ilike("bp%"),       
+            AttendanceRecord.role_snapshot.ilike("%buồng phòng%"),     
+            AttendanceRecord.role_snapshot.ilike("%buong phong%"),
+            func.lower(AttendanceRecord.role_snapshot) == "buongphong"
         )
-    ).distinct()
-    
-    return query
+    ).distinct()  # <--- [QUAN TRỌNG] Thêm dòng này để loại bỏ nhân viên trùng lặp
+
+    return query.all()
 
 @router.get("", response_class=HTMLResponse)
 def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
@@ -65,33 +75,35 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
     if not user_data:
         return RedirectResponse("/login", status_code=303)
     
+    # Logic phân quyền
     if user_data.get("role") in ["quanly", "ktv", "admin", "boss"]:
         return RedirectResponse("/choose-function", status_code=303)
 
-    # Lấy chi nhánh đang hoạt động
-    current_branch_code = request.session.get("active_branch") or user_data.get("main_branch")
-
+    target_branch = _resolve_current_branch(db, request, user_data.get("id"))
+    
     initial_employees = []
-    try:
-        if current_branch_code:
-            # Gọi hàm query đã sửa
-            recent_records = _get_active_buong_phong_query(db, current_branch_code).all()
+    current_branch_display = ""
+
+    if target_branch:
+        current_branch_display = target_branch.branch_code
+        try:
+            recent_records = _get_active_buong_phong_query(db, target_branch)
             
             initial_employees = [
                 {
                     "code": rec.employee_code_snapshot, 
                     "name": rec.employee_name_snapshot, 
-                    "branch": rec.checked_at_branch if rec.checked_at_branch else rec.main_branch_snapshot, 
-                    "so_phong": "", 
-                    "so_luong": "", 
-                    "dich_vu": "", 
-                    "ghi_chu": ""
+                    "branch": rec.main_branch_snapshot, 
+                    "checked_at": target_branch.branch_code,
+                    "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
                 }
                 for rec in recent_records
             ]
-    except Exception as e:
-        logger.error(f"Lỗi khi lấy danh sách buồng phòng: {e}")
-    
+        except Exception as e:
+            logger.error(f"Lỗi service UI: {e}", exc_info=True)
+    else:
+        print("[DEBUG] Vẫn không xác định được chi nhánh nào.")
+
     csrf_token = get_csrf_token(request)
     
     response = templates.TemplateResponse("service.html", {
@@ -99,6 +111,7 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
         "csrf_token": csrf_token,
         "user": user_data,
         "initial_employees": initial_employees,
+        "detected_branch": current_branch_display 
     })
     
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
@@ -106,28 +119,30 @@ def attendance_service_ui(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/api/get-checked-in-bp")
 def get_checked_in_bp_today(request: Request, db: Session = Depends(get_db)):
-    """API làm mới danh sách nhân viên"""
+    """API làm mới danh sách (Nút Tải lại)"""
     user_data = request.session.get("user")
     if not user_data:
-        raise HTTPException(status_code=403, detail="Không có quyền truy cập.")
+        raise HTTPException(status_code=403, detail="Cấm truy cập.")
 
-    current_branch_code = request.session.get("active_branch") or user_data.get("main_branch")
+    target_branch = _resolve_current_branch(db, request, user_data.get("id"))
+
+    if not target_branch:
+        return JSONResponse(content=[])
 
     try:
-        records = _get_active_buong_phong_query(db, current_branch_code).all()
-        
+        records = _get_active_buong_phong_query(db, target_branch)
         result = [
             {
                 "code": r.employee_code_snapshot, 
                 "name": r.employee_name_snapshot, 
-                "branch": r.checked_at_branch,
+                "branch": r.main_branch_snapshot,
                 "so_phong": "", "so_luong": "", "dich_vu": "", "ghi_chu": ""
             }
             for r in records
         ]
         return JSONResponse(content=result)
     except Exception as e:
-        logger.error(f"API Error: {e}")
+        logger.error(f"API Error: {e}", exc_info=True)
         return JSONResponse(content=[])
 
 @router.post("/checkin_bulk")
@@ -145,17 +160,18 @@ async def service_checkin_bulk(request: Request, db: Session = Depends(get_db)):
         if not raw_data:
             return {"status": "success", "inserted": 0}
 
-        # Xử lý chi nhánh từ payload hoặc lấy của user
+        # Xác định chi nhánh ghi nhận dịch vụ
+        target_branch_id = checker.main_branch_id 
+        
         first_item = raw_data[0] if isinstance(raw_data, list) else {}
         branch_code_in = first_item.get("chi_nhanh_lam")
         
-        branch_obj = None
         if branch_code_in:
-            branch_obj = db.query(Branch).filter(Branch.branch_code == branch_code_in).first()
-        
-        target_branch_id = branch_obj.id if branch_obj else checker.main_branch_id
+            b_obj = db.query(Branch).filter(Branch.branch_code == branch_code_in).first()
+            if b_obj:
+                target_branch_id = b_obj.id
 
-        # Lấy danh sách mã nhân viên để query 1 lần
+        # Query User tối ưu
         codes = [rec.get("ma_nv") for rec in raw_data if rec.get("ma_nv")]
         users_map = {}
         if codes:
@@ -171,13 +187,13 @@ async def service_checkin_bulk(request: Request, db: Session = Depends(get_db)):
             user_snap = users_map.get(ma_nv)
             if not user_snap: continue
 
-            # Validate số lượng
+            # Validate số lượng an toàn
+            qty = None
             try:
-                qty = int(rec.get("so_luong"))
-            except (ValueError, TypeError):
-                qty = None
+                if rec.get("so_luong"):
+                    qty = int(rec.get("so_luong"))
+            except: pass
 
-            # Chỉ lưu nếu có dịch vụ hoặc số phòng
             if not rec.get("dich_vu") and not rec.get("so_phong"):
                 continue
 
@@ -205,5 +221,5 @@ async def service_checkin_bulk(request: Request, db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
-        logger.error(f"Lỗi save service: {e}")
+        logger.error(f"Lỗi save service: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Lỗi server.")
