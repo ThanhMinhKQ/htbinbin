@@ -125,13 +125,7 @@ def view_attendance_calendar(
         svc_q = db.query(ServiceRecord).options(joinedload(ServiceRecord.branch))
         
         # Áp dụng bộ lọc
-        if chi_nhanh in role_map_filter:
-            # --- ĐOẠN CODE CŨ GÂY LỖI ---
-            # role_code_to_filter = role_map_filter[chi_nhanh]
-            # role_name_to_filter = ROLE_MAP.get(role_code_to_filter, role_code_to_filter)
-            # att_q = att_q.filter(AttendanceRecord.role_snapshot == role_name_to_filter)
-            # svc_q = svc_q.filter(ServiceRecord.role_snapshot == role_name_to_filter)
-            
+        if chi_nhanh in role_map_filter or chi_nhanh == 'DI DONG':
             # --- ĐOẠN CODE MỚI (SỬA LẠI) ---
             # Lấy danh sách mã nhân viên từ kết quả query ở Bước 1
             target_emp_codes = [emp.employee_code for emp in base_employees]
@@ -140,7 +134,7 @@ def view_attendance_calendar(
                 att_q = att_q.filter(AttendanceRecord.employee_code_snapshot.in_(target_emp_codes))
                 svc_q = svc_q.filter(ServiceRecord.employee_code_snapshot.in_(target_emp_codes))
             else:
-                # Nếu không có nhân viên nào thuộc nhóm này, trả về rỗng để tránh load toàn bộ DB
+                # Nếu không có nhân viên nào thuộc nhóm này, trả về rỗng
                 from sqlalchemy import false
                 att_q = att_q.filter(false())
                 svc_q = svc_q.filter(false())
@@ -166,9 +160,8 @@ def view_attendance_calendar(
             is_att = isinstance(rec, AttendanceRecord)
             dt = rec.attendance_datetime if is_att else rec.service_datetime
             
-            # Chuyển đổi thời gian DB (UTC) về giờ Việt Nam (GMT+7)
+            # Chuyển đổi thời gian và xác định ngày làm việc
             dt_local = dt.astimezone(VN_TZ)
-            # Áp dụng logic trên giờ Việt Nam
             work_date = dt_local.date() - timedelta(days=1) if dt_local.hour < 7 else dt_local.date()
 
             if work_date.month != current_month or work_date.year != current_year:
@@ -230,8 +223,28 @@ def view_attendance_calendar(
                 employee_data[emp_code]["worked_away_from_main_branch"] = True
 
             daily_work_entry = employee_data[emp_code]["daily_work"][day_of_month]
+            
             if is_att:
                 daily_work_entry["work_units"] += rec.work_units or 0
+                
+                # --- [CẬP NHẬT MỚI TẠI ĐÂY] ---
+                # Lưu lại chi nhánh làm việc để hiển thị cho DI DONG
+                if rec.branch:
+                    current_stored = daily_work_entry["work_branch"]
+                    new_branch = rec.branch.branch_code
+                    
+                    # Nếu chưa có thì gán, nếu có rồi mà khác chi nhánh cũ thì nối chuỗi (VD: B1, B2)
+                    if not current_stored:
+                        daily_work_entry["work_branch"] = new_branch
+                    elif new_branch not in current_stored: 
+                        # Tránh lặp lại (VD: sáng làm B1, chiều làm B1)
+                        daily_work_entry["work_branch"] = f"{current_stored}, {new_branch}"
+                
+                # Logic xác định có phải tăng ca không (cờ này từ DB hoặc tự tính)
+                if rec.is_overtime:
+                    daily_work_entry["is_overtime"] = True
+                # -------------------------------
+
             else: # Service Record
                 service_summary = daily_work_entry.setdefault("service_summary", defaultdict(int))
                 service_summary[rec.service_type] += rec.quantity or 0
