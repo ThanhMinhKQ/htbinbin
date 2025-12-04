@@ -103,36 +103,57 @@
             {% endif %}
           </div>
         </td>
+        {# --- [ĐÃ CẬP NHẬT] Bỏ in đậm, giữ màu tương phản cao --- #}
         {% for day in range(1, num_days + 1) %}
           {% set day_data = emp.daily_work.get(day) %}
           {% set cell_class = '' %}
+          {% set text_class = 'text-gray-700 dark:text-gray-400' %} 
           {% set cell_content = '' %}
           {% set services = day_data.services if day_data else [] %}
 
           {% if day_data and day_data.work_units > 0 %}
             {% set work_units = day_data.work_units %}
             {% set is_overtime_flag = day_data.is_overtime %}
-            {% set overtime_branch = day_data.work_branch if day_data else '' %}
+            {% set worked_branch = day_data.work_branch if day_data else '' %}
 
-            {# Logic xác định màu nền #}
+            {# --- LOGIC MÀU SẮC (Đã bỏ font-bold) --- #}
+            
             {% if work_units > 1.0 or is_overtime_flag %}
-              {% set cell_class = 'bg-yellow-50 dark:bg-yellow-900/30' %}
+              {# TĂNG CA: Light = Vàng, Dark = HỒNG TÍM (Fuchsia) #}
+              {% set cell_class = 'bg-yellow-50 dark:bg-fuchsia-900/40' %}
+              {# Đã xóa font-bold ở đây #}
+              {% set text_class = 'text-gray-800 dark:text-fuchsia-200' %}
+            
             {% elif work_units == 1.0 %}
-              {% set cell_class = 'bg-green-50 dark:bg-green-900/30' %}
+              {# ĐỦ CÔNG: Light = Xanh Lá, Dark = XANH NGỌC (Teal) #}
+              {% set cell_class = 'bg-green-50 dark:bg-teal-900/40' %}
+              {% set text_class = 'text-gray-800 dark:text-teal-200' %}
+            
             {% else %}
-              {% set cell_class = 'bg-blue-50 dark:bg-blue-900/30' %}
+              {# THIẾU CÔNG: Light = Xanh Dương, Dark = Xanh Lam (Blue) #}
+              {% set cell_class = 'bg-blue-50 dark:bg-sky-900/40' %}
+              {% set text_class = 'text-gray-800 dark:text-sky-200' %}
             {% endif %}
 
-            {# Logic xác định nội dung ô #}
+            {# --------------------------------------------- #}
+
             {% set formatted_work_units = work_units|int if work_units % 1 == 0 else work_units %}
             {% set cell_content = formatted_work_units %}
-            {# Chỉ hiển thị chi nhánh làm thêm cho LTTC/BPTC khi ở bộ lọc của họ. Các trường hợp tăng ca khác chỉ được tô màu. #}
-            {% if is_overtime_flag and overtime_branch and emp.role_key in ['lttc', 'bptc'] and selected_branch in ['LTTC', 'BPTC'] %}
-              {% set cell_content = '{}<br><span class="text-red-500 text-xs font-semibold">{}</span>'.format(formatted_work_units, overtime_branch) %}
+
+            {% set show_branch_condition_1 = is_overtime_flag and worked_branch and emp.role_key in ['lttc', 'bptc'] and selected_branch in ['LTTC', 'BPTC'] %}
+            {% set show_branch_condition_2 = emp.main_branch == 'DI DONG' and worked_branch and worked_branch != selected_branch %}
+
+            {% if show_branch_condition_1 or show_branch_condition_2 %}
+              {# Tên chi nhánh: Giữ font-semibold (đậm vừa) cho chữ nhỏ để dễ đọc, hoặc bạn có thể xóa luôn nếu muốn #}
+              {% set cell_content = '{}<br><span class="text-red-500 dark:text-orange-300 text-xs font-semibold">{}</span>'.format(formatted_work_units, worked_branch) %}
             {% endif %}
+
           {% endif %}
+          
           <td class="calendar-day-cell px-0.5 py-2 text-center align-top {{ cell_class }} border-r border-gray-200 dark:border-slate-700 transition-all duration-300 break-words">
-            <div class="text-sm text-gray-700 dark:text-gray-300" title="{{ services | join(', ') }}">{{ cell_content | safe }}</div>
+            <div class="text-sm {{ text_class }}" title="{{ services | join(', ') }}">
+                {{ cell_content | safe }}
+            </div>
             {% if services %}
             <div class="text-xs text-indigo-700 dark:text-indigo-300 mt-1">{{ services | join(', ') | safe }}</div>
             {% endif %}
@@ -204,13 +225,19 @@
 
 <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm dark:text-gray-200">
   <div class="flex items-center justify-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border dark:border-slate-700">
-    <span class="w-4 h-4 rounded bg-green-50 dark:bg-green-900/30 border border-gray-300 dark:border-slate-600"></span> Đủ công
+    {# Đủ công: Xanh Ngọc #}
+    <span class="w-4 h-4 rounded bg-green-50 dark:bg-teal-900/40 border border-gray-300 dark:border-slate-600"></span> 
+    <span class="dark:text-teal-200">Đủ công</span>
   </div>
   <div class="flex items-center justify-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border dark:border-slate-700">
-    <span class="w-4 h-4 rounded bg-yellow-50 dark:bg-yellow-900/30 border border-gray-300 dark:border-slate-600"></span> Tăng ca
+    {# Tăng ca: Hồng Tím #}
+    <span class="w-4 h-4 rounded bg-yellow-50 dark:bg-fuchsia-900/40 border border-gray-300 dark:border-slate-600"></span> 
+    <span class="dark:text-fuchsia-200">Tăng ca</span>
   </div>
   <div class="flex items-center justify-center gap-2 bg-white dark:bg-slate-800 p-3 rounded-xl shadow-sm border dark:border-slate-700">
-    <span class="w-4 h-4 rounded bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600"></span> Nghỉ / Không dữ liệu
+    {# Nghỉ: Xám #}
+    <span class="w-4 h-4 rounded bg-gray-50 dark:bg-slate-700 border border-gray-300 dark:border-slate-600"></span> 
+    Nghỉ / Không dữ liệu
   </div>
 </div>
 
