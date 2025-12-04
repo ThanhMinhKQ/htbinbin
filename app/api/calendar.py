@@ -178,10 +178,50 @@ def view_attendance_calendar(
             emp_code = rec.employee_code_snapshot
 
             # Nếu nhân viên chưa có trong danh sách (trường hợp tăng ca từ chi nhánh khác)
+            # Nếu nhân viên chưa có trong danh sách (trường hợp tăng ca từ chi nhánh khác)
             if emp_code not in employee_data:
                 employee_data[emp_code]["name"] = rec.employee_name_snapshot
                 employee_data[emp_code]["main_branch"] = rec.main_branch_snapshot
-                employee_data[emp_code]["role_key"] = rec.role_snapshot
+                
+                # --- [LOGIC MỚI] CHUẨN HÓA ROLE_KEY THEO DATABASE ---
+                # Lấy tên chức vụ từ snapshot, chuyển về chữ thường để xử lý
+                raw_role = str(rec.role_snapshot).lower() if rec.role_snapshot else ""
+                
+                # Mặc định gán là 'khac' nếu không tìm thấy
+                normalized_key = "khac"
+
+                # 1. Nhóm Lễ tân (Database id: 1 - letan)
+                if "lễ tân" in raw_role or "letan" in raw_role or "lttc" in raw_role:
+                    normalized_key = "letan"
+                
+                # 2. Nhóm Buồng phòng (Database id: 2 - buongphong)
+                # Kèm các từ khóa: buồng, bptc (buồng phòng trung chuyển)
+                elif "buồng" in raw_role or "buongphong" in raw_role or "bptc" in raw_role:
+                    normalized_key = "buongphong"
+                
+                # 3. Nhóm Bảo vệ (Database id: 3 - baove)
+                # Kèm từ khóa: an ninh
+                elif "bảo vệ" in raw_role or "baove" in raw_role or "an ninh" in raw_role:
+                    normalized_key = "baove"
+                
+                # 4. Nhóm Kỹ thuật (Database id: 4 - ktv)
+                elif "kỹ thuật" in raw_role or "ktv" in raw_role:
+                    normalized_key = "ktv"
+                
+                # 5. Nhóm Quản lý (Database id: 5 - quanly)
+                elif "quản lý" in raw_role or "quanly" in raw_role:
+                    normalized_key = "quanly"
+                
+                # Các nhóm khác (Admin, Boss...)
+                elif "admin" in raw_role:
+                    normalized_key = "admin"
+                elif "giám đốc" in raw_role or "boss" in raw_role:
+                    normalized_key = "boss"
+                
+                # Gán key đã chuẩn hóa để hệ thống sắp xếp được
+                employee_data[emp_code]["role_key"] = normalized_key
+                # --- [HẾT PHẦN SỬA ĐỔI] ---
+
                 employee_data[emp_code]["role"] = ROLE_MAP.get(rec.role_snapshot, rec.role_snapshot)
 
             # Sửa lỗi logic: so sánh branch_code của nơi làm việc với branch_code của chi nhánh chính đã lưu
@@ -394,15 +434,51 @@ def view_attendance_calendar(
                     "ironing_details": sorted(ironing_details, key=lambda x: datetime.strptime(x['date'], '%d/%m/%Y')),
                 }
 
-    # Sắp xếp nhân viên
-    role_priority = {"letan": 0, "buongphong": 1, "baove": 2, "ktv": 3, "quanly": 4}
+    # === SẮP XẾP DANH SÁCH NHÂN VIÊN ===
+    # Priority khớp với ID trong database: letan(1) -> buongphong(2) -> baove(3)...
+    role_priority = {
+        "letan": 1, 
+        "buongphong": 2, 
+        "baove": 3, 
+        "ktv": 4, 
+        "quanly": 5,
+        "admin": 6,
+        "boss": 7
+    }
+    
+    def get_sort_key(item):
+        emp_code, emp_info = item
+        
+        # Tiêu chí 1: Chức vụ (Role)
+        # Sử dụng role_key đã chuẩn hóa để gom nhóm
+        role_score = role_priority.get(emp_info.get("role_key", "khac"), 99)
+        
+        # Tiêu chí 2: Phân loại Chủ nhà (Local) vs Khách (Visitor)
+        # Mặc định là 0 (ưu tiên cao nhất)
+        visitor_score = 0
+        
+        # Logic: Nếu đang xem lịch của một Chi nhánh cụ thể (VD: B1, B2...)
+        # Nhân viên có 'main_branch' khác chi nhánh đang xem sẽ bị coi là 'khách' (score = 1) -> Xếp dưới
+        current_view_branch = chi_nhanh # Biến chi_nhanh từ tham số hàm
+        emp_main_branch = emp_info.get("main_branch")
+        
+        # Chỉ so sánh nếu cả 2 giá trị đều tồn tại
+        if current_view_branch and emp_main_branch:
+             # Nếu chi nhánh chính KHÁC chi nhánh hiện tại -> Đẩy xuống dưới
+             if emp_main_branch != current_view_branch:
+                 visitor_score = 1
+        
+        # Tiêu chí 3: Tên nhân viên (A-Z)
+        name_score = emp_info.get("name", "")
+        
+        return (role_score, visitor_score, name_score)
+
+    # Thực hiện sắp xếp
     sorted_employee_list = sorted(
         employee_data.items(),
-        key=lambda item: (
-            role_priority.get(item[1].get("role_key", "khac"), 99),
-            item[1].get("name", "")
-        )
+        key=get_sort_key
     )
+    
     sorted_employee_data = OrderedDict(sorted_employee_list)
 
     return templates.TemplateResponse("calendar_view.html", {
