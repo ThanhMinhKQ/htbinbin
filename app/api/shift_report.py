@@ -1179,6 +1179,7 @@ async def get_dashboard_summary(
                 })
 
         # 4. Lịch sử kết ca (từ log_query đã lọc)
+        # SỬA: Bỏ .limit(5) để lấy toàn bộ lịch sử
         recent_closes = log_query.join(ShiftCloseLog.branch).join(ShiftCloseLog.closer).with_entities(
             ShiftCloseLog.id,
             ShiftCloseLog.pms_revenue,
@@ -1189,7 +1190,7 @@ async def get_dashboard_summary(
             User.name.label("closer_name")
         ).order_by(
             desc(ShiftCloseLog.closed_datetime)
-        ).limit(5).all()
+        ).all() # <-- Đã thay đổi từ .limit(5).all() thành .all()
 
         # --- Trả về kết quả ---
         return JSONResponse(content={
