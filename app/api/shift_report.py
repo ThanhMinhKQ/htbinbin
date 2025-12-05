@@ -70,34 +70,66 @@ def generate_transaction_code(db: Session, branch_code: str) -> str:
         if not exists:
             return code
 
-# --- SỬA: Helper _serialize_item thành _serialize_transaction ---
+# Đảm bảo bạn đã import jsonable_encoder ở đầu file
+from fastapi.encoders import jsonable_encoder
+
+# Đảm bảo import này ở đầu file
+from fastapi.encoders import jsonable_encoder
+
+# Trong file app/api/shift_report.py
+
 def _serialize_transaction(transaction: ShiftReportTransaction) -> dict:
     """
-    Helper để chuyển đổi một đối tượng ShiftReportTransaction (đã load quan hệ) 
-    thành dict có thể JSON hóa.
+    Phiên bản tối ưu tốc độ: Trả về Dict trực tiếp, KHÔNG DÙNG jsonable_encoder.
     """
-    # SỬA: Dùng Schema mới (Giả định)
-    item_details = ShiftTransactionDetails.from_orm(transaction)
+    # 1. Lấy giá trị Enum an toàn
+    status_val = transaction.status.value if hasattr(transaction.status, 'value') else transaction.status
+    type_val = transaction.transaction_type.value if hasattr(transaction.transaction_type, 'value') else transaction.transaction_type
+
+    # 2. Xử lý quan hệ (Tránh truy cập nếu là None để không trigger lazy load thừa)
+    branch_code = transaction.branch.branch_code if transaction.branch else "N/A"
     
-    # SỬA: Cập nhật các trường
-    item_details.created_datetime = transaction.created_datetime # Đổi tên từ found_datetime
-    item_details.closed_datetime = transaction.closed_datetime # THÊM
-    item_details.deleted_datetime = transaction.deleted_datetime
-    
-    item_details.chi_nhanh = transaction.branch.branch_code if transaction.branch else None
-    
-    # SỬA: Chỉ còn recorder, closer, deleter
-    item_details.recorded_by = f"{transaction.recorder.name} ({transaction.recorder.employee_code})" if transaction.recorder else None
-    item_details.closed_by = f"{transaction.closer.name} ({transaction.closer.employee_code})" if transaction.closer else None # THÊM
-    item_details.deleted_by = f"{transaction.deleter.name} ({transaction.deleter.employee_code})" if transaction.deleter else None
-    
-    # SỬA: Map trạng thái và loại
-    item_details.status = map_status_to_vietnamese(transaction.status.value if transaction.status else None)
-    item_details.transaction_type_display = map_type_to_vietnamese(transaction.transaction_type.value if transaction.transaction_type else None) # THÊM
-    
-    item_details.room_number = transaction.room_number # THÊM
-    item_details.transaction_info = transaction.transaction_info # THÊM
-    return jsonable_encoder(item_details)
+    recorded_by_str = "N/A"
+    if transaction.recorder:
+        recorded_by_str = f"{transaction.recorder.name} ({transaction.recorder.employee_code})"
+
+    closed_by_str = None
+    if transaction.closer:
+        closed_by_str = f"{transaction.closer.name} ({transaction.closer.employee_code})"
+
+    deleted_by_str = None
+    if transaction.deleter:
+        deleted_by_str = f"{transaction.deleter.name} ({transaction.deleter.employee_code})"
+
+    # 3. Format ngày tháng thủ công (Nhanh hơn để thư viện tự đoán)
+    created_fmt = transaction.created_datetime.isoformat() if transaction.created_datetime else None
+    closed_fmt = transaction.closed_datetime.isoformat() if transaction.closed_datetime else None
+    deleted_fmt = transaction.deleted_datetime.isoformat() if transaction.deleted_datetime else None
+
+    return {
+        "id": transaction.id,
+        "transaction_code": transaction.transaction_code,
+        "amount": transaction.amount,
+        "room_number": transaction.room_number,
+        "transaction_info": transaction.transaction_info,
+        
+        "created_datetime": created_fmt,
+        "closed_datetime": closed_fmt,
+        "deleted_datetime": deleted_fmt,
+        
+        "chi_nhanh": branch_code,
+        "recorded_by": recorded_by_str,
+        "closed_by": closed_by_str,
+        "deleted_by": deleted_by_str,
+        
+        # Mapping hiển thị
+        "status": map_status_to_vietnamese(status_val),
+        "transaction_type_display": map_type_to_vietnamese(type_val),
+        
+        # Raw data
+        "transaction_type": type_val,
+        "status_raw": status_val
+    }
 
 # --- SỬA: Hàm filter chính ---
 def _get_filtered_transactions(
@@ -131,6 +163,9 @@ def _get_filtered_transactions(
 
     if user_data.get("role") not in ["admin", "boss"]:
         query = query.filter(ShiftReportTransaction.status != ShiftReportStatus.DELETED)
+
+    if user_data.get("role") == 'letan':
+        query = query.filter(ShiftReportTransaction.status != ShiftReportStatus.CLOSED)
 
     branch_to_filter = chi_nhanh
     if user_data.get("role") == 'letan' and not chi_nhanh:
@@ -297,7 +332,7 @@ async def shift_report_page(
     }
     
     # SỬA: Sắp xếp lại loại giao dịch theo thứ tự mong muốn
-    desired_order = ["BRANCH_ACCOUNT", "COMPANY_ACCOUNT", "OTA", "UNC", "CARD", "CASH_EXPENSE"]
+    desired_order = ["BRANCH_ACCOUNT", "COMPANY_ACCOUNT", "OTA", "UNC", "CARD", "CASH_EXPENSE", "OTHER"]
     sorted_transaction_types = sorted(
         [t for t in TransactionType], 
         key=lambda t: desired_order.index(t.value) if t.value in desired_order else len(desired_order)
@@ -685,7 +720,8 @@ async def delete_shift_transaction( # SỬA
                         TransactionType.UNC, 
                         TransactionType.CARD, 
                         TransactionType.COMPANY_ACCOUNT,
-                        TransactionType.CASH_EXPENSE
+                        TransactionType.CASH_EXPENSE,
+                        TransactionType.OTHER
                     ]:
                         closed_online_revenue += tx.amount
                     elif tx.transaction_type == TransactionType.BRANCH_ACCOUNT:
@@ -795,7 +831,8 @@ async def batch_delete_shift_transactions( # SỬA
                                 TransactionType.UNC, 
                                 TransactionType.CARD, 
                                 TransactionType.COMPANY_ACCOUNT,
-                                TransactionType.CASH_EXPENSE # <--- THÊM VÀO ĐÂY
+                                TransactionType.CASH_EXPENSE,
+                                TransactionType.OTHER
                             ]:
                                 closed_online_revenue += tx.amount
                             elif tx.transaction_type == TransactionType.BRANCH_ACCOUNT:
@@ -1004,7 +1041,7 @@ async def get_dashboard_summary(
         # Tất cả đều tính là dương (+)
         online_revenue_case = case(
             (ShiftReportTransaction.transaction_type.in_([
-                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE'
+                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE', 'OTHER'
             ]), ShiftReportTransaction.amount),
             else_=0
         )
@@ -1019,7 +1056,7 @@ async def get_dashboard_summary(
         # Bao gồm tất cả các loại phi tiền mặt + chi tiền quầy
         total_revenue_case = case(
             (ShiftReportTransaction.transaction_type.in_([
-                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'BRANCH_ACCOUNT', 'CASH_EXPENSE'
+                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'BRANCH_ACCOUNT', 'CASH_EXPENSE', 'OTHER'
             ]), ShiftReportTransaction.amount),
             else_=0
         )
@@ -1243,9 +1280,6 @@ async def get_shift_close_details(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """
-    API để lấy chi tiết một lần kết ca, bao gồm thông tin log và danh sách các giao dịch.
-    """
     user_data = request.session.get("user")
     if not user_data or user_data.get("role") not in ["admin", "boss", "quanly", "letan"]:
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
@@ -1260,15 +1294,22 @@ async def get_shift_close_details(
 
     transaction_ids = log_entry.closed_transaction_ids or []
     transactions = []
+    
     if transaction_ids:
-        transactions = db.query(ShiftReportTransaction).filter(ShiftReportTransaction.id.in_(transaction_ids)).all()
+        # --- SỬA LỖI Ở ĐÂY: Thêm joinedload để tránh lỗi Lazy Loading ---
+        transactions = db.query(ShiftReportTransaction).options(
+            joinedload(ShiftReportTransaction.branch),
+            joinedload(ShiftReportTransaction.recorder),
+            joinedload(ShiftReportTransaction.closer),
+            joinedload(ShiftReportTransaction.deleter)
+        ).filter(ShiftReportTransaction.id.in_(transaction_ids)).all()
 
     log_details = {
         "id": log_entry.id,
         "pms_revenue": log_entry.pms_revenue,
         "closed_online_revenue": log_entry.closed_online_revenue,
         "closed_branch_revenue": log_entry.closed_branch_revenue,
-        "cash_revenue": log_entry.pms_revenue - log_entry.closed_online_revenue - log_entry.closed_branch_revenue,
+        "cash_revenue": (log_entry.pms_revenue or 0) - (log_entry.closed_online_revenue or 0) - (log_entry.closed_branch_revenue or 0),
         "closed_datetime": log_entry.closed_datetime.isoformat(),
         "branch_code": log_entry.branch.branch_code if log_entry.branch else "N/A",
         "closer_name": log_entry.closer.name if log_entry.closer else "N/A"
@@ -1371,7 +1412,7 @@ async def get_monthly_summary(
         # Định nghĩa các biểu thức case cho từng loại doanh thu
         online_revenue_case = case(
             (ShiftReportTransaction.transaction_type.in_([
-                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE'
+                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE', 'OTHER'
             ]), ShiftReportTransaction.amount),
             else_=0
         )
@@ -1500,7 +1541,8 @@ async def get_pending_summary(
                 'UNC', 
                 'CARD', 
                 'BRANCH_ACCOUNT', 
-                'CASH_EXPENSE' # <--- THÊM VÀO ĐÂY
+                'CASH_EXPENSE',
+                'OTHER'
             ]), ShiftReportTransaction.amount),
             # BỎ dòng trừ tiền, tất cả đều cộng
             else_=0
@@ -1631,7 +1673,8 @@ async def delete_transaction_from_log(
                         TransactionType.UNC, 
                         TransactionType.CARD, 
                         TransactionType.COMPANY_ACCOUNT,
-                        TransactionType.CASH_EXPENSE
+                        TransactionType.CASH_EXPENSE,
+                        TransactionType.OTHER
                     ]:
                         closed_online_revenue += tx.amount
                     
