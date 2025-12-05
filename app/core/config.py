@@ -102,4 +102,5 @@ SHIFT_TRANSACTION_TYPES = {
     "UNC": "UNC",
     "CARD": "Quẹt thẻ",
     "CASH_EXPENSE": "Chi tiền quầy",
+    "OTHER": "Khác",
 }
