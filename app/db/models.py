@@ -34,6 +34,7 @@ class TransactionType(str, enum.Enum):
     COMPANY_ACCOUNT = "COMPANY_ACCOUNT"
     BRANCH_ACCOUNT = "BRANCH_ACCOUNT"
     CASH_EXPENSE = "CASH_EXPENSE"
+    OTHER = "OTHER"
 
 # ====================================================================
 # MASTER DATA (Dữ liệu nền)
