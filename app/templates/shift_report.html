@@ -49,9 +49,11 @@
     .sortable:hover .sort-indicator {
         opacity: 0.8;
     }
+
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <div class="p-4 sm:p-6 lg:p-8" x-data="shiftReport(
          '#initial-data', 
@@ -142,7 +144,7 @@
                                 <tr><td colspan="5" class="text-center py-6 text-slate-500 dark:text-slate-400">Chưa có lịch sử kết ca.</td></tr>
                             </template>
                             <template x-for="log in charts.data.recent_closes" :key="log.id">
-                                <tr @click="openShiftCloseDetailModal(log.id)" class="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                                <tr @click="openUnifiedReportModal('close', log.id)" class="hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors">
                                     <td class="px-4 py-3 whitespace-nowrap" x-text="formatDate(log.closed_datetime)"></td>
                                     
                                     <td x-show="userRole !== 'letan'" class="px-4 py-3 font-medium whitespace-nowrap" x-text="log.branch_code"></td>
@@ -198,7 +200,7 @@
 
                     <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
                         <div class="grid grid-cols-2 gap-3">
-                            <button @click="openHandoverModal()"
+                            <button @click="openUnifiedReportModal('handover')"
                                 class="w-full bg-gradient-to-r from-purple-600 to-pink-500
                                         text-white px-4 py-3 rounded-lg shadow-lg shadow-purple-500/30
                                         flex items-center justify-center gap-2 font-semibold transition text-sm
@@ -1119,254 +1121,6 @@
         </div>
     </div>
 
-    <div class="relative z-[10002]" aria-labelledby="slide-over-title" role="dialog" aria-modal="true" x-show="isHandoverModalOpen" x-cloak>
-        <div x-show="isHandoverModalOpen"
-            x-transition:enter="ease-in-out duration-500" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-            x-transition:leave="ease-in-out duration-500" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-            class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
-
-        <div class="fixed inset-0 overflow-hidden">
-            <div class="absolute inset-0 overflow-hidden">
-                <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-4 sm:pl-10">
-                    
-                    <div x-show="isHandoverModalOpen"
-                        @click.outside="closeHandoverModal()"
-                        x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700"
-                        x-transition:enter-start="translate-x-full"
-                        x-transition:enter-end="translate-x-0"
-                        x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700"
-                        x-transition:leave-start="translate-x-0"
-                        x-transition:leave-end="translate-x-full"
-                        class="pointer-events-auto w-screen max-w-7xl">
-                        
-                        <div class="flex h-full flex-col bg-slate-50 dark:bg-slate-900 shadow-2xl" id="handover-modal-content">
-                            <div class="px-6 py-5 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex-shrink-0 z-20">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-4">
-                                        <div class="relative grid place-items-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/20">
-                                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
-                                        </div>
-                                        <div>
-                                            <h2 class="text-xl font-bold text-slate-800 dark:text-white tracking-tight">Biên Bản Giao Ca</h2>
-                                            <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-                                                <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300" x-text="user.name"></span>
-                                                <span class="text-slate-300">•</span>
-                                                <span x-text="displayBranch"></span>
-                                                <span class="text-slate-300">•</span>
-                                                <span x-text="formatDate(new Date().toISOString())"></span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <button type="button" @click="closeHandoverModal()" class="group p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
-                                        <svg class="h-6 w-6 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-[#0f172a] p-4 sm:p-6 custom-scrollbar">
-                                 <!-- DASHBOARD BIÊN BẢN GIAO CA-->
-                                <div class="max-w-6xl mx-auto space-y-6">
-                                    <div class="grid grid-cols-12 gap-5 font-sans antialiased">
-                                        
-                                        <div class="col-span-12 lg:col-span-5 relative group overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-white shadow-2xl shadow-teal-900/20 p-8 min-h-[220px] flex flex-col justify-between transition-all duration-300 hover:scale-[1.01]">
-                                            <div class="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-                                            <div class="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
-                                            
-                                            <div class="relative z-10 flex justify-between items-start">
-                                                <div>
-                                                    <div class="flex items-center gap-2 mb-2 bg-white/20 w-fit px-3 py-1 rounded-full backdrop-blur-sm border border-white/10">
-                                                        <svg class="w-3.5 h-3.5 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                        <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-50">Doanh Thu PMS</span>
-                                                    </div>
-                                                    <p class="text-sm font-medium text-emerald-100/80 pl-1">Nhập từ PMQL Khách sạn</p>
-                                                </div>
-                                                <svg class="w-12 h-12 text-white/10 absolute right-0 top-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                                            </div>
-
-                                            <div class="relative z-10 mt-4">
-                                                <div class="flex items-baseline gap-1.5">
-                                                    <span class="text-5xl font-black tracking-tighter drop-shadow-sm" x-text="formatCurrency(letanPmsRevenueValue)"></span>
-                                                    <span class="text-xl font-medium text-emerald-100/90">₫</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-span-12 lg:col-span-7 relative group overflow-hidden rounded-[2rem] bg-slate-900 dark:bg-black text-white border border-slate-800 dark:border-slate-800 shadow-xl shadow-slate-900/10 flex flex-col">
-                                            <div class="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-slate-800/30 to-transparent pointer-events-none"></div>
-
-                                            <div class="relative z-10 p-6 sm:p-8 flex-grow flex flex-col justify-center items-center text-center">
-                                                
-                                                <div class="flex items-center gap-2 mb-3 opacity-60">
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.75 7.5h16.5v-1.5c0-1.43-1.146-2.59-2.57-2.724A48.06 48.06 0 0012 3 48.06 48.06 0 006.32 3.276C4.895 3.41 3.75 4.57 3.75 6v1.5z" /></svg>
-                                                    <span class="text-xs font-bold uppercase tracking-widest">Tổng Tiền Tại Quầy</span>
-                                                </div>
-
-                                                <div>
-                                                    <div class="flex items-baseline justify-center flex-wrap gap-1">
-                                                        <span class="text-5xl sm:text-6xl font-bold text-white tracking-tight" 
-                                                            x-text="formatCurrency(letanTotalCounter)"></span>
-                                                        <span class="text-2xl text-slate-500 font-medium">₫</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="relative z-10 bg-slate-800/30 border-t border-slate-800 grid grid-cols-2">
-                                                
-                                                <div class="p-4 sm:px-6 flex flex-col items-center justify-center border-r border-slate-800">
-                                                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Thực thu</span>
-                                                    <span class="text-lg sm:text-xl font-bold text-emerald-400" 
-                                                        x-text="formatCurrency(handoverCashRevenue)"></span>
-                                                </div>
-
-                                                <div class="p-4 sm:px-6 flex flex-col items-center justify-center">
-                                                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Vốn cố định</span>
-                                                    <span class="text-lg sm:text-xl font-bold text-slate-300">1,500,000</span>
-                                                </div>
-
-                                            </div>
-                                        </div>
-
-                                        <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                            
-                                            <div class="group bg-white dark:bg-slate-900 rounded-[1.5rem] p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
-                                                <div class="flex items-center gap-4">
-                                                    <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300">
-                                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
-                                                        </svg>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Doanh Thu Chi Nhánh</p>
-                                                        <p class="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight" x-text="formatCurrency(handoverBranchRevenue)"></p>
-                                                    </div>
-                                                </div>
-                                                <div class="h-8 w-1 bg-purple-500/20 rounded-full"></div>
-                                            </div>
-
-                                            <div class="group bg-white dark:bg-slate-900 rounded-[1.5rem] p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
-                                                <div class="flex items-center gap-4">
-                                                    <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
-                                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Doanh Thu Online</p>
-                                                        <p class="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight" x-text="formatCurrency(handoverOnlineRevenue)"></p>
-                                                    </div>
-                                                </div>
-                                                <div class="h-8 w-1 bg-blue-500/20 rounded-full"></div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-
-                                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                        
-                                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full">
-                                            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                                <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wide">
-                                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    GD Chi nhánh
-                                                </h3>
-                                                <span class="text-xs font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300" x-text="branchTransactionsList.length + ' GD'"></span>
-                                            </div>
-                                            <div class="overflow-x-auto p-2">
-                                                <table class="w-full text-sm text-left">
-                                                    <thead class="text-xs text-slate-400 uppercase bg-slate-50/50 dark:bg-slate-700/20">
-                                                        <tr>
-                                                            <th class="px-3 py-2 rounded-l-lg w-20">Mã</th>
-                                                            <th class="px-2 py-2 w-28">Thời gian</th>
-                                                            <th class="px-2 py-2 w-16 text-center">Phòng</th>
-                                                            <th class="px-3 py-2">Nội dung</th>
-                                                            <th class="px-3 py-2 rounded-r-lg text-right w-28">VNĐ</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                                        <template x-if="branchTransactionsList.length === 0">
-                                                            <tr><td colspan="5" class="px-4 py-8 text-center text-xs text-slate-400">Không có dữ liệu</td></tr>
-                                                        </template>
-                                                        <template x-for="tx in branchTransactionsList" :key="tx.id">
-                                                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                                <td class="px-3 py-3 font-mono text-xs font-bold text-slate-500" x-text="tx.transaction_code"></td>
-                                                                <td class="px-2 py-3 text-xs text-slate-500 font-medium" x-text="new Date(tx.created_datetime).toLocaleString('vi-VN', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})"></td>
-                                                                <td class="px-2 py-3 text-center font-bold text-slate-700 dark:text-slate-300" x-text="tx.room_number || '-'"></td>
-                                                                <td class="px-3 py-3 text-slate-600 dark:text-slate-400 break-words" x-text="tx.transaction_info"></td>
-                                                                <td class="px-3 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400" x-text="formatCurrency(tx.amount)"></td>
-                                                            </tr>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full">
-                                            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                                <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wide">
-                                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    GD Online
-                                                </h3>
-                                                <span class="text-xs font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300" x-text="otherTransactionsList.length + ' GD'"></span>
-                                            </div>
-                                            <div class="overflow-x-auto p-2">
-                                                <table class="w-full text-sm text-left">
-                                                    <thead class="text-xs text-slate-400 uppercase bg-slate-50/50 dark:bg-slate-700/20">
-                                                        <tr>
-                                                            <th class="px-3 py-2 rounded-l-lg w-20">Mã</th>
-                                                            <th class="px-2 py-2 w-28">Thời gian</th>
-                                                            <th class="px-2 py-2 w-16 text-center">Phòng</th>
-                                                            <th class="px-3 py-2">Nội dung</th>
-                                                            <th class="px-3 py-2 rounded-r-lg text-right w-28">VNĐ</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                                        <template x-if="otherTransactionsList.length === 0">
-                                                            <tr><td colspan="5" class="px-4 py-8 text-center text-xs text-slate-400">Không có dữ liệu</td></tr>
-                                                        </template>
-                                                        <template x-for="tx in otherTransactionsList" :key="tx.id">
-                                                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                                                <td class="px-3 py-3 font-mono text-xs font-bold text-slate-500" x-text="tx.transaction_code"></td>
-                                                                <td class="px-2 py-3 text-xs text-slate-500 font-medium" x-text="new Date(tx.created_datetime).toLocaleString('vi-VN', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})"></td>
-                                                                <td class="px-2 py-3 text-center font-bold text-slate-700 dark:text-slate-300" x-text="tx.room_number || '-'"></td>
-                                                                <td class="px-3 py-3">
-                                                                    <div class="flex flex-col gap-1">
-                                                                        <span x-show="tx.transaction_type_display" 
-                                                                            class="w-fit text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border 
-                                                                                    border-emerald-100 text-emerald-600 bg-emerald-50 
-                                                                                    dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" 
-                                                                            x-text="tx.transaction_type_display"></span>
-                                                                        <span class="text-slate-600 dark:text-slate-400 leading-snug break-words" x-text="tx.transaction_info"></span>
-                                                                    </div>
-                                                                </td>
-                                                                <td class="px-3 py-3 text-right font-bold" 
-                                                                    :class="tx.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
-                                                                    x-text="formatCurrency(tx.amount)">
-                                                                </td>
-                                                            </tr>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex-shrink-0 border-t border-slate-100 dark:border-slate-700 px-6 py-4 bg-white dark:bg-slate-800 z-20">
-                                <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
-                                    <button type="button" @click="closeHandoverModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">Đóng</button>
-                                    <button type="button" @click="captureHandoverModal()" :disabled="isCapturing"
-                                        class="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 dark:bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 dark:shadow-indigo-500/30 hover:bg-slate-800 dark:hover:bg-indigo-500 focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
-                                        <svg x-show="!isCapturing" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                                        <svg x-show="isCapturing" class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                        <span x-text="isCapturing ? 'Đang xử lý...' : 'Chụp ảnh báo cáo'"></span>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
     <div x-show="isDetailsModalOpen" 
          @keydown.escape.window="closeDetailsModal()" 
          class="modal fixed inset-0 z-[10000] flex items-center justify-center p-4" 
@@ -1532,277 +1286,255 @@
         </div>
     </div>
 
-    <!-- ================================================================== -->
-    <!-- ============ MODAL BIÊN BẢN KẾT CA (MỚI) ======================= -->
-    <!-- ================================================================== -->
+     <!-- BIÊN BẢN GIAO - KẾT CA -->
+
     <template x-teleport="body">
-    <div class="relative z-[10002]" aria-labelledby="slide-over-title" role="dialog" aria-modal="true" 
-            x-show="isShiftCloseDetailModalOpen" x-cloak>
-        
-        <div x-show="isShiftCloseDetailModalOpen"
-            x-transition:enter="ease-in-out duration-500" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-            x-transition:leave="ease-in-out duration-500" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-            class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+        <div class="relative z-[10002]" aria-labelledby="slide-over-title" role="dialog" aria-modal="true" 
+            x-show="isUnifiedModalOpen" x-cloak>
+            
+            <div x-show="isUnifiedModalOpen"
+                x-transition:enter="ease-in-out duration-500" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                x-transition:leave="ease-in-out duration-500" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity"></div>
 
-        <div class="fixed inset-0 overflow-hidden">
-            <div class="absolute inset-0 overflow-hidden">
-                <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-4 sm:pl-10">
-                    
-                    <div x-show="isShiftCloseDetailModalOpen"
-
-                        x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700"
-                        x-transition:enter-start="translate-x-full"
-                        x-transition:enter-end="translate-x-0"
-                        x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700"
-                        x-transition:leave-start="translate-x-0"
-                        x-transition:leave-end="translate-x-full"
-                        class="pointer-events-auto w-screen max-w-7xl">
+            <div class="fixed inset-0 overflow-hidden">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-2 sm:pl-6">
                         
-                        <div class="flex h-full flex-col bg-slate-50 dark:bg-slate-900 shadow-2xl" id="shift-close-detail-content">
-                            <div class="px-6 py-5 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex-shrink-0 z-20">
-                                <div class="flex items-start justify-between">
-                                    <div class="flex items-center gap-4">
-                                        <div class="relative grid place-items-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
-                                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                                        </div>
-                                        <div>
-                                            <h2 class="text-xl font-bold text-slate-800 dark:text-white tracking-tight">Biên Bản Kết Ca</h2>
-                                            <template x-if="shiftCloseDetails.loading">
-                                                <div class="h-4 w-32 bg-slate-100 dark:bg-slate-700 rounded animate-pulse mt-1"></div>
-                                            </template>
-                                            <template x-if="!shiftCloseDetails.loading">
-                                                <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
-                                                    <span class="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300" x-text="shiftCloseDetails.log.closer_name || '...'"></span>
-                                                    <span class="text-slate-300">•</span>
-                                                    <span x-text="shiftCloseDetails.log.branch_code || '...'"></span>
-                                                    <span class="text-slate-300">•</span>
-                                                    <span x-text="formatDate(shiftCloseDetails.log.closed_datetime)"></span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    <button type="button" @click="closeShiftCloseDetailModal()" class="group p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
-                                        <svg class="h-6 w-6 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-[#0f172a] p-4 sm:p-6 custom-scrollbar">
+                        <div x-show="isUnifiedModalOpen"
+                            @click.outside="isUnifiedModalOpen = false"
+                            x-transition:enter="transform transition ease-in-out duration-500 sm:duration-700"
+                            x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+                            x-transition:leave="transform transition ease-in-out duration-500 sm:duration-700"
+                            x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+                            class="pointer-events-auto w-screen max-w-7xl">
+                            
+                            <div id="unified-report-content" class="flex h-full flex-col bg-slate-50 dark:bg-[#0B1120] shadow-2xl">
                                 
-                                <div x-show="shiftCloseDetails.loading" class="flex flex-col items-center justify-center h-64">
-                                    <div class="relative w-16 h-16">
-                                        <div class="absolute top-0 left-0 w-full h-full border-4 border-emerald-100 dark:border-emerald-900 rounded-full"></div>
-                                        <div class="absolute top-0 left-0 w-full h-full border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+                                <div class="px-5 py-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 z-20">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex items-center gap-3">
+                                            <div class="relative grid place-items-center w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-500/30">
+                                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                            </div>
+                                            <div>
+                                                <h2 class="text-lg font-bold text-slate-800 dark:text-white tracking-tight" x-text="reportView.title"></h2>
+                                                <template x-if="!reportView.loading">
+                                                    <div class="flex items-center gap-2 text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                                                        <template x-for="(item, index) in reportView.meta" :key="index">
+                                                            <span class="flex items-center gap-2">
+                                                                <span class="text-slate-600 dark:text-slate-300" x-text="item"></span>
+                                                                <span x-show="index < reportView.meta.length - 1" class="text-slate-300">•</span>
+                                                            </span>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="isUnifiedModalOpen = false" class="group p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all">
+                                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
                                     </div>
-                                    <span class="mt-4 text-sm font-medium text-slate-500">Đang tải dữ liệu...</span>
                                 </div>
 
-                                <div x-show="!shiftCloseDetails.loading" class="max-w-6xl mx-auto space-y-6">
-                                    <div class="grid grid-cols-12 gap-5 font-sans antialiased">
+                                <div class="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-[#0f172a] p-4 custom-scrollbar">
+                                    <div x-show="reportView.loading" class="flex justify-center items-center h-64"><p>Đang tải dữ liệu...</p></div>
+                                    
+                                    <div x-show="!reportView.loading" class="max-w-6xl mx-auto space-y-5">
                                         
-                                        <div class="col-span-12 lg:col-span-5 relative group overflow-hidden rounded-[2rem] bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 text-white shadow-2xl shadow-teal-900/20 p-8 min-h-[220px] flex flex-col justify-between transition-all duration-300 hover:scale-[1.01]">
-                                            <div class="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-white/10 rounded-full blur-3xl"></div>
-                                            <div class="absolute bottom-0 left-0 -mb-8 -ml-8 w-32 h-32 bg-black/10 rounded-full blur-2xl"></div>
+                                        <div class="grid grid-cols-12 gap-5">
                                             
-                                            <div class="relative z-10 flex justify-between items-start">
-                                                <div>
-                                                    <div class="flex items-center gap-2 mb-2 bg-white/20 w-fit px-3 py-1 rounded-full backdrop-blur-sm border border-white/10">
-                                                        <svg class="w-3.5 h-3.5 text-emerald-100" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                                        <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-50">Doanh Thu PMS</span>
+                                            <div class="col-span-12 lg:col-span-5 relative group overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-xl shadow-emerald-900/20 p-6 min-h-[170px] flex flex-col justify-between">
+                                                <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
+                                                <div class="absolute top-4 right-4 text-emerald-100/20 transform rotate-12 group-hover:rotate-0 group-hover:scale-110 transition-all duration-700 pointer-events-none">
+                                                    <svg class="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+                                                </div>
+                                                <div class="relative z-10">
+                                                    <div class="flex items-center gap-2 mb-2 bg-white/20 w-fit px-2.5 py-1 rounded-lg backdrop-blur-md border border-white/10 shadow-sm">
+                                                        <span class="text-[10px] font-bold uppercase tracking-widest text-white">Doanh Thu PMS</span>
                                                     </div>
-                                                    <p class="text-sm font-medium text-emerald-100/80 pl-1">Đã chốt sổ hệ thống</p>
+                                                    <p class="text-xs font-medium text-emerald-100/80 pl-1" x-text="reportView.subTitle"></p>
                                                 </div>
-                                                <svg class="w-12 h-12 text-white/10 absolute right-0 top-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
-                                            </div>
-
-                                            <div class="relative z-10 mt-4">
-                                                <div class="flex items-baseline gap-1.5">
-                                                    <span class="text-5xl font-black tracking-tighter drop-shadow-sm" x-text="formatCurrency(shiftCloseDetails.log.pms_revenue)"></span>
-                                                    <span class="text-xl font-medium text-emerald-100/90">₫</span>
+                                                <div class="relative z-10 mt-2">
+                                                    <div class="flex items-baseline gap-1.5">
+                                                        <span class="text-4xl font-black tracking-tighter drop-shadow-sm" x-text="formatCurrency(reportView.pmsRevenue)"></span>
+                                                        <span class="text-lg font-medium text-emerald-100/90">₫</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
 
-                                        <div class="col-span-12 lg:col-span-7 relative group overflow-hidden rounded-[2rem] bg-slate-900 dark:bg-black text-white border border-slate-800 dark:border-slate-800 shadow-xl shadow-slate-900/10 flex flex-col">
-    
-                                            <div class="absolute top-0 right-0 w-full h-full bg-gradient-to-br from-slate-800/30 to-transparent pointer-events-none"></div>
-
-                                            <div class="relative z-10 p-6 sm:p-8 flex-grow flex flex-col justify-center items-center text-center">
-                                                
-                                                <div class="flex items-center gap-2 mb-3 opacity-60">
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.75 7.5h16.5v-1.5c0-1.43-1.146-2.59-2.57-2.724A48.06 48.06 0 0012 3 48.06 48.06 0 006.32 3.276C4.895 3.41 3.75 4.57 3.75 6v1.5z" /></svg>
-                                                    <span class="text-xs font-bold uppercase tracking-widest">Tổng Tiền Tại Quầy</span>
+                                            <div class="col-span-12 lg:col-span-7 relative group overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-indigo-950 to-slate-900 text-white shadow-xl shadow-indigo-900/20 flex flex-col min-h-[170px]">
+                                                <div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none"></div>
+                                                <div class="absolute top-4 right-4 text-indigo-200/10 transform -rotate-12 group-hover:rotate-0 group-hover:scale-110 transition-all duration-700 pointer-events-none">
+                                                    <svg class="w-28 h-28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                                 </div>
-
-                                                <div>
+                                                <div class="relative z-10 p-5 flex-grow flex flex-col justify-center items-center text-center">
+                                                    <div class="flex items-center gap-2 mb-2 opacity-70">
+                                                        <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-200">Tổng Tiền Tại Quầy</span>
+                                                    </div>
                                                     <div class="flex items-baseline justify-center flex-wrap gap-1">
-                                                        <span class="text-5xl sm:text-6xl font-bold text-white tracking-tight" 
-                                                            x-text="formatCurrency((shiftCloseDetails.log.cash_revenue || 0) + 1500000)"></span>
-                                                        <span class="text-2xl text-slate-500 font-medium">₫</span>
+                                                        <span class="text-5xl font-bold text-white tracking-tight drop-shadow-lg" x-text="formatCurrency(reportView.totalCounter)"></span>
+                                                        <span class="text-xl text-indigo-300 font-medium">₫</span>
+                                                    </div>
+                                                </div>
+                                                <div class="relative z-10 bg-white/5 border-t border-white/10 grid grid-cols-2 backdrop-blur-sm">
+                                                    <div class="px-3 py-2.5 flex flex-row items-center justify-center gap-3 border-r border-white/10">
+                                                        <span class="text-[10px] font-semibold text-slate-300 uppercase">Tiền Mặt</span>
+                                                        <span class="text-lg font-bold text-emerald-400" x-text="formatCurrency(reportView.cashRevenue)"></span>
+                                                    </div>
+                                                    <div class="px-3 py-2.5 flex flex-row items-center justify-center gap-3">
+                                                        <span class="text-[10px] font-semibold text-slate-300 uppercase">Vốn Cố Định</span>
+                                                        <span class="text-lg font-bold text-slate-200" x-text="formatCurrency(reportView.fixedCapital)"></span>
                                                     </div>
                                                 </div>
                                             </div>
-
-                                            <div class="relative z-10 bg-slate-800/30 border-t border-slate-800 grid grid-cols-2">
-                                                
-                                                <div class="p-4 sm:px-6 flex flex-col items-center justify-center border-r border-slate-800">
-                                                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Thực thu</span>
-                                                    <span class="text-lg sm:text-xl font-bold text-emerald-400" 
-                                                        x-text="formatCurrency(shiftCloseDetails.log.cash_revenue)"></span>
-                                                </div>
-
-                                                <div class="p-4 sm:px-6 flex flex-col items-center justify-center">
-                                                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Vốn cố định</span>
-                                                    <span class="text-lg sm:text-xl font-bold text-slate-300">1,500,000</span>
-                                                </div>
-
-                                            </div>
                                         </div>
-
+                                            
                                         <div class="col-span-12 grid grid-cols-1 sm:grid-cols-2 gap-5">
                                             
-                                            <div class="group bg-white dark:bg-slate-900 rounded-[1.5rem] p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
-                                                <div class="flex items-center gap-4">
-                                                    <div class="w-12 h-12 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center text-purple-600 dark:text-purple-400 group-hover:scale-110 transition-transform duration-300">
-                                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21v-8.25M15.75 21v-8.25M8.25 21v-8.25M3 9l9-6 9 6m-1.5 12V10.332A48.36 48.36 0 0012 9.75c-2.551 0-5.056.2-7.5.582V21M3 21h18M12 6.75h.008v.008H12V6.75z" />
-                                                        </svg>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Doanh Thu Chi Nhánh</p>
-                                                        <p class="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight" x-text="formatCurrency(shiftCloseDetails.log.closed_branch_revenue)"></p>
-                                                    </div>
+                                            <div class="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px] group">
+                                                <div class="absolute top-2 right-2 text-indigo-500/10 dark:text-indigo-400/10 transform rotate-6 pointer-events-none transition-transform duration-700 group-hover:scale-110">
+                                                    <svg class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                                                 </div>
-                                                <div class="h-8 w-1 bg-purple-500/20 rounded-full"></div>
-                                            </div>
-
-                                            <div class="group bg-white dark:bg-slate-900 rounded-[1.5rem] p-5 border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
-                                                <div class="flex items-center gap-4">
-                                                    <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform duration-300">
-                                                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-0.5">Doanh Thu Online</p>
-                                                        <p class="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight" x-text="formatCurrency(shiftCloseDetails.log.closed_online_revenue)"></p>
-                                                    </div>
+                                                
+                                                <div class="relative z-10">
+                                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Doanh Thu Chi Nhánh</p>
+                                                    <p class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight" x-text="formatCurrency(reportView.branchRevenue)"></p>
                                                 </div>
-                                                <div class="h-8 w-1 bg-blue-500/20 rounded-full"></div>
                                             </div>
 
+                                            <div class="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between min-h-[100px] group">
+                                                <div class="absolute top-2 right-2 text-sky-500/10 dark:text-sky-400/10 transform -rotate-12 pointer-events-none transition-transform duration-700 group-hover:scale-110">
+                                                    <svg class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                </div>
+                                                
+                                                <div class="relative z-10">
+                                                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Doanh Thu Online</p>
+                                                    <p class="text-2xl font-bold text-slate-800 dark:text-slate-100 tracking-tight" x-text="formatCurrency(reportView.onlineRevenue)"></p>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full">
-                                            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                                <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wide">
-                                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    GD Chi nhánh
-                                                </h3>
-                                                <span class="text-xs font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300" x-text="shiftCloseDetails.transactions.filter(t => t.transaction_type === 'BRANCH_ACCOUNT').length + ' GD'"></span>
-                                            </div>
-                                            <div class="overflow-x-auto p-2">
-                                                <table class="w-full text-sm text-left">
-                                                    <thead class="text-xs text-slate-400 uppercase bg-slate-50/50 dark:bg-slate-700/20">
-                                                        <tr>
-                                                            <th class="px-3 py-2 rounded-l-lg w-20">Mã</th>
-                                                            <th class="px-2 py-2 w-28">Thời gian</th>
-                                                            <th class="px-2 py-2 w-16 text-center">Phòng</th>
-                                                            <th class="px-3 py-2">Nội dung</th>
-                                                            <th class="px-3 py-2 rounded-r-lg text-right w-28">VNĐ</th>
-                                                            <th class="px-2 py-2 text-center w-10"></th> 
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                                        <template x-if="shiftCloseDetails.transactions.filter(t => t.transaction_type === 'BRANCH_ACCOUNT').length === 0">
-                                                            <tr><td colspan="6" class="px-4 py-8 text-center text-xs text-slate-400">Không có dữ liệu</td></tr>
-                                                        </template>
-                                                        <template x-for="tx in shiftCloseDetails.transactions.filter(t => t.transaction_type === 'BRANCH_ACCOUNT')" :key="tx.id">
-                                                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
-                                                                <td class="px-3 py-3 font-mono text-xs font-bold text-slate-500" x-text="tx.transaction_code"></td>
-                                                                <td class="px-2 py-3 text-xs text-slate-500 font-medium" x-text="new Date(tx.created_datetime).toLocaleString('vi-VN', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})"></td>
-                                                                <td class="px-2 py-3 text-center font-bold text-slate-700 dark:text-slate-300" x-text="tx.room_number || '-'"></td>
-                                                                <td class="px-3 py-3 text-slate-600 dark:text-slate-400 break-words" x-text="tx.transaction_info"></td>
-                                                                <td class="px-3 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400" x-text="formatCurrency(tx.amount)"></td>
-                                                                <td class="px-2 py-3 text-center">
-                                                                    <div x-show="userRole === 'admin' || userRole === 'boss'" class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                        <button @click="undoSingleTransactionFromLog(tx.id, shiftCloseDetails.log.id)" title="Hoàn tác" class="text-blue-500 hover:text-blue-700"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button>
-                                                                        <button @click="deleteSingleTransactionFromLog(tx.id, shiftCloseDetails.log.id)" title="Xóa vĩnh viễn" class="text-rose-500 hover:text-rose-700"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
-                                                                    </div>
-                                                                </td>
+                                        <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                                            
+                                            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full">
+                                                <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-1 h-5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></div>
+                                                        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-tight">GD Chi nhánh</h3>
+                                                    </div>
+                                                    <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/40 text-xs font-bold text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800" x-text="reportView.branchTxList.length + ' GD'"></span>
+                                                </div>
+                                                
+                                                <div class="overflow-x-auto">
+                                                    <table class="w-full text-sm text-left">
+                                                        <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+                                                            <tr>
+                                                                <th class="px-3 py-2 font-semibold">Mã</th>
+                                                                <th class="px-2 py-2 font-semibold whitespace-nowrap min-w-[90px]">Thời gian</th>
+                                                                <th class="px-2 py-2 text-center font-semibold">Phòng</th>
+                                                                <th class="px-3 py-2 font-semibold">Nội dung</th>
+                                                                <th class="px-3 py-2 text-right font-semibold">VNĐ</th>
+                                                                <th x-show="reportType === 'close'" class="px-2 py-2"></th> 
                                                             </tr>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full">
-                                            <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                                                <h3 class="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wide">
-                                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                                    GD Online
-                                                </h3>
-                                                <span class="text-xs font-medium px-2.5 py-1 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300" x-text="shiftCloseDetails.transactions.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT').length + ' GD'"></span>
-                                            </div>
-                                            <div class="overflow-x-auto p-2">
-                                                <table class="w-full text-sm text-left">
-                                                    <thead class="text-xs text-slate-400 uppercase bg-slate-50/50 dark:bg-slate-700/20">
-                                                        <tr>
-                                                            <th class="px-3 py-2 rounded-l-lg w-20">Mã</th>
-                                                            <th class="px-2 py-2 w-28">Thời gian</th>
-                                                            <th class="px-2 py-2 w-16 text-center">Phòng</th>
-                                                            <th class="px-3 py-2">Nội dung</th>
-                                                            <th class="px-3 py-2 rounded-r-lg text-right w-28">VNĐ</th>
-                                                            <th class="px-2 py-2 text-center w-10"></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
-                                                        <template x-if="shiftCloseDetails.transactions.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT').length === 0">
-                                                            <tr><td colspan="6" class="px-4 py-8 text-center text-xs text-slate-400">Không có dữ liệu</td></tr>
-                                                        </template>
-                                                        <template x-for="tx in shiftCloseDetails.transactions.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT')" :key="tx.id">
-                                                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors group">
-                                                                <td class="px-3 py-3 font-mono text-xs font-bold text-slate-500" x-text="tx.transaction_code"></td>
-                                                                <td class="px-2 py-3 text-xs text-slate-500 font-medium" x-text="new Date(tx.created_datetime).toLocaleString('vi-VN', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})"></td>
-                                                                <td class="px-2 py-3 text-center font-bold text-slate-700 dark:text-slate-300" x-text="tx.room_number || '-'"></td>
-                                                                <td class="px-3 py-3">
-                                                                    <div class="flex flex-col gap-1">
-                                                                        <span x-show="tx.transaction_type_display" 
-                                                                            class="w-fit text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border 
-                                                                                    border-emerald-100 text-emerald-600 bg-emerald-50 
-                                                                                    dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300" 
-                                                                            x-text="tx.transaction_type_display"></span>
-                                                                        <span class="text-slate-600 dark:text-slate-400 leading-snug break-words" x-text="tx.transaction_info"></span>
-                                                                    </div>
-                                                                </td>
-                                                                <td class="px-3 py-3 text-right font-bold"
-                                                                    :class="tx.amount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
-                                                                    x-text="formatCurrency(tx.amount)">
-                                                                </td>
-                                                                <td class="px-2 py-3 text-center">
-                                                                    <div x-show="userRole === 'admin' || userRole === 'boss'" class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                        <button @click="undoSingleTransactionFromLog(tx.id, shiftCloseDetails.log.id)" title="Hoàn tác" class="text-blue-500 hover:text-blue-700"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button>
-                                                                        <button @click="deleteSingleTransactionFromLog(tx.id, shiftCloseDetails.log.id)" title="Xóa vĩnh viễn" class="text-rose-500 hover:text-rose-700"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
-                                                                    </div>
-                                                                </td>
+                                                        </thead>
+                                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                                            <template x-for="tx in reportView.branchTxList" :key="tx.id">
+                                                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 group transition-colors">
+                                                                    <td class="px-3 py-2.5 font-mono text-xs font-bold text-slate-600 dark:text-slate-400" x-text="tx.transaction_code"></td>
+                                                                    <td class="px-2 py-2.5 text-xs">
+                                                                        <div class="flex flex-col items-start leading-tight">
+                                                                            <span class="font-bold text-slate-700 dark:text-slate-200" x-text="new Date(tx.created_datetime).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})"></span>
+                                                                            <span class="text-[10px] text-slate-400 mt-0.5" x-text="new Date(tx.created_datetime).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'})"></span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td class="px-2 py-2.5 text-center font-bold text-slate-700 dark:text-slate-300" x-text="tx.room_number || '-'"></td>
+                                                                    <td class="px-3 py-2.5 break-words text-slate-600 dark:text-slate-300" x-text="tx.transaction_info"></td>
+                                                                    <td class="px-3 py-2.5 text-right font-bold text-emerald-500 dark:text-emerald-400" x-text="formatCurrency(tx.amount)"></td>
+                                                                    <td x-show="reportType === 'close'" class="px-2 py-2.5 text-center">
+                                                                        <div x-show="userRole === 'admin' || userRole === 'boss'" class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                            <button @click="undoSingleTransactionFromLog(tx.id, reportView.rawLogId)" class="text-blue-500 hover:text-blue-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button>
+                                                                            <button @click="deleteSingleTransactionFromLog(tx.id, reportView.rawLogId)" class="text-rose-500 hover:text-rose-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </template>
+                                                            <tr x-show="reportView.branchTxList.length === 0">
+                                                                <td colspan="6" class="px-3 py-6 text-center text-slate-400 text-xs italic">Không có giao dịch</td>
                                                             </tr>
-                                                        </template>
-                                                    </tbody>
-                                                </table>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col h-full">
+                                                <div class="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 rounded-t-xl">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-1 h-5 rounded-full bg-sky-500 shadow-sm shadow-sky-500/50"></div>
+                                                        <h3 class="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-tight">GD Online</h3>
+                                                    </div>
+                                                    <span class="inline-flex items-center justify-center px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-900/40 text-xs font-bold text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-800" x-text="reportView.onlineTxList.length + ' GD'"></span>
+                                                </div>
+
+                                                <div class="overflow-x-auto">
+                                                    <table class="w-full text-sm text-left">
+                                                        <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700">
+                                                            <tr>
+                                                                <th class="px-3 py-2 font-semibold">Mã</th>
+                                                                <th class="px-2 py-2 font-semibold whitespace-nowrap min-w-[90px]">Thời gian</th>
+                                                                <th class="px-2 py-2 text-center font-semibold">Phòng</th>
+                                                                <th class="px-3 py-2 font-semibold">Nội dung</th>
+                                                                <th class="px-3 py-2 text-right font-semibold">VNĐ</th>
+                                                                <th x-show="reportType === 'close'" class="px-2 py-2 text-center"></th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                                            <template x-for="tx in reportView.onlineTxList" :key="tx.id">
+                                                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 group transition-colors">
+                                                                    <td class="px-3 py-2.5 font-mono text-xs font-bold text-slate-600 dark:text-slate-400" x-text="tx.transaction_code"></td>
+                                                                    <td class="px-2 py-2.5 text-xs">
+                                                                        <div class="flex flex-col items-start leading-tight">
+                                                                            <span class="font-bold text-slate-700 dark:text-slate-200" x-text="new Date(tx.created_datetime).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'})"></span>
+                                                                            <span class="text-[10px] text-slate-400 mt-0.5" x-text="new Date(tx.created_datetime).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'})"></span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td class="px-2 py-2.5 text-center font-bold text-slate-700 dark:text-slate-300" x-text="tx.room_number || '-'"></td>
+                                                                    <td class="px-3 py-2.5">
+                                                                        <div class="flex flex-col gap-1">
+                                                                            <span class="w-fit text-[10px] font-bold uppercase px-1.5 py-0.5 rounded border border-emerald-200/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20" x-text="tx.transaction_type_display"></span>
+                                                                            <span class="text-slate-600 dark:text-slate-300 leading-snug break-words" x-text="tx.transaction_info"></span>
+                                                                        </div>
+                                                                    </td>
+                                                                    <td class="px-3 py-2.5 text-right font-bold text-emerald-500 dark:text-emerald-400" x-text="formatCurrency(tx.amount)"></td>
+                                                                    <td x-show="reportType === 'close'" class="px-2 py-2.5 text-center">
+                                                                        <div x-show="userRole === 'admin' || userRole === 'boss'" class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                            <button @click="undoSingleTransactionFromLog(tx.id, reportView.rawLogId)" class="text-blue-500 hover:text-blue-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg></button>
+                                                                            <button @click="deleteSingleTransactionFromLog(tx.id, reportView.rawLogId)" class="text-rose-500 hover:text-rose-600"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            </template>
+                                                            <tr x-show="reportView.onlineTxList.length === 0">
+                                                                <td colspan="6" class="px-3 py-6 text-center text-slate-400 text-xs italic">Không có giao dịch</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
 
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div class="flex-shrink-0 border-t border-slate-100 dark:border-slate-700 px-6 py-4 bg-white dark:bg-slate-800 z-20">
-                                <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
-                                    <button type="button" @click="closeShiftCloseDetailModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition">Đóng</button>
-                                    <button type="button" @click="captureShiftCloseDetailModal()" :disabled="isCapturing" class="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 dark:bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/20 dark:shadow-indigo-500/30 hover:bg-slate-800 dark:hover:bg-indigo-500 focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all transform active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">
-                                        <span x-text="isCapturing ? 'Đang xử lý...' : 'Chụp ảnh báo cáo'"></span>
-                                    </button>
+                                
+                                <div class="flex-shrink-0 border-t border-slate-200 dark:border-slate-700 px-6 py-4 bg-white dark:bg-slate-800 z-20">
+                                    <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+                                        <button type="button" @click="isUnifiedModalOpen = false" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition">Đóng</button>
+                                        <button type="button" @click="captureUnifiedReport()" :disabled="isCapturing" class="inline-flex justify-center items-center gap-2 rounded-xl bg-slate-900 dark:bg-indigo-600 hover:bg-slate-800 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition-all transform active:scale-95">
+                                            <svg x-show="!isCapturing" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            <svg x-show="isCapturing" class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                            <span x-text="isCapturing ? 'Đang xử lý...' : 'Chụp ảnh báo cáo'"></span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1811,6 +1543,36 @@
             </div>
         </div>
     </template>
+
+    <div class="fixed top-5 right-5 z-[10003] flex flex-col gap-2 pointer-events-none">
+        <div x-show="notification.show" 
+            x-transition:enter="transform ease-out duration-300 transition"
+            x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
+            x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
+            x-transition:leave="transition ease-in duration-100"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="pointer-events-auto w-full max-w-sm overflow-hidden rounded-lg bg-white dark:bg-slate-800 shadow-lg border border-slate-100 dark:border-slate-700 ring-1 ring-black ring-opacity-5">
+            <div class="p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg x-show="notification.type === 'success'" class="h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <svg x-show="notification.type === 'error'" class="h-6 w-6 text-rose-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+                    </div>
+                    <div class="ml-3 w-0 flex-1 pt-0.5">
+                        <p class="text-sm font-bold text-slate-900 dark:text-white" x-text="notification.title"></p>
+                        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400" x-text="notification.message"></p>
+                    </div>
+                    <div class="ml-4 flex flex-shrink-0">
+                        <button type="button" @click="notification.show = false" class="inline-flex rounded-md text-slate-400 hover:text-slate-500 focus:outline-none">
+                            <span class="sr-only">Close</span>
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -1828,11 +1590,6 @@
             editItem: {}, 
             isBossAuthModalOpen: false, // THÊM: Modal xác thực mật khẩu boss
             isClosingShift: false, // THÊM: State cho loading overlay khi kết ca
-            isHandoverModalOpen: false, // <-- THÊM
-            handoverTransactions: { // <-- THÊM
-                loading: true,
-                list: []
-            },
             isCapturing: false, // <-- THÊM
             postAuthAction: null,
             // SỬA: State cho form xác thực
@@ -1842,15 +1599,7 @@
             },
             postAuthAction: null, // THÊM: Hành động cần thực hiện sau khi xác thực
 
-            isShiftCloseDetailModalOpen: false, // THÊM: Modal biên bản kết ca
-
             branchChartInstance: null, // THÊM: State cho biểu đồ
-            // THÊM: State cho modal biên bản kết ca
-            shiftCloseDetails: {
-                loading: true,
-                log: {},
-                transactions: []
-            },
             isShiftCloseModalOpen: false, // THÊM: Modal kết ca cho admin
 
             shiftHandoverCash: '', 
@@ -1881,6 +1630,25 @@
                     total_cash_revenue: 0,
                     recent_closes: []
                 },
+            },
+
+            isUnifiedModalOpen: false, // 1 biến quản lý tắt mở chung
+            reportType: '', // 'handover' (Giao ca) hoặc 'close' (Kết ca) để xử lý logic riêng nếu cần
+            handoverTransactions: { list: [] },
+            reportView: {
+                loading: false,
+                title: '',
+                subTitle: '',
+                meta: [], // Mảng chứa thông tin: Người tạo, chi nhánh, ngày giờ...
+                pmsRevenue: 0,
+                totalCounter: 0,
+                cashRevenue: 0, // Thực thu
+                fixedCapital: 1500000, // Vốn cố định
+                branchRevenue: 0,
+                onlineRevenue: 0,
+                branchTxList: [], // Danh sách GD chi nhánh
+                onlineTxList: [], // Danh sách GD Online/Khác
+                rawLogId: null, // Lưu ID log nếu là xem lại kết ca (để dùng cho nút Xóa/Hoàn tác)
             },
 
             get branchTransactionsList() {
@@ -2418,32 +2186,6 @@
                 this.isDetailsModalOpen = true;
             },
             closeDetailsModal: function() { this.isDetailsModalOpen = false; },
-            
-            // THÊM: Các hàm cho modal biên bản kết ca
-            async openShiftCloseDetailModal(logId) {
-                this.isShiftCloseDetailModalOpen = true;
-                this.shiftCloseDetails.loading = true;
-                this.shiftCloseDetails.log = {};
-                this.shiftCloseDetails.transactions = [];
-
-                try {
-                    const response = await fetch(`/shift-report/api/shift-close-details/${logId}`);
-                    if (!response.ok) {
-                        const errData = await response.json();
-                        throw new Error(errData.detail || 'Lỗi tải dữ liệu');
-                    }
-                    const result = await response.json();
-                    if (result.status === 'success') {
-                        this.shiftCloseDetails.log = result.log_details;
-                        this.shiftCloseDetails.transactions = result.transactions;
-                    }
-                } catch (error) {
-                    alert('Lỗi: ' + error.message);
-                } finally {
-                    this.shiftCloseDetails.loading = false;
-                }
-            },
-            closeShiftCloseDetailModal() { this.isShiftCloseDetailModalOpen = false; },
 
             // THÊM: Hàm hoàn tác một giao dịch từ log
             async undoSingleTransactionFromLog(transactionId, logId) {
@@ -2461,7 +2203,7 @@
 
                     showToast('update', result.message);
                     // Tải lại dữ liệu cho modal biên bản kết ca và bảng chính
-                    await this.openShiftCloseDetailModal(logId);
+                    await this.openUnifiedReportModal('close', logId);
                     await this.fetchData();
                     await this.fetchDashboardSummary();
                 } catch (error) {
@@ -2513,414 +2255,267 @@
             },
 
             // ==========================================================
-            // ============ LOGIC MODAL GIAO CA (MỚI) ===================
+            // ============ LOGIC UNIFIED REPORT (MỚI) ==================
             // ==========================================================
-            async openHandoverModal() {
-                // 1. Kiểm tra xem đã nhập PMS chưa (giữ nguyên)
-                const pmsRevenueRaw = this.letanShiftClose.pmsRevenue.replace(/[^0-9]/g, '');
-                if (!pmsRevenueRaw || parseInt(pmsRevenueRaw, 10) === 0) {
-                    alert('Vui lòng nhập doanh thu PMS trước khi xem biên bản giao ca.');
-                    return; 
+            
+            // 1. Adapter cho Giao Ca (Dữ liệu Live từ UI và API pending)
+            mapHandoverToView: function() {
+                // Lấy PMS từ input model
+                // Lưu ý: letanPmsRevenueValue là getter đã có sẵn ở trên
+                const pms = this.letanPmsRevenueValue || 0;
+                
+                // Lấy danh sách GD từ biến state tạm (fetchHandoverDataInternal sẽ fill biến này)
+                const txList = this.handoverTransactions.list || []; 
+                
+                const branchTx = txList.filter(t => t.transaction_type === 'BRANCH_ACCOUNT');
+                const onlineTx = txList.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT');
+
+                const branchRev = branchTx.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+                const onlineRev = onlineTx.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+                
+                // Logic tính thực thu: PMS - (Online + Chi nhánh)
+                const cashRev = pms - (onlineRev + branchRev); 
+
+                this.reportView = {
+                    loading: false,
+                    title: 'BIÊN BẢN GIAO CA',
+                    subTitle: 'Nhập từ PMQL Khách sạn',
+                    meta: [
+                        this.user.name, 
+                        this.displayBranch, 
+                        this.formatDate(new Date().toISOString())
+                    ],
+                    pmsRevenue: pms,
+                    totalCounter: cashRev + 1500000, // Cộng vốn cố định
+                    cashRevenue: cashRev,
+                    fixedCapital: 1500000,
+                    branchRevenue: branchRev,
+                    onlineRevenue: onlineRev,
+                    branchTxList: branchTx,
+                    onlineTxList: onlineTx,
+                    rawLogId: null // Giao ca chưa có Log ID nên null
+                };
+            },
+
+            // 2. Adapter cho Xem Lại Kết Ca (Dữ liệu từ Log History)
+            mapClosedLogToView: function(log, transactions) {
+                const branchTx = transactions.filter(t => t.transaction_type === 'BRANCH_ACCOUNT');
+                const onlineTx = transactions.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT');
+
+                this.reportView = {
+                    loading: false,
+                    title: 'BIÊN BẢN KẾT CA',
+                    subTitle: 'Đã chốt sổ hệ thống',
+                    meta: [
+                        log.closer_name || '...',
+                        log.branch_code || '...',
+                        this.formatDate(log.closed_datetime)
+                    ],
+                    pmsRevenue: log.pms_revenue || 0,
+                    totalCounter: (log.cash_revenue || 0) + 1500000,
+                    cashRevenue: log.cash_revenue || 0,
+                    fixedCapital: 1500000,
+                    branchRevenue: log.closed_branch_revenue || 0,
+                    onlineRevenue: log.closed_online_revenue || 0,
+                    branchTxList: branchTx,
+                    onlineTxList: onlineTx,
+                    rawLogId: log.id // Lưu ID để dùng cho nút Xóa/Hoàn tác
+                };
+            },
+
+            // 3. Hàm mở Modal chung (Thay thế cho openHandoverModal và openShiftCloseDetailModal cũ)
+            openUnifiedReportModal: async function(type, logId = null) {
+                this.reportType = type;
+                this.isUnifiedModalOpen = true; // Biến state mới điều khiển modal
+                
+                // Reset view về loading
+                this.reportView = {
+                    loading: true,
+                    title: 'Đang tải...',
+                    subTitle: '...',
+                    meta: [],
+                    pmsRevenue: 0, totalCounter: 0, cashRevenue: 0, fixedCapital: 0, branchRevenue: 0, onlineRevenue: 0,
+                    branchTxList: [], onlineTxList: []
+                };
+
+                if (type === 'handover') {
+                    // Logic cũ: Kiểm tra PMS
+                    const pmsRevenueRaw = this.letanShiftClose.pmsRevenue.replace(/[^0-9]/g, '');
+                    if (!pmsRevenueRaw || parseInt(pmsRevenueRaw, 10) === 0) {
+                        alert('Vui lòng nhập doanh thu PMS trước khi xem biên bản giao ca.');
+                        this.isUnifiedModalOpen = false;
+                        return; 
+                    }
+
+                    // Gọi hàm fetch data giao ca (được tách ra bên dưới)
+                    await this.fetchHandoverDataInternal(); 
+                    this.mapHandoverToView();
+                } 
+                else if (type === 'close') {
+                    // Logic cũ: Fetch chi tiết log kết ca
+                    try {
+                        const response = await fetch(`/shift-report/api/shift-close-details/${logId}`);
+                        const result = await response.json();
+                        if (result.status === 'success') {
+                            this.mapClosedLogToView(result.log_details, result.transactions);
+                        } else {
+                            throw new Error(result.detail || 'Lỗi tải dữ liệu');
+                        }
+                    } catch (e) { 
+                        alert('Lỗi: ' + e.message); 
+                        this.isUnifiedModalOpen = false;
+                    }
                 }
+            },
 
-                // 2. Mở modal và đặt trạng thái loading (giữ nguyên)
-                this.isHandoverModalOpen = true;
-                this.handoverTransactions.loading = true;
+            // 4. Hàm fetch dữ liệu Giao ca (Tách logic fetch cũ ra đây để gọn)
+            fetchHandoverDataInternal: async function() {
                 this.handoverTransactions.list = [];
-
-                // 3. SỬA: Gọi API /api/all-pending với các bộ lọc
                 try {
-                    // 3a. Xây dựng query string với các bộ lọc
                     const params = new URLSearchParams();
                     // Lễ tân chỉ query chi nhánh của mình
                     params.append('branch', this.displayBranch);
 
-                    // 3b. Lấy giá trị từ các bộ lọc trên màn hình chính
+                    // Lấy giá trị filter từ UI
                     const search = document.getElementById('search').value;
-                    // Lấy giá trị raw từ flatpickr instance
                     const created_date_val = this.datePickerInstance.selectedDates[0] ? 
-                                             this.datePickerInstance.formatDate(this.datePickerInstance.selectedDates[0], "Y-m-d") : 
-                                             '';
+                                             this.datePickerInstance.formatDate(this.datePickerInstance.selectedDates[0], "Y-m-d") : '';
                     const transaction_type = document.getElementById('transaction_type').value;
 
-                    // 3c. Thêm vào params nếu chúng tồn tại
                     if (search && search.trim() !== '') params.append('search', search.trim());
                     if (created_date_val) params.append('created_date', created_date_val);
                     if (transaction_type) params.append('transaction_type', transaction_type);
 
-                    const filterQuery = params.toString();
-                    
-                    // 3d. Gọi API (vẫn là /api/all-pending)
-                    const response = await fetch(`/shift-report/api/all-pending?${filterQuery}`);
-
-                    if (!response.ok) {
-                        const errData = await response.json();
-                        throw new Error(errData.detail || 'Lỗi tải dữ liệu');
-                    }
+                    const response = await fetch(`/shift-report/api/all-pending?${params.toString()}`);
                     const result = await response.json();
                     
-                    // 3e. Xử lý kết quả (giữ nguyên key 'transactions')
                     if (result.status === 'success') {
+                        // Gán vào biến tạm để Adapter sử dụng
                         this.handoverTransactions.list = result.transactions;
                     }
                 } catch (error) {
-                    alert('Lỗi: ' + error.message);
-                } finally {
-                    this.handoverTransactions.loading = false;
+                    console.error('Lỗi fetch giao ca:', error);
                 }
             },
-            
-            closeHandoverModal() {
-                this.isHandoverModalOpen = false;
-            },
 
-            async captureHandoverModal() {
-                // 1. Chặn click liên tục
+            async captureUnifiedReport() {
                 if (this.isCapturing) return;
                 this.isCapturing = true;
 
-                const elementToCapture = document.getElementById('handover-modal-content');
-                if (!elementToCapture) {
-                    alert('Lỗi: Không tìm thấy nội dung modal.');
-                    this.isCapturing = false;
-                    return;
+                const element = document.getElementById('unified-report-content');
+                if (!element) { 
+                    alert('❌ Lỗi: Không tìm thấy nội dung báo cáo (ID unified-report-content)'); 
+                    this.isCapturing = false; 
+                    return; 
                 }
 
-                // 2. TỐI ƯU HIỆU NĂNG: Lưu style cũ & Tắt hiệu ứng nặng trên bản gốc
-                // Việc này giúp html2canvas không phải tính toán đổ bóng/bo góc, tăng tốc độ chụp 30-40%
-                const originalBorderRadius = elementToCapture.style.borderRadius;
-                const originalBoxShadow = elementToCapture.style.boxShadow;
-                
-                elementToCapture.style.setProperty('border-radius', '0px', 'important');
-                elementToCapture.style.setProperty('box-shadow', 'none', 'important');
+                // --- 1. LOGIC ĐẶT TÊN FILE ---
+                const removeAccents = (str) => {
+                    if (!str) return '';
+                    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                };
+                const cleanDateTime = (str) => {
+                    if (!str) return '';
+                    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/:/g, 'h').replace(/\//g, '').replace(/\s+/g, '_').toUpperCase();
+                };
 
-                // Xác định màu nền chuẩn (tránh bị trong suốt hoặc sai màu khi Dark Mode)
+                const meta = this.reportView.meta || [];
+                const rawName = meta[0] || 'Unknown';
+                const rawBranch = meta[1] || 'Branch';
+                const rawTime = meta[2] || '';
+                let prefix = this.reportType === 'handover' ? 'GC' : (this.reportType === 'close' ? 'KC' : 'BC');
+                const finalFileName = `${prefix}_${removeAccents(rawBranch)}_${removeAccents(rawName)}_${cleanDateTime(rawTime)}.jpg`; // Đuôi .jpg cho file tải về
+
+                // --- 2. XỬ LÝ GIAO DIỆN ---
+                const originalStyle = {
+                    borderRadius: element.style.borderRadius,
+                    boxShadow: element.style.boxShadow,
+                    transform: element.style.transform,
+                };
+                element.style.setProperty('border-radius', '0px', 'important');
+                element.style.setProperty('box-shadow', 'none', 'important');
+                element.style.transform = 'none';
+
                 const isDarkMode = document.documentElement.classList.contains('dark');
-                const bgColor = isDarkMode ? '#0f172a' : '#ffffff'; // Slate-900 hoặc White
+                const bgColor = isDarkMode ? '#0f172a' : '#ffffff'; 
 
                 try {
-                    const canvas = await html2canvas(elementToCapture, {
-                        scale: 1.5, // Tối ưu: 1.5 đủ nét cho màn hình, nhẹ hơn nhiều so với 2.0
-                        useCORS: true,
-                        logging: false,
-                        backgroundColor: bgColor, 
-                        onclone: (clonedDocument) => {
-                            const clonedElement = clonedDocument.getElementById('handover-modal-content');
-                            if (!clonedElement) return;
-
-                            // --- A. Làm sạch giao diện bản sao ---
-                            clonedElement.style.borderRadius = '0px';
-                            clonedElement.style.boxShadow = 'none';
-                            clonedElement.style.height = 'auto'; 
-                            clonedElement.style.overflow = 'visible'; // Ép hiển thị hết nội dung
-
-                            // --- B. Mở rộng vùng cuộn (Scroll) ---
-                            // Tìm tất cả các div có thanh cuộn và mở rộng chiều cao tối đa
-                            const scrollables = clonedElement.querySelectorAll('.overflow-y-auto, .overflow-auto, .custom-scrollbar');
-                            scrollables.forEach(div => {
-                                div.style.overflow = 'visible';
-                                div.style.height = 'auto';
-                                div.style.maxHeight = 'none';
-                            });
-
-                            // --- C. Ẩn các thành phần thừa (Nút đóng, Footer) ---
-                            
-                            // 1. Ẩn nút Đóng (Dấu X ở góc phải)
-                            // Tìm trong Header (div có border-b)
-                            const header = clonedElement.querySelector('.border-b');
-                            if (header) {
-                                // Tìm nút button bên trong header để ẩn
-                                const closeBtn = header.querySelector('button');
-                                if (closeBtn) closeBtn.style.display = 'none';
-                            }
-
-                            // 2. Ẩn Footer (Chứa nút Đóng/Chụp ảnh)
-                            // Tìm div footer (thường là div cuối cùng có border-t)
-                            const footer = clonedElement.querySelector('.border-t.flex-shrink-0');
-                            if (footer) {
-                                footer.style.display = 'none';
-                            }
-                        }
-                    });
-
-                    // 3. HOÀN TÁC STYLE CHO BẢN GỐC NGAY LẬP TỨC
-                    // Trả lại giao diện đẹp cho người dùng ngay sau khi chụp xong
-                    elementToCapture.style.borderRadius = originalBorderRadius;
-                    elementToCapture.style.boxShadow = originalBoxShadow;
-                    
-                    // 4. Xử lý xuất ảnh (Clipboard & Download)
-                    canvas.toBlob(async (blob) => {
-                        // a. Thử copy vào Clipboard
-                        let copied = false;
-                        if (navigator.clipboard && navigator.clipboard.write) {
-                            try {
-                                await navigator.clipboard.write([
-                                    new ClipboardItem({ 'image/png': blob })
-                                ]);
-                                copied = true;
-                            } catch (err) {
-                                console.warn('Không thể ghi vào clipboard (có thể do quyền truy cập):', err);
-                            }
-                        }
-
-                        // b. Thông báo
-                        if (copied) {
-                            alert('✅ Ảnh biên bản đã được lưu vào bộ nhớ tạm (Clipboard) và đang tải xuống!');
-                        }
-
-                        // c. Tải xuống file (Backup)
-                        const link = document.createElement('a');
-                        // Tạo tên file: GiaoCa_TENCN_2023-10-25.png
-                        const branchName = (this.user.branch || 'CN').replace(/\s+/g, '');
-                        const dateStr = new Date().toISOString().split('T')[0];
-                        
-                        link.download = `GiaoCa_${branchName}_${dateStr}.png`;
-                        link.href = URL.createObjectURL(blob);
-                        link.click();
-                        URL.revokeObjectURL(link.href);
-
-                    }, 'image/png');
-                    
-                } catch (error) {
-                    // Nếu lỗi, đảm bảo trả lại style cũ để giao diện không bị xấu
-                    elementToCapture.style.borderRadius = originalBorderRadius;
-                    elementToCapture.style.boxShadow = originalBoxShadow;
-                    console.error(error);
-                    alert('Lỗi khi chụp ảnh: ' + error.message);
-                } finally {
-                    this.isCapturing = false;
-                }
-            },
-
-            // 1. HÀM CHỤP ẢNH BIÊN BẢN GIAO CA (LỄ TÂN)
-            async captureHandoverModal() {
-                if (this.isCapturing) return;
-                this.isCapturing = true;
-
-                const elementToCapture = document.getElementById('handover-modal-content');
-                if (!elementToCapture) {
-                    alert('Lỗi: Không tìm thấy nội dung modal.');
-                    this.isCapturing = false;
-                    return;
-                }
-
-                // Lưu trạng thái cũ để trả lại sau khi chụp
-                const originalBorderRadius = elementToCapture.style.borderRadius;
-                
-                // Ép giao diện thật về vuông góc (để html2canvas tính toán chuẩn hơn)
-                elementToCapture.style.setProperty('border-radius', '0px', 'important');
-
-                // Xác định màu nền (Tránh bị trong suốt hoặc đen xì)
-                const isDarkMode = document.documentElement.classList.contains('dark');
-                const bgColor = isDarkMode ? '#0f172a' : '#ffffff'; // Slate-900 hoặc White
-
-                try {
-                    const canvas = await html2canvas(elementToCapture, {
-                        scale: 2, // Tăng độ nét (2x)
-                        useCORS: true,
-                        logging: false,
-                        backgroundColor: bgColor, 
-                        onclone: (clonedDocument) => {
-                            const clonedElement = clonedDocument.getElementById('handover-modal-content');
-                            if (!clonedElement) return;
-
-                            // --- A. Tinh chỉnh giao diện bản sao ---
-                            clonedElement.style.borderRadius = '0px';
-                            clonedElement.style.boxShadow = 'none';
-                            
-                            // --- B. Mở rộng chiều cao để không bị cắt nội dung ---
-                            clonedElement.style.height = 'auto'; 
-                            clonedElement.style.overflow = 'visible';
-                            
-                            // Tìm các thẻ con đang có thanh cuộn và ép mở rộng hết cỡ
-                            const scrollables = clonedElement.querySelectorAll('.overflow-y-auto, .overflow-auto');
-                            scrollables.forEach(div => {
-                                div.style.overflow = 'visible';
-                                div.style.height = 'auto';
-                                div.style.maxHeight = 'none';
-                            });
-
-                            // --- C. Ẩn các thành phần thừa ---
-                            // 1. Ẩn nút đóng ở Header
-                            const header = clonedElement.querySelector('.border-b'); 
-                            if (header) {
-                                const closeBtn = header.querySelector('button');
-                                if (closeBtn) closeBtn.style.display = 'none';
-                            }
-
-                            // 2. Ẩn Footer (chứa nút Giao Ca/Đóng)
-                            const footer = clonedElement.querySelector('.border-t.flex-shrink-0');
-                            if (footer) {
-                                footer.style.display = 'none';
-                            }
-                        }
-                    });
-
-                    // Trả lại trạng thái bo góc cho giao diện thật ngay lập tức
-                    elementToCapture.style.borderRadius = originalBorderRadius;
-                    
-                    canvas.toBlob(async (blob) => {
-                        // --- D. Logic Lưu vào Clipboard ---
-                        let copied = false;
-                        if (navigator.clipboard && navigator.clipboard.write) {
-                            try {
-                                await navigator.clipboard.write([
-                                    new ClipboardItem({ 'image/png': blob })
-                                ]);
-                                copied = true;
-                            } catch (err) {
-                                console.warn('Không thể ghi vào clipboard (có thể do quyền truy cập):', err);
-                            }
-                        }
-
-                        if (copied) {
-                            // Thông báo nhẹ (bạn có thể dùng showToast nếu muốn đẹp hơn)
-                            alert('✅ Ảnh đã được lưu vào bộ nhớ tạm (Clipboard) và đang tải xuống!');
-                        } else {
-                            // alert('Đang tải ảnh xuống...');
-                        }
-
-                        // --- E. Logic Tải xuống file ---
-                        const link = document.createElement('a');
-                        // Tên file: GiaoCa_TenChiNhanh_NgayGio.png
-                        const branchName = (this.user.branch || 'CN').replace(/\s+/g, '');
-                        link.download = `GiaoCa_${branchName}_${new Date().toISOString().split('T')[0]}.png`;
-                        link.href = URL.createObjectURL(blob);
-                        link.click();
-                        URL.revokeObjectURL(link.href);
-
-                    }, 'image/png');
-                    
-                } catch (error) {
-                    elementToCapture.style.borderRadius = originalBorderRadius;
-                    alert('Lỗi khi chụp ảnh: ' + error.message);
-                } finally {
-                    this.isCapturing = false;
-                }
-            },
-
-            // 2. HÀM CHỤP ẢNH BIÊN BẢN KẾT CA (ADMIN/QUẢN LÝ)
-            async captureShiftCloseDetailModal() {
-                if (this.isCapturing) return;
-                this.isCapturing = true;
-
-                const elementToCapture = document.getElementById('shift-close-detail-content');
-                if (!elementToCapture) {
-                    alert('Lỗi: Không tìm thấy nội dung modal chi tiết.');
-                    this.isCapturing = false;
-                    return;
-                }
-
-                // Lưu trạng thái cũ
-                const originalBorderRadius = elementToCapture.style.borderRadius;
-                elementToCapture.style.setProperty('border-radius', '0px', 'important');
-
-                // Màu nền
-                const isDarkMode = document.documentElement.classList.contains('dark');
-                const bgColor = isDarkMode ? '#0f172a' : '#ffffff';
-
-                try {
-                    const canvas = await html2canvas(elementToCapture, {
+                    const canvas = await html2canvas(element, {
                         scale: 2, 
                         useCORS: true,
                         logging: false,
-                        backgroundColor: bgColor,
-                        onclone: (clonedDocument) => {
-                            const clonedElement = clonedDocument.getElementById('shift-close-detail-content');
-                            if (!clonedElement) return;
-
-                            // --- A. Tinh chỉnh giao diện ---
-                            clonedElement.style.borderRadius = '0px';
-                            clonedElement.style.boxShadow = 'none';
-                            clonedElement.style.height = 'auto';
-                            clonedElement.style.overflow = 'visible';
-
-                            // Mở rộng nội dung cuộn
-                            const scrollables = clonedElement.querySelectorAll('.overflow-y-auto, .overflow-auto');
-                            scrollables.forEach(div => {
-                                div.style.overflow = 'visible';
-                                div.style.height = 'auto';
-                                div.style.maxHeight = 'none';
+                        backgroundColor: bgColor, 
+                        windowWidth: 1440,
+                        onclone: (clonedDoc) => {
+                            const el = clonedDoc.getElementById('unified-report-content');
+                            if (!el) return;
+                            el.style.width = '1280px'; 
+                            el.style.maxWidth = 'none';
+                            el.style.height = 'auto'; 
+                            el.style.overflow = 'visible';
+                            
+                            el.querySelectorAll('.overflow-y-auto, .overflow-x-auto, .custom-scrollbar').forEach(d => {
+                                d.style.overflow = 'visible'; d.style.height = 'auto'; d.style.maxHeight = 'none';
                             });
 
-                            // --- B. Ẩn Nút Đóng & Footer ---
-                            const header = clonedElement.querySelector('.border-b');
-                            if (header) {
-                                const closeBtn = header.querySelector('button');
-                                if (closeBtn) closeBtn.style.display = 'none';
-                            }
-
-                            const footer = clonedElement.querySelector('.border-t.flex-shrink-0');
-                            if (footer) {
-                                footer.style.display = 'none';
-                            }
-
-                            // --- C. QUAN TRỌNG: ẨN CỘT THAO TÁC (Cột cuối cùng chứa nút Xóa/Hoàn tác) ---
-                            // Tìm tất cả các bảng trong modal
-                            const tables = clonedElement.querySelectorAll('table');
-                            tables.forEach(table => {
-                                // 1. Xử lý Header (thead)
-                                const headers = table.querySelectorAll('thead tr th');
-                                if (headers.length > 0) {
-                                    const lastHeader = headers[headers.length - 1];
-                                    // Kiểm tra nếu header cuối rỗng (thường là cột action) HOẶC là cột cuối cùng
-                                    if (lastHeader.innerText.trim() === '') {
-                                        lastHeader.style.display = 'none';
-                                        
-                                        // 2. Xử lý Body (tbody) - Chỉ ẩn khi Header tương ứng bị ẩn
-                                        const rows = table.querySelectorAll('tbody tr');
-                                        rows.forEach(row => {
-                                            const cells = row.querySelectorAll('td');
-                                            if (cells.length > 0) {
-                                                // Ẩn ô cuối cùng tương ứng
-                                                cells[cells.length - 1].style.display = 'none';
-                                            }
-                                        });
-                                    }
-                                }
-                            });
+                            const footer = el.querySelector('.flex-shrink-0.border-t');
+                            if (footer) footer.style.display = 'none';
+                            else el.querySelectorAll('button').forEach(btn => btn.style.display = 'none');
+                            
+                            el.querySelectorAll('th:last-child, td:last-child').forEach(c => c.style.display = 'none');
+                            el.style.padding = '40px';
                         }
                     });
 
-                    // Trả lại trạng thái cũ
-                    elementToCapture.style.borderRadius = originalBorderRadius;
+                    // --- 3. XỬ LÝ ẢNH (KỸ THUẬT KÉP) ---
+                    
+                    // Hàm phụ trợ để convert canvas sang blob (dùng Promise)
+                    const getBlob = (canvas, type, quality) => new Promise(resolve => canvas.toBlob(resolve, type, quality));
 
-                    canvas.toBlob(async (blob) => {
-                        // --- D. Logic Clipboard ---
-                        let copied = false;
-                        if (navigator.clipboard && navigator.clipboard.write) {
-                            try {
-                                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                                copied = true;
-                            } catch (e) {
-                                console.warn('Lỗi clipboard:', e);
-                            }
+                    // A. Tạo bản PNG (Chuyên để Copy vào Clipboard - Vì trình duyệt chỉ chịu PNG)
+                    const pngBlob = await getBlob(canvas, 'image/png');
+                    
+                    // B. Tạo bản JPEG (Chuyên để Tải xuống - Để file nhẹ)
+                    const jpegBlob = await getBlob(canvas, 'image/jpeg', 0.85);
+
+                    // --- 4. THỰC HIỆN COPY ---
+                    let copied = false;
+                    if (navigator.clipboard && navigator.clipboard.write && typeof ClipboardItem !== 'undefined' && pngBlob) {
+                        try {
+                            // Đưa bản PNG vào clipboard
+                            await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+                            copied = true;
+                        } catch (err) {
+                            console.warn('Lỗi clipboard:', err);
                         }
+                    }
 
-                        if (copied) {
-                            alert('✅ Ảnh đã được lưu vào bộ nhớ tạm (Clipboard) và đang tải xuống!');
-                        }
-
-                        // --- E. Logic Download ---
-                        const branch = (this.shiftCloseDetails.log.branch_code || 'ChiTiet').replace(/\s+/g, '');
-                        const date = new Date(this.shiftCloseDetails.log.closed_datetime).toISOString().split('T')[0];
-                        
+                    // --- 5. THỰC HIỆN TẢI XUỐNG ---
+                    if (jpegBlob) {
                         const link = document.createElement('a');
-                        link.download = `KetCa_${branch}_${date}.png`;
-                        link.href = URL.createObjectURL(blob);
+                        link.download = finalFileName; 
+                        link.href = URL.createObjectURL(jpegBlob); // Tải bản JPEG nhẹ
                         link.click();
                         URL.revokeObjectURL(link.href);
+                    }
 
-                    }, 'image/png');
-                    
-                } catch (error) {
-                    elementToCapture.style.borderRadius = originalBorderRadius;
-                    alert('Lỗi khi chụp ảnh: ' + error.message);
+                    // --- 6. HIỂN THỊ ALERT ---
+                    let msg = `✅ Đã tải ảnh báo cáo thành công!\n\nTên file: ${finalFileName}`;
+                    if (copied) {
+                        msg += `\n\n(Ảnh đã được lưu vào bộ nhớ tạm, bạn có thể bấm Ctrl + V để dán hình ngay)`;
+                    }
+                    alert(msg);
+
+                } catch (e) {
+                    console.error(e);
+                    alert('❌ Lỗi khi chụp ảnh: ' + e.message);
                 } finally {
+                    element.style.borderRadius = originalStyle.borderRadius;
+                    element.style.boxShadow = originalStyle.boxShadow;
+                    element.style.transform = originalStyle.transform;
                     this.isCapturing = false;
                 }
             },
-
             // THÊM: Hàm xác thực mật khẩu boss
             async verifyBossPasswordAndProceed() {
                 try {
@@ -3250,7 +2845,7 @@
                 // MỞ NGAY MODAL CHI TIẾT ĐỂ CHỤP ẢNH
                 if (logId) {
                     setTimeout(() => {
-                        this.openShiftCloseDetailModal(logId);
+                        this.openUnifiedReportModal('close', logId);
                     }, 300); // Delay nhẹ để modal cũ đóng hẳn cho mượt
                 }
             },
@@ -3297,7 +2892,7 @@
                 
                 // 6. MỞ MODAL CHI TIẾT NẾU THÀNH CÔNG
                 if (logId) {
-                    this.openShiftCloseDetailModal(logId);
+                    this.openUnifiedReportModal('close', logId);
                 }
                 
                 // 7. RESET FORM
@@ -3502,6 +3097,7 @@
       document.body.addEventListener('click', unlockAudio, { once: true });
     })();
 
+    // --- LOGIC HIỂN THỊ THÔNG BÁO (TOAST) MODERN ---
     function showToast(action) {
       const toastMap = {
         add: { title: "Ghi nhận thành công", message: "Giao dịch mới đã được thêm.", bg: "#10b981", sound: "/static/sounds/Add.mp3",
