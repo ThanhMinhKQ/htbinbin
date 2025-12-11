@@ -967,7 +967,8 @@ async def batch_close_transactions(
                     TransactionType.UNC, 
                     TransactionType.CARD, 
                     TransactionType.COMPANY_ACCOUNT,
-                    TransactionType.CASH_EXPENSE  # <--- THÊM VÀO ĐÂY
+                    TransactionType.CASH_EXPENSE,
+                    TransactionType.OTHER
                 ]
             )
 
@@ -1504,7 +1505,8 @@ async def undo_transaction_from_log(
                 TransactionType.UNC, 
                 TransactionType.CARD, 
                 TransactionType.COMPANY_ACCOUNT,
-                TransactionType.CASH_EXPENSE # <--- THÊM VÀO ĐÂY
+                TransactionType.CASH_EXPENSE,
+                TransactionType.OTHER
             ]
         )
         log_entry.closed_branch_revenue = sum(
