@@ -1299,23 +1299,22 @@
                 x-transition:leave="ease-in duration-200" 
                 x-transition:leave-start="opacity-100" 
                 x-transition:leave-end="opacity-0"
-                class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity will-change-opacity"></div>
-
-            <div class="fixed inset-0 overflow-hidden">
+                class="fixed inset-0 bg-gray-900/75 transition-opacity will-change-opacity"></div> 
+                <div class="fixed inset-0 overflow-hidden">
                 <div class="absolute inset-0 overflow-hidden">
                     <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-2 sm:pl-6">
                         
                         <div x-show="isUnifiedModalOpen"
                             @click.outside="isUnifiedModalOpen = false"
-                            x-transition:enter="transform transition ease-out duration-500 sm:duration-500"
+                            x-transition:enter="transform transition ease-out duration-300"
                             x-transition:enter-start="translate-x-full" 
                             x-transition:enter-end="translate-x-0"
-                            x-transition:leave="transform transition ease-in duration-300 sm:duration-300"
+                            x-transition:leave="transform transition ease-in duration-200"
                             x-transition:leave-start="translate-x-0" 
                             x-transition:leave-end="translate-x-full"
                             class="pointer-events-auto w-screen max-w-7xl transform-gpu will-change-transform">
                             
-                            <div id="unified-report-content" class="flex h-full flex-col bg-slate-50 dark:bg-[#0B1120] shadow-2xl">
+                            <div id="unified-report-content" class="flex h-full flex-col bg-slate-50 dark:bg-[#0B1120] border-l border-slate-200 dark:border-slate-700">
                                 
                                 <div class="px-5 py-4 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex-shrink-0 z-20">
                                     <div class="flex items-start justify-between">
@@ -1350,7 +1349,7 @@
                                         
                                         <div class="grid grid-cols-12 gap-5">
                                             
-                                            <div class="col-span-12 lg:col-span-5 relative group overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-xl shadow-emerald-900/20 p-6 min-h-[170px] flex flex-col justify-between">
+                                            <div class="col-span-12 lg:col-span-5 relative group overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-lg p-6 min-h-[170px] flex flex-col justify-between">
                                                 <div class="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white/10 blur-2xl pointer-events-none"></div>
                                                 <div class="absolute top-4 right-4 text-emerald-100/20 transform rotate-12 group-hover:rotate-0 group-hover:scale-110 transition-all duration-700 pointer-events-none">
                                                     <svg class="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
@@ -1369,7 +1368,7 @@
                                                 </div>
                                             </div>
 
-                                            <div class="col-span-12 lg:col-span-7 relative group overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-indigo-950 to-slate-900 text-white shadow-xl shadow-indigo-900/20 flex flex-col min-h-[170px]">
+                                            <div class="col-span-12 lg:col-span-7 relative group overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-indigo-950 to-slate-900 text-white shadow-lg flex flex-col min-h-[170px]">
                                                 <div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 rounded-full bg-indigo-500/20 blur-3xl pointer-events-none"></div>
                                                 <div class="absolute top-4 right-4 text-indigo-200/10 transform -rotate-12 group-hover:rotate-0 group-hover:scale-110 transition-all duration-700 pointer-events-none">
                                                     <svg class="w-28 h-28" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
@@ -2238,11 +2237,14 @@
             // 1. Adapter cho Giao Ca (Dữ liệu Live từ UI và API pending)
             mapHandoverToView: function() {
                 // Lấy PMS từ input model
-                // Lưu ý: letanPmsRevenueValue là getter đã có sẵn ở trên
                 const pms = this.letanPmsRevenueValue || 0;
                 
-                // Lấy danh sách GD từ biến state tạm (fetchHandoverDataInternal sẽ fill biến này)
-                const txList = this.handoverTransactions.list || []; 
+                // Lấy danh sách GD từ biến state tạm
+                let txList = this.handoverTransactions.list || []; 
+
+                // --- FIX: Sắp xếp danh sách theo thời gian TĂNG DẦN (Cũ lên đầu, Mới xuống cuối) ---
+                txList.sort((a, b) => new Date(a.created_datetime) - new Date(b.created_datetime));
+                // ----------------------------------------------------------------------------------
                 
                 const branchTx = txList.filter(t => t.transaction_type === 'BRANCH_ACCOUNT');
                 const onlineTx = txList.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT');
@@ -2263,19 +2265,26 @@
                         this.formatDate(new Date().toISOString())
                     ],
                     pmsRevenue: pms,
-                    totalCounter: cashRev + 1500000, // Cộng vốn cố định
+                    totalCounter: cashRev + 1500000,
                     cashRevenue: cashRev,
                     fixedCapital: 1500000,
                     branchRevenue: branchRev,
                     onlineRevenue: onlineRev,
                     branchTxList: branchTx,
                     onlineTxList: onlineTx,
-                    rawLogId: null // Giao ca chưa có Log ID nên null
+                    rawLogId: null 
                 };
             },
 
             // 2. Adapter cho Xem Lại Kết Ca (Dữ liệu từ Log History)
             mapClosedLogToView: function(log, transactions) {
+                
+                // --- FIX: Sắp xếp danh sách theo thời gian TĂNG DẦN (Cũ lên đầu, Mới xuống cuối) ---
+                if (transactions && transactions.length > 0) {
+                    transactions.sort((a, b) => new Date(a.created_datetime) - new Date(b.created_datetime));
+                }
+                // ----------------------------------------------------------------------------------
+
                 const branchTx = transactions.filter(t => t.transaction_type === 'BRANCH_ACCOUNT');
                 const onlineTx = transactions.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT');
 
@@ -2296,7 +2305,7 @@
                     onlineRevenue: log.closed_online_revenue || 0,
                     branchTxList: branchTx,
                     onlineTxList: onlineTx,
-                    rawLogId: log.id // Lưu ID để dùng cho nút Xóa/Hoàn tác
+                    rawLogId: log.id 
                 };
             },
 
