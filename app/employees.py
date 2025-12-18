@@ -52,6 +52,10 @@ employees = [
         "role": "letan", "branch": "B5", "shift": "CS"
     },
     {
+        "employee_id": "NV075", "code": "lt.lttnga", "name": "Lê Thị Thuý Nga", 
+        "role": "letan", "branch": "B5", "shift": "CS"
+    },
+    {
         "employee_id": "NV012", "code": "lt.hnhdung", "name": "Huỳnh Nguyễn Hoàng Dung",
         "role": "letan", "branch": "B5", "shift": "CT"
     },
@@ -331,6 +335,4 @@ employees = [
         "employee_id": "NV997", "code": "Bin", "name": "Sếp Bin",
         "role": "boss", "branch": "BOSS", "shift": None
     },
-
 ]
-
