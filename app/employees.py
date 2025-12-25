@@ -84,6 +84,10 @@ employees = [
         "employee_id": "NV076", "code": "bp.tpttien", "name": "Trần Phạm Thuỷ Tiên",
         "role": "buongphong", "branch": "B6", "shift": "CS"
     },
+    {
+        "employee_id": "NV077", "code": "bp.ntlanh", "name": "Nguyễn Thị Lanh",
+        "role": "buongphong", "branch": "B6", "shift": "CS"
+    },
 #--------------------------------------- BIN BIN HOTEL 7 --------------------------------------------#
     {
         "employee_id": "NV018", "code": "lt.ntbhuyen", "name": "Nguyễn Thị Băng Huyền",
