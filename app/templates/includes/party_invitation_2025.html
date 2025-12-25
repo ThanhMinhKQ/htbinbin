@@ -4,6 +4,15 @@
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;1,300&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        /* Đảm bảo font chữ hỗ trợ tiếng Việt được áp dụng */
+        .vietnamese-fix {
+            font-family: 'Be Vietnam Pro', sans-serif !important;
+        }
+    </style>
+
     <style>
         /* --- FONTS --- */
         .font-luxury-title { font-family: 'Cormorant Garamond', serif; }
@@ -176,10 +185,6 @@
                             <div class="absolute inset-0 opacity-0 dark:opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
             </div>
 
-            <button @click="closeModal()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 dark:text-[#C4A962]/50 hover:text-slate-800 dark:hover:text-[#C4A962] transition-colors z-50 p-2 rounded-full hover:bg-white/10 backdrop-blur-sm">
-                <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-
             <div class="relative z-10 flex flex-col h-full overflow-y-auto overscroll-contain custom-scrollbar">
                 
                 <div class="p-6 sm:p-10 flex flex-col h-full text-center min-h-min">
@@ -194,16 +199,18 @@
                         <h1 class="font-luxury-title text-4xl sm:text-6xl text-bronze dark:text-champagne leading-none italic drop-shadow-sm">
                             Year End<br><span class="not-italic font-light text-slate-800 dark:text-white/90">Party</span>
                         </h1>
-                        <p class="text-slate-600 dark:text-neutral-300 text-xs sm:text-sm mt-3 sm:mt-4 font-light tracking-wide italic border-t border-b border-transparent dark:border-white/5 py-2 inline-block">
+                        <p class="vietnamese-fix text-slate-600 dark:text-neutral-300 text-xs sm:text-sm mt-3 sm:mt-4 font-light tracking-wide italic border-t border-b border-transparent dark:border-white/5 py-2 inline-block">
                             "Đêm của sự tri ân và khởi đầu mới"
                         </p>
+
                     </div>
 
                     <div class="relative py-3 sm:py-5 my-1 sm:my-2 shrink-0">
                         <div class="absolute top-0 left-1/2 -translate-x-1/2 w-12 sm:w-16 h-[1px] bg-slate-300 dark:bg-gradient-to-r dark:from-transparent dark:via-[#C4A962] dark:to-transparent opacity-50"></div>
                         
-                        <p class="text-slate-400 dark:text-[#C4A962] text-[9px] sm:text-[10px] uppercase tracking-[0.2em] mb-2 sm:mb-3 opacity-80">Trân trọng kính mời</p>
-                        
+                        <p class="text-slate-500 dark:text-[#C4A962] text-[10px] sm:text-[11px] uppercase tracking-[0.2em] mb-2 sm:mb-3 font-medium opacity-100">
+                            Trân trọng kính mời
+                        </p>
                         <h2 class="font-luxury-title text-2xl sm:text-3xl text-slate-800 dark:text-white font-medium tracking-wide drop-shadow-md px-2">
                             {{ user.name or 'Quý Nhân Viên' }}
                         </h2>
@@ -235,7 +242,9 @@
                                     <div class="text-slate-400 dark:text-[#C4A962] text-[9px] sm:text-[10px] uppercase tracking-widest">Thời gian</div>
                                 </div>
                                 <div class="text-slate-800 dark:text-white font-light text-base sm:text-lg">16:00 PM</div>
-                                <div class="text-bronze dark:text-[#C4A962] text-xs sm:text-sm font-luxury-title italic opacity-90">20.01.2026</div>
+                                <div class="text-bronze dark:text-[#C4A962] text-2xl sm:text-3xl font-luxury-title font-bold tracking-widest mt-1 drop-shadow-sm opacity-100">
+                                    20.01.2026
+                                </div>
                             </div>
                             
                             <div class="text-right pr-1 sm:pr-2">
@@ -274,105 +283,16 @@
         return {
             isOpen: false,
             isOpened: false,
-            isFlashing: false, // Trạng thái Flash
-            countdown: { d: '00', h: '00', m: '00', s: '00' },
-            timer: null,
-            targetDate: new Date("2026-01-20T16:00:00").getTime(),
-
-            init() {
-                setTimeout(() => {
-                    this.isOpen = true;
-                    this.startCountdown();
-                }, 1000);
-            },
-
-            openLetter() {
-                // 1. Kích hoạt Flash
-                this.isFlashing = true;
-                
-                // 2. Bắn pháo hoa ngay lúc flash
-                this.fireElegantConfetti();
-
-                // 3. Tắt Flash sau 800ms (khớp animation CSS)
-                setTimeout(() => {
-                    this.isFlashing = false;
-                }, 800);
-
-                // 4. Chuyển đổi trạng thái (Phong bì biến mất -> Thiệp hiện ra)
-                // Đặt timeout nhỏ để hiệu ứng leave của phong bì bắt đầu
-                this.isOpened = true;
-            },
-
-            fireElegantConfetti() {
-                const count = 200;
-                const defaults = {
-                    origin: { y: 0.7 },
-                    zIndex: 9999
-                };
-
-                function fire(particleRatio, opts) {
-                    confetti(Object.assign({}, defaults, opts, {
-                        particleCount: Math.floor(count * particleRatio)
-                    }));
-                }
-
-                // Pháo hoa màu Vàng & Trắng sang trọng
-                fire(0.25, { spread: 26, startVelocity: 55, colors: ['#C4A962', '#ffffff'] });
-                fire(0.2, { spread: 60, colors: ['#b08d55', '#E8DCC2'] });
-                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8, colors: ['#C4A962', '#ffffff'] });
-                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2, colors: ['#ffffff'] });
-                fire(0.1, { spread: 120, startVelocity: 45, colors: ['#C4A962'] });
-            },
-
-            startCountdown() {
-                this.timer = setInterval(() => {
-                    const now = new Date().getTime();
-                    const distance = this.targetDate - now;
-
-                    if (distance < 0) {
-                        clearInterval(this.timer);
-                        this.countdown = { d: '00', h: '00', m: '00', s: '00' };
-                        return;
-                    }
-
-                    this.countdown.d = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
-                    this.countdown.h = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
-                    this.countdown.m = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
-                    this.countdown.s = String(Math.floor((distance % (1000 * 60)) / 1000)).padStart(2, '0');
-                }, 1000);
-            },
-
-            closeModal() {
-                this.isOpen = false;
-                setTimeout(() => {
-                    clearInterval(this.timer);
-                    this.isOpened = false;
-                }, 500);
-            }
-        }
-    }
-</script>
-
-<script>
-    function partyInvitationUltimate() {
-        return {
-            isOpen: false,
-            isOpened: false,
             isFlashing: false,
             countdown: { d: '00', h: '00', m: '00', s: '00' },
             timer: null,
             targetDate: new Date("2026-01-20T16:00:00").getTime(),
-            
-            // --- CẤU HÌNH ÂM THANH ---
-            // Bạn có thể thay link này bằng file mp3 trong thư mục dự án của bạn
-            // Ví dụ: '/assets/sounds/magic-reveal.mp3'
             audioUrl: 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3', 
             audio: null,
 
             init() {
-                // Khởi tạo âm thanh và tải trước (Preload)
                 this.audio = new Audio(this.audioUrl);
-                this.audio.volume = 0.5; // Chỉnh âm lượng vừa phải (50%) để không bị chói tai
+                this.audio.volume = 0.5;
                 this.audio.load();
 
                 setTimeout(() => {
@@ -382,58 +302,71 @@
             },
 
             openLetter() {
-                // 1. PHÁT ÂM THANH (Ngay khi bấm)
                 if (this.audio) {
-                    this.audio.currentTime = 0; // Tua về đầu (đề phòng click nhiều lần)
-                    this.audio.play().catch(e => console.log("Trình duyệt chặn autoplay (nếu có):", e));
+                    this.audio.currentTime = 0;
+                    this.audio.play().catch(e => console.log("Audio block:", e));
                 }
-
-                // 2. Kích hoạt Flash
                 this.isFlashing = true;
-                
-                // 3. Bắn pháo hoa
-                this.fireElegantConfetti();
-
-                // 4. Tắt Flash sau 800ms
-                setTimeout(() => {
-                    this.isFlashing = false;
-                }, 800);
-
-                // 5. Mở thư
+                this.fireElegantConfetti(); // Bắn pháo hoa chào mừng lần 1
+                setTimeout(() => { this.isFlashing = false; }, 800);
                 this.isOpened = true;
             },
 
-            fireElegantConfetti() {
-                const count = 200;
-                const defaults = {
-                    origin: { y: 0.7 },
-                    zIndex: 9999
-                };
+            // Hàm bắn pháo hoa liên tục trong 5 giây trước khi đóng
+            confirmAndClose() {
+                const duration = 5 * 1000; // 5 giây
+                const animationEnd = Date.now() + duration;
 
+                // Tạo vòng lặp bắn pháo hoa
+                const interval = setInterval(() => {
+                    const timeLeft = animationEnd - Date.now();
+
+                    if (timeLeft <= 0) {
+                        clearInterval(interval);
+                        this.closeModal(); // Sau 5s thì mới đóng thiệp
+                        return;
+                    }
+
+                    // Bắn pháo hoa từ hai bên màn hình
+                    confetti({
+                        particleCount: 5,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        colors: ['#C4A962', '#ffffff', '#b08d55']
+                    });
+                    confetti({
+                        particleCount: 5,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        colors: ['#C4A962', '#ffffff', '#b08d55']
+                    });
+                }, 150);
+            },
+
+            fireElegantConfetti() {
+                const count = 150;
+                const defaults = { origin: { y: 0.7 }, zIndex: 9999 };
                 function fire(particleRatio, opts) {
                     confetti(Object.assign({}, defaults, opts, {
                         particleCount: Math.floor(count * particleRatio)
                     }));
                 }
-
                 fire(0.25, { spread: 26, startVelocity: 55, colors: ['#C4A962', '#ffffff'] });
                 fire(0.2, { spread: 60, colors: ['#b08d55', '#E8DCC2'] });
                 fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8, colors: ['#C4A962', '#ffffff'] });
-                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2, colors: ['#ffffff'] });
-                fire(0.1, { spread: 120, startVelocity: 45, colors: ['#C4A962'] });
             },
 
             startCountdown() {
                 this.timer = setInterval(() => {
                     const now = new Date().getTime();
                     const distance = this.targetDate - now;
-
                     if (distance < 0) {
                         clearInterval(this.timer);
                         this.countdown = { d: '00', h: '00', m: '00', s: '00' };
                         return;
                     }
-
                     this.countdown.d = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
                     this.countdown.h = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
                     this.countdown.m = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
@@ -446,8 +379,6 @@
                 setTimeout(() => {
                     clearInterval(this.timer);
                     this.isOpened = false;
-                    // Reset trạng thái để có thể mở lại đẹp như mới
-                    this.isFlashing = false; 
                 }, 500);
             }
         }
