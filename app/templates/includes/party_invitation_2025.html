@@ -1,0 +1,455 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        /* --- FONTS --- */
+        .font-luxury-title { font-family: 'Cormorant Garamond', serif; }
+        .font-luxury-body { font-family: 'Jost', sans-serif; }
+
+        /* --- COLORS & GRADIENTS --- */
+        
+        /* Vàng Champagne (Dùng cho Dark Mode) */
+        .text-champagne {
+            background: linear-gradient(135deg, #FFF5E1 0%, #C4A962 40%, #D4AF37 60%, #FFF5E1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% auto;
+            animation: shine 4s linear infinite;
+            /* Thêm shadow để chữ không bị chìm */
+            filter: drop-shadow(0 0 8px rgba(196, 169, 98, 0.3)); 
+        }
+
+        /* Vàng Bronze (Dùng cho Light Mode - Đậm hơn để dễ đọc trên nền trắng) */
+        .text-bronze {
+            background: linear-gradient(135deg, #b08d55 0%, #8a6e3e 50%, #b08d55 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% auto;
+            animation: shine 6s linear infinite;
+        }
+        
+        /* Hiệu ứng Kính (Glassmorphism) - Adaptive */
+        .glass-panel {
+            /* Default (Light Mode): Kính mờ trên nền sáng */
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 20px 60px -15px rgba(180, 180, 200, 0.3);
+        }
+        
+        /* Hiệu ứng nền kính tối ưu cho Dark Mode */
+        .dark .glass-panel {
+            background: rgba(10, 10, 12, 0.65); /* Đen sâu hơn, bớt đục */
+            border: 1px solid rgba(196, 169, 98, 0.15); /* Viền vàng kim cực mờ */
+            box-shadow: 
+                0 25px 80px -20px rgba(0, 0, 0, 0.9),
+                inset 0 0 20px rgba(196, 169, 98, 0.05); /* Ánh vàng bên trong kính */
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+        .animate-float { animation: float 7s ease-in-out infinite; }
+
+        /* Hiệu ứng chuyển cảnh Cinematic */
+        .ease-cinematic { transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+
+        /* Nút bấm hiệu ứng sáng chạy */
+        .btn-shine-border {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-shine-border::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: 0.6s;
+        }
+        .btn-shine-border:hover::before { left: 100%; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Lớp phủ Flash trắng khi chuyển cảnh */
+        .flash-overlay {
+            animation: flashEffect 0.8s ease-out forwards;
+            pointer-events: none;
+        }
+        @keyframes flashEffect {
+            0% { opacity: 0; }
+            50% { opacity: 0.8; background: white; }
+            100% { opacity: 0; }
+        }
+    </style>
+
+    <div x-data="partyInvitationUltimate()"
+        x-init="init()"
+        x-show="isOpen"
+        class="fixed inset-0 z-[9999] flex items-center justify-center px-4 font-luxury-body perspective-1000"
+        style="display: none;"
+        x-cloak>
+
+        <div x-show="isOpen"
+            x-transition:enter="transition ease-out duration-1000"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-500"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="absolute inset-0 bg-[#fdfbf7] dark:bg-[#050505] transition-colors duration-700"
+            @click="closeModal()">
+            
+            <div class="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-orange-100 dark:bg-purple-900/20 rounded-full blur-[100px] animate-pulse transition-colors duration-1000"></div>
+            <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-yellow-100 dark:bg-amber-900/10 rounded-full blur-[120px] animate-pulse transition-colors duration-1000" style="animation-delay: 2s"></div>
+            
+            <div class="absolute inset-0 opacity-[0.4] dark:opacity-[0.05] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] mix-blend-multiply dark:mix-blend-lighten"></div>
+        </div>
+
+        <div x-show="isFlashing" class="absolute inset-0 z-50 flash-overlay"></div>
+
+        <div x-show="!isOpened"
+            x-transition:enter="transition ease-cinematic duration-1000 delay-300"
+            x-transition:enter-start="opacity-0 scale-90 translate-y-8 blur-sm"
+            x-transition:enter-end="opacity-100 scale-100 translate-y-0 blur-0"
+            x-transition:leave="transition ease-in duration-500"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-150 blur-md"
+            class="relative z-20 cursor-pointer group w-full max-w-[550px]"
+            @click="openLetter()">
+
+            <div class="relative w-full aspect-[2/1] bg-gradient-to-br from-[#fcfcfc] to-[#ebebeb] dark:from-[#1a1a1a] dark:to-[#0a0a0a] rounded-t-lg rounded-b-3xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_rgba(0,0,0,0.6)] border border-white/40 dark:border-white/5 overflow-hidden transform group-hover:-translate-y-2 transition-all duration-500">
+                
+                <div class="absolute inset-0 opacity-40 dark:opacity-20 bg-[url('https://www.transparenttextures.com/patterns/leather-nude.png')]"></div>
+                
+                <div class="absolute inset-x-0 top-0 h-[60%] bg-gradient-to-b from-[#ffffff] to-[#e6e6e6] dark:from-[#252525] dark:to-[#151515] origin-top z-10 shadow-md" 
+                    style="clip-path: polygon(0 0, 100% 0, 50% 100%);">
+                    
+                    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2">
+                        <div class="w-16 h-16 rounded-full bg-[#f8f8f8] dark:bg-[#1a1a1a] border border-[#b08d55]/20 dark:border-[#C4A962]/30 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                            <div class="w-12 h-12 rounded-full border border-[#b08d55] dark:border-[#C4A962] flex items-center justify-center">
+                                <svg class="w-5 h-5 text-[#b08d55] dark:text-[#C4A962]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-6 w-full text-center z-0">
+                    <p class="text-[#8a6e3e] dark:text-[#C4A962] text-[10px] uppercase tracking-[0.4em] font-medium opacity-60 group-hover:opacity-100 transition-opacity">Chạm để mở thư mời</p>
+                </div>
+            </div>
+        </div>
+
+        <div x-show="isOpened"
+            x-transition:enter="transition ease-cinematic duration-[1200ms] delay-200"
+            x-transition:enter-start="opacity-0 scale-90 translate-y-12"
+            x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+            class="relative z-30 w-full max-w-[480px] 
+                max-h-[90dvh] h-auto
+                rounded-[1.5rem] sm:rounded-[2rem] 
+                glass-panel animate-float flex flex-col 
+                group shadow-2xl overflow-hidden">
+                    
+            <div class="absolute inset-0 z-0 pointer-events-none">
+    
+                <img src="../static/view.jpg" 
+                    class="w-full h-full object-cover 
+                        opacity-[0.25] dark:opacity-[0.4] 
+                        grayscale-[50%] dark:grayscale-0 
+                        dark:mix-blend-color-dodge 
+                        transition-all duration-700">
+                        <div class="absolute inset-0 
+                            bg-gradient-to-t from-white/85 via-white/30 to-white/5 
+                            dark:bg-gradient-to-b dark:from-[#1a1610]/80 dark:via-[#0a0a0c]/70 dark:to-[#000000]/40 
+                            transition-colors duration-700"></div>
+                            <div class="absolute inset-0 opacity-0 dark:opacity-20 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+            </div>
+
+            <button @click="closeModal()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 dark:text-[#C4A962]/50 hover:text-slate-800 dark:hover:text-[#C4A962] transition-colors z-50 p-2 rounded-full hover:bg-white/10 backdrop-blur-sm">
+                <svg class="w-6 h-6 sm:w-8 sm:h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+
+            <div class="relative z-10 flex flex-col h-full overflow-y-auto overscroll-contain custom-scrollbar">
+                
+                <div class="p-6 sm:p-10 flex flex-col h-full text-center min-h-min">
+                    
+                    <div class="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-[#b08d55] dark:via-[#C4A962] to-transparent mx-auto mb-4 sm:mb-6 opacity-60 dark:opacity-100 dark:shadow-[0_0_10px_#C4A962] shrink-0"></div>
+
+                    <div class="mb-4 sm:mb-8 relative shrink-0">
+                        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 sm:w-32 sm:h-32 bg-[#C4A962] rounded-full blur-[60px] sm:blur-[80px] opacity-0 dark:opacity-20 pointer-events-none"></div>
+
+                        <h3 class="text-slate-500 dark:text-[#C4A962]/80 text-[10px] sm:text-xs uppercase tracking-[0.3em] mb-1 sm:mb-2 font-medium">Bin Bin Hotel Presents</h3>
+                        
+                        <h1 class="font-luxury-title text-4xl sm:text-6xl text-bronze dark:text-champagne leading-none italic drop-shadow-sm">
+                            Year End<br><span class="not-italic font-light text-slate-800 dark:text-white/90">Party</span>
+                        </h1>
+                        <p class="text-slate-600 dark:text-neutral-300 text-xs sm:text-sm mt-3 sm:mt-4 font-light tracking-wide italic border-t border-b border-transparent dark:border-white/5 py-2 inline-block">
+                            "Đêm của sự tri ân và khởi đầu mới"
+                        </p>
+                    </div>
+
+                    <div class="relative py-3 sm:py-5 my-1 sm:my-2 shrink-0">
+                        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-12 sm:w-16 h-[1px] bg-slate-300 dark:bg-gradient-to-r dark:from-transparent dark:via-[#C4A962] dark:to-transparent opacity-50"></div>
+                        
+                        <p class="text-slate-400 dark:text-[#C4A962] text-[9px] sm:text-[10px] uppercase tracking-[0.2em] mb-2 sm:mb-3 opacity-80">Trân trọng kính mời</p>
+                        
+                        <h2 class="font-luxury-title text-2xl sm:text-3xl text-slate-800 dark:text-white font-medium tracking-wide drop-shadow-md px-2">
+                            {{ user.name or 'Quý Nhân Viên' }}
+                        </h2>
+                        
+                        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 sm:w-16 h-[1px] bg-slate-300 dark:bg-gradient-to-r dark:from-transparent dark:via-[#C4A962] dark:to-transparent opacity-50"></div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col justify-start sm:justify-center space-y-6 sm:space-y-8 mt-4">
+                        
+                        <div class="flex justify-center gap-4 sm:gap-6 text-slate-800 dark:text-white">
+                            <template x-for="(val, label) in { D: countdown.d, H: countdown.h, M: countdown.m }">
+                                <div class="text-center group/timer">
+                                    <div class="font-luxury-title text-2xl sm:text-4xl font-light transition-transform group-hover/timer:-translate-y-1 dark:text-neutral-100" x-text="val">00</div>
+                                    <div class="text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-400 dark:text-neutral-500 mt-1" x-text="label"></div>
+                                </div>
+                            </template>
+                            <div class="text-center group/timer">
+                                <div class="font-luxury-title text-2xl sm:text-4xl font-light text-bronze dark:text-champagne transition-transform group-hover/timer:-translate-y-1" x-text="countdown.s">00</div>
+                                <div class="text-[8px] sm:text-[9px] uppercase tracking-widest text-slate-400 dark:text-[#C4A962]/60 mt-1">S</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 sm:gap-4 text-left border-t border-slate-200 dark:border-white/10 pt-4 sm:pt-6 relative">
+                            <div class="absolute left-1/2 top-4 sm:top-6 bottom-0 w-[1px] bg-slate-200 dark:bg-white/5"></div>
+
+                            <div class="pl-1 sm:pl-2">
+                                <div class="flex items-center gap-1 sm:gap-2 mb-1">
+                                    <svg class="w-3 h-3 text-[#C4A962]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                    <div class="text-slate-400 dark:text-[#C4A962] text-[9px] sm:text-[10px] uppercase tracking-widest">Thời gian</div>
+                                </div>
+                                <div class="text-slate-800 dark:text-white font-light text-base sm:text-lg">16:00 PM</div>
+                                <div class="text-bronze dark:text-[#C4A962] text-xs sm:text-sm font-luxury-title italic opacity-90">20.01.2026</div>
+                            </div>
+                            
+                            <div class="text-right pr-1 sm:pr-2">
+                                <div class="flex items-center justify-end gap-1 sm:gap-2 mb-1">
+                                    <div class="text-slate-400 dark:text-[#C4A962] text-[9px] sm:text-[10px] uppercase tracking-widest">Địa điểm</div>
+                                    <svg class="w-3 h-3 text-[#C4A962]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
+                                </div>
+                                <div class="text-slate-800 dark:text-white font-light text-base sm:text-lg">Bin Bin Hotel 1</div>
+                                <div class="text-slate-500 dark:text-neutral-400 text-[10px] sm:text-xs mt-1">KDC Ven Sông, Q.7</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 sm:mt-8 pb-2 shrink-0">
+                        <button @click="closeModal()" 
+                                class="btn-shine-border w-full py-3 sm:py-4 relative group overflow-hidden
+                                    bg-slate-900 dark:bg-black/40 
+                                    hover:bg-slate-800 dark:hover:bg-[#C4A962]/10 
+                                    border border-transparent dark:border-[#C4A962]/30 
+                                    rounded-xl transition-all duration-300 shadow-lg dark:shadow-[0_5px_20px_-5px_rgba(196,169,98,0.2)]">
+                            
+                            <span class="relative z-10 text-white dark:text-[#C4A962] dark:group-hover:text-white text-[10px] sm:text-xs uppercase tracking-[0.25em] font-medium transition-colors">
+                                Xác nhận tham dự
+                            </span>
+                            
+                            <div class="absolute inset-0 bg-[#C4A962] opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div> 
+    </div>
+
+<script>
+    function partyInvitationUltimate() {
+        return {
+            isOpen: false,
+            isOpened: false,
+            isFlashing: false, // Trạng thái Flash
+            countdown: { d: '00', h: '00', m: '00', s: '00' },
+            timer: null,
+            targetDate: new Date("2026-01-20T16:00:00").getTime(),
+
+            init() {
+                setTimeout(() => {
+                    this.isOpen = true;
+                    this.startCountdown();
+                }, 1000);
+            },
+
+            openLetter() {
+                // 1. Kích hoạt Flash
+                this.isFlashing = true;
+                
+                // 2. Bắn pháo hoa ngay lúc flash
+                this.fireElegantConfetti();
+
+                // 3. Tắt Flash sau 800ms (khớp animation CSS)
+                setTimeout(() => {
+                    this.isFlashing = false;
+                }, 800);
+
+                // 4. Chuyển đổi trạng thái (Phong bì biến mất -> Thiệp hiện ra)
+                // Đặt timeout nhỏ để hiệu ứng leave của phong bì bắt đầu
+                this.isOpened = true;
+            },
+
+            fireElegantConfetti() {
+                const count = 200;
+                const defaults = {
+                    origin: { y: 0.7 },
+                    zIndex: 9999
+                };
+
+                function fire(particleRatio, opts) {
+                    confetti(Object.assign({}, defaults, opts, {
+                        particleCount: Math.floor(count * particleRatio)
+                    }));
+                }
+
+                // Pháo hoa màu Vàng & Trắng sang trọng
+                fire(0.25, { spread: 26, startVelocity: 55, colors: ['#C4A962', '#ffffff'] });
+                fire(0.2, { spread: 60, colors: ['#b08d55', '#E8DCC2'] });
+                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8, colors: ['#C4A962', '#ffffff'] });
+                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2, colors: ['#ffffff'] });
+                fire(0.1, { spread: 120, startVelocity: 45, colors: ['#C4A962'] });
+            },
+
+            startCountdown() {
+                this.timer = setInterval(() => {
+                    const now = new Date().getTime();
+                    const distance = this.targetDate - now;
+
+                    if (distance < 0) {
+                        clearInterval(this.timer);
+                        this.countdown = { d: '00', h: '00', m: '00', s: '00' };
+                        return;
+                    }
+
+                    this.countdown.d = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
+                    this.countdown.h = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+                    this.countdown.m = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+                    this.countdown.s = String(Math.floor((distance % (1000 * 60)) / 1000)).padStart(2, '0');
+                }, 1000);
+            },
+
+            closeModal() {
+                this.isOpen = false;
+                setTimeout(() => {
+                    clearInterval(this.timer);
+                    this.isOpened = false;
+                }, 500);
+            }
+        }
+    }
+</script>
+
+<script>
+    function partyInvitationUltimate() {
+        return {
+            isOpen: false,
+            isOpened: false,
+            isFlashing: false,
+            countdown: { d: '00', h: '00', m: '00', s: '00' },
+            timer: null,
+            targetDate: new Date("2026-01-20T16:00:00").getTime(),
+            
+            // --- CẤU HÌNH ÂM THANH ---
+            // Bạn có thể thay link này bằng file mp3 trong thư mục dự án của bạn
+            // Ví dụ: '/assets/sounds/magic-reveal.mp3'
+            audioUrl: 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3', 
+            audio: null,
+
+            init() {
+                // Khởi tạo âm thanh và tải trước (Preload)
+                this.audio = new Audio(this.audioUrl);
+                this.audio.volume = 0.5; // Chỉnh âm lượng vừa phải (50%) để không bị chói tai
+                this.audio.load();
+
+                setTimeout(() => {
+                    this.isOpen = true;
+                    this.startCountdown();
+                }, 1000);
+            },
+
+            openLetter() {
+                // 1. PHÁT ÂM THANH (Ngay khi bấm)
+                if (this.audio) {
+                    this.audio.currentTime = 0; // Tua về đầu (đề phòng click nhiều lần)
+                    this.audio.play().catch(e => console.log("Trình duyệt chặn autoplay (nếu có):", e));
+                }
+
+                // 2. Kích hoạt Flash
+                this.isFlashing = true;
+                
+                // 3. Bắn pháo hoa
+                this.fireElegantConfetti();
+
+                // 4. Tắt Flash sau 800ms
+                setTimeout(() => {
+                    this.isFlashing = false;
+                }, 800);
+
+                // 5. Mở thư
+                this.isOpened = true;
+            },
+
+            fireElegantConfetti() {
+                const count = 200;
+                const defaults = {
+                    origin: { y: 0.7 },
+                    zIndex: 9999
+                };
+
+                function fire(particleRatio, opts) {
+                    confetti(Object.assign({}, defaults, opts, {
+                        particleCount: Math.floor(count * particleRatio)
+                    }));
+                }
+
+                fire(0.25, { spread: 26, startVelocity: 55, colors: ['#C4A962', '#ffffff'] });
+                fire(0.2, { spread: 60, colors: ['#b08d55', '#E8DCC2'] });
+                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8, colors: ['#C4A962', '#ffffff'] });
+                fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2, colors: ['#ffffff'] });
+                fire(0.1, { spread: 120, startVelocity: 45, colors: ['#C4A962'] });
+            },
+
+            startCountdown() {
+                this.timer = setInterval(() => {
+                    const now = new Date().getTime();
+                    const distance = this.targetDate - now;
+
+                    if (distance < 0) {
+                        clearInterval(this.timer);
+                        this.countdown = { d: '00', h: '00', m: '00', s: '00' };
+                        return;
+                    }
+
+                    this.countdown.d = String(Math.floor(distance / (1000 * 60 * 60 * 24))).padStart(2, '0');
+                    this.countdown.h = String(Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))).padStart(2, '0');
+                    this.countdown.m = String(Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60))).padStart(2, '0');
+                    this.countdown.s = String(Math.floor((distance % (1000 * 60)) / 1000)).padStart(2, '0');
+                }, 1000);
+            },
+
+            closeModal() {
+                this.isOpen = false;
+                setTimeout(() => {
+                    clearInterval(this.timer);
+                    this.isOpened = false;
+                    // Reset trạng thái để có thể mở lại đẹp như mới
+                    this.isFlashing = false; 
+                }, 500);
+            }
+        }
+    }
+</script>
