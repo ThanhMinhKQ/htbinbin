@@ -2,50 +2,46 @@
 <html lang="vi" class="h-full">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Đăng Nhập - Bin Bin Hotel Christmas</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng Nhập - Bin Bin Hotel Tết 2026</title>
   
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+
   <script>
+    /* Tìm đoạn tailwind.config trong thẻ <head> và BỔ SUNG đoạn có comment bên dưới */
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ["Quicksand", "system-ui", "sans-serif"]
-          },
+          fontFamily: { sans: ['Quicksand', 'sans-serif'] },
           colors: {
-            xmas: {
-              red: '#D42426',
-              green: '#146B3A',
-              gold: '#F8B229',
-              dark: '#0F172A'
-            }
+            tet: { red: '#D90429', gold: '#FFD60A', dark: '#020617' }
           },
           animation: {
-            'float': 'float 6s ease-in-out infinite',
-            'shine': 'shine 3s linear infinite',
-            'shake': 'shake 0.4s ease-in-out',
             'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+            'float-slow': 'float 6s ease-in-out infinite',
+            'pulse-slow': 'pulse 3s infinite',
+            
+            // --- THÊM DÒNG NÀY (Định nghĩa tên animation) ---
+            'breath': 'breathing 5s ease-in-out infinite', 
           },
           keyframes: {
-            float: {
-              '0%, 100%': { transform: 'translateY(0)' },
-              '50%': { transform: 'translateY(-10px)' },
-            },
-            shine: {
-              '0%': { backgroundPosition: '200% center' },
-              '100%': { backgroundPosition: '-200% center' },
-            },
-            shake: {
-              '0%, 100%': { transform: 'translateX(0)' },
-              '20%, 60%': { transform: 'translateX(-5px)' },
-              '40%, 80%': { transform: 'translateX(5px)' }
-            },
             fadeInUp: {
               '0%': { opacity: '0', transform: 'translateY(20px)' },
-              '100%': { opacity: '1', transform: 'translateY(0)' }
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-15px)' },
+            },
+            
+            // --- THÊM ĐOẠN NÀY (Định nghĩa chuyển động) ---
+            breathing: {
+              '0%, 100%': { transform: 'scale(1)' },   // Trạng thái bình thường
+              '50%': { transform: 'scale(1.05)' },     // Hít vào (Phóng to 5%)
             }
           }
         }
@@ -54,386 +50,436 @@
   </script>
 
   <style>
-    /* Nền tối mặc định - Gradient ấm áp lễ hội */
-    html.dark body {
-        background: radial-gradient(circle at 50% 30%, #1e293b, #0f172a, #450a0a);
+    /* Nền Gradient mượt mà */
+    body { 
+        transition: background 0.5s ease; 
+        /* Đã xóa dòng background gradient cũ đi để hiện ảnh */
+        background-color: #1e1b4b; /* Màu nền dự phòng khi ảnh chưa load */
     }
 
-    /* Nền sáng - Gradient tinh khôi */
-    html:not(.dark) body {
-        background: linear-gradient(to bottom right, #e0f2fe, #ffffff);
+    .slide-image {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Giúp ảnh luôn full màn hình không bị méo */
+        opacity: 0;
+        transition: opacity 1.5s ease-in-out, transform 10s ease; /* Fade 1.5s, Zoom nhẹ 10s */
+        transform: scale(1);
     }
 
-    /* Glassmorphism Card cao cấp */
-    .glass-card {
-        background: rgba(255, 255, 255, 0.75);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    .slide-image.active {
+        opacity: 1;
+        transform: scale(1.05); /* Hiệu ứng zoom nhẹ khi ảnh hiện ra */
     }
+    html.dark body { background: radial-gradient(circle at center, #1e1b4b, #020617); }
+    html:not(.dark) body { background: radial-gradient(circle at center, #fffbeb, #fef2f2); }
+
+    /* Hiệu ứng Glassmorphism cao cấp */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    }
+    .dark .glass-panel {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    /* Input Styling để tránh cắt chữ tiếng Việt */
+    input { line-height: 1.5; }
     
-    .dark .glass-card {
-        background: rgba(15, 23, 42, 0.65);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    /* Animation cho hiệu ứng nền (Mai & Đèn lồng) */
+    .particle { position: absolute; pointer-events: none; transition: all 0.3s ease; }
+    
+    /* Hoa mai rơi (Light mode) */
+    @keyframes fall {
+      0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
+      10% { opacity: 1; }
+      100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+    }
+    .flower {
+      width: 20px; height: 20px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD60A'%3E%3Cpath d='M12 2L14.5 9H22L16 13.5L18.5 21L12 16.5L5.5 21L8 13.5L2 9H9.5L12 2Z'/%3E%3C/svg%3E");
+      background-size: contain;
+      animation: fall linear infinite;
     }
 
-    /* Chữ Gold Gradient lấp lánh */
-    .text-gold-gradient {
-        background: linear-gradient(to right, #b45309, #fbbf24, #b45309);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-size: 200% auto;
-        animation: shine 4s linear infinite;
+    /* Đèn lồng bay lên (Dark mode) */
+    @keyframes rise {
+      0% { transform: translateY(110vh) scale(0.8); opacity: 0; }
+      10% { opacity: 0.8; }
+      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
     }
-    .dark .text-gold-gradient {
-        background: linear-gradient(to right, #fcd34d, #fffbeb, #fcd34d);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-size: 200% auto;
-    }
-
-    /* Custom Input Style */
-    .input-glass {
-        background: rgba(255, 255, 255, 0.5);
-        border: 1px solid rgba(0,0,0,0.1);
-        transition: all 0.3s ease;
-    }
-    .dark .input-glass {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255,255,255,0.1);
-    }
-    .input-glass:focus {
-        background: rgba(255, 255, 255, 0.9);
-        border-color: #D42426; /* Màu đỏ giáng sinh */
-        box-shadow: 0 0 0 3px rgba(212, 36, 38, 0.2);
-    }
-    .dark .input-glass:focus {
-        background: rgba(0, 0, 0, 0.5);
-        border-color: #F8B229; /* Màu vàng gold */
-        box-shadow: 0 0 0 3px rgba(248, 178, 41, 0.2);
+    .lantern {
+      width: 24px; height: 30px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D90429'%3E%3Cpath d='M12 2C16.4183 2 20 5.58172 20 10V18C20 18.5523 19.5523 19 19 19H5C4.44772 19 4 18.5523 4 18V10C4 5.58172 7.58172 2 12 2Z'/%3E%3Crect x='8' y='19' width='8' height='3' fill='%23FFD60A'/%3E%3C/svg%3E");
+      background-size: contain;
+      animation: rise linear infinite;
+      filter: drop-shadow(0 0 5px #D90429);
     }
   </style>
 </head>
 
-<body class="h-full flex items-center justify-center relative overflow-hidden text-slate-800 dark:text-slate-100 selection:bg-xmas-red selection:text-white">
+<body class="h-full w-full overflow-hidden text-slate-800 dark:text-slate-100 selection:bg-tet-red selection:text-white relative">
+    <div id="hotel-slideshow" class="fixed inset-0 z-[-1]"></div>
+  
+  <div class="fixed inset-0 z-[-1] bg-black/30 pointer-events-none transition-colors duration-500 dark:bg-black/60"></div>
 
-  <canvas id="snowCanvas" class="absolute inset-0 pointer-events-none z-0"></canvas>
-  <audio id="bg-audio" loop>
-      <source src='/static/sounds/giangsinh.mp3' type="audio/mpeg">
-  </audio>
+  <div id="bg-effects" class="absolute inset-0 z-0 overflow-hidden pointer-events-none"></div>
 
-  <div class="w-full max-w-md px-4 z-10 animate-fade-in-up">
+  <div id="bg-effects" class="absolute inset-0 z-0 overflow-hidden pointer-events-none"></div>
 
-    <div id="loginBox" class="glass-card rounded-[2rem] p-8 relative overflow-hidden">
+  <audio id="bg-music" loop>
+    <source src="../static/sounds/Tet.mp3" type="audio/mpeg">
+    </audio>
 
-        <div class="absolute top-4 right-4 z-20 flex gap-2">
-            <button id="btn-music" class="p-2 rounded-full bg-white/50 dark:bg-black/20 hover:bg-white/80 transition shadow-sm group border border-white/20" title="Bật/Tắt nhạc">
-                <div id="icon-music-on" class="hidden relative w-5 h-5 flex items-center justify-center">
-                    <span class="absolute w-full h-full border border-red-500 rounded-full opacity-0 animate-ping"></span>
-                    <svg class="w-5 h-5 text-xmas-red" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0c-4.01.91-7 4.49-7 8.77s2.99 7.86 7 8.77v-2.06c-2.89-.86-5-3.54-5-6.71s2.11-5.85 5-6.71V3.23zM9 13.5h2.83L14.17 16V8L11.83 10.5H9v3z"/></svg>
-                </div>
-                <div id="icon-music-off" class="w-5 h-5 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" stroke-miterlimit="10"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
-                </div>
-            </button>
+  <div class="relative z-10 w-full h-full flex flex-col md:grid md:grid-cols-5">
 
-            <button id="btn-theme" class="p-2 rounded-full bg-white/50 dark:bg-black/20 hover:bg-white/80 transition shadow-sm border border-white/20" title="Chế độ Sáng/Tối">
-                <svg id="icon-sun" class="w-5 h-5 text-yellow-600 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                <svg id="icon-moon" class="w-5 h-5 text-slate-600 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-            </button>
-        </div>
-        
-        <div class="absolute -top-10 -right-10 w-32 h-32 opacity-20 dark:opacity-10 pointer-events-none rotate-12">
-            <svg viewBox="0 0 24 24" fill="currentColor" class="text-xmas-red w-full h-full">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-            </svg>
-        </div>
-
-        <div class="text-center mb-8 relative">
-            <div class="inline-block relative">
-                <img src="/static/logo.png" alt="Logo" class="h-12 mx-auto mb-2 drop-shadow-md hover:scale-105 transition-transform duration-300">
-            </div>
-            <p class="text-xs font-bold text-xmas-red uppercase tracking-[0.2em] mb-1">Bin Bin Hotel</p>
-            <h1 class="text-2xl font-bold">
-                Đăng Nhập <span class="text-gold-gradient">Giáng Sinh</span> 🎄
-            </h1>
+    <button id="btn-music" class="absolute top-5 left-5 p-2.5 rounded-full bg-white/50 dark:bg-black/40 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm group z-20">
+        <i id="music-icon" class="ph ph-speaker-slash text-slate-600 dark:text-slate-200 text-xl transition-transform group-hover:scale-110"></i>
+    </button>
+    
+    <div class="hidden md:flex md:col-span-3 relative items-center justify-center p-12 overflow-hidden group">
+      
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
+            <span class="text-[25vw] font-black 
+                text-white/30 
+                drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]
+                leading-none tracking-tighter 
+                
+                animate-breath 
+                
+                font-['Playfair_Display']">
+            2026
+            </span>
         </div>
 
-        {% if error %}
-        <div class="mb-6 flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800/50 text-red-600 dark:text-red-300 px-4 py-3 rounded-xl text-sm font-semibold animate-shake">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-            {{ error }}
+      <div class="relative z-10 text-center">
+
+        <h1 class="text-6xl md:text-7xl font-['Dancing_Script'] font-bold text-transparent bg-clip-text bg-gradient-to-br from-tet-red via-orange-500 to-yellow-500 dark:from-tet-gold dark:via-orange-300 dark:to-yellow-200 drop-shadow-sm mb-2 pb-4 leading-normal animate-fade-in-up" style="animation-delay: 0.2s;">
+          Mừng Xuân Bính Ngọ
+        </h1>
+
+       
+        <div id="tet-countdown" class="flex items-center justify-center gap-4 sm:gap-6 mb-8 animate-fade-in-up">
+            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-white/5 backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500">
+                <span id="days" class="text-3xl sm:text-4xl font-medium text-white font-['Playfair_Display'] drop-shadow-md">00</span>
+                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
+                <span class="text-[9px] sm:text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">Ngày</span>
+            </div>
+
+            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-white/5 backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500 delay-75">
+                <span id="hours" class="text-3xl sm:text-4xl font-medium text-white font-['Playfair_Display'] drop-shadow-md">00</span>
+                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
+                <span class="text-[9px] sm:text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">Giờ</span>
+            </div>
+
+            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-white/5 backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500 delay-100">
+                <span id="minutes" class="text-3xl sm:text-4xl font-medium text-white font-['Playfair_Display'] drop-shadow-md">00</span>
+                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
+                <span class="text-[9px] sm:text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">Phút</span>
+            </div>
+
+            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-gradient-to-br from-tet-red/20 to-transparent backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500 delay-150">
+                <span class="absolute top-2 right-2 flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tet-gold opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-tet-gold"></span>
+                </span>
+
+                <span id="seconds" class="text-3xl sm:text-4xl font-medium text-tet-gold font-['Playfair_Display'] drop-shadow-md tabular-nums">00</span>
+                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
+                <span class="text-[9px] sm:text-[10px] font-bold text-white uppercase tracking-[0.2em]">Giây</span>
+            </div>
         </div>
-        {% endif %}
+        <div class="relative w-32 mx-auto mt-8 animate-fade-in-up" style="animation-delay: 0.4s;">
+            <div class="h-[2px] w-full bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent dark:via-[#F6E27A] rounded-full opacity-80"></div>
 
-        <form method="post" action="/login" class="space-y-5">
-            
-            <div>
-                <label for="username" class="block text-sm font-bold mb-1.5 ml-1 text-slate-600 dark:text-slate-300">Mã nhân viên</label>
-                <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-slate-400 group-focus-within:text-xmas-red transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <input type="text" id="username" name="username" required
-                        class="input-glass w-full pl-11 pr-4 py-3 rounded-xl text-sm font-semibold placeholder:font-normal placeholder:text-slate-400 dark:text-white focus:outline-none"
-                        placeholder="Nhập mã số của bạn" />
-                </div>
-            </div>
-
-            <div>
-                <label for="password" class="block text-sm font-bold mb-1.5 ml-1 text-slate-600 dark:text-slate-300">Mật khẩu</label>
-                <div class="relative group">
-                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-slate-400 group-focus-within:text-xmas-red transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
-                        </svg>
-                    </div>
-                    <input type="password" id="password" name="password" required
-                        class="input-glass w-full pl-11 pr-12 py-3 rounded-xl text-sm font-semibold placeholder:font-normal placeholder:text-slate-400 dark:text-white focus:outline-none"
-                        placeholder="••••••••" />
-                    
-                    <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors focus:outline-none">
-                        <svg id="eyeIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-            <button type="submit"
-                class="w-full bg-gradient-to-r from-xmas-red to-[#b91c1c] hover:from-[#b91c1c] hover:to-xmas-red text-white font-bold py-3.5 rounded-xl transition-all duration-300 transform hover:scale-[1.02] shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 group">
-                <span>Đăng Nhập Ngay</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-            </button>
-
-            <div class="text-center">
-                <button type="button" onclick="alert('Vui lòng liên hệ quản lý để được cấp lại mật khẩu mới! 🎅')"
-                    class="text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-xmas-red dark:hover:text-xmas-gold transition-colors hover:underline">
-                    Quên mật khẩu?
-                </button>
-            </div>
-
-        </form>
-
-        <p class="mt-8 text-[10px] text-center text-slate-400 font-medium">
-            &copy; {{ now.year if now else "2025" }} Bin Bin Hotel Management System
+            <!-- subtle glow -->
+            <div class="absolute inset-0 blur-md bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent dark:via-[#F6E27A]/40"></div>
+        </div>
+        <p class="mt-4 text-sm font-semibold tracking-widest text-slate-500 dark:text-slate-500 uppercase animate-fade-in-up" style="animation-delay: 0.5s;">
+          Bin Bin Hotel Management
         </p>
+      </div>
+      
     </div>
 
+    <div class="col-span-1 md:col-span-2 flex items-center justify-center p-6 w-full">
+      <div class="glass-panel w-full max-w-[420px] p-8 md:p-10 rounded-3xl animate-fade-in-up shadow-2xl relative transition-all duration-300">
+
+        <button id="btn-theme" class="absolute top-5 right-5 p-2.5 rounded-full bg-white/50 dark:bg-black/40 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm group">
+          <i class="ph ph-sun text-orange-500 text-xl hidden dark:block group-hover:rotate-90 transition-transform"></i>
+          <i class="ph ph-moon text-slate-600 text-xl block dark:hidden group-hover:-rotate-12 transition-transform"></i>
+        </button>
+
+        <div class="text-center mb-8">
+            <img src="/static/logo.png" class="h-16 mx-auto mb-4 drop-shadow-md object-contain" alt="Logo Bin Bin" />
+            <p class="text-[11px] font-bold tracking-[0.2em] text-tet-red uppercase mb-1">Bin Bin Hotel</p>
+            <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Đăng Nhập</h2>
+        </div>
+
+        <form method="post" action="/login" class="space-y-5" id="loginForm">
+          
+          <div class="group">
+            <label class="block text-sm font-semibold mb-2 ml-1 text-slate-600 dark:text-slate-300">Mã nhân viên</label>
+            <div class="relative">
+              <span class="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-tet-red transition-colors">
+                <i class="ph ph-user text-xl"></i>
+              </span>
+              <input type="text" name="username" class="w-full py-3.5 pl-12 pr-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-800/50 focus:outline-none focus:border-tet-red focus:ring-2 focus:ring-tet-red/20 transition-all shadow-sm font-medium" placeholder="Nhập mã số" required />
+            </div>
+          </div>
+
+          <div class="group">
+            <label class="block text-sm font-semibold mb-2 ml-1 text-slate-600 dark:text-slate-300">Mật khẩu</label>
+            <div class="relative">
+              <span class="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-tet-red transition-colors">
+                <i class="ph ph-lock-key text-xl"></i>
+              </span>
+              <input type="password" id="passwordInput" name="password" class="w-full py-3.5 pl-12 pr-12 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-800/50 focus:outline-none focus:border-tet-red focus:ring-2 focus:ring-tet-red/20 transition-all shadow-sm font-medium" placeholder="••••••••" required />
+              
+              <button type="button" id="togglePassword" class="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none">
+                <i class="ph ph-eye-slash text-xl" id="eyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="button" onclick="showForgotPass()" class="text-xs font-semibold text-slate-500 hover:text-tet-red dark:text-slate-400 dark:hover:text-tet-gold transition-colors">
+              Quên mật khẩu?
+            </button>
+          </div>
+
+          <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-tet-red to-[#b91c1c] text-white font-bold text-lg hover:shadow-lg hover:shadow-tet-red/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">
+            <span>Đăng Nhập Ngay</span>
+            <i class="ph ph-arrow-right font-bold"></i>
+          </button>
+        </form>
+
+        <p class="mt-8 text-[11px] text-center text-slate-400 dark:text-slate-500 font-medium">
+          © 2026 Bin Bin Hotel System. All rights reserved.
+        </p>
+      </div>
+    </div>
   </div>
 
   <script>
-    // --- HIỆU ỨNG NỀN ĐỘNG (Copy Logic từ Show QR) ---
-    (function() {
-        const canvas = document.getElementById('snowCanvas');
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        let particles = [];
-        let currentTheme = 'dark'; 
+    // --- 1. Logic Dark/Light Mode & Hiệu ứng nền ---
+    const html = document.documentElement;
+    const bgContainer = document.getElementById('bg-effects');
+    let effectInterval;
 
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
+    // Hàm tạo vật thể bay (Hoa hoặc Đèn lồng)
+    function createParticle(type) {
+      const el = document.createElement('div');
+      // Random vị trí bắt đầu theo chiều ngang
+      const startX = Math.random() * 100;
+      // Random kích thước
+      const scale = 0.5 + Math.random() * 0.8;
+      // Random thời gian bay
+      const duration = (type === 'flower' ? 5 : 8) + Math.random() * 5;
+      
+      el.classList.add('particle');
+      el.classList.add(type);
+      el.style.left = `${startX}%`;
+      el.style.animationDuration = `${duration}s`;
+      el.style.transform = `scale(${scale})`;
 
-        // Tuyết rơi (Dark mode)
-        function createSnowflake() {
-            return {
-                x: Math.random() * width,
-                y: Math.random() * -height,
-                radius: Math.random() * 2 + 1,
-                speed: Math.random() * 1 + 0.5,
-                opacity: Math.random() * 0.5 + 0.3
-            };
-        }
+      bgContainer.appendChild(el);
 
-        function drawSnowflakes() {
-            ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle = "white";
-            particles.forEach(f => {
-                ctx.globalAlpha = f.opacity;
-                ctx.beginPath();
-                ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
-                ctx.fill();
-                f.y += f.speed;
-                f.x += Math.sin(f.y * 0.01) * 0.5;
-                if (f.y > height) {
-                    Object.assign(f, createSnowflake(), { y: -5 });
-                }
-            });
-        }
+      // Tự động xóa sau khi animation kết thúc để nhẹ máy
+      setTimeout(() => {
+        el.remove();
+      }, duration * 1000);
+    }
 
-        // Lá rơi (Light mode)
-        const leafColors = ['#D42426', '#F8B229', '#f97316', '#ca8a04', '#eab308'];
-        function createLeaf() {
-            return {
-                x: Math.random() * width,
-                y: Math.random() * -height,
-                size: Math.random() * 10 + 8,
-                speed: Math.random() * 1 + 1,
-                rotation: Math.random() * 360,
-                rotationSpeed: (Math.random() - 0.5) * 2,
-                sway: Math.random() * 2 - 1,
-                color: leafColors[Math.floor(Math.random() * leafColors.length)]
-            };
-        }
+    function startEffects(isDark) {
+      // Xóa hiệu ứng cũ
+      clearInterval(effectInterval);
+      bgContainer.innerHTML = ''; 
 
-        function drawLeaves() {
-            ctx.clearRect(0, 0, width, height);
-            particles.forEach(leaf => {
-                ctx.save();
-                ctx.translate(leaf.x, leaf.y);
-                ctx.rotate(leaf.rotation * Math.PI / 180);
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.quadraticCurveTo(leaf.size / 2, -leaf.size / 4, leaf.size, 0);
-                ctx.quadraticCurveTo(leaf.size / 2, leaf.size / 4, 0, 0);
-                ctx.closePath();
-                ctx.fillStyle = leaf.color;
-                ctx.fill();
-                ctx.restore();
+      const particleType = isDark ? 'lantern' : 'flower';
+      const density = 800; // mili-giây tạo ra 1 vật thể
 
-                leaf.y += leaf.speed;
-                leaf.x += leaf.sway + Math.sin(leaf.y * 0.05);
-                leaf.rotation += leaf.rotationSpeed;
+      effectInterval = setInterval(() => {
+        createParticle(particleType);
+      }, density);
+    }
 
-                if (leaf.y > height) {
-                    Object.assign(leaf, createLeaf(), { y: -20 });
-                }
-            });
-        }
+    // Toggle Theme
+    document.getElementById('btn-theme').onclick = () => {
+      html.classList.toggle('dark');
+      const isDark = html.classList.contains('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      startEffects(isDark);
+    };
 
-        let animationFrameId;
-        function animate() {
-            if (currentTheme === 'dark') {
-                drawSnowflakes();
-            } else {
-                drawLeaves();
-            }
-            animationFrameId = requestAnimationFrame(animate);
-        }
+    // Khởi chạy lần đầu
+    const savedTheme = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (savedTheme) html.classList.add('dark');
+    startEffects(html.classList.contains('dark'));
 
-        window.setThemeEffect = function(theme) {
-            if (theme === currentTheme && particles.length > 0) return;
-            currentTheme = theme;
-            particles = [];
-            const particleCount = currentTheme === 'dark' ? 80 : 40; // Giảm bớt số lượng cho login đỡ rối
-            const createParticle = currentTheme === 'dark' ? createSnowflake : createLeaf;
-            for(let i = 0; i < particleCount; i++) {
-                particles.push(createParticle());
-            }
-            if (!animationFrameId) {
-                animate();
-            }
-        }
-    })();
 
-    // --- FORM LOGIC ---
-    const togglePassword = document.getElementById("togglePassword");
-    const passwordInput = document.getElementById("password");
-    const eyeIcon = document.getElementById("eyeIcon");
-    
-    togglePassword.addEventListener("click", () => {
-      const isHidden = passwordInput.type === "password";
-      passwordInput.type = isHidden ? "text" : "password";
-      eyeIcon.innerHTML = isHidden
-        ? `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.964 9.964 0 012.185-3.412M15 12a3 3 0 00-4.243-2.829M3 3l18 18" />`
-        : `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />`;
-    });
+    // --- 2. Logic Hiển thị/Ẩn mật khẩu ---
+    const togglePassBtn = document.getElementById('togglePassword');
+    const passInput = document.getElementById('passwordInput');
+    const eyeIcon = document.getElementById('eyeIcon');
 
-    // --- THEME & MUSIC LOGIC ---
-    const root = document.documentElement;
-    const THEME_KEY = 'theme-mode';
-    const audio = document.getElementById('bg-audio');
+    togglePassBtn.onclick = () => {
+      const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passInput.setAttribute('type', type);
+      
+      // Đổi icon
+      if(type === 'text') {
+        eyeIcon.classList.replace('ph-eye-slash', 'ph-eye');
+        eyeIcon.classList.add('text-tet-red');
+      } else {
+        eyeIcon.classList.replace('ph-eye', 'ph-eye-slash');
+        eyeIcon.classList.remove('text-tet-red');
+      }
+    };
+
+
+    // --- 3. Logic Quên mật khẩu ---
+    window.showForgotPass = () => {
+      // Dùng SweetAlert hoặc Alert mặc định (đã style cho đẹp)
+      // Ở đây dùng confirm mặc định để đơn giản nhưng nội dung rõ ràng
+      alert("🔒 CẤP LẠI MẬT KHẨU\n\nVui lòng liên hệ trực tiếp quản lý để xác minh danh tính và cấp lại mật khẩu mới.\n\n📞 Hotline hỗ trợ: 0559 913 929");
+    };
+
+
+    // --- 4. Logic Âm thanh nền (Nâng cao) ---
+    const audio = document.getElementById('bg-music');
     const btnMusic = document.getElementById('btn-music');
-    const iconOn = document.getElementById('icon-music-on');
-    const iconOff = document.getElementById('icon-music-off');
+    const musicIcon = document.getElementById('music-icon');
     let isPlaying = false;
 
-    // Music control
-    audio.volume = 0.3; // Nhạc nền login để nhỏ hơn chút
-    function toggleMusicState(play, userInitiated = false) {
-        if (play) {
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-              playPromise.then(() => {
-                isPlaying = true;
-                iconOn.classList.remove('hidden');
-                iconOff.classList.add('hidden');
-                document.body.removeEventListener('click', playMusicOnFirstInteraction, { once: true });
-              }).catch(error => {
-                if (!userInitiated) {
-                  document.body.addEventListener('click', playMusicOnFirstInteraction, { once: true });
-                }
-              });
-            }
-        } else {
-            audio.pause();
-            isPlaying = false;
-            iconOn.classList.add('hidden');
-            iconOff.classList.remove('hidden');
-        }
+    // Hàm chuyển đổi trạng thái icon
+    function updateMusicIcon(play) {
+      if (play) {
+        musicIcon.classList.replace('ph-speaker-slash', 'ph-speaker-high');
+        musicIcon.classList.add('text-tet-red'); // Đổi màu đỏ cho nổi
+        musicIcon.classList.add('animate-pulse'); // Hiệu ứng nhịp điệu
+      } else {
+        musicIcon.classList.replace('ph-speaker-high', 'ph-speaker-slash');
+        musicIcon.classList.remove('text-tet-red');
+        musicIcon.classList.remove('animate-pulse');
+      }
     }
-    const playMusicOnFirstInteraction = () => toggleMusicState(true, true);
-    btnMusic.addEventListener('click', () => toggleMusicState(!isPlaying, true));
-    
-    // Theme Control
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    function applyTheme(mode){
-        if (mode === 'dark' || (mode === 'system' && prefersDark)) {
-          root.classList.add('dark');
-          document.getElementById('icon-sun').classList.remove('hidden');
-          document.getElementById('icon-moon').classList.add('hidden');
-          window.setThemeEffect('dark');
-        } else {
-          root.classList.remove('dark');
-          document.getElementById('icon-sun').classList.add('hidden');
-          document.getElementById('icon-moon').classList.remove('hidden');
-          window.setThemeEffect('light');
-        }
-    }
-    const savedTheme = localStorage.getItem(THEME_KEY) || 'system';
-    applyTheme(savedTheme);
-    
-    document.getElementById('btn-theme').addEventListener('click', () => {
-        const current = localStorage.getItem(THEME_KEY) || 'system';
-        const next = current === 'dark' ? 'light' : 'dark';
-        localStorage.setItem(THEME_KEY, next);
-        applyTheme(next);
-    });
 
-    // Tự động bật nhạc khi tải trang
-    toggleMusicState(true);
+    // Xử lý khi bấm nút Loa
+    btnMusic.onclick = () => {
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.volume = 0.5; // Âm lượng 50%
+        audio.play();
+      }
+      isPlaying = !isPlaying;
+      updateMusicIcon(isPlaying);
+    };
 
-    // Clean URL
-    if (window.location.search.includes("error=")) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("error");
-      window.history.replaceState({}, document.title, url.pathname);
+    // Tự động phát nhạc khi người dùng click bất kỳ đâu lần đầu tiên
+    // (Đây là cách "lách" luật chặn autoplay của trình duyệt)
+    function autoPlayOnFirstInteraction() {
+      if (!isPlaying) {
+        audio.volume = 0.5;
+        audio.play().then(() => {
+          isPlaying = true;
+          updateMusicIcon(true);
+        }).catch(error => {
+          console.log("Chờ người dùng tương tác để phát nhạc...");
+        });
+      }
+      // Chỉ chạy 1 lần rồi xóa sự kiện đi cho nhẹ web
+      document.removeEventListener('click', autoPlayOnFirstInteraction);
+      document.removeEventListener('keydown', autoPlayOnFirstInteraction);
     }
-    
-    // Login Success Animation
-    if (window.location.search.includes("success=1")) {
-      const loginBox = document.getElementById("loginBox");
-      loginBox.style.transition = "all 0.8s ease";
-      loginBox.style.transform = "scale(1.1)";
-      loginBox.style.opacity = "0";
-      setTimeout(() => { window.location.href = "/choose-function"; }, 800);
-    }
+
+    // Lắng nghe cú click hoặc gõ phím đầu tiên
+    document.addEventListener('click', autoPlayOnFirstInteraction);
+    document.addEventListener('keydown', autoPlayOnFirstInteraction);
   </script>
 
+  <script>
+    // --- 5. Logic Slideshow Ảnh Khách Sạn ---
+    const slideshowContainer = document.getElementById('hotel-slideshow');
+    
+    // DANH SÁCH ẢNH (Bạn thay link ảnh khách sạn của bạn vào đây)
+    const hotelImages = [
+      '../static/view.jpg', 
+    ];
+
+    let currentImgIndex = 0;
+
+    // Hàm khởi tạo các thẻ img
+    function initSlideshow() {
+      hotelImages.forEach((src, index) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.className = `slide-image ${index === 0 ? 'active' : ''}`;
+        slideshowContainer.appendChild(img);
+      });
+    }
+
+    // Hàm chuyển đổi ảnh
+    function changeSlide() {
+      const images = document.querySelectorAll('.slide-image');
+      
+      // Tắt ảnh hiện tại
+      images[currentImgIndex].classList.remove('active');
+      
+      // Tăng index (nếu hết ảnh thì quay về 0)
+      currentImgIndex = (currentImgIndex + 1) % images.length;
+      
+      // Bật ảnh tiếp theo
+      images[currentImgIndex].classList.add('active');
+    }
+
+    // Chạy ngay khi tải trang
+    initSlideshow();
+    
+    // Cài đặt thời gian chuyển: 5000ms = 5 giây
+    setInterval(changeSlide, 5000);
+  </script>
+  <script>
+    // --- 6. Logic Đếm ngược đến Tết Bính Ngọ (17/02/2026) ---
+    function startTetCountdown() {
+      // Ngày đích: 17 tháng 2 năm 2026 lúc 00:00:00
+      const tetDate = new Date("February 17, 2026 00:00:00").getTime();
+
+      const updateTimer = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = tetDate - now;
+
+        // Tính toán thời gian
+        const d = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // Hiển thị ra màn hình (thêm số 0 nếu < 10)
+        document.getElementById("days").innerText = d < 10 ? "0" + d : d;
+        document.getElementById("hours").innerText = h < 10 ? "0" + h : h;
+        document.getElementById("minutes").innerText = m < 10 ? "0" + m : m;
+        document.getElementById("seconds").innerText = s < 10 ? "0" + s : s;
+
+        // Nếu đã qua ngày Tết
+        if (distance < 0) {
+          clearInterval(updateTimer);
+          document.getElementById("tet-countdown").innerHTML = 
+            "<div class='text-2xl font-bold text-tet-gold animate-bounce'>🎆 CHÚC MỪNG NĂM MỚI! 🎆</div>";
+        }
+      }, 1000);
+    }
+
+    // Chạy hàm đếm ngược
+    startTetCountdown();
+  </script>
 </body>
 </html>
