@@ -45,24 +45,38 @@ async def export_tasks_to_excel(
     search: str = "",
     trang_thai: str = "",
     han_hoan_thanh: str = "",
+    bo_phan: str = "",  # <--- THÊM THAM SỐ NÀY
     db: Session = Depends(get_db)
 ):
     user_data = request.session.get("user")
     if not user_data or user_data.get("role") not in ["admin", "boss"]:
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập.")
 
-    tasks_query = _get_filtered_tasks_query(db, user_data, chi_nhanh, search, trang_thai, han_hoan_thanh)
+    # Truyền bo_phan vào hàm query chung
+    tasks_query = _get_filtered_tasks_query(
+        db, 
+        user_data, 
+        chi_nhanh, 
+        search, 
+        trang_thai, 
+        han_hoan_thanh, 
+        bo_phan  # <--- TRUYỀN VÀO ĐÂY
+    )
+    
+    # Sắp xếp giống như màn hình danh sách để đồng bộ
     rows_all = tasks_query.order_by(Task.due_date.nullslast()).all()
+    
     if not rows_all:
         return Response(status_code=204, content="Không có dữ liệu để xuất.")
 
     data_for_export = [{
-        "ID": t.id,
-        "Chi Nhánh": t.branch.name if t.branch else '',
-        "Phòng": t.room_number,
+        "ID": t.id_task, # Nên dùng ID Task (mã định danh) thay vì ID database
+        "Chi Nhánh": t.branch.branch_code if t.branch else '', # Dùng mã chi nhánh cho gọn
+        "Vị trí": t.room_number,
+        "Bộ Phận": t.department or "", # <--- THÊM CỘT NÀY VÀO EXCEL
         "Mô Tả": t.description,
         "Ngày Tạo": format_datetime_display(t.created_at, with_time=True),
-        "Hạn Hoàn Thành": format_datetime_display(t.due_date, with_time=False),
+        "Hạn Hoàn Thành": format_datetime_display(t.due_date, with_time=True), # Có giờ để chính xác hơn
         "Trạng Thái": t.status,
         "Người Tạo": t.author.name if t.author else '',
         "Người Thực Hiện": t.assignee.name if t.assignee else '',
@@ -70,15 +84,18 @@ async def export_tasks_to_excel(
         "Ghi Chú": t.notes or "",
     } for t in rows_all]
 
+    # ... (Phần code tạo Excel bên dưới giữ nguyên) ...
     output = io.BytesIO()
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "CongViec"
 
-    headers = list(data_for_export[0].keys())
-    ws.append(headers)
-    for row_data in data_for_export:
-        ws.append(list(row_data.values()))
+    if data_for_export:
+        headers = list(data_for_export[0].keys())
+        ws.append(headers)
+        for row_data in data_for_export:
+            ws.append(list(row_data.values()))
+            
     _auto_adjust_worksheet_columns(ws)
 
     wb.save(output)
