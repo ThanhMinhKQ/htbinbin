@@ -388,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
             params.append('month', month);
             params.append('year', year);
 
-            const exportUrl = `/attendance/calendar-export-excel?${params.toString()}`;
+            const exportUrl = `/api/attendance/calendar-export-excel?${params.toString()}`;
 
             // Thông báo cho người dùng
             const originalContent = this.innerHTML;
