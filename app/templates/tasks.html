@@ -1768,24 +1768,30 @@
       setInterval(checkAndLogoutForShiftChange, 30000);
     </script>
     
-    <script> <!-- Excel Export -->
-      const exportBtn = document.getElementById('export-excel-btn');
+    <script> const exportBtn = document.getElementById('export-excel-btn');
       if (exportBtn) {
         exportBtn.addEventListener('click', function () {
-          const chi_nhanh_el = document.getElementById('filter_chi_nhanh');
-          const chi_nhanh = chi_nhanh_el && chi_nhanh_el.value
-            ? chi_nhanh_el.value
-            : "{{ user['chi_nhanh'] if user['role'] == 'letan' else '' }}";
-          const search_el = document.getElementById('filter_search');
-          const search = search_el ? search_el.value.trim() : '';
-          const trang_thai_el = document.getElementById('filter_trang_thai');
-          const trang_thai = trang_thai_el ? trang_thai_el.value : '';
-          const han_hoan_thanh_el = document.getElementById('filter_han_hoan_thanh');
-          const han_hoan_thanh = han_hoan_thanh_el ? han_hoan_thanh_el.value : '';
-          const params = new URLSearchParams({
-            chi_nhanh, search, trang_thai, han_hoan_thanh
-          });
-          const exportUrl = `/api/tasks/export-excel?${params.toString().replace(/%2F/g, '/')}`;
+          // 1. Lấy form bộ lọc
+          const filterForm = document.getElementById('filterForm');
+          
+          if (!filterForm) {
+            console.error("Không tìm thấy form bộ lọc");
+            return;
+          }
+
+          // 2. Sử dụng FormData để lấy tất cả giá trị hiện tại trong form
+          // Cách này tự động khớp với name="chi_nhanh", name="bo_phan", v.v...
+          const formData = new FormData(filterForm);
+          const params = new URLSearchParams(formData);
+
+          // 3. (Tùy chọn) Nếu user là lễ tân, formData có thể đã có chi_nhanh (hidden input)
+          // nhưng nếu cần chắc chắn logic giống Python, ta có thể kiểm tra thêm ở đây.
+          // Tuy nhiên, FormData đã lấy input[type=hidden] nên thường không cần sửa gì thêm.
+
+          // 4. Tạo URL xuất Excel với query string đầy đủ
+          const exportUrl = `/api/tasks/export-excel?${params.toString()}`;
+          
+          // 5. Mở tab mới để tải file
           window.open(exportUrl, '_blank');
         });
       }
