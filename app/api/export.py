@@ -176,7 +176,9 @@ def export_attendance_calendar_excel(
     year: int = None,
 ):
     """
-    Xuất Excel chấm công (Sheet 1 - 2 dòng) và Dịch vụ (Sheet 2 - 1 dòng gộp)
+    Xuất Excel: 
+    - Sheet 1 (Chấm công): Căn lề trái cho Tên NV và chữ "Tăng ca".
+    - Sheet 2 (Dịch vụ): Giữ nguyên (1 dòng gộp).
     """
     user_data = request.session.get("user")
     if not user_data or user_data.get("role") not in ["admin", "boss"]:
@@ -190,7 +192,7 @@ def export_attendance_calendar_excel(
     _, num_days = calendar.monthrange(current_year, current_month)
     end_date_of_month_query = date(current_year, current_month, num_days) + timedelta(days=1)
 
-    # === 1. LẤY VÀ SẮP XẾP NHÂN VIÊN (GIỮ NGUYÊN) ===
+    # === 1. LẤY DỮ LIỆU (Giữ nguyên) ===
     all_users = db.query(User).options(
         joinedload(User.department), 
         joinedload(User.main_branch)
@@ -212,15 +214,10 @@ def export_attendance_calendar_excel(
     all_users.sort(key=get_sort_key)
     user_main_branch_map = {u.employee_code: u.main_branch.branch_code if u.main_branch else '' for u in all_users}
 
-    housekeeping_users = []
-    for u in all_users:
-        if not u.department: continue
-        r_code = str(u.department.role_code or "").lower()
-        d_name = str(u.department.name or "").lower()
-        if "buồng" in r_code or "buong" in r_code or "buồng" in d_name or "buong" in d_name:
-            housekeeping_users.append(u)
+    housekeeping_users = [u for u in all_users if u.department and 
+                          ("buồng" in str(u.department.role_code).lower() or 
+                           "buong" in str(u.department.role_code).lower())]
 
-    # === 2. LẤY DỮ LIỆU (GIỮ NGUYÊN QUERY) ===
     all_att_records = db.query(AttendanceRecord).options(joinedload(AttendanceRecord.branch)).filter(
         AttendanceRecord.attendance_datetime >= start_date_of_month,
         AttendanceRecord.attendance_datetime < end_date_of_month_query
@@ -231,15 +228,13 @@ def export_attendance_calendar_excel(
         ServiceRecord.service_datetime < end_date_of_month_query
     ).all()
 
-    # === 4. XỬ LÝ DỮ LIỆU (PIVOT) ===
-    
-    # 4a. Pivot Chấm công (Giữ nguyên - vẫn cần tách 2 dòng)
+    # === 4. XỬ LÝ DỮ LIỆU (Giữ nguyên logic Pivot cũ) ===
     data_pivot_att = defaultdict(lambda: defaultdict(lambda: {"main_work": 0.0, "overtime_work": 0.0}))
     for rec in all_att_records:
         dt_local = rec.attendance_datetime.astimezone(VN_TZ)
         work_date = dt_local.date() - timedelta(days=1) if dt_local.hour < 7 else dt_local.date()
         if work_date.month != current_month or work_date.year != current_year: continue
-
+        
         day_num = work_date.day
         emp_code = rec.employee_code_snapshot
         main_branch = user_main_branch_map.get(emp_code)
@@ -252,37 +247,32 @@ def export_attendance_calendar_excel(
         else:
             data_pivot_att[emp_code][day_num]["main_work"] += work_units
 
-    # --- [SỬA ĐỔI QUAN TRỌNG] 4b. Pivot Dịch vụ: GỘP CHUNG GIẶT VÀ ỦI ---
-    # Thay vì tách "Giat" và "Ui", ta cộng hết vào "Total"
     data_pivot_svc = defaultdict(lambda: defaultdict(lambda: {"Total": 0}))
-    
     for svc in all_svc_records:
         dt_local = svc.service_datetime.astimezone(VN_TZ)
         work_date = dt_local.date() - timedelta(days=1) if dt_local.hour < 7 else dt_local.date()
         if work_date.month != current_month or work_date.year != current_year: continue
-
+        
         day_num = work_date.day
         emp_code = svc.employee_code_snapshot
         qty = svc.quantity or 0
         s_type = (svc.service_type or "").lower()
-        
-        # Kiểm tra nếu là giặt hoặc ủi thì cộng vào Total
-        keywords = ['giặt', 'giat', 'ủi', 'ui', 'là']
-        if any(k in s_type for k in keywords):
+        if any(k in s_type for k in ['giặt', 'giat', 'ủi', 'ui', 'là']):
             data_pivot_svc[emp_code][day_num]["Total"] += qty
 
-    # === 5. KHỞI TẠO EXCEL VÀ HÀM VẼ ===
+    # === 5. VẼ EXCEL ===
     wb = openpyxl.Workbook()
     
-    # Fonts & Fills
+    # --- STYLE ---
     header_font = Font(bold=True, color="FFFFFF", name="Arial", size=10)
     header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
     center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
     
+    # [THÊM MỚI] Style căn lề trái
+    left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    
     main_work_fill = PatternFill(start_color="D8E4BC", end_color="D8E4BC", fill_type="solid")
     ot_work_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-    
-    # Màu cho dịch vụ (Dùng chung 1 màu nền sáng cho dòng gộp)
     service_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid") 
 
     cn_fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
@@ -291,12 +281,10 @@ def export_attendance_calendar_excel(
 
     headers = ["STT", "TÊN NHÂN VIÊN"] + [f"{d:02d}" for d in range(1, num_days + 1)] + ["TỔNG CỘNG"]
 
-    # --- [SỬA ĐỔI QUAN TRỌNG] Hàm draw_sheet hỗ trợ chế độ 1 dòng ---
     def draw_sheet(ws, sheet_title, data_source, row1_label, row2_label, row1_key, row2_key, row1_fill, row2_fill, user_list, is_single_row=False):
         ws.title = sheet_title
         ws.append(headers)
 
-        # Header styling
         for col_idx, cell in enumerate(ws[1], 1):
             cell.font = header_font
             cell.fill = header_fill
@@ -305,7 +293,7 @@ def export_attendance_calendar_excel(
             if col_idx > 2 and col_idx <= num_days + 2:
                 day_num = col_idx - 2
                 day_date = date(current_year, current_month, day_num)
-                if day_date.weekday() == 6: # CN
+                if day_date.weekday() == 6: 
                     cell.fill = cn_fill
                     cell.font = cn_font
                     cell.value = f"CN\n{day_num:02d}"
@@ -317,41 +305,35 @@ def export_attendance_calendar_excel(
             emp_code = user.employee_code
             emp_name_with_branch = f"{user.name}_{user.main_branch.branch_code}" if user.main_branch else user.name
             
-            # --- LOGIC CHO CHẾ ĐỘ 1 DÒNG (SHEET DỊCH VỤ) ---
             if is_single_row:
-                # Tên hiển thị: Tên NV - Dịch vụ (ví dụ: Nguyen Van A - Giặt/Ủi)
+                # --- CHẾ ĐỘ 1 DÒNG (SHEET DỊCH VỤ) ---
                 display_name = f"{emp_name_with_branch} - {row1_label}" if row1_label else emp_name_with_branch
-                
                 row_data = [stt, display_name]
                 total_val = 0.0
 
                 for d in range(1, num_days + 1):
                     day_data = data_source[emp_code].get(d, {})
-                    val = day_data.get(row1_key, 0) # Lấy giá trị tổng
-                    
+                    val = day_data.get(row1_key, 0)
                     row_data.append(val if val > 0 else "")
                     total_val += val
                 
                 row_data.append(total_val if total_val > 0 else "")
                 ws.append(row_data)
 
-                # Style cho 1 dòng này
                 ws_row = ws[current_row]
                 for col_idx in range(1, len(headers) + 1):
                     cell = ws_row[col_idx - 1]
                     cell.border = thin_border
                     cell.alignment = center_align
-                    # Tô màu nền cho các ô ngày công
                     if col_idx > 2 and col_idx <= num_days + 2:
-                        cell.fill = row1_fill # Dùng fill truyền vào (service_fill)
+                        cell.fill = row1_fill
                 
                 # Căn lề trái cho tên
-                ws.cell(row=current_row, column=2).alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
-                
-                current_row += 1 # Chỉ tăng 1 dòng
+                ws.cell(row=current_row, column=2).alignment = left_align
+                current_row += 1
             
-            # --- LOGIC CHO CHẾ ĐỘ 2 DÒNG (SHEET CHẤM CÔNG - CŨ) ---
             else:
+                # --- CHẾ ĐỘ 2 DÒNG (SHEET CHẤM CÔNG) ---
                 row1_data = [stt, emp_name_with_branch]
                 row2_data = ["", row2_label]
                 total_row1 = 0.0
@@ -361,19 +343,17 @@ def export_attendance_calendar_excel(
                     day_data = data_source[emp_code].get(d, {})
                     val1 = day_data.get(row1_key, 0)
                     val2 = day_data.get(row2_key, 0)
-
                     row1_data.append(val1 if val1 > 0 else "")
                     row2_data.append(val2 if val2 > 0 else "")
                     total_row1 += val1
                     total_row2 += val2
-
                 row1_data.append(total_row1 if total_row1 > 0 else "")
                 row2_data.append(total_row2 if total_row2 > 0 else "")
 
                 ws.append(row1_data)
                 ws.append(row2_data)
 
-                # Styling và Merge (giữ nguyên logic cũ)
+                # Style cơ bản
                 ws_row1 = ws[current_row]
                 ws_row2 = ws[current_row + 1]
 
@@ -382,20 +362,30 @@ def export_attendance_calendar_excel(
                     cell2 = ws_row2[col_idx - 1]
                     cell1.border = thin_border
                     cell2.border = thin_border
-                    cell1.alignment = center_align
+                    cell1.alignment = center_align # Mặc định căn giữa các ô dữ liệu
                     cell2.alignment = center_align
                     if col_idx > 2 and col_idx <= num_days + 2:
                         cell1.fill = row1_fill
                         cell2.fill = row2_fill
 
+                # Merge STT
                 ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row + 1, end_column=1)
-                ws.merge_cells(start_row=current_row, start_column=2, end_row=current_row, end_column=2)
-                ws.cell(row=current_row, column=2).alignment = center_align
+                ws.cell(row=current_row, column=1).alignment = center_align
+
+                # --- [SỬA] CĂN LỀ TRÁI CHO TÊN VÀ TĂNG CA ---
+                # Dòng 1: Tên nhân viên
+                name_cell = ws.cell(row=current_row, column=2)
+                name_cell.alignment = left_align # <--- Căn trái
+                
+                # Dòng 2: Chữ "Tăng ca"
+                label_cell = ws.cell(row=current_row + 1, column=2)
+                label_cell.alignment = left_align # <--- Căn trái
+                # ---------------------------------------------
+
                 current_row += 2
             
-            stt += 1 # Tăng STT cho người tiếp theo
+            stt += 1
 
-        # Adjust dimensions
         ws.column_dimensions['A'].width = 5
         ws.column_dimensions['B'].width = 30
         for d in range(1, num_days + 1):
@@ -404,8 +394,6 @@ def export_attendance_calendar_excel(
         ws.freeze_panes = "C2"
 
     # === 6. VẼ SHEET ===
-    
-    # Sheet 1: Chấm công (Vẫn giữ chế độ 2 dòng: Công chính + Tăng ca)
     ws1 = wb.active
     draw_sheet(
         ws=ws1, 
@@ -418,23 +406,22 @@ def export_attendance_calendar_excel(
         row1_fill=main_work_fill,
         row2_fill=ot_work_fill,
         user_list=all_users,
-        is_single_row=False # <--- False: Vẽ 2 dòng như cũ
+        is_single_row=False
     )
 
-    # Sheet 2: Dịch vụ (Chế độ 1 dòng: Tổng Giặt + Ủi)
     ws2 = wb.create_sheet()
     draw_sheet(
         ws=ws2,
         sheet_title=f"Dịch vụ T{current_month}",
         data_source=data_pivot_svc,
-        row1_label="Giặt & Ủi", # Label hiển thị cạnh tên
-        row2_label="",         # Không dùng
-        row1_key="Total",      # Key đã gộp ở bước Pivot
-        row2_key="",           # Không dùng
-        row1_fill=service_fill, # Màu nền xanh nhẹ
+        row1_label="Giặt & Ủi",
+        row2_label="",
+        row1_key="Total",
+        row2_key="",
+        row1_fill=service_fill,
         row2_fill=None,
         user_list=housekeeping_users,
-        is_single_row=True     # <--- True: Vẽ 1 dòng duy nhất
+        is_single_row=True
     )
 
     # === 7. XUẤT FILE ===
