@@ -78,6 +78,28 @@ from fastapi.encoders import jsonable_encoder
 
 # Trong file app/api/shift_report.py
 
+def get_date_range_filter(from_date_str: Optional[str], to_date_str: Optional[str]):
+    """
+    Chuyển đổi string input thành khoảng thời gian datetime có timezone.
+    Trả về: (start_time, end_time) hoặc (None, None)
+    """
+    start_time = None
+    end_time = None
+
+    try:
+        if from_date_str:
+            f_date = datetime.strptime(from_date_str, "%Y-%m-%d").date()
+            start_time = datetime.combine(f_date, datetime.min.time()).replace(tzinfo=VN_TZ)
+        
+        if to_date_str:
+            t_date = datetime.strptime(to_date_str, "%Y-%m-%d").date()
+            end_time = datetime.combine(t_date, datetime.max.time()).replace(tzinfo=VN_TZ)
+            
+    except ValueError:
+        logger.warning(f"Lỗi định dạng ngày: from={from_date_str}, to={to_date_str}")
+    
+    return start_time, end_time
+
 def _serialize_transaction(transaction: ShiftReportTransaction) -> dict:
     """
     Phiên bản tối ưu tốc độ: Trả về Dict trực tiếp, KHÔNG DÙNG jsonable_encoder.
@@ -139,25 +161,24 @@ def _get_filtered_transactions(
     search: Optional[str] = None,
     status: Optional[str] = None,
     chi_nhanh: Optional[str] = None,
-    created_date: Optional[str] = None, # SỬA: đổi tên
-    transaction_type: Optional[str] = None, # THÊM
-    recorded_by: Optional[str] = None, # SỬA: đổi tên
-    # --- THÊM: Tham số cho Keyset Pagination ---
-    last_created_datetime: Optional[str] = None, # SỬA: đổi tên
+    # created_date: Optional[str] = None,  <-- XOÁ CÁI NÀY
+    from_date: Optional[str] = None,    # <-- THÊM MỚI
+    to_date: Optional[str] = None,      # <-- THÊM MỚI
+    transaction_type: Optional[str] = None,
+    recorded_by: Optional[str] = None,
+    last_created_datetime: Optional[str] = None,
     last_id: Optional[int] = None,
-    page: Optional[int] = 1, # Giữ lại để tải trang đầu tiên
-    sort_by: Optional[str] = 'created_datetime', # THÊM
-    sort_order: Optional[str] = 'desc', # THÊM
+    page: Optional[int] = 1,
+    sort_by: Optional[str] = 'created_datetime',
+    sort_order: Optional[str] = 'desc',
     active_branch_for_letan: Optional[str] = None
 ) -> Tuple[List[ShiftReportTransaction], int]:
-    """
-    Hàm dịch vụ để lấy danh sách các giao dịch đã được lọc và phân trang.
-    """
-    # SỬA: Query model mới
+    
+    # ... (Giữ nguyên phần khởi tạo query và check role) ...
     query = db.query(ShiftReportTransaction).options(
         joinedload(ShiftReportTransaction.branch),
         joinedload(ShiftReportTransaction.recorder),
-        joinedload(ShiftReportTransaction.closer), # SỬA
+        joinedload(ShiftReportTransaction.closer),
         joinedload(ShiftReportTransaction.deleter)
     )
 
@@ -180,19 +201,18 @@ def _get_filtered_transactions(
         else:
             query = query.filter(ShiftReportTransaction.status == status)
             
-    # THÊM: Filter theo loại giao dịch
     if transaction_type:
         query = query.filter(ShiftReportTransaction.transaction_type == transaction_type)
 
-    # SỬA: Filter theo ngày tạo
-    if created_date:
-        try:
-            filter_date = datetime.strptime(created_date, "%Y-%m-%d").date()
-            start_of_day = datetime.combine(filter_date, datetime.min.time()).replace(tzinfo=VN_TZ)
-            end_of_day = datetime.combine(filter_date, datetime.max.time()).replace(tzinfo=VN_TZ)
-            query = query.filter(ShiftReportTransaction.created_datetime.between(start_of_day, end_of_day))
-        except ValueError:
-            logger.warning(f"Định dạng ngày không hợp lệ cho bộ lọc: {created_date}")
+    # --- LOGIC LỌC NGÀY MỚI (DATE RANGE) ---
+    start_time, end_time = get_date_range_filter(from_date, to_date)
+    
+    if start_time and end_time:
+        query = query.filter(ShiftReportTransaction.created_datetime.between(start_time, end_time))
+    elif start_time:
+        query = query.filter(ShiftReportTransaction.created_datetime >= start_time)
+    elif end_time:
+        query = query.filter(ShiftReportTransaction.created_datetime <= end_time)
 
     if search:
         search_term = search.strip()
@@ -395,22 +415,24 @@ async def shift_report_page(
 # ----------------------------------------------------------------------
 # ENDPOINT API LẤY DỮ LIỆU (SỬA)
 # ----------------------------------------------------------------------
-@router.get("/api", response_model=ShiftTransactionsResponse) # SỬA
-async def api_shift_report_transactions( # SỬA
+@router.get("/api", response_model=ShiftTransactionsResponse)
+async def api_shift_report_transactions(
     request: Request, 
     db: Session = Depends(get_db),
-    page: int = 1, # THÊM: Nhận tham số page
+    page: int = 1,
     per_page: int = 20,
     search: Optional[str] = None,
     status: Optional[str] = None,
     chi_nhanh: Optional[str] = None,
-    created_date: Optional[str] = None, # SỬA
-    transaction_type: Optional[str] = None, # THÊM
-    recorded_by: Optional[str] = None, # SỬA
-    last_created_datetime: Optional[str] = None, # SỬA
+    # created_date: Optional[str] = None, <-- XOÁ
+    from_date: Optional[str] = None,   # <-- THÊM
+    to_date: Optional[str] = None,     # <-- THÊM
+    transaction_type: Optional[str] = None,
+    recorded_by: Optional[str] = None,
+    last_created_datetime: Optional[str] = None,
     last_id: Optional[int] = None,
-    sort_by: Optional[str] = 'created_datetime', # THÊM
-    sort_order: Optional[str] = 'desc', # THÊM
+    sort_by: Optional[str] = 'created_datetime',
+    sort_order: Optional[str] = 'desc',
 ):
     user_data = request.session.get("user")
     if not user_data:
@@ -420,30 +442,30 @@ async def api_shift_report_transactions( # SỬA
     if user_data.get("role") == 'letan' and not chi_nhanh:
         active_branch_for_letan = get_active_branch(request, db, user_data)
 
-    # SỬA: Gọi hàm filter mới
     items, total_records = _get_filtered_transactions(
         db=db,
         user_data=user_data,
         per_page=per_page,
-        page=page, # THÊM: Truyền page vào hàm filter
+        page=page,
         search=search,
         status=status,
         chi_nhanh=chi_nhanh,
-        created_date=created_date,
+        from_date=from_date, # <-- Truyền tham số mới
+        to_date=to_date,     # <-- Truyền tham số mới
         transaction_type=transaction_type,
         recorded_by=recorded_by,
         last_created_datetime=last_created_datetime,
         last_id=last_id,
-        sort_by=sort_by, # THÊM
-        sort_order=sort_order, # THÊM
+        sort_by=sort_by,
+        sort_order=sort_order,
         active_branch_for_letan=active_branch_for_letan
     )
     
-    results = [_serialize_transaction(item) for item in items] # SỬA
+    results = [_serialize_transaction(item) for item in items]
 
     return {
         "records": results,
-        "currentPage": page, # SỬA: Trả về page đã nhận được
+        "currentPage": page,
         "totalPages": math.ceil(total_records / per_page) if per_page > 0 else 1,
         "totalRecords": total_records
     }
@@ -1018,207 +1040,63 @@ async def batch_close_transactions(
 async def get_dashboard_summary(
     request: Request,
     db: Session = Depends(get_db),
-    # --- THÊM: Chấp nhận các tham số lọc từ client ---
     chi_nhanh: Optional[str] = None,
     status: Optional[str] = None,
-    created_date: Optional[str] = None,
+    from_date: Optional[str] = None,
+    to_date: Optional[str] = None,
     transaction_type: Optional[str] = None
 ):
     """
-    API để lấy dữ liệu tổng hợp cho dashboard.
-    Bao gồm:
-    1. Doanh thu theo từng chi nhánh.
-    2. Tổng doanh thu online và tại chi nhánh.
-    (ĐÃ SỬA: Cập nhật logic tính CASH_EXPENSE là doanh thu online dương)
+    API Dashboard tổng hợp (Phiên bản tách biệt Query - Fix triệt để lỗi mất dữ liệu/biểu đồ)
     """
     user_data = request.session.get("user")
     if not user_data:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
+        raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập.")
 
     try:
-        # --- CẬP NHẬT LOGIC TÍNH TOÁN ---
-
-        # 1. Doanh thu Online: Bao gồm OTA, Công ty, Thẻ... VÀ CẢ Chi Tiền Quầy (CASH_EXPENSE)
-        # Tất cả đều tính là dương (+)
-        online_revenue_case = case(
-            (ShiftReportTransaction.transaction_type.in_([
-                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE', 'OTHER'
-            ]), ShiftReportTransaction.amount),
-            else_=0
-        )
-
-        # 2. Doanh thu Chi nhánh
-        branch_revenue_case = case(
-            (ShiftReportTransaction.transaction_type == 'BRANCH_ACCOUNT', ShiftReportTransaction.amount),
-            else_=0
-        )
-
-        # 3. Tổng doanh thu (Dùng cho việc xếp hạng admin)
-        # Bao gồm tất cả các loại phi tiền mặt + chi tiền quầy
-        total_revenue_case = case(
-            (ShiftReportTransaction.transaction_type.in_([
-                'COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'BRANCH_ACCOUNT', 'CASH_EXPENSE', 'OTHER'
-            ]), ShiftReportTransaction.amount),
-            else_=0
-        )
-
-        # 4. Biến phụ để tracking riêng expense (nếu cần hiển thị riêng, nhưng không trừ vào doanh thu)
-        expense_case = case(
-            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', ShiftReportTransaction.amount),
-            else_=0
-        )
-
-        # --- Xây dựng Base Query và áp dụng bộ lọc ---
-
-        # 1. Base Query cho Bảng Giao Dịch (Transactions)
-        active_branch_for_letan = None
-        if user_data.get("role") == 'letan':
-            # Lễ tân chỉ xem các giao dịch PENDING của chi nhánh mình
-            active_branch_for_letan = get_active_branch(request, db, user_data)
-            tx_query = db.query(ShiftReportTransaction).join(
-                ShiftReportTransaction.branch
-            ).filter(
-                ShiftReportTransaction.status == ShiftReportStatus.PENDING.value,
-                Branch.branch_code == active_branch_for_letan
-            )
-        else: # Logic cho Admin/Boss/Quản lý
-            tx_query = db.query(ShiftReportTransaction).filter(
-                ShiftReportTransaction.status.in_([ShiftReportStatus.CLOSED.value, ShiftReportStatus.PENDING.value])
-            )
-
-        # 2. Base Query cho Bảng Log Kết Ca (Logs)
-        log_query = db.query(ShiftCloseLog)
-        if user_data.get("role") == 'letan':
-            log_query = log_query.join(ShiftCloseLog.branch).filter(Branch.branch_code == active_branch_for_letan)
+        # --- 1. CHUẨN BỊ BỘ LỌC CHUNG (FILTERS) ---
+        # Thay vì add filter trực tiếp vào query, ta tạo danh sách điều kiện để tái sử dụng
         
-        # 3. Base Query cho Xếp hạng (Ranking)
-        ranking_tx_query = db.query(ShiftReportTransaction).filter(
-             ShiftReportTransaction.status.in_([ShiftReportStatus.CLOSED.value, ShiftReportStatus.PENDING.value])
-        )
-        ranking_log_query = db.query(ShiftCloseLog)
+        # Lọc ngày tháng
+        start_time, end_time = get_date_range_filter(from_date, to_date)
+        date_filters_tx = [] # Filter cho bảng Transaction
+        date_filters_log = [] # Filter cho bảng Log
 
-
-        # --- Áp dụng bộ lọc Chi Nhánh (chỉ cho vai trò khác Lễ tân) ---
-        if chi_nhanh and user_data.get("role") != 'letan':
-            tx_query = tx_query.join(ShiftReportTransaction.branch).filter(Branch.branch_code == chi_nhanh)
-            log_query = log_query.join(ShiftCloseLog.branch).filter(Branch.branch_code == chi_nhanh)
-            # Ranking không cần chạy khi lọc 1 chi nhánh
-
-        # --- Áp dụng bộ lọc Ngày (hoặc Tháng hiện tại) ---
-        if created_date:
-            try:
-                filter_date = datetime.strptime(created_date, "%Y-%m-%d").date()
-                start_of_day = datetime.combine(filter_date, datetime.min.time()).replace(tzinfo=VN_TZ)
-                end_of_day = datetime.combine(filter_date, datetime.max.time()).replace(tzinfo=VN_TZ)
-                
-                # Lọc bảng transaction
-                tx_query = tx_query.filter(ShiftReportTransaction.created_datetime.between(start_of_day, end_of_day))
-                # Lọc bảng log
-                log_query = log_query.filter(ShiftCloseLog.closed_datetime.between(start_of_day, end_of_day))
-                # Lọc bảng ranking
-                ranking_tx_query = ranking_tx_query.filter(ShiftReportTransaction.created_datetime.between(start_of_day, end_of_day))
-                ranking_log_query = ranking_log_query.filter(ShiftCloseLog.closed_datetime.between(start_of_day, end_of_day))
-
-            except ValueError:
-                logger.warning(f"Định dạng ngày không hợp lệ cho dashboard: {created_date}")
+        if start_time:
+            date_filters_tx.append(ShiftReportTransaction.created_datetime >= start_time)
+            date_filters_log.append(ShiftCloseLog.closed_datetime >= start_time)
         
-        elif user_data.get("role") != 'letan':
-            # NẾU KHÔNG CÓ BỘ LỌC NGÀY, MỚI DÙNG LOGIC THÁNG HIỆN TẠI (Cho Admin/Boss)
+        if end_time:
+            date_filters_tx.append(ShiftReportTransaction.created_datetime <= end_time)
+            date_filters_log.append(ShiftCloseLog.closed_datetime <= end_time)
+        
+        # Mặc định tháng hiện tại nếu không chọn ngày (cho Admin/Boss)
+        if not start_time and not end_time and user_data.get("role") != 'letan':
             now = datetime.now(VN_TZ)
-            current_year = now.year
-            current_month = now.month
-            
-            tx_query = tx_query.filter(
-                extract('year', ShiftReportTransaction.created_datetime) == current_year,
-                extract('month', ShiftReportTransaction.created_datetime) == current_month
-            )
-            log_query = log_query.filter(
-                extract('year', ShiftCloseLog.closed_datetime) == current_year,
-                extract('month', ShiftCloseLog.closed_datetime) == current_month
-            )
-            # Lọc bảng ranking
-            ranking_tx_query = ranking_tx_query.filter(
-                extract('year', ShiftReportTransaction.created_datetime) == current_year,
-                extract('month', ShiftReportTransaction.created_datetime) == current_month
-            )
-            ranking_log_query = ranking_log_query.filter(
-                extract('year', ShiftCloseLog.closed_datetime) == current_year,
-                extract('month', ShiftCloseLog.closed_datetime) == current_month
-            )
+            date_filters_tx.append(extract('month', ShiftReportTransaction.created_datetime) == now.month)
+            date_filters_tx.append(extract('year', ShiftReportTransaction.created_datetime) == now.year)
+            date_filters_log.append(extract('month', ShiftCloseLog.closed_datetime) == now.month)
+            date_filters_log.append(extract('year', ShiftCloseLog.closed_datetime) == now.year)
 
-        # --- Áp dụng các bộ lọc còn lại cho tx_query ---
-        if status and user_data.get("role") != 'letan':
-             tx_query = tx_query.filter(ShiftReportTransaction.status == status)
+        # Lọc chi nhánh
+        active_branch_for_letan = None
+        branch_filter_value = chi_nhanh
 
-        if transaction_type:
-            tx_query = tx_query.filter(ShiftReportTransaction.transaction_type == transaction_type)
+        if user_data.get("role") == 'letan':
+            active_branch_for_letan = get_active_branch(request, db, user_data)
+            branch_filter_value = active_branch_for_letan # Lễ tân bắt buộc lọc theo chi nhánh của mình
+
+        # --- 2. QUERY 1: LỊCH SỬ KẾT CA (Recent Closes) ---
+        # Query này độc lập, luôn Join Branch và Closer để lấy tên hiển thị
+        history_query = db.query(ShiftCloseLog).join(ShiftCloseLog.branch).join(ShiftCloseLog.closer)
         
-
-        # --- THỰC HIỆN CÁC TRUY VẤN ĐÃ LỌC ---
+        if branch_filter_value:
+            history_query = history_query.filter(Branch.branch_code == branch_filter_value)
         
-        # 1. Tổng hợp dữ liệu giao dịch hiện tại (Closed & Pending)
-        revenue_by_type_and_status = tx_query.with_entities(
-            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, online_revenue_case), else_=0)).label('closed_online_revenue'),
-            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, online_revenue_case), else_=0)).label('pending_online_revenue'),
-            
-            # Tracking riêng chi phí (đã nằm trong online_revenue, chỉ lấy ra để hiển thị nếu cần)
-            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, expense_case), else_=0)).label('closed_expense'),
-            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, expense_case), else_=0)).label('pending_expense'),
+        if date_filters_log:
+            history_query = history_query.filter(*date_filters_log)
 
-            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, branch_revenue_case), else_=0)).label('closed_branch_revenue'),
-            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, branch_revenue_case), else_=0)).label('pending_branch_revenue')
-        ).first()
-
-        # 2. Query tổng hợp từ bảng log (Lịch sử đã kết ca)
-        log_summary = log_query.with_entities(
-            func.sum(ShiftCloseLog.pms_revenue).label('total_pms'),
-            func.sum(ShiftCloseLog.closed_online_revenue).label('total_closed_online'),
-            func.sum(ShiftCloseLog.closed_branch_revenue).label('total_closed_branch')
-        ).first()
-
-        # 3. Query xếp hạng (chỉ chạy nếu Admin/Boss và KHÔNG lọc chi nhánh)
-        final_branch_ranking = []
-        if user_data.get("role") in ['admin', 'boss'] and not chi_nhanh:
-            # Query xếp hạng PMS (từ ranking_log_query)
-            branch_pms_ranking = ranking_log_query.join(ShiftCloseLog.branch).with_entities(
-                Branch.branch_code,
-                func.sum(ShiftCloseLog.pms_revenue).label('total_pms_revenue')
-            ).group_by(Branch.branch_code).order_by(desc('total_pms_revenue')).all()
-
-            # Query doanh thu closed/pending (từ ranking_tx_query)
-            closed_revenue_sum = func.sum(case(
-                (ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, total_revenue_case),
-                else_=0
-            )).label('closed_revenue')
-            pending_revenue_sum = func.sum(case(
-                (ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, total_revenue_case),
-                else_=0
-            )).label('pending_revenue')
-            
-            revenue_by_branch = ranking_tx_query.join(ShiftReportTransaction.branch).with_entities(
-                Branch.branch_code,
-                closed_revenue_sum,
-                pending_revenue_sum
-            ).group_by(Branch.branch_code).all()
-            
-            # Kết hợp dữ liệu
-            branch_data_map = {
-                r.branch_code: {"closed_revenue": float(r.closed_revenue or 0.0), "pending_revenue": float(r.pending_revenue or 0.0)}
-                for r in revenue_by_branch
-            }
-            for rank_item in branch_pms_ranking:
-                branch_code = rank_item.branch_code
-                data = branch_data_map.get(branch_code, {"closed_revenue": 0, "pending_revenue": 0})
-                final_branch_ranking.append({
-                    "branch": branch_code,
-                    "pms_revenue": float(rank_item.total_pms_revenue or 0.0),
-                    "closed_revenue": data["closed_revenue"],
-                    "pending_revenue": data["pending_revenue"]
-                })
-
-        # 4. Lịch sử kết ca (từ log_query đã lọc)
-        # SỬA: Bỏ .limit(5) để lấy toàn bộ lịch sử
-        recent_closes = log_query.join(ShiftCloseLog.branch).join(ShiftCloseLog.closer).with_entities(
+        recent_closes = history_query.with_entities(
             ShiftCloseLog.id,
             ShiftCloseLog.pms_revenue,
             ShiftCloseLog.closed_online_revenue,
@@ -1226,54 +1104,139 @@ async def get_dashboard_summary(
             ShiftCloseLog.closed_datetime,
             Branch.branch_code,
             User.name.label("closer_name")
-        ).order_by(
-            desc(ShiftCloseLog.closed_datetime)
-        ).all() # <-- Đã thay đổi từ .limit(5).all() thành .all()
+        ).order_by(desc(ShiftCloseLog.closed_datetime)).limit(50).all() # Limit 50 để không quá tải
 
-        # --- Trả về kết quả ---
+        # --- 3. QUERY 2: TỔNG HỢP LOG (Log Summary) ---
+        # Query này để tính tổng PMS Revenue, Cash Revenue
+        summary_log_query = db.query(ShiftCloseLog)
+        
+        # Nếu có lọc chi nhánh, phải join bảng Branch
+        if branch_filter_value:
+            summary_log_query = summary_log_query.join(ShiftCloseLog.branch).filter(Branch.branch_code == branch_filter_value)
+        
+        if date_filters_log:
+            summary_log_query = summary_log_query.filter(*date_filters_log)
+
+        log_summary = summary_log_query.with_entities(
+            func.sum(ShiftCloseLog.pms_revenue).label('total_pms'),
+            func.sum(ShiftCloseLog.closed_online_revenue).label('total_closed_online'),
+            func.sum(ShiftCloseLog.closed_branch_revenue).label('total_closed_branch')
+        ).first()
+
+        # --- 4. QUERY 3: CHI TIẾT GIAO DỊCH (Transaction Summary) ---
+        # Query này để tính Pending/Closed của Online, Branch...
+        tx_query = db.query(ShiftReportTransaction)
+
+        # Xử lý join và filter cho Transaction
+        if branch_filter_value:
+             tx_query = tx_query.join(ShiftReportTransaction.branch).filter(Branch.branch_code == branch_filter_value)
+
+        # Lọc status
+        if user_data.get("role") == 'letan':
+            tx_query = tx_query.filter(ShiftReportTransaction.status == ShiftReportStatus.PENDING.value)
+        else:
+            tx_query = tx_query.filter(ShiftReportTransaction.status.in_([ShiftReportStatus.CLOSED.value, ShiftReportStatus.PENDING.value]))
+            if status:
+                 tx_query = tx_query.filter(ShiftReportTransaction.status == status)
+
+        if transaction_type:
+            tx_query = tx_query.filter(ShiftReportTransaction.transaction_type == transaction_type)
+        
+        if date_filters_tx:
+            tx_query = tx_query.filter(*date_filters_tx)
+
+        # Định nghĩa các Case tính toán
+        online_rev_case = case(
+            (ShiftReportTransaction.transaction_type.in_(['COMPANY_ACCOUNT', 'OTA', 'UNC', 'CARD', 'CASH_EXPENSE', 'OTHER']), ShiftReportTransaction.amount), else_=0
+        )
+        branch_rev_case = case(
+            (ShiftReportTransaction.transaction_type == 'BRANCH_ACCOUNT', ShiftReportTransaction.amount), else_=0
+        )
+        expense_case = case(
+            (ShiftReportTransaction.transaction_type == 'CASH_EXPENSE', ShiftReportTransaction.amount), else_=0
+        )
+
+        revenue_stats = tx_query.with_entities(
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, online_rev_case), else_=0)).label('closed_online'),
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, online_rev_case), else_=0)).label('pending_online'),
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, expense_case), else_=0)).label('closed_expense'),
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, expense_case), else_=0)).label('pending_expense'),
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value, branch_rev_case), else_=0)).label('closed_branch'),
+            func.sum(case((ShiftReportTransaction.status == ShiftReportStatus.PENDING.value, branch_rev_case), else_=0)).label('pending_branch')
+        ).first()
+
+        # --- 5. QUERY 4: BẢNG XẾP HẠNG (Ranking) ---
+        # Chỉ chạy khi Admin/Boss và KHÔNG chọn chi nhánh cụ thể
+        final_branch_ranking = []
+        if user_data.get("role") in ['admin', 'boss'] and not chi_nhanh:
+            # Ranking dựa trên PMS từ bảng Log
+            ranking_query = db.query(
+                Branch.branch_code,
+                func.sum(ShiftCloseLog.pms_revenue).label('total_pms')
+            ).join(ShiftCloseLog.branch) # Join ngược từ Branch -> Log hoặc Log -> Branch đều được, ở đây query Log group by Branch
+            
+            # Reset query để join chuẩn từ Log
+            ranking_query = db.query(ShiftCloseLog).join(ShiftCloseLog.branch)
+            
+            if date_filters_log:
+                ranking_query = ranking_query.filter(*date_filters_log)
+            
+            pms_ranking = ranking_query.with_entities(
+                Branch.branch_code,
+                func.sum(ShiftCloseLog.pms_revenue).label('total_pms')
+            ).group_by(Branch.branch_code).order_by(desc('total_pms')).all()
+
+            # Lấy thêm info pending/closed revenue từ Transaction để hiển thị phụ (nếu cần)
+            # Để đơn giản và nhanh, ta chỉ map PMS revenue vào
+            for item in pms_ranking:
+                final_branch_ranking.append({
+                    "branch": item.branch_code,
+                    "pms_revenue": float(item.total_pms or 0),
+                    "closed_revenue": 0, # Có thể query thêm nếu cần chi tiết
+                    "pending_revenue": 0
+                })
+
+        # --- 6. TRẢ VỀ KẾT QUẢ ---
         return JSONResponse(content={
             "status": "success",
             "data": {
                 "by_branch": final_branch_ranking,
                 "total_pms_revenue": float(log_summary.total_pms or 0.0),
+                "total_cash_revenue": (float(log_summary.total_pms or 0.0) - float(log_summary.total_closed_online or 0.0) - float(log_summary.total_closed_branch or 0.0)),
                 
-                # Logic Tiền mặt: PMS - (Online + Branch)
-                # Vì Online đã bao gồm cả CASH_EXPENSE (dương), việc trừ đi là chính xác để ra tiền mặt thực tế.
-                "total_cash_revenue": (
-                    float(log_summary.total_pms or 0.0) - 
-                    float(log_summary.total_closed_online or 0.0) - 
-                    float(log_summary.total_closed_branch or 0.0)
-                ),
+                "recent_closes": ([{
+                        "id": r.id, 
+                        "pms_revenue": r.pms_revenue, 
+                        "closed_online_revenue": r.closed_online_revenue,
+                        "closed_branch_revenue": r.closed_branch_revenue,
+                        "closed_datetime": r.closed_datetime.isoformat(), 
+                        "branch_code": r.branch_code, 
+                        "closer_name": r.closer_name
+                    } for r in recent_closes] if recent_closes else []),
                 
-                "recent_closes": (
-                    [
-                        {
-                            "id": r.id, 
-                            "pms_revenue": r.pms_revenue, 
-                            "closed_online_revenue": r.closed_online_revenue,
-                            "closed_branch_revenue": r.closed_branch_revenue,
-                            "closed_datetime": r.closed_datetime.isoformat(), 
-                            "branch_code": r.branch_code, 
-                            "closer_name": r.closer_name}
-                        for r in recent_closes
-                    ]
-                    if recent_closes else []
-                ),
                 "by_type": {
-                    "closed_online": float(revenue_by_type_and_status.closed_online_revenue or 0.0),
-                    "pending_online": float(revenue_by_type_and_status.pending_online_revenue or 0.0),
-                    
-                    "closed_expense": float(revenue_by_type_and_status.closed_expense or 0.0),
-                    "pending_expense": float(revenue_by_type_and_status.pending_expense or 0.0),
-
-                    "closed_branch": float(revenue_by_type_and_status.closed_branch_revenue or 0.0),
-                    "pending_branch": float(revenue_by_type_and_status.pending_branch_revenue or 0.0),
+                    "closed_online": float(revenue_stats.closed_online or 0.0),
+                    "pending_online": float(revenue_stats.pending_online or 0.0),
+                    "closed_expense": float(revenue_stats.closed_expense or 0.0),
+                    "pending_expense": float(revenue_stats.pending_expense or 0.0),
+                    "closed_branch": float(revenue_stats.closed_branch or 0.0),
+                    "pending_branch": float(revenue_stats.pending_branch or 0.0),
                 }
             }
         })
+
     except Exception as e:
         logger.error(f"Lỗi khi lấy dữ liệu dashboard giao ca: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Lỗi server khi lấy dữ liệu dashboard.")
+        # Trả về data rỗng thay vì 500 để Frontend không bị crash
+        return JSONResponse(content={
+            "status": "error", 
+            "message": str(e),
+            "data": { 
+                "by_branch": [], "recent_closes": [], 
+                "by_type": {"closed_online":0, "pending_online":0, "closed_branch":0, "pending_branch":0},
+                "total_pms_revenue": 0, "total_cash_revenue": 0 
+            }
+        })
 
 @router.get("/api/shift-close-details/{log_id}", response_model=dict)
 async def get_shift_close_details(
@@ -1575,7 +1538,6 @@ async def get_all_pending_for_branch(
     db: Session = Depends(get_db),
     # THÊM: Chấp nhận các bộ lọc từ query params
     search: Optional[str] = None,
-    created_date: Optional[str] = None,
     transaction_type: Optional[str] = None
 ):
     """
@@ -1595,30 +1557,38 @@ async def get_all_pending_for_branch(
         raise HTTPException(status_code=403, detail="Không được phép truy cập dữ liệu Giao ca của chi nhánh khác.")
 
     try:
-        # SỬA: Tái sử dụng hàm logic _get_filtered_transactions
+        # --- SỬA ĐOẠN GỌI HÀM NÀY ---
         items, total_records = _get_filtered_transactions(
             db=db,
             user_data=user_data,
-            per_page=999,  # Đặt giới hạn rất cao để lấy tất cả
+            per_page=999,
             page=1,
-            search=search, # Truyền bộ lọc
-            status="PENDING", # Luôn luôn là PENDING cho giao ca
-            chi_nhanh=branch, # Truyền chi nhánh
-            created_date=created_date, # Truyền bộ lọc
-            transaction_type=transaction_type, # Truyền bộ lọc
+            search=search,
+            status="PENDING",
+            chi_nhanh=branch,
+            
+            # LỖI Ở ĐÂY: Bạn đang truyền 'created_date' nhưng hàm _get_filtered_transactions đã xóa tham số này
+            # created_date=created_date,  <-- XÓA DÒNG NÀY
+            
+            # THAY BẰNG: Truyền None hoặc giá trị rỗng cho from_date/to_date 
+            # (Vì giao ca là lấy tất cả pending, không giới hạn ngày)
+            from_date=None, 
+            to_date=None,
+            
+            transaction_type=transaction_type,
             active_branch_for_letan=branch
         )
         
-        # Chuyển đổi dữ liệu
         results = [_serialize_transaction(item) for item in items]
 
         return JSONResponse(content={
             "status": "success", 
-            "transactions": results # Giữ nguyên key "transactions"
+            "transactions": results 
         })
     except Exception as e:
         logger.error(f"Lỗi khi lấy tất cả giao dịch chờ xử lý cho chi nhánh '{branch}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Lỗi server khi lấy dữ liệu.")
+        # Sửa lại return để Frontend nhận được thông báo lỗi rõ ràng hơn thay vì crash
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.post("/api/delete-transaction-from-log/{transaction_id}", response_model=dict)
 async def delete_transaction_from_log(
