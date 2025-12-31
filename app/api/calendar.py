@@ -125,7 +125,8 @@ def view_attendance_calendar(
             
         elif chi_nhanh == 'DI DONG':
             # Với DI DONG, ta cần logic đặc thù: Lấy tất cả, sau này lọc sau
-            pass 
+            att_history_q = att_history_q.filter(AttendanceRecord.main_branch_snapshot == 'DI DONG')
+            svc_history_q = svc_history_q.filter(ServiceRecord.main_branch_snapshot == 'DI DONG')
             
         else:
             # Lọc theo Chi nhánh (B1, B2...) dựa trên branch_id của bản ghi chấm công
@@ -169,18 +170,22 @@ def view_attendance_calendar(
 
         # --- GIAI ĐOẠN 3: BỔ SUNG NHÂN VIÊN HIỆN TẠI (CHƯA CÓ CÔNG) ---
         # Mục đích: Hiển thị nhân viên mới hoặc nhân viên nghỉ làm cả tháng nhưng vẫn thuộc biên chế
-        if chi_nhanh != 'DI DONG': # DI DONG thường dựa vào phát sinh thực tế
-            current_user_query = db.query(User).options(joinedload(User.department), joinedload(User.main_branch))
+        if True: 
+            # Thêm filter(User.is_active == True) để loại bỏ nhân viên đã nghỉ
+            current_user_query = db.query(User).filter(User.is_active == True).options(joinedload(User.department), joinedload(User.main_branch))
             
             if chi_nhanh in role_map_filter:
                 current_user_query = current_user_query.join(User.department).filter(Department.role_code == role_map_filter[chi_nhanh])
             elif chi_nhanh in code_prefix_filter:
                 current_user_query = current_user_query.filter(User.employee_code.startswith(code_prefix_filter[chi_nhanh]))
+            elif chi_nhanh == 'DI DONG':
+                # [MỚI] Thêm logic lọc riêng cho DI DONG
+                current_user_query = current_user_query.join(User.main_branch).filter(Branch.branch_code == 'DI DONG')
             else:
-                 # Lọc theo chi nhánh chính hiện tại
+                 # Lọc theo chi nhánh chính hiện tại (B1, B2...)
                 current_user_query = current_user_query.join(User.main_branch).filter(Branch.branch_code == chi_nhanh)
             
-            # Loại bỏ những người đã được thêm từ lịch sử (target_emp_codes) để tránh ghi đè dữ liệu snapshot
+            # Loại bỏ những người đã được thêm từ lịch sử
             if target_emp_codes:
                 current_user_query = current_user_query.filter(User.employee_code.notin_(target_emp_codes))
             
