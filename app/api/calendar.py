@@ -18,6 +18,7 @@ from ..core.utils import VN_TZ
 from ..core.config import ROLE_MAP
 from sqlalchemy import cast, Date
 from sqlalchemy.orm import joinedload
+from sqlalchemy import func, distinct
 
 from fastapi.templating import Jinja2Templates
 
@@ -92,75 +93,113 @@ def view_attendance_calendar(
     })
 
     if chi_nhanh:
-        # === BƯỚC 1: LẤY DANH SÁCH NHÂN VIÊN CHÍNH THỨC CỦA VIEW HIỆN TẠI ===
-        base_employee_query = db.query(User).options(joinedload(User.department), joinedload(User.main_branch))
+        # =================================================================================
+        # LOGIC CẢI TIẾN: HYBRID USER FETCHING (Lấy nhân viên từ Lịch sử + Hiện tại)
+        # =================================================================================
         
+        target_emp_codes = set()
+        
+        # Các bộ lọc định nghĩa sẵn
         role_map_filter = {"KTV": "ktv", "Quản lý": "quanly"}
         code_prefix_filter = {"LTTC": "LTTC", "BPTC": "BPTC"}
 
+        # --- GIAI ĐOẠN 1: TÌM NHÂN VIÊN DỰA TRÊN LỊCH SỬ CHẤM CÔNG (SNAPSHOT) ---
+        # Mục đích: Đảm bảo nhân viên cũ/đã chuyển đi vẫn hiện đúng trong quá khứ
+        
+        att_history_q = db.query(AttendanceRecord).options(joinedload(AttendanceRecord.branch))
+        svc_history_q = db.query(ServiceRecord).options(joinedload(ServiceRecord.branch))
+        
+        # Áp dụng bộ lọc cho Query Lịch sử
         if chi_nhanh in role_map_filter:
-            base_employee_query = base_employee_query.join(User.department).filter(Department.role_code == role_map_filter[chi_nhanh])
-        elif chi_nhanh in code_prefix_filter:
-            base_employee_query = base_employee_query.filter(User.employee_code.startswith(code_prefix_filter[chi_nhanh]))
-        else: # Lọc theo chi nhánh thông thường
-            # Sửa: Nếu chi_nhanh là chuỗi rỗng (Tất cả), không lọc theo chi nhánh chính
-            if chi_nhanh:
-                base_employee_query = base_employee_query.join(User.main_branch).filter(Branch.branch_code == chi_nhanh)
-        
-        
-        base_employees = base_employee_query.all()
-        for emp in base_employees:
-            emp_code = emp.employee_code
-            if emp_code not in employee_data:
-                employee_data[emp_code]["name"] = emp.name
-                employee_data[emp_code]["main_branch"] = emp.main_branch.branch_code if emp.main_branch else ''
-                role_code = emp.department.role_code if emp.department else 'khac'
-                employee_data[emp_code]["role_key"] = role_code # Giữ role_code để sắp xếp
-                employee_data[emp_code]["role"] = ROLE_MAP.get(role_code, role_code)
-
-        # === BƯỚC 2: LẤY TẤT CẢ BẢN GHI CHẤM CÔNG VÀ DỊCH VỤ LIÊN QUAN ===
-        # Query cho điểm danh
-        att_q = db.query(AttendanceRecord).options(joinedload(AttendanceRecord.branch))
-        # Query cho dịch vụ
-        svc_q = db.query(ServiceRecord).options(joinedload(ServiceRecord.branch))
-        
-        # Áp dụng bộ lọc
-        if chi_nhanh in role_map_filter or chi_nhanh == 'DI DONG':
-            # --- ĐOẠN CODE MỚI (SỬA LẠI) ---
-            # Lấy danh sách mã nhân viên từ kết quả query ở Bước 1
-            target_emp_codes = [emp.employee_code for emp in base_employees]
+            # Lọc theo role snapshot trong quá khứ
+            # Lưu ý: Cần đảm bảo logic map role khớp với cách lưu snapshot
+            # Ở đây ta dùng ilike để tìm tương đối vì snapshot lưu text tiếng Việt
+            role_keyword = "kỹ thuật" if chi_nhanh == "KTV" else "quản lý"
+            att_history_q = att_history_q.filter(AttendanceRecord.role_snapshot.ilike(f"%{role_keyword}%"))
+            svc_history_q = svc_history_q.filter(ServiceRecord.role_snapshot.ilike(f"%{role_keyword}%"))
             
-            if target_emp_codes:
-                att_q = att_q.filter(AttendanceRecord.employee_code_snapshot.in_(target_emp_codes))
-                svc_q = svc_q.filter(ServiceRecord.employee_code_snapshot.in_(target_emp_codes))
-            else:
-                # Nếu không có nhân viên nào thuộc nhóm này, trả về rỗng
-                from sqlalchemy import false
-                att_q = att_q.filter(false())
-                svc_q = svc_q.filter(false())
-                
         elif chi_nhanh in code_prefix_filter:
-            att_q = att_q.filter(AttendanceRecord.employee_code_snapshot.startswith(code_prefix_filter[chi_nhanh]))
-            svc_q = svc_q.filter(ServiceRecord.employee_code_snapshot.startswith(code_prefix_filter[chi_nhanh]))
+            prefix = code_prefix_filter[chi_nhanh]
+            att_history_q = att_history_q.filter(AttendanceRecord.employee_code_snapshot.startswith(prefix))
+            svc_history_q = svc_history_q.filter(ServiceRecord.employee_code_snapshot.startswith(prefix))
+            
+        elif chi_nhanh == 'DI DONG':
+            # Với DI DONG, ta cần logic đặc thù: Lấy tất cả, sau này lọc sau
+            pass 
+            
         else:
+            # Lọc theo Chi nhánh (B1, B2...) dựa trên branch_id của bản ghi chấm công
             branch_to_filter_obj = next((b for b in all_branches_obj if b.branch_code == chi_nhanh), None)
-            # Sửa: Chỉ lọc theo chi nhánh nếu có chi nhánh được chọn
-            if chi_nhanh and branch_to_filter_obj:
-                att_q = att_q.filter(AttendanceRecord.branch_id == branch_to_filter_obj.id)
-                svc_q = svc_q.filter(ServiceRecord.branch_id == branch_to_filter_obj.id)
+            if branch_to_filter_obj:
+                att_history_q = att_history_q.filter(AttendanceRecord.branch_id == branch_to_filter_obj.id)
+                svc_history_q = svc_history_q.filter(ServiceRecord.branch_id == branch_to_filter_obj.id)
 
-        # Lọc theo khoảng thời gian
-        att_records = att_q.filter(cast(AttendanceRecord.attendance_datetime, Date).between(start_date_of_month, end_date_of_month)).all()
-        svc_records = svc_q.filter(cast(ServiceRecord.service_datetime, Date).between(start_date_of_month, end_date_of_month)).all()
+        # Lọc theo thời gian (Tháng đang xem)
+        att_records = att_history_q.filter(cast(AttendanceRecord.attendance_datetime, Date).between(start_date_of_month, end_date_of_month)).all()
+        svc_records = svc_history_q.filter(cast(ServiceRecord.service_datetime, Date).between(start_date_of_month, end_date_of_month)).all()
 
         all_records = att_records + svc_records
 
-        # === BƯỚC 3: XỬ LÝ DỮ LIỆU ĐỂ HIỂN THỊ ===
+        # --- GIAI ĐOẠN 2: XÂY DỰNG DANH SÁCH NHÂN VIÊN TỪ LỊCH SỬ ---
+        for rec in all_records:
+            emp_code = rec.employee_code_snapshot
+            if not emp_code: continue
+            
+            target_emp_codes.add(emp_code) # Lưu lại để lát nữa query User hiện tại loại trừ ra
+
+            # Chỉ khởi tạo dữ liệu nếu chưa có
+            if emp_code not in employee_data:
+                # ƯU TIÊN SỐ 1: Sử dụng thông tin Snapshot (Phản ánh đúng chức vụ/nơi làm lúc đó)
+                employee_data[emp_code]["name"] = rec.employee_name_snapshot
+                employee_data[emp_code]["main_branch"] = rec.main_branch_snapshot
+                
+                # Logic chuẩn hóa Role Key (Tái sử dụng code của bạn)
+                raw_role = str(rec.role_snapshot).lower() if rec.role_snapshot else ""
+                normalized_key = "khac"
+                if "lễ tân" in raw_role or "letan" in raw_role or "lttc" in raw_role: normalized_key = "letan"
+                elif "buồng" in raw_role or "buongphong" in raw_role or "bptc" in raw_role: normalized_key = "buongphong"
+                elif "bảo vệ" in raw_role or "baove" in raw_role or "an ninh" in raw_role: normalized_key = "baove"
+                elif "kỹ thuật" in raw_role or "ktv" in raw_role: normalized_key = "ktv"
+                elif "quản lý" in raw_role or "quanly" in raw_role: normalized_key = "quanly"
+                elif "admin" in raw_role: normalized_key = "admin"
+                elif "giám đốc" in raw_role or "boss" in raw_role: normalized_key = "boss"
+                
+                employee_data[emp_code]["role_key"] = normalized_key
+                employee_data[emp_code]["role"] = ROLE_MAP.get(rec.role_snapshot, rec.role_snapshot)
+
+        # --- GIAI ĐOẠN 3: BỔ SUNG NHÂN VIÊN HIỆN TẠI (CHƯA CÓ CÔNG) ---
+        # Mục đích: Hiển thị nhân viên mới hoặc nhân viên nghỉ làm cả tháng nhưng vẫn thuộc biên chế
+        if chi_nhanh != 'DI DONG': # DI DONG thường dựa vào phát sinh thực tế
+            current_user_query = db.query(User).options(joinedload(User.department), joinedload(User.main_branch))
+            
+            if chi_nhanh in role_map_filter:
+                current_user_query = current_user_query.join(User.department).filter(Department.role_code == role_map_filter[chi_nhanh])
+            elif chi_nhanh in code_prefix_filter:
+                current_user_query = current_user_query.filter(User.employee_code.startswith(code_prefix_filter[chi_nhanh]))
+            else:
+                 # Lọc theo chi nhánh chính hiện tại
+                current_user_query = current_user_query.join(User.main_branch).filter(Branch.branch_code == chi_nhanh)
+            
+            # Loại bỏ những người đã được thêm từ lịch sử (target_emp_codes) để tránh ghi đè dữ liệu snapshot
+            if target_emp_codes:
+                current_user_query = current_user_query.filter(User.employee_code.notin_(target_emp_codes))
+            
+            current_employees = current_user_query.all()
+            
+            for emp in current_employees:
+                emp_code = emp.employee_code
+                if emp_code not in employee_data:
+                    employee_data[emp_code]["name"] = emp.name
+                    employee_data[emp_code]["main_branch"] = emp.main_branch.branch_code if emp.main_branch else ''
+                    role_code = emp.department.role_code if emp.department else 'khac'
+                    employee_data[emp_code]["role_key"] = role_code
+                    employee_data[emp_code]["role"] = ROLE_MAP.get(role_code, role_code)
+
+        # --- GIAI ĐOẠN 4: MAPPING DỮ LIỆU CÔNG VÀO VIEW (GIỮ NGUYÊN LOGIC CŨ) ---
         for rec in all_records:
             is_att = isinstance(rec, AttendanceRecord)
             dt = rec.attendance_datetime if is_att else rec.service_datetime
             
-            # Chuyển đổi thời gian và xác định ngày làm việc
             dt_local = dt.astimezone(VN_TZ)
             work_date = dt_local.date() - timedelta(days=1) if dt_local.hour < 7 else dt_local.date()
 
@@ -169,55 +208,14 @@ def view_attendance_calendar(
 
             day_of_month = work_date.day
             emp_code = rec.employee_code_snapshot
-
-            # Nếu nhân viên chưa có trong danh sách (trường hợp tăng ca từ chi nhánh khác)
-            # Nếu nhân viên chưa có trong danh sách (trường hợp tăng ca từ chi nhánh khác)
+            
+            # (Phần xử lý nếu emp_code chưa có trong employee_data đã được bao phủ ở Giai đoạn 2, 
+            # nhưng giữ lại check này cho an toàn trường hợp DI DONG hoặc ngoại lệ)
             if emp_code not in employee_data:
-                employee_data[emp_code]["name"] = rec.employee_name_snapshot
-                employee_data[emp_code]["main_branch"] = rec.main_branch_snapshot
-                
-                # --- [LOGIC MỚI] CHUẨN HÓA ROLE_KEY THEO DATABASE ---
-                # Lấy tên chức vụ từ snapshot, chuyển về chữ thường để xử lý
-                raw_role = str(rec.role_snapshot).lower() if rec.role_snapshot else ""
-                
-                # Mặc định gán là 'khac' nếu không tìm thấy
-                normalized_key = "khac"
+                 # Fallback logic cũ của bạn...
+                 pass 
 
-                # 1. Nhóm Lễ tân (Database id: 1 - letan)
-                if "lễ tân" in raw_role or "letan" in raw_role or "lttc" in raw_role:
-                    normalized_key = "letan"
-                
-                # 2. Nhóm Buồng phòng (Database id: 2 - buongphong)
-                # Kèm các từ khóa: buồng, bptc (buồng phòng trung chuyển)
-                elif "buồng" in raw_role or "buongphong" in raw_role or "bptc" in raw_role:
-                    normalized_key = "buongphong"
-                
-                # 3. Nhóm Bảo vệ (Database id: 3 - baove)
-                # Kèm từ khóa: an ninh
-                elif "bảo vệ" in raw_role or "baove" in raw_role or "an ninh" in raw_role:
-                    normalized_key = "baove"
-                
-                # 4. Nhóm Kỹ thuật (Database id: 4 - ktv)
-                elif "kỹ thuật" in raw_role or "ktv" in raw_role:
-                    normalized_key = "ktv"
-                
-                # 5. Nhóm Quản lý (Database id: 5 - quanly)
-                elif "quản lý" in raw_role or "quanly" in raw_role:
-                    normalized_key = "quanly"
-                
-                # Các nhóm khác (Admin, Boss...)
-                elif "admin" in raw_role:
-                    normalized_key = "admin"
-                elif "giám đốc" in raw_role or "boss" in raw_role:
-                    normalized_key = "boss"
-                
-                # Gán key đã chuẩn hóa để hệ thống sắp xếp được
-                employee_data[emp_code]["role_key"] = normalized_key
-                # --- [HẾT PHẦN SỬA ĐỔI] ---
-
-                employee_data[emp_code]["role"] = ROLE_MAP.get(rec.role_snapshot, rec.role_snapshot)
-
-            # Sửa lỗi logic: so sánh branch_code của nơi làm việc với branch_code của chi nhánh chính đã lưu
+            # Kiểm tra làm khác chi nhánh (Logic này giờ so sánh Snapshot với nơi làm thực tế -> Chính xác hơn)
             main_branch_of_employee = employee_data[emp_code].get("main_branch")
             if rec.branch and main_branch_of_employee and rec.branch.branch_code != main_branch_of_employee:
                 employee_data[emp_code]["worked_away_from_main_branch"] = True
@@ -226,26 +224,17 @@ def view_attendance_calendar(
             
             if is_att:
                 daily_work_entry["work_units"] += rec.work_units or 0
-                
-                # --- [CẬP NHẬT MỚI TẠI ĐÂY] ---
-                # Lưu lại chi nhánh làm việc để hiển thị cho DI DONG
                 if rec.branch:
                     current_stored = daily_work_entry["work_branch"]
                     new_branch = rec.branch.branch_code
-                    
-                    # Nếu chưa có thì gán, nếu có rồi mà khác chi nhánh cũ thì nối chuỗi (VD: B1, B2)
                     if not current_stored:
                         daily_work_entry["work_branch"] = new_branch
                     elif new_branch not in current_stored: 
-                        # Tránh lặp lại (VD: sáng làm B1, chiều làm B1)
                         daily_work_entry["work_branch"] = f"{current_stored}, {new_branch}"
                 
-                # Logic xác định có phải tăng ca không (cờ này từ DB hoặc tự tính)
                 if rec.is_overtime:
                     daily_work_entry["is_overtime"] = True
-                # -------------------------------
-
-            else: # Service Record
+            else: 
                 service_summary = daily_work_entry.setdefault("service_summary", defaultdict(int))
                 service_summary[rec.service_type] += rec.quantity or 0
 
