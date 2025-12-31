@@ -2,10 +2,10 @@
 # File quản lý danh sách nhân viên - Nguồn dữ liệu gốc (Single Source of Truth)
 # Đã cập nhật code theo quy tắc mới: [role].[viết_tắt_họ_lót][tên] (VD: ktv.ltphuc)
 
-employees = [
+working_staff = [
 #--------------------------------------- BIN BIN HOTEL 1 --------------------------------------------#
     {
-        "employee_id": "NV001", "code": "lt.ptqnhu", "name": "Phạm Thị Quỳnh Như",
+        "employee_id": "NV008", "code": "lt.vtntran", "name": "Võ Thị Ngọc Trân",
         "role": "letan", "branch": "B1", "shift": "CS"
     },
     { 
@@ -34,13 +34,14 @@ employees = [
         "role": "buongphong", "branch": "B2", "shift": "CS"
     },
 #--------------------------------------- BIN BIN HOTEL 3 --------------------------------------------#
-    {
-        "employee_id": "NV008", "code": "lt.vtntran", "name": "Võ Thị Ngọc Trân",
-        "role": "letan", "branch": "B3", "shift": "CS"
-    },
+  
     {
         "employee_id": "NV078", "code": "lt.ttmngoc", "name": "Trần Thuỷ Minh Ngọc",
         "role": "letan", "branch": "B3", "shift": "CS"
+    },
+    {
+        "employee_id": "NV012", "code": "lt.hnhdung", "name": "Huỳnh Nguyễn Hoàng Dung",
+        "role": "letan", "branch": "B3", "shift": "CT"
     },
     {
         "employee_id": "NV010", "code": "bp.tmchau", "name": "Trần Mỹ Châu",
@@ -48,15 +49,11 @@ employees = [
     },
 #--------------------------------------- BIN BIN HOTEL 5 --------------------------------------------#
     {
+        "employee_id": "NV001", "code": "lt.ptqnhu", "name": "Phạm Thị Quỳnh Như",
+        "role": "letan", "branch": "B5", "shift": "CS"
+    },
+    {
         "employee_id": "NV011", "code": "lt.ntctu", "name": "Nguyễn Thị Cẩm Tú", 
-        "role": "letan", "branch": "B5", "shift": "CS"
-    },
-    {
-        "employee_id": "NV075", "code": "lt.lttnga", "name": "Lê Thị Thuý Nga", 
-        "role": "letan", "branch": "B5", "shift": "CS"
-    },
-    {
-        "employee_id": "NV012", "code": "lt.hnhdung", "name": "Huỳnh Nguyễn Hoàng Dung",
         "role": "letan", "branch": "B5", "shift": "CT"
     },
     {
@@ -82,6 +79,10 @@ employees = [
     },
 #--------------------------------------- BIN BIN HOTEL 7 --------------------------------------------#
     {
+        "employee_id": "NV075", "code": "lt.lttnga", "name": "Lê Thị Thuý Nga", 
+        "role": "letan", "branch": "B7", "shift": "CS"
+    },
+    {
         "employee_id": "NV019", "code": "lt.pttri", "name": "Phạm Thành Trí",
         "role": "letan", "branch": "B7", "shift": "CT"
     },
@@ -102,7 +103,10 @@ employees = [
         "employee_id": "NV023", "code": "lt.tpmai", "name": "Tô Phương Mai",
         "role": "letan", "branch": "B8", "shift": "CS"
     },
-    
+    {
+        "employee_id": "NV079", "code": "lt.ttanh", "name": "Tô Tuệ Anh",
+        "role": "letan", "branch": "B8", "shift": "CT"
+    },
     {
         "employee_id": "NV025", "code": "bp.ntnhi", "name": "Nguyễn Thị Nhi",
         "role": "buongphong", "branch": "B8", "shift": "CS"
@@ -137,7 +141,10 @@ employees = [
         "employee_id": "NV032", "code": "lt.ltttrinh", "name": "Lê Thị Thanh Trinh",
         "role": "letan", "branch": "B10", "shift": "CS"
     },
-    
+    {
+        "employee_id": "NV080", "code": "lt.pqphu", "name": "Phan Quốc Phú",
+        "role": "letan", "branch": "B10", "shift": "CT"
+    },
     {
         "employee_id": "NV034", "code": "bp.nttuyet", "name": "Nguyễn Thị Tuyết",
         "role": "buongphong", "branch": "B10", "shift": "CS"
@@ -150,6 +157,10 @@ employees = [
     {
         "employee_id": "NV036", "code": "lt.btttruc", "name": "Bùi Thị Thanh Trúc",
         "role": "letan", "branch": "B11", "shift": "CS"
+    },
+    {
+        "employee_id": "NV044", "code": "lt.thdang", "name": "Trần Hải Đăng", 
+        "role": "letan", "branch": "B11", "shift": "CT"
     },
     {
         "employee_id": "NV037", "code": "lt.kqchung", "name": "Khổng Quang Chung",
@@ -181,7 +192,7 @@ employees = [
         "role": "letan", "branch": "B12", "shift": "CS"
     },
     {
-        "employee_id": "NV044", "code": "lt.thdang", "name": "Trần Hải Đăng", 
+        "employee_id": "NV064", "code": "lt.lhphuc", "name": "Lâm Hồng Phúc",
         "role": "letan", "branch": "B12", "shift": "CT"
     },
     {
@@ -247,7 +258,7 @@ employees = [
         "employee_id": "NV059", "code": "bp.lttam", "name": "Lê Thị Tám",
         "role": "buongphong", "branch": "B16", "shift": "CS"
     },
-#--------------------------------------- BIN BIN HOTEL 17 (MỚI) --------------------------------------------#
+#--------------------------------------- BIN BIN HOTEL 17 --------------------------------------------#
     {
         "employee_id": "NV060", "code": "lt.ttmdiem", "name": "Trần Thị Mỹ Diễm",
         "role": "letan", "branch": "B17", "shift": "CS"
@@ -266,14 +277,9 @@ employees = [
         "role": "letan", "branch": "DI DONG", "shift": None
     },
     {
-        "employee_id": "NV064", "code": "lt.lhphuc", "name": "Lâm Hồng Phúc",
-        "role": "letan", "branch": "DI DONG", "shift": None
-    },
-    {
         "employee_id": "NV065", "code": "lt.ndmluan", "name": "Nguyễn Đỗ Minh Luân",
         "role": "letan", "branch": "DI DONG", "shift": None
     },
-
 #--------------------------------------- BUỒNG PHÒNG CHẠY CA --------------------------------------------#
     {
         "employee_id": "NV067", "code": "bp.ltphuc", "name": "Lê Trọng Phúc",
@@ -292,7 +298,6 @@ employees = [
         "employee_id": "NV070", "code": "ktv.ltphuc", "name": "Lê Trọng Phúc",
         "role": "ktv", "branch": "KTV", "shift": None
     },
-    
     {
         "employee_id": "NV072", "code": "ql.tpnguyen", "name": "Trần Phát Nguyên",
         "role": "quanly", "branch": "QL", "shift": None
@@ -318,37 +323,47 @@ employees = [
         "employee_id": "NV997", "code": "Bin", "name": "Sếp Bin",
         "role": "boss", "branch": "BOSS", "shift": None
     },
+]
 #--------------------------------------- OFF --------------------------------------------#
+off_staff = [
     {
         "employee_id": "NV076", "code": "bp.tpttien", "name": "Trần Phạm Thuỷ Tiên",
-        "role": "buongphong", "branch": "B6", "shift": "CS"
+        "role": "buongphong", "branch": "B6", "shift": "CS", "is_active": False
     },
     {
         "employee_id": "NV018", "code": "lt.ntbhuyen", "name": "Nguyễn Thị Băng Huyền",
-        "role": "letan", "branch": "B7", "shift": "CS"
+        "role": "letan", "branch": "B7", "shift": "CS", "is_active": False
     },
     {
         "employee_id": "NV066", "code": "lt.tttin", "name": "Trần Thiện Tín",
-        "role": "letan", "branch": "DI DONG", "shift": None
+        "role": "letan", "branch": "DI DONG", "shift": None, "is_active": False
     },
     {
         "employee_id": "NV009", "code": "lt.ndkhai", "name": "Nguyễn Đăng Khải",
-        "role": "letan", "branch": "B3", "shift": "CT"
+        "role": "letan", "branch": "B3", "shift": "CT", "is_active": False
     },
     {
         "employee_id": "NV033", "code": "lt.nvhoang", "name": "Nguyễn Văn Hoàng", 
-        "role": "letan", "branch": "B10", "shift": "CT"
+        "role": "letan", "branch": "B10", "shift": "CT", "is_active": False
     },
     {   
         "employee_id": "NV024", "code": "lt.npqbao", "name": "Nguyễn Phi Quốc Bảo",
-        "role": "letan", "branch": "B8", "shift": "CT"
+        "role": "letan", "branch": "B8", "shift": "CT", "is_active": False
     },
     {
         "employee_id": "NV071", "code": "ktv.dthich", "name": "Danh Thích",
-        "role": "ktv", "branch": "KTV", "shift": None
+        "role": "ktv", "branch": "KTV", "shift": None, "is_active": False
     },
     {
         "employee_id": "NV017", "code": "bp.ttphu", "name": "Trần Thanh Phú",
-        "role": "buongphong", "branch": "B6", "shift": "CS"
+        "role": "buongphong", "branch": "B6", "shift": "CS", "is_active": False
     },
+    #--------------------------------------- 10/1 OFF --------------------------------------------#
 ]
+
+# Tự động thêm "is_active": False vào tất cả nhân viên trong off_staff
+for staff in off_staff:
+    staff["is_active"] = False
+
+# Gộp lại thành biến employees để user_service sử dụng
+employees = working_staff + off_staff
