@@ -460,36 +460,51 @@
     <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm mb-6">
         <div class="p-4">
             <div id="search-filters" class="space-y-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 
-                    {% if user.role == 'letan' %}lg:grid-cols-3{% else %}lg:grid-cols-5{% endif %} 
-                    gap-4">        
-                    <!-- 1. Chọn ngày tạo -->
-                    <div>
-                        <input type="text" id="created_date" placeholder="Chọn ngày tạo..." class="datepicker w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <div class="grid grid-cols-12 gap-4">
+
+                    <div class="col-span-12 md:col-span-6 lg:col-span-4 xl:col-span-3">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Thời gian</label>
+                        <div class="flex items-center gap-2">
+                            <div class="relative w-full">
+                                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                </div>
+                                <input type="text" id="from_date" placeholder="Từ ngày"
+                                    class="datepicker w-full py-2.5 pl-9 pr-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition">
+                            </div>
+                            <span class="text-slate-400">-</span>
+                            <div class="relative w-full">
+                                <input type="text" id="to_date" placeholder="Đến ngày"
+                                    class="datepicker w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition">
+                            </div>
+                        </div>
                     </div>
-                    
-                    <!-- 2. Chọn chi nhánh -->
+
                     {% if user.role != 'letan' %}
-                    <div>
-                        <select id="chi_nhanh" @change="currentPage = 1; fetchData(); fetchDashboardSummary()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <div class="col-span-12 md:col-span-6 lg:col-span-2 xl:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Chi Nhánh</label>
+                        <select id="chi_nhanh" @change="currentPage = 1; fetchData(); fetchDashboardSummary()"
+                            class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition cursor-pointer">
                             <option value="" selected>Tất cả chi nhánh</option>
                             {% for b in branches %}<option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>{% endfor %}
                         </select>
                     </div>
                     {% endif %}
 
-                    <!-- 3. Loại giao dịch -->
-                    <div>
-                        <select id="transaction_type" @change="currentPage = 1; fetchData(); fetchDashboardSummary()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <div class="col-span-12 md:col-span-4 {% if user.role == 'letan' %}lg:col-span-3 xl:col-span-3{% else %}lg:col-span-2 xl:col-span-2{% endif %}">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Loại GD</label>
+                        <select id="transaction_type" @change="currentPage = 1; fetchData(); fetchDashboardSummary()"
+                            class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition cursor-pointer">
                             <option value="">Tất cả loại GD</option>
                             {% for t in transaction_types %}<option value="{{ t.value }}" {% if t.value == type_filter %}selected{% endif %}>{{ type_display_map.get(t.value, t.value) }}</option>{% endfor %}
                         </select>
                     </div>
-                    
-                    <!-- 4. Chọn trạng thái -->
-                   {% if user.role != 'letan' %}
-                    <div>
-                        <select id="status" @change="currentPage = 1; fetchData(); fetchDashboardSummary()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+
+                    {% if user.role != 'letan' %}
+                    <div class="col-span-12 md:col-span-4 lg:col-span-2 xl:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Trạng thái</label>
+                        <select id="status" @change="currentPage = 1; fetchData(); fetchDashboardSummary()"
+                            class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition cursor-pointer">
                             <option value="">Tất cả trạng thái</option>
                             {% for s in statuses %}<option value="{{ s.value }}" {% if s.value == status_filter %}selected{% endif %}>{{ status_display_map.get(s.value, s.value) }}</option>{% endfor %}
                             {% if user.role in ['admin', 'boss'] %}<option value="DELETED" class="text-rose-600 font-medium">Đã xoá</option>{% endif %}
@@ -497,28 +512,48 @@
                     </div>
                     {% endif %}
 
-                    <!-- 5. Tìm theo mã GD -->
-                    <div class="lg:col-span-1">
-                        <input type="search" id="search" @keydown.enter.prevent="document.getElementById('apply-filters').click()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Tìm theo mã GD...">
+                    <div class="col-span-12 md:col-span-4 {% if user.role == 'letan' %}lg:col-span-5 xl:col-span-6{% else %}lg:col-span-2 xl:col-span-3{% endif %}">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Tìm kiếm</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                            </div>
+                            <input type="search" id="search"
+                                @keydown.enter.prevent="document.getElementById('apply-filters').click()"
+                                class="w-full py-2.5 pl-10 pr-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition"
+                                placeholder="Nhập mã GD...">
+                        </div>
                     </div>
+
                 </div>
-                <div class="flex flex-wrap justify-between items-center gap-4 pt-2">
-                    <div class="flex items-center gap-3">
-                        <button id="apply-filters" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg shadow-md flex items-center gap-2 font-semibold transition text-sm">Áp dụng</button>
-                        <button id="clear-filters" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-800 dark:text-slate-100 px-5 py-2 rounded-lg flex items-center gap-2 font-medium transition text-sm">Xóa bộ lọc</button>
+
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4 pt-2 border-t border-slate-100 dark:border-slate-700/50 mt-2">
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <button id="apply-filters"
+                            class="flex-1 sm:flex-none justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl shadow-md shadow-blue-500/20 flex items-center gap-2 font-semibold transition text-sm active:scale-95">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                            Áp dụng
+                        </button>
+                        <button id="clear-filters"
+                            class="flex-1 sm:flex-none justify-center bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 font-medium transition text-sm active:scale-95">
+                            <svg class="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            Xóa lọc
+                        </button>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <!-- THÊM LẠI: Nút kết ca cho Admin/Boss/Quản lý -->
-                        <button x-show="userRole === 'admin' || userRole === 'boss' || userRole === 'quanly'" 
-                                @click="closeAllPending()"
-                                class="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-orange-600 hover:to-rose-600 text-white px-5 py-2 rounded-lg shadow-md flex items-center gap-2 font-semibold transition text-sm">
+
+                    <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+                        <button x-show="userRole === 'admin' || userRole === 'boss' || userRole === 'quanly'"
+                            @click="closeAllPending()"
+                            class="flex-1 sm:flex-none justify-center bg-gradient-to-r from-rose-500 to-orange-500 hover:from-orange-600 hover:to-rose-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-orange-500/30 flex items-center gap-2 font-semibold transition text-sm transform hover:-translate-y-0.5">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span>Kết Ca Chi Nhánh</span>
+                            <span>Kết Ca CN</span>
                         </button>
 
-                        <button @click="openAddModal()" class="bg-gradient-to-r from-green-500 to-blue-500 hover:from-blue-600 hover:to-green-600 text-white px-5 py-2 rounded-lg shadow-md flex items-center gap-2 font-semibold transition text-sm">
+                        <button @click="openAddModal()"
+                            class="flex-1 sm:flex-none justify-center bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-teal-600 hover:to-emerald-600 text-white px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-500/30 flex items-center gap-2 font-semibold transition text-sm transform hover:-translate-y-0.5">
                             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-                            <span>Thêm Giao Dịch</span> </button>
+                            <span>Thêm GD</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -814,7 +849,8 @@
                                 </svg>
                             </div>
                             <select id="add_chi_nhanh" name="chi_nhanh" 
-                                :required="userRole === 'admin' || userRole === 'boss' || userRole === 'quanly'"
+                                :required="['admin', 'boss', 'quanly'].includes(userRole)"
+                                :disabled="userRole === 'letan'"
                                 class="block w-full rounded-lg border-0 py-2.5 pl-10 bg-white dark:bg-slate-900 text-slate-900 dark:text-white
                                     ring-1 ring-inset ring-slate-300 dark:ring-slate-700
                                     focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm">
@@ -823,6 +859,7 @@
                             </select>
                         </div>
                     </div>
+
                     <div x-show="userRole === 'letan'" class="relative">
                         <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
                             Chi nhánh
@@ -834,7 +871,8 @@
                                 </svg>
                             </div>
                             <div class="block w-full rounded-lg border-0 py-2.5 pl-10 bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 sm:text-sm font-semibold" x-text="displayBranch"></div>
-                            <input type="hidden" name="chi_nhanh" :value="displayBranch">
+                            
+                            <input type="hidden" name="chi_nhanh" :value="displayBranch" :disabled="userRole !== 'letan'">
                         </div>
                     </div>
                 </div>
@@ -1811,12 +1849,16 @@
             
             init() {
                 // SỬA: Khởi tạo flatpickr ngay trong init và lưu instance
-                this.datePickerInstance = flatpickr("#created_date", {
+                const datePickerConfig = {
                     dateFormat: "Y-m-d",
                     altInput: true,
                     altFormat: "d/m/Y",
                     locale: "vn",
-                });
+                    allowInput: true // Cho phép gõ tay nếu muốn
+                };
+
+                this.fromDatePickerInstance = flatpickr("#from_date", datePickerConfig);
+                this.toDatePickerInstance = flatpickr("#to_date", datePickerConfig);
 
                 this.errorEl = document.getElementById('error');
                 this.recordCountEl = document.getElementById('record-count');
@@ -1841,7 +1883,8 @@
                     const statusEl = document.getElementById('status');
                     if (statusEl) statusEl.value = '';
                     // SỬA: Gọi instance đã lưu trong state của Alpine
-                    if (this.datePickerInstance) this.datePickerInstance.clear();
+                    if (this.fromDatePickerInstance) this.fromDatePickerInstance.clear();
+                    if (this.toDatePickerInstance) this.toDatePickerInstance.clear();
 
                     document.getElementById('transaction_type').value = ''; // THÊM
                     const chiNhanhEl = document.getElementById('chi_nhanh');
@@ -1885,37 +1928,43 @@
             async fetchDashboardSummary() {
                 this.charts.loading = true;
 
-                // Lấy chuỗi query đầy đủ từ bộ lọc (bao gồm cả phân trang)
-                const fullQuery = this.buildQueryString();
+                // --- SỬA ĐỔI BẮT ĐẦU: Tự tạo params riêng cho Dashboard ---
+                const params = new URLSearchParams();
                 
-                // Phân tích chuỗi query và xoá các tham số phân trang
-                const params = new URLSearchParams(fullQuery);
-                params.delete('page');
-                params.delete('per_page');
+                // 1. Chỉ lấy Chi nhánh (Quan trọng để xem lịch sử của chi nhánh nào)
+                const chiNhanhEl = document.getElementById('chi_nhanh');
+                const chi_nhanh = chiNhanhEl ? chiNhanhEl.value : '{{ initial_branch_filter }}';
+                if (chi_nhanh) params.append('chi_nhanh', chi_nhanh);
+
+                // 2. Chỉ lấy Ngày tháng (Để xem lịch sử trong khoảng thời gian)
+                const from_date = document.getElementById('from_date').value;
+                const to_date = document.getElementById('to_date').value;
+                if (from_date) params.append('from_date', from_date);
+                if (to_date) params.append('to_date', to_date);
+
+                // LƯU Ý: KHÔNG append 'status', 'transaction_type', 'search' vào đây
+                // vì chúng sẽ làm sai lệch dữ liệu tổng quan và lịch sử kết ca.
                 
-                // Đây là chuỗi query cuối cùng chỉ chứa các bộ lọc
-                const filterQuery = params.toString(); 
+                const query = params.toString() ? `?${params.toString()}` : '';
+                // --- SỬA ĐỔI KẾT THÚC ---
 
                 try {
-                    // Thêm '?' vào trước chuỗi query nếu nó không rỗng
-                    const query = filterQuery ? `?${filterQuery}` : '';
-                    
-                    // Gửi request đến API dashboard với các tham số lọc
+                    // Gửi request với bộ lọc đã được tinh gọn
                     const response = await fetch(`/shift-report/api/dashboard-summary${query}`);
                     
                     if (!response.ok) throw new Error('Lỗi tải dữ liệu dashboard');
                     
                     const result = await response.json();
                     if (result.status === 'success') {
-                        this.charts.data = result.data; // Gán dữ liệu
-                        this.renderBranchChart(); // Vẽ lại biểu đồ
+                        this.charts.data = result.data; 
+                        this.renderBranchChart();
                     }
                 } catch (error) {
                     console.error("Lỗi fetch dashboard summary:", error);
                 } finally {
                     this.charts.loading = false;
                 }
-            },   
+            },
 
             renderBranchChart() {
                 this.$nextTick(() => {
@@ -2021,18 +2070,30 @@
                 const status = statusEl ? statusEl.value : '';
                 const chiNhanhEl = document.getElementById('chi_nhanh');
                 const chi_nhanh = chiNhanhEl ? chiNhanhEl.value : '{{ initial_branch_filter }}';
-                const created_date = document.getElementById('created_date').value; // SỬA
-                const transaction_type = document.getElementById('transaction_type').value; // THÊM
+                
+                // Lấy giá trị từ 2 ô input mới
+                const from_date = document.getElementById('from_date').value;
+                const to_date = document.getElementById('to_date').value;
+                
+                const transaction_type = document.getElementById('transaction_type').value; 
 
                 this.displayBranch = chi_nhanh;
                 
                 if (search) params.append('search', search.trim());
                 if (status) params.append('status', status);
                 if (chi_nhanh) params.append('chi_nhanh', chi_nhanh);
-                if (created_date) params.append('created_date', created_date); // SỬA
-                if (transaction_type) params.append('transaction_type', transaction_type); // THÊM
+                
+                // --- DÒNG GÂY LỖI CẦN XOÁ ---
+                // if (created_date) params.append('created_date', created_date); 
+                // -----------------------------
 
-                // THÊM: Tham số sắp xếp
+                if (transaction_type) params.append('transaction_type', transaction_type);
+                
+                // Thêm tham số ngày mới vào URL
+                if (from_date) params.append('from_date', from_date);
+                if (to_date) params.append('to_date', to_date);
+
+                // Tham số sắp xếp
                 params.append('sort_by', this.currentSortBy);
                 params.append('sort_order', this.currentSortOrder);
 
@@ -2359,28 +2420,41 @@
                 this.handoverTransactions.list = [];
                 try {
                     const params = new URLSearchParams();
-                    // Lễ tân chỉ query chi nhánh của mình
-                    params.append('branch', this.displayBranch);
+                    
+                    // --- SỬA: Đảm bảo luôn có mã chi nhánh ---
+                    let branchToSend = this.displayBranch;
+                    
+                    // Nếu displayBranch rỗng, thử lấy từ biến user (được inject từ server)
+                    if (!branchToSend && this.user && this.user.last_active_branch) {
+                        branchToSend = this.user.last_active_branch;
+                    }
+                    // Nếu vẫn rỗng, lấy từ biến template Jinja2 gốc
+                    if (!branchToSend) {
+                        branchToSend = '{{ initial_branch_filter }}';
+                    }
 
-                    // Lấy giá trị filter từ UI
-                    const search = document.getElementById('search').value;
-                    const created_date_val = this.datePickerInstance.selectedDates[0] ? 
-                                             this.datePickerInstance.formatDate(this.datePickerInstance.selectedDates[0], "Y-m-d") : '';
-                    const transaction_type = document.getElementById('transaction_type').value;
+                    if (!branchToSend) {
+                        alert("Lỗi: Không xác định được chi nhánh để giao ca. Vui lòng tải lại trang.");
+                        return;
+                    }
 
-                    if (search && search.trim() !== '') params.append('search', search.trim());
-                    if (created_date_val) params.append('created_date', created_date_val);
-                    if (transaction_type) params.append('transaction_type', transaction_type);
+                    params.append('branch', branchToSend);
+                    // ------------------------------------------
 
+                    // Lưu ý: Không append search/date/type ở đây để đảm bảo lấy TOÀN BỘ giao dịch pending
+                    
                     const response = await fetch(`/shift-report/api/all-pending?${params.toString()}`);
                     const result = await response.json();
                     
                     if (result.status === 'success') {
-                        // Gán vào biến tạm để Adapter sử dụng
                         this.handoverTransactions.list = result.transactions;
+                    } else {
+                        console.error("Lỗi server trả về:", result);
+                        alert("Không thể lấy dữ liệu giao ca: " + (result.message || "Lỗi không xác định"));
                     }
                 } catch (error) {
                     console.error('Lỗi fetch giao ca:', error);
+                    alert("Lỗi kết nối khi lấy dữ liệu giao ca.");
                 }
             },
 
@@ -2670,12 +2744,24 @@
                 const formData = new FormData(event.target);
                 
                 // Ghi đè 'amount' bằng giá trị số
-                formData.set('amount', this.getRawAmount());
+                formData.set('amount', this.getRawAmount('add')); // Lưu ý: dùng tham số 'add' cho chính xác
 
                 // Validation
                 const transactionType = formData.get('transaction_type');
                 const amount = formData.get('amount');
+                const chiNhanh = formData.get('chi_nhanh'); // Lấy giá trị chi nhánh
+
+                // --- ĐOẠN CODE CẦN SỬA/THÊM ---
                 
+                // 1. Kiểm tra Chi nhánh (Nếu là Admin/Boss/Quản lý)
+                if (['admin', 'boss', 'quanly'].includes(this.userRole) && !chiNhanh) {
+                    alert('Vui lòng chọn "Chi nhánh" trước khi lưu.');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                    return;
+                }
+
+                // 2. Kiểm tra Loại giao dịch và Số tiền
                 if (!transactionType || !amount || parseInt(amount, 10) === 0) {
                     alert('Vui lòng chọn "Loại giao dịch" và nhập "Số tiền" hợp lệ.');
                     submitBtn.disabled = false;
