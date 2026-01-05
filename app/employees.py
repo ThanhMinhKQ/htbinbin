@@ -306,17 +306,21 @@ working_staff = [
         "employee_id": "NV073", "code": "ql.tnanh", "name": "Trần Ngọc Ánh",
         "role": "quanly", "branch": "QL", "shift": None
     },
-    {
-        "employee_id": "NV074", "code": "ql.ndmluan", "name": "Nguyễn Đỗ Minh Luân",
-        "role": "quanly", "branch": "QL", "shift": None
-    },
 #--------------------------------------- ADMIN & BAN GIÁM ĐỐC --------------------------------------------#
     {
         "employee_id": "NV999", "code": "Tminh", "name": "Vincent Minh",
         "role": "admin", "branch": "ADMIN", "shift": None
     },
     {
-        "employee_id": "NV998", "code": "ad.tlinh", "name": "Thùy Linh",
+        "employee_id": "NV998", "code": "Tlinh", "name": "Thùy Linh",
+        "role": "admin", "branch": "ADMIN", "shift": None
+    },
+    {
+        "employee_id": "NV995", "code": "Mluan", "name": "Nguyễn Đỗ Minh Luân",
+        "role": "admin", "branch": "ADMIN", "shift": None
+    },
+    {
+        "employee_id": "NV996", "code": "Pnguyen", "name": "Trần Phát Nguyên",
         "role": "admin", "branch": "ADMIN", "shift": None
     },
     {
