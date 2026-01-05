@@ -306,6 +306,10 @@ working_staff = [
         "employee_id": "NV073", "code": "ql.tnanh", "name": "Trần Ngọc Ánh",
         "role": "quanly", "branch": "QL", "shift": None
     },
+    {
+        "employee_id": "NV074", "code": "ql.ndmluan", "name": "Nguyễn Đỗ Minh Luân",
+        "role": "quanly", "branch": "QL", "shift": None
+    },
 #--------------------------------------- ADMIN & BAN GIÁM ĐỐC --------------------------------------------#
     {
         "employee_id": "NV999", "code": "Tminh", "name": "Vincent Minh",
