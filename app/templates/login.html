@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="vi" class="h-full">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Đăng Nhập - Bin Bin Hotel Tết 2026</title>
-  
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap"
+    rel="stylesheet">
 
   <script>
     /* Tìm đoạn tailwind.config trong thẻ <head> và BỔ SUNG đoạn có comment bên dưới */
@@ -24,9 +27,9 @@
             'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
             'float-slow': 'float 6s ease-in-out infinite',
             'pulse-slow': 'pulse 3s infinite',
-            
+
             // --- THÊM DÒNG NÀY (Định nghĩa tên animation) ---
-            'breath': 'breathing 5s ease-in-out infinite', 
+            'breath': 'breathing 5s ease-in-out infinite',
           },
           keyframes: {
             fadeInUp: {
@@ -37,7 +40,7 @@
               '0%, 100%': { transform: 'translateY(0)' },
               '50%': { transform: 'translateY(-15px)' },
             },
-            
+
             // --- THÊM ĐOẠN NÀY (Định nghĩa chuyển động) ---
             breathing: {
               '0%, 100%': { transform: 'scale(1)' },   // Trạng thái bình thường
@@ -51,30 +54,40 @@
 
   <style>
     /* Nền Gradient mượt mà */
-    body { 
-        transition: background 0.5s ease; 
-        /* Đã xóa dòng background gradient cũ đi để hiện ảnh */
-        background-color: #1e1b4b; /* Màu nền dự phòng khi ảnh chưa load */
+    body {
+      transition: background 0.5s ease;
+      /* Đã xóa dòng background gradient cũ đi để hiện ảnh */
+      background-color: #1e1b4b;
+      /* Màu nền dự phòng khi ảnh chưa load */
     }
 
     .slide-image {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: cover; /* Giúp ảnh luôn full màn hình không bị méo */
-        opacity: 0;
-        transition: opacity 1.5s ease-in-out, transform 10s ease; /* Fade 1.5s, Zoom nhẹ 10s */
-        transform: scale(1);
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* Giúp ảnh luôn full màn hình không bị méo */
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out, transform 10s ease;
+      /* Fade 1.5s, Zoom nhẹ 10s */
+      transform: scale(1);
     }
 
     .slide-image.active {
-        opacity: 1;
-        transform: scale(1.05); /* Hiệu ứng zoom nhẹ khi ảnh hiện ra */
+      opacity: 1;
+      transform: scale(1.05);
+      /* Hiệu ứng zoom nhẹ khi ảnh hiện ra */
     }
-    html.dark body { background: radial-gradient(circle at center, #1e1b4b, #020617); }
-    html:not(.dark) body { background: radial-gradient(circle at center, #fffbeb, #fef2f2); }
+
+    html.dark body {
+      background: radial-gradient(circle at center, #1e1b4b, #020617);
+    }
+
+    html:not(.dark) body {
+      background: radial-gradient(circle at center, #fffbeb, #fef2f2);
+    }
 
     /* Hiệu ứng Glassmorphism cao cấp */
     .glass-panel {
@@ -84,6 +97,7 @@
       border: 1px solid rgba(255, 255, 255, 0.5);
       box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
     }
+
     .dark .glass-panel {
       background: rgba(15, 23, 42, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -91,19 +105,37 @@
     }
 
     /* Input Styling để tránh cắt chữ tiếng Việt */
-    input { line-height: 1.5; }
-    
+    input {
+      line-height: 1.5;
+    }
+
     /* Animation cho hiệu ứng nền (Mai & Đèn lồng) */
-    .particle { position: absolute; pointer-events: none; transition: all 0.3s ease; }
-    
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
     /* Hoa mai rơi (Light mode) */
     @keyframes fall {
-      0% { transform: translateY(-10vh) rotate(0deg); opacity: 0; }
-      10% { opacity: 1; }
-      100% { transform: translateY(110vh) rotate(360deg); opacity: 0; }
+      0% {
+        transform: translateY(-10vh) rotate(0deg);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(110vh) rotate(360deg);
+        opacity: 0;
+      }
     }
+
     .flower {
-      width: 20px; height: 20px;
+      width: 20px;
+      height: 20px;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD60A'%3E%3Cpath d='M12 2L14.5 9H22L16 13.5L18.5 21L12 16.5L5.5 21L8 13.5L2 9H9.5L12 2Z'/%3E%3C/svg%3E");
       background-size: contain;
       animation: fall linear infinite;
@@ -111,12 +143,24 @@
 
     /* Đèn lồng bay lên (Dark mode) */
     @keyframes rise {
-      0% { transform: translateY(110vh) scale(0.8); opacity: 0; }
-      10% { opacity: 0.8; }
-      100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+      0% {
+        transform: translateY(110vh) scale(0.8);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: translateY(-10vh) scale(1);
+        opacity: 0;
+      }
     }
+
     .lantern {
-      width: 24px; height: 30px;
+      width: 24px;
+      height: 30px;
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D90429'%3E%3Cpath d='M12 2C16.4183 2 20 5.58172 20 10V18C20 18.5523 19.5523 19 19 19H5C4.44772 19 4 18.5523 4 18V10C4 5.58172 7.58172 2 12 2Z'/%3E%3Crect x='8' y='19' width='8' height='3' fill='%23FFD60A'/%3E%3C/svg%3E");
       background-size: contain;
       animation: rise linear infinite;
@@ -125,10 +169,17 @@
   </style>
 </head>
 
-<body class="h-full w-full overflow-hidden text-slate-800 dark:text-slate-100 selection:bg-tet-red selection:text-white relative">
-    <div id="hotel-slideshow" class="fixed inset-0 z-[-1]"></div>
-  
-  <div class="fixed inset-0 z-[-1] bg-black/30 pointer-events-none transition-colors duration-500 dark:bg-black/60"></div>
+<body
+  class="h-full w-full overflow-hidden text-slate-800 dark:text-slate-100 selection:bg-tet-red selection:text-white relative">
+  <!-- Video Background -->
+  <video autoplay muted loop playsinline preload="auto" poster="../static/view_hotel/anhduphong.jpg" id="bg-video"
+    class="fixed inset-0 w-full h-full object-cover z-[-1]">
+    <source src="../static/view_hotel/intro_1.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+
+  <div class="fixed inset-0 z-[-1] bg-black/10 pointer-events-none transition-colors duration-500 dark:bg-black/40">
+  </div>
 
   <div id="bg-effects" class="absolute inset-0 z-0 overflow-hidden pointer-events-none"></div>
 
@@ -136,136 +187,109 @@
 
   <audio id="bg-music" loop>
     <source src="../static/sounds/Tet.mp3" type="audio/mpeg">
-    </audio>
+  </audio>
 
   <div class="relative z-10 w-full h-full flex flex-col md:grid md:grid-cols-5">
 
-    <button id="btn-music" class="absolute top-5 left-5 p-2.5 rounded-full bg-white/50 dark:bg-black/40 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm group z-20">
-        <i id="music-icon" class="ph ph-speaker-slash text-slate-600 dark:text-slate-200 text-xl transition-transform group-hover:scale-110"></i>
+    <button id="btn-music"
+      class="absolute top-5 left-5 p-2.5 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm transition-all shadow-sm group z-20">
+      <i id="music-icon" class="ph ph-speaker-slash text-white text-xl transition-transform group-hover:scale-110"></i>
     </button>
-    
-    <div class="hidden md:flex md:col-span-3 relative items-center justify-center p-12 overflow-hidden group">
-      
-      <div class="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden">
-            <span class="text-[25vw] font-black 
-                text-white/30 
-                drop-shadow-[0_5px_15px_rgba(0,0,0,0.5)]
-                leading-none tracking-tighter 
-                
-                animate-breath 
-                
-                font-['Playfair_Display']">
-            2026
-            </span>
-        </div>
 
-      <div class="relative z-10 text-center">
-
-        <h1 class="text-6xl md:text-7xl font-['Dancing_Script'] font-bold text-transparent bg-clip-text bg-gradient-to-br from-tet-red via-orange-500 to-yellow-500 dark:from-tet-gold dark:via-orange-300 dark:to-yellow-200 drop-shadow-sm mb-2 pb-4 leading-normal animate-fade-in-up" style="animation-delay: 0.2s;">
-          Mừng Xuân Bính Ngọ
-        </h1>
-
-       
-        <div id="tet-countdown" class="flex items-center justify-center gap-4 sm:gap-6 mb-8 animate-fade-in-up">
-            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-white/5 backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500">
-                <span id="days" class="text-3xl sm:text-4xl font-medium text-white font-['Playfair_Display'] drop-shadow-md">00</span>
-                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
-                <span class="text-[9px] sm:text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">Ngày</span>
-            </div>
-
-            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-white/5 backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500 delay-75">
-                <span id="hours" class="text-3xl sm:text-4xl font-medium text-white font-['Playfair_Display'] drop-shadow-md">00</span>
-                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
-                <span class="text-[9px] sm:text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">Giờ</span>
-            </div>
-
-            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-white/5 backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500 delay-100">
-                <span id="minutes" class="text-3xl sm:text-4xl font-medium text-white font-['Playfair_Display'] drop-shadow-md">00</span>
-                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
-                <span class="text-[9px] sm:text-[10px] font-bold text-slate-200 uppercase tracking-[0.2em]">Phút</span>
-            </div>
-
-            <div class="group relative flex flex-col items-center justify-center p-4 w-[72px] sm:w-[85px] h-[85px] sm:h-[100px] rounded-2xl bg-gradient-to-br from-tet-red/20 to-transparent backdrop-blur-md border-t border-l border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-transform duration-500 delay-150">
-                <span class="absolute top-2 right-2 flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tet-gold opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-tet-gold"></span>
-                </span>
-
-                <span id="seconds" class="text-3xl sm:text-4xl font-medium text-tet-gold font-['Playfair_Display'] drop-shadow-md tabular-nums">00</span>
-                <div class="h-[1px] w-8 bg-white/20 my-1"></div>
-                <span class="text-[9px] sm:text-[10px] font-bold text-white uppercase tracking-[0.2em]">Giây</span>
-            </div>
-        </div>
-        <div class="relative w-32 mx-auto mt-8 animate-fade-in-up" style="animation-delay: 0.4s;">
-            <div class="h-[2px] w-full bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent dark:via-[#F6E27A] rounded-full opacity-80"></div>
-
-            <!-- subtle glow -->
-            <div class="absolute inset-0 blur-md bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent dark:via-[#F6E27A]/40"></div>
-        </div>
-        <p class="mt-4 text-sm font-semibold tracking-widest text-slate-500 dark:text-slate-500 uppercase animate-fade-in-up" style="animation-delay: 0.5s;">
-          Bin Bin Hotel Management
-        </p>
-      </div>
-      
+    <!-- LEFT: Empty to show video -->
+    <div class="hidden md:flex md:col-span-3 h-full items-center justify-center">
     </div>
 
-    <div class="col-span-1 md:col-span-2 flex items-center justify-center p-6 w-full">
-      <div class="glass-panel w-full max-w-[420px] p-8 md:p-10 rounded-3xl animate-fade-in-up shadow-2xl relative transition-all duration-300">
+    <!-- RIGHT: Login Form -->
+    <div class="col-span-1 md:col-span-2 flex items-center justify-center p-6 w-full h-full">
+      <div
+        class="glass-panel w-full max-w-[400px] p-8 rounded-3xl animate-fade-in-up shadow-2xl relative transition-all duration-300 backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-white/40">
 
-        <button id="btn-theme" class="absolute top-5 right-5 p-2.5 rounded-full bg-white/50 dark:bg-black/40 hover:bg-white dark:hover:bg-slate-700 transition-all shadow-sm group">
-          <i class="ph ph-sun text-orange-500 text-xl hidden dark:block group-hover:rotate-90 transition-transform"></i>
-          <i class="ph ph-moon text-slate-600 text-xl block dark:hidden group-hover:-rotate-12 transition-transform"></i>
+        <button id="btn-theme"
+          class="absolute top-5 right-5 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors group">
+          <i class="ph ph-sun text-orange-600 text-lg hidden dark:block group-hover:rotate-90 transition-transform"></i>
+          <i
+            class="ph ph-moon text-slate-600 text-lg block dark:hidden group-hover:-rotate-12 transition-transform"></i>
         </button>
 
-        <div class="text-center mb-8">
-            <img src="/static/logo.png" class="h-16 mx-auto mb-4 drop-shadow-md object-contain" alt="Logo Bin Bin" />
-            <p class="text-[11px] font-bold tracking-[0.2em] text-tet-red uppercase mb-1">Bin Bin Hotel</p>
-            <h2 class="text-2xl font-bold text-slate-800 dark:text-white">Đăng Nhập</h2>
+        <div class="text-center mb-6">
+          <!-- Logo size adjusted -->
+          <img src="/static/logo.png" class="h-12 mx-auto mb-3 drop-shadow-sm object-contain" alt="Logo Bin Bin" />
+          <h2 class="text-xl font-bold text-slate-800 dark:text-white uppercase tracking-wide mb-4">Đăng Nhập</h2>
+
+          <!-- Compact Countdown inside Form -->
+          <div id="tet-countdown"
+            class="grid grid-cols-4 gap-2 border-t border-b border-slate-200 dark:border-slate-600/50 py-3 mx-2">
+            <div class="flex flex-col items-center">
+              <span id="days" class="text-xl font-bold text-tet-red dark:text-white font-['Playfair_Display']">00</span>
+              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ngày</span>
+            </div>
+            <div class="flex flex-col items-center border-l border-slate-200 dark:border-slate-700">
+              <span id="hours"
+                class="text-xl font-bold text-slate-800 dark:text-white font-['Playfair_Display']">00</span>
+              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Giờ</span>
+            </div>
+            <div class="flex flex-col items-center border-l border-slate-200 dark:border-slate-700">
+              <span id="minutes"
+                class="text-xl font-bold text-slate-800 dark:text-white font-['Playfair_Display']">00</span>
+              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Phút</span>
+            </div>
+            <div class="flex flex-col items-center border-l border-slate-200 dark:border-slate-700">
+              <span id="seconds"
+                class="text-xl font-bold text-tet-gold font-['Playfair_Display'] tabular-nums">00</span>
+              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Giây</span>
+            </div>
+          </div>
         </div>
 
-        <form method="post" action="/login" class="space-y-5" id="loginForm">
-          
+        <form method="post" action="/login" class="space-y-4" id="loginForm">
+
           <div class="group">
-            <label class="block text-sm font-semibold mb-2 ml-1 text-slate-600 dark:text-slate-300">Mã nhân viên</label>
             <div class="relative">
-              <span class="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-tet-red transition-colors">
-                <i class="ph ph-user text-xl"></i>
+              <span class="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-tet-red transition-colors">
+                <i class="ph ph-user text-lg"></i>
               </span>
-              <input type="text" name="username" class="w-full py-3.5 pl-12 pr-4 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-800/50 focus:outline-none focus:border-tet-red focus:ring-2 focus:ring-tet-red/20 transition-all shadow-sm font-medium" placeholder="Nhập mã số" required />
+              <input type="text" name="username"
+                class="w-full py-3 pl-11 pr-4 rounded-xl border-0 bg-white/80 dark:bg-black/40 text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-tet-red/50 transition-all shadow-inner font-medium text-sm"
+                placeholder="Mã nhân viên" required />
             </div>
           </div>
 
           <div class="group">
-            <label class="block text-sm font-semibold mb-2 ml-1 text-slate-600 dark:text-slate-300">Mật khẩu</label>
             <div class="relative">
-              <span class="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-tet-red transition-colors">
-                <i class="ph ph-lock-key text-xl"></i>
+              <span class="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-tet-red transition-colors">
+                <i class="ph ph-lock-key text-lg"></i>
               </span>
-              <input type="password" id="passwordInput" name="password" class="w-full py-3.5 pl-12 pr-12 rounded-xl border border-slate-200 dark:border-slate-600 bg-white/60 dark:bg-slate-800/50 focus:outline-none focus:border-tet-red focus:ring-2 focus:ring-tet-red/20 transition-all shadow-sm font-medium" placeholder="••••••••" required />
-              
-              <button type="button" id="togglePassword" class="absolute right-4 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none">
-                <i class="ph ph-eye-slash text-xl" id="eyeIcon"></i>
+              <input type="password" id="passwordInput" name="password"
+                class="w-full py-3 pl-11 pr-11 rounded-xl border-0 bg-white/80 dark:bg-black/40 text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-tet-red/50 transition-all shadow-inner font-medium text-sm"
+                placeholder="Mật khẩu" required />
+
+              <button type="button" id="togglePassword"
+                class="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none">
+                <i class="ph ph-eye-slash text-lg" id="eyeIcon"></i>
               </button>
             </div>
           </div>
 
           <div class="flex justify-end">
-            <button type="button" onclick="showForgotPass()" class="text-xs font-semibold text-slate-500 hover:text-tet-red dark:text-slate-400 dark:hover:text-tet-gold transition-colors">
+            <button type="button" onclick="showForgotPass()"
+              class="text-[11px] font-semibold text-slate-600 hover:text-tet-red dark:text-slate-300 dark:hover:text-tet-gold transition-colors">
               Quên mật khẩu?
             </button>
           </div>
 
-          <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-tet-red to-[#b91c1c] text-white font-bold text-lg hover:shadow-lg hover:shadow-tet-red/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2">
-            <span>Đăng Nhập Ngay</span>
-            <i class="ph ph-arrow-right font-bold"></i>
+          <button type="submit"
+            class="w-full py-3 rounded-xl bg-gradient-to-r from-tet-red to-[#b91c1c] text-white font-bold text-base hover:shadow-lg hover:shadow-tet-red/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200">
+            Đăng Nhập
           </button>
         </form>
 
-        <p class="mt-8 text-[11px] text-center text-slate-400 dark:text-slate-500 font-medium">
-          © 2026 Bin Bin Hotel System. All rights reserved.
+        <p class="mt-6 text-[10px] text-center text-slate-500 dark:text-slate-400 font-medium opacity-80">
+          © 2026 Bin Bin Hotel System
         </p>
       </div>
     </div>
+
   </div>
 
   <script>
@@ -283,7 +307,7 @@
       const scale = 0.5 + Math.random() * 0.8;
       // Random thời gian bay
       const duration = (type === 'flower' ? 5 : 8) + Math.random() * 5;
-      
+
       el.classList.add('particle');
       el.classList.add(type);
       el.style.left = `${startX}%`;
@@ -301,7 +325,7 @@
     function startEffects(isDark) {
       // Xóa hiệu ứng cũ
       clearInterval(effectInterval);
-      bgContainer.innerHTML = ''; 
+      bgContainer.innerHTML = '';
 
       const particleType = isDark ? 'lantern' : 'flower';
       const density = 800; // mili-giây tạo ra 1 vật thể
@@ -333,9 +357,9 @@
     togglePassBtn.onclick = () => {
       const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
       passInput.setAttribute('type', type);
-      
+
       // Đổi icon
-      if(type === 'text') {
+      if (type === 'text') {
         eyeIcon.classList.replace('ph-eye-slash', 'ph-eye');
         eyeIcon.classList.add('text-tet-red');
       } else {
@@ -406,51 +430,7 @@
     document.addEventListener('keydown', autoPlayOnFirstInteraction);
   </script>
 
-  <script>
-    // --- 5. Logic Slideshow Ảnh Khách Sạn ---
-    const slideshowContainer = document.getElementById('hotel-slideshow');
-    
-    // DANH SÁCH ẢNH (Bạn thay link ảnh khách sạn của bạn vào đây)
-    const hotelImages = [
-      '../static/view_hotel/B2.jpg',
-      '../static/view_hotel/B3.jpg',
-      '../static/view_hotel/B6.jpg',
-      '../static/view_hotel/B9.jpg',
-      '../static/view_hotel/B15.jpg'
-    ];
 
-    let currentImgIndex = 0;
-
-    // Hàm khởi tạo các thẻ img
-    function initSlideshow() {
-      hotelImages.forEach((src, index) => {
-        const img = document.createElement('img');
-        img.src = src;
-        img.className = `slide-image ${index === 0 ? 'active' : ''}`;
-        slideshowContainer.appendChild(img);
-      });
-    }
-
-    // Hàm chuyển đổi ảnh
-    function changeSlide() {
-      const images = document.querySelectorAll('.slide-image');
-      
-      // Tắt ảnh hiện tại
-      images[currentImgIndex].classList.remove('active');
-      
-      // Tăng index (nếu hết ảnh thì quay về 0)
-      currentImgIndex = (currentImgIndex + 1) % images.length;
-      
-      // Bật ảnh tiếp theo
-      images[currentImgIndex].classList.add('active');
-    }
-
-    // Chạy ngay khi tải trang
-    initSlideshow();
-    
-    // Cài đặt thời gian chuyển: 10000ms = 10 giây
-    setInterval(changeSlide, 10000);
-  </script>
   <script>
     // --- 6. Logic Đếm ngược đến Tết Bính Ngọ (17/02/2026) ---
     function startTetCountdown() {
@@ -476,7 +456,7 @@
         // Nếu đã qua ngày Tết
         if (distance < 0) {
           clearInterval(updateTimer);
-          document.getElementById("tet-countdown").innerHTML = 
+          document.getElementById("tet-countdown").innerHTML =
             "<div class='text-2xl font-bold text-tet-gold animate-bounce'>🎆 CHÚC MỪNG NĂM MỚI! 🎆</div>";
         }
       }, 1000);
@@ -486,4 +466,5 @@
     startTetCountdown();
   </script>
 </body>
+
 </html>
