@@ -73,10 +73,6 @@ working_staff = [
         "employee_id": "NV016", "code": "lt.ntlinh", "name": "Nguyễn Trúc Linh", 
         "role": "letan", "branch": "B6", "shift": "CT"
     },
-    {
-        "employee_id": "NV077", "code": "bp.ntlanh", "name": "Nguyễn Thị Lanh",
-        "role": "buongphong", "branch": "B6", "shift": "CS"
-    },
 #--------------------------------------- BIN BIN HOTEL 7 --------------------------------------------#
     {
         "employee_id": "NV075", "code": "lt.lttnga", "name": "Lê Thị Thuý Nga", 
@@ -364,6 +360,10 @@ off_staff = [
     },
     {
         "employee_id": "NV017", "code": "bp.ttphu", "name": "Trần Thanh Phú",
+        "role": "buongphong", "branch": "B6", "shift": "CS", "is_active": False
+    },
+    {
+        "employee_id": "NV077", "code": "bp.ntlanh", "name": "Nguyễn Thị Lanh",
         "role": "buongphong", "branch": "B6", "shift": "CS", "is_active": False
     },
     #--------------------------------------- 10/1 OFF --------------------------------------------#
