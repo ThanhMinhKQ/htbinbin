@@ -30,8 +30,15 @@
 
             // --- THÊM DÒNG NÀY (Định nghĩa tên animation) ---
             'breath': 'breathing 5s ease-in-out infinite',
+            'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
           },
           keyframes: {
+            shake: {
+              '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+              '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+              '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+              '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+            },
             fadeInUp: {
               '0%': { opacity: '0', transform: 'translateY(20px)' },
               '100%': { opacity: '1', transform: 'translateY(0)' },
@@ -241,6 +248,21 @@
             </div>
           </div>
         </div>
+
+        <!-- Error Notification -->
+        {% if error and error|trim|length > 0 %}
+        <div
+          class="mb-5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-tet-red/30 flex items-center gap-3 animate-shake">
+          <div
+            class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-800/50 text-tet-red flex items-center justify-center shrink-0">
+            <i class="ph ph-warning-circle text-xl"></i>
+          </div>
+          <div class="text-left">
+            <p class="text-xs font-bold text-tet-red uppercase tracking-wider mb-0.5">Đăng nhập thất bại</p>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ error }}</p>
+          </div>
+        </div>
+        {% endif %}
 
         <form method="post" action="/login" class="space-y-4" id="loginForm">
 
@@ -464,6 +486,16 @@
 
     // Chạy hàm đếm ngược
     startTetCountdown();
+
+    // CLEAR ERROR PARAMS FROM URL
+    if (window.history.replaceState) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('error')) {
+        url.searchParams.delete('error');
+        url.searchParams.delete('role');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    }
   </script>
 </body>
 
