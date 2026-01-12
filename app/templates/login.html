@@ -178,14 +178,11 @@
 
 <body
   class="h-full w-full overflow-hidden text-slate-800 dark:text-slate-100 selection:bg-tet-red selection:text-white relative">
-  <!-- Static Background (Visible on Mobile & while Video loads) -->
-  <div class="fixed inset-0 z-[-2]">
-    <img src="../static/view_hotel/anhduphong.jpg" class="w-full h-full object-cover" alt="Background">
-  </div>
-
-  <!-- Video Background (Desktop Only - Lazy Load) -->
-  <video muted loop playsinline id="bg-video"
-    class="fixed inset-0 w-full h-full object-cover z-[-1] opacity-0 transition-opacity duration-1000 hidden md:block">
+  <!-- Video Background (Immediate Autoplay) -->
+  <video autoplay muted loop playsinline preload="auto" id="bg-video"
+    class="fixed inset-0 w-full h-full object-cover z-[-1]">
+    <source src="../static/view_hotel/intro_1.webm" type="video/webm">
+    <source src="../static/view_hotel/intro_1.mp4" type="video/mp4">
   </video>
 
   <div class="fixed inset-0 z-[-1] bg-black/10 pointer-events-none transition-colors duration-500 dark:bg-black/40">
@@ -487,19 +484,7 @@
       }, 1000);
     }
 
-    // OPTIMIZED VIDEO LOADING
-    const video = document.getElementById('bg-video');
-    // Chỉ tải video trên màn hình lớn (Tablet/Desktop)
-    if (window.matchMedia('(min-width: 768px)').matches && video) {
-      video.src = "../static/view_hotel/intro_1.mp4";
-      video.load();
-
-      // Khi video sẵn sàng -> Fade in
-      video.oncanplay = () => {
-        video.play().catch(e => console.log("Auto-play prevented:", e));
-        video.classList.remove('opacity-0');
-      };
-    }
+    // OPTIMIZED VIDEO LOADING - REMOVED (Direct Autoplay)
 
     // Chạy hàm đếm ngược
     startTetCountdown();
