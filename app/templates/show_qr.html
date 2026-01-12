@@ -1,507 +1,340 @@
 <!DOCTYPE html>
 <html lang="vi" class="h-full">
+
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Check-in Giáng Sinh - Bin Bin Hotel</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-  
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: {
-            sans: ["Quicksand", "system-ui", "sans-serif"]
-          },
-          colors: {
-            xmas: {
-              red: '#D42426',
-              green: '#146B3A',
-              gold: '#F8B229',
-              dark: '#0F172A'
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Điểm Danh - Bin Bin Hotel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Quicksand', 'sans-serif']
+                    },
+                    colors: {
+                        tet: { red: '#D90429', gold: '#FFD60A', dark: '#020617' }
+                    },
+                    animation: {
+                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+                        'pulse-slow': 'pulse 3s infinite',
+                        'glow-pulse': 'glowPulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        glowPulse: {
+                            '0%, 100%': {
+                                boxShadow: '0 0 15px 0px rgba(217, 4, 41, 0.2)',
+                                borderColor: 'rgba(217, 4, 41, 0.3)',
+                                transform: 'scale(1)'
+                            },
+                            '50%': {
+                                boxShadow: '0 0 40px 10px rgba(217, 4, 41, 0.6)',
+                                borderColor: 'rgba(217, 4, 41, 0.8)',
+                                transform: 'scale(1.02)'
+                            }
+                        }
+                    }
+                }
             }
-          },
-          animation: {
-            'float': 'float 6s ease-in-out infinite',
-            'shine': 'shine 3s linear infinite',
-            'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
-            // UPDATE: Hiệu ứng nhịp thở 4s mượt mà
-            'glow-pulse': 'glowPulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-          },
-          keyframes: {
-            float: {
-              '0%, 100%': { transform: 'translateY(0)' },
-              '50%': { transform: 'translateY(-10px)' },
-            },
-            shine: {
-              '0%': { backgroundPosition: '200% center' },
-              '100%': { backgroundPosition: '-200% center' },
-            },
-            // UPDATE: Keyframes mới cho hiệu ứng thở
-            glowPulse: {
-              '0%, 100%': { 
-                boxShadow: '0 0 15px 0px rgba(56, 189, 248, 0.2)', 
-                borderColor: 'rgba(56, 189, 248, 0.3)',
-                transform: 'scale(1)' 
-              },
-              '50%': { 
-                // Bóng đổ lan rộng và sáng hơn
-                boxShadow: '0 0 40px 10px rgba(56, 189, 248, 0.7)', 
-                borderColor: 'rgba(56, 189, 248, 0.9)',
-                // Phóng to nhẹ 2% để tạo nhịp
-                transform: 'scale(1.02)' 
-              }
-            }
-          }
         }
-      }
-    }
-  </script>
-  <style>
-    /* Nền tối mặc định */
-    .dark body {
-        background: radial-gradient(circle at 50% 30%, #1e293b, #0f172a, #450a0a) !important;
-    }
-    
-    /* Nền sáng mới - gradient xanh-trắng Giáng Sinh */
-    body {
-        background: linear-gradient(to bottom right, #e0f2fe, #ffffff);
-    }
+    </script>
+    <style>
+        /* High Contrast Glassmorphism */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            /* Tăng độ đục cho nền sáng */
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.25);
+        }
 
-    /* Sửa lỗi nền tối bị ghi đè */
-    html.dark body {
-        background: radial-gradient(circle at 50% 30%, #1e293b, #0f172a, #450a0a);
-    }
+        .dark .glass-panel {
+            background: rgba(2, 6, 23, 0.85);
+            /* Tăng độ đục cho nền tối */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
+        }
 
-    html:not(.dark) body {
-        background: linear-gradient(to bottom right, #e0f2fe, #ffffff);
-    }
-
-    .glass-card {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.6);
-        box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
-    }
-    .dark .glass-card {
-        background: rgba(15, 23, 42, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .text-gold-gradient {
-        background: linear-gradient(to right, #b45309, #fbbf24, #b45309);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-size: 200% auto;
-        animation: shine 4s linear infinite;
-    }
-    .dark .text-gold-gradient {
-        background: linear-gradient(to right, #fcd34d, #fffbeb, #fcd34d);
-        -webkit-background-clip: text;
-        background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-size: 200% auto;
-    }
-
-    /* UPDATE: Class mới cho hiệu ứng thở xanh dương */
-    .qr-glow-blue {
-        border-width: 2px; /* Border mỏng hơn cho tinh tế */
-        border-style: solid;
-        border-radius: 1rem; /* Bo góc trùng với container */
-        animation: glowPulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        will-change: transform, box-shadow; /* Tối ưu hiệu năng render */
-    }
-
-  </style>
+        .qr-glow-tet {
+            border-width: 2px;
+            border-style: solid;
+            border-radius: 1rem;
+            will-change: transform, box-shadow;
+            animation: glowPulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
 </head>
-<body class="h-full flex items-center justify-center relative overflow-hidden text-slate-800 dark:text-slate-100">
 
-  <canvas id="snowCanvas" class="absolute inset-0 pointer-events-none z-0"></canvas>
-  
-  <audio id="bg-audio" loop>
-      <source src='/static/sounds/Tet.mp3' type="audio/mpeg">
-  </audio>
+<body
+    class="h-full w-full overflow-hidden text-slate-900 dark:text-slate-100 selection:bg-tet-red selection:text-white relative flex items-center justify-center">
 
-  <div class="w-full max-w-4xl px-4 z-10 animate-fade-in-up">
-    
-    <div class="glass-card rounded-[2rem] p-8 md:p-12 relative overflow-visible">
-        
-        <div class="absolute top-4 right-4 z-20 flex gap-2">
-            <button id="btn-music" class="p-2 rounded-full bg-white/50 dark:bg-black/20 hover:bg-white/80 transition shadow-sm group border border-white/20">
-                <div id="icon-music-on" class="hidden relative w-5 h-5 flex items-center justify-center">
-                    <span class="absolute w-full h-full border border-red-500 rounded-full opacity-0 animate-ping-slow"></span>
-                    <svg class="w-5 h-5 text-xmas-red" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77zm-4 0c-4.01.91-7 4.49-7 8.77s2.99 7.86 7 8.77v-2.06c-2.89-.86-5-3.54-5-6.71s2.11-5.85 5-6.71V3.23zM9 13.5h2.83L14.17 16V8L11.83 10.5H9v3z"/></svg>
-                </div>
-                <div id="icon-music-off" class="w-5 h-5 flex items-center justify-center">
-                    <svg class="w-5 h-5 text-slate-500 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" stroke-miterlimit="10"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
-                </div>
-            </button>
+    <!-- Video Background -->
+    <video autoplay muted loop playsinline preload="auto" poster="../static/view_hotel/anhduphong.jpg" id="bg-video"
+        class="fixed inset-0 w-full h-full object-cover z-[-1]">
+        <source src="../static/view_hotel/intro_1.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
 
-            <button id="btn-theme" class="p-2 rounded-full bg-white/50 dark:bg-black/20 hover:bg-white/80 transition shadow-sm border border-white/20">
-                <svg id="icon-sun" class="w-5 h-5 text-yellow-600 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
-                <svg id="icon-moon" class="w-5 h-5 text-slate-600 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
-            </button>
-        </div>
+    <!-- Overlay tối hơn một chút để tách biệt video với nội dung -->
+    <div class="fixed inset-0 z-[-1] bg-black/20 dark:bg-black/50 pointer-events-none transition-colors duration-500">
+    </div>
 
-        <div class="grid md:grid-cols-2 gap-10 items-center">
-            
-            <div class="flex flex-col items-center justify-center relative">
-                
-                <div class="absolute -top-24 -right-10 w-32 h-32 z-0 pointer-events-none drop-shadow-xl filter animate-float">
-                  <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <rect x="20" y="90" width="90" height="90" rx="8" fill="#D42426"/>
-                      <rect x="55" y="90" width="20" height="90" fill="#F8B229"/>
-                      <rect x="20" y="125" width="90" height="20" fill="#F8B229"/>
-                      <path d="M55 90 C 55 60, 25 60, 25 90 L 65 90 C 65 60, 95 60, 95 90" stroke="#F8B229" stroke-width="6" fill="none" stroke-linecap="round"/>
-                      <g transform="translate(110, 70)">
-                          <path d="M-25 -35 L -10 0 M -25 -20 L -35 -45" stroke="#8B4513" stroke-width="5" stroke-linecap="round"/>
-                          <path d="M25 -35 L 10 0 M 25 -20 L 35 -45" stroke="#8B4513" stroke-width="5" stroke-linecap="round"/>
-                          <ellipse cx="0" cy="0" rx="40" ry="38" fill="#A0522D"/>
-                          <ellipse cx="0" cy="18" rx="22" ry="15" fill="#D2B48C"/>
-                          <circle cx="0" cy="12" r="10" fill="#D42426"/>
-                          <circle cx="-14" cy="-5" r="4" fill="#3E2723"/>
-                          <circle cx="14" cy="-5" r="4" fill="#3E2723"/>
-                      </g>
-                  </svg>
-                </div>
+    <audio id="bg-music" loop>
+        <source src='/static/sounds/Tet.mp3' type="audio/mpeg">
+    </audio>
 
-                <div class="bg-white p-6 rounded-2xl qr-glow-blue relative z-20 shadow-lg">
-                    <canvas id="qrcode" class="block w-[220px] h-[220px]"></canvas>
-                </div>
+    <!-- Main Container -->
+    <div class="w-full max-w-4xl px-4 z-10 animate-fade-in-up">
 
-                <div class="mt-8 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm border border-white/40 px-5 py-2 rounded-full flex items-center gap-3 shadow-sm relative z-20">
-                    <span class="relative flex h-3 w-3">
-                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                    </span>
-                    <span id="status-text" class="text-sm font-bold text-slate-700 dark:text-slate-300">Đang chờ quét mã...</span>
-                </div>
+        <div class="glass-panel rounded-[2.5rem] p-8 md:p-12 relative overflow-visible shadow-2xl">
+
+            <!-- Controls -->
+            <div class="absolute top-6 right-6 z-20 flex gap-3">
+                <button id="btn-music"
+                    class="p-2.5 rounded-full bg-slate-100/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition shadow-sm border border-slate-200 dark:border-slate-700 group">
+                    <i id="music-icon"
+                        class="ph ph-speaker-slash text-slate-700 dark:text-slate-200 text-lg group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                <button id="btn-theme"
+                    class="p-2.5 rounded-full bg-slate-100/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition shadow-sm border border-slate-200 dark:border-slate-700 group">
+                    <i
+                        class="ph ph-sun text-orange-500 text-lg hidden dark:block group-hover:rotate-90 transition-transform"></i>
+                    <i
+                        class="ph ph-moon text-slate-700 text-lg block dark:hidden group-hover:-rotate-12 transition-transform"></i>
+                </button>
             </div>
 
-            <div class="flex flex-col justify-center text-center md:text-left">
-                
-                <div class="mb-6">
-                    <h3 class="text-sm font-bold text-xmas-red uppercase tracking-widest mb-1">Bin Bin Hotel</h3>
-                    <h1 class="text-3xl md:text-4xl font-bold leading-tight">
-                        Check-in <br>
-                        <span class="text-gold-gradient text-4xl md:text-5xl">Giáng Sinh</span> 🎄
-                    </h1>
-                </div>
+            <div class="grid md:grid-cols-2 gap-10 items-center">
 
-                <div class="grid grid-cols-1 gap-4 mb-6">
-                    <div class="flex items-center gap-4 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 transition-transform hover:scale-[1.02]">
-                        <div class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 flex items-center justify-center shadow-sm">
-                            <svg viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7">
-                                <path d="M9.75 2C8.5 2 7.5 3 7.5 4.25V13.5C7.5 16 5.5 17.5 3.5 17.5C2.5 17.5 1.5 18.5 1.5 19.5C1.5 20.9 2.6 22 4 22C6.5 22 8.5 20.5 10 19V5.5H16.5C17.9 5.5 19 6.6 19 8V11H21.5V8C21.5 5.2 19.3 3 16.5 3H9.75V2Z" />
-                                <path d="M16 2H10V5H16V2Z" opacity="0.5"/>
-                            </svg>
+                <!-- Left: Informations -->
+                <div class="flex flex-col text-center md:text-left order-2 md:order-1">
+
+                    <div class="mb-8 pl-1">
+                        <h1
+                            class="text-5xl md:text-6xl font-['Dancing_Script'] font-bold leading-normal text-transparent bg-clip-text bg-gradient-to-r from-tet-red to-orange-500 dark:from-tet-gold dark:to-yellow-300 drop-shadow-sm pb-1">
+                            Điểm Danh
+                        </h1>
+                    </div>
+
+                    <div class="space-y-4 mb-6">
+                        <!-- User Info -->
+                        <div
+                            class="flex items-center gap-4 p-4 rounded-2xl bg-slate-100/60 dark:bg-slate-900/60 backdrop-blur-sm border border-slate-200 dark:border-slate-800 transition-transform hover:scale-[1.02]">
+                            <div
+                                class="w-12 h-12 rounded-full bg-white dark:bg-slate-800 text-tet-red shadow-sm flex items-center justify-center">
+                                <i class="ph ph-user text-2xl"></i>
+                            </div>
+                            <div class="text-left">
+                                <p
+                                    class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                                    Nhân viên</p>
+                                <p class="font-bold text-slate-900 dark:text-white text-lg truncate">{{ user.name }}</p>
+                            </div>
                         </div>
-                        <div class="text-left">
-                            <p class="text-xs text-blue-600 dark:text-blue-400 font-bold uppercase">Nhân viên</p>
-                            <p class="font-bold text-slate-800 dark:text-white text-lg truncate">{{ user.name }}</p>
+
+                        <!-- Shift Info -->
+                        <div id="shiftNotice"
+                            class="hidden items-center gap-4 p-4 rounded-2xl bg-slate-100/60 dark:bg-slate-900/60 backdrop-blur-sm border border-slate-200 dark:border-slate-800 transition-transform hover:scale-[1.02]">
+                            <div
+                                class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-sm">
+                                <i class="ph ph-clock text-2xl"></i>
+                            </div>
+                            <div class="text-left">
+                                <p
+                                    class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                                    Ca làm việc</p>
+                                <p id="shiftText" class="font-bold text-slate-900 dark:text-white text-lg">Loading...
+                                </p>
+                            </div>
                         </div>
                     </div>
 
-                    <div id="shiftNotice" class="hidden items-center gap-4 p-4 rounded-xl transition-transform hover:scale-[1.02]">
-                        <div class="w-12 h-12 rounded-full flex items-center justify-center shadow-sm">
-                            <svg viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7">
-                                <path d="M12 2L15 8H13V10H16L12 18L8 10H11V8H9L12 2Z" />
-                                <path d="M12 22C11.4 22 11 21.6 11 21V18H13V21C13 21.6 12.6 22 12 22Z" />
-                                <path d="M5 21H19V22H5V21Z" opacity="0.3"/>
-                            </svg>
-                        </div>
-                        <div class="text-left">
-                            <p class="text-xs font-bold uppercase">Ca làm việc</p>
-                            <p id="shiftText" class="font-bold text-slate-800 dark:text-white text-lg">Loading...</p>
+                    <!-- Footer/Instruction -->
+                    <div class="pt-5 border-t border-slate-200 dark:border-slate-700/50">
+                        <div
+                            class="flex items-center justify-center md:justify-start gap-6 text-slate-600 dark:text-slate-300 text-sm font-medium">
+                            <span class="flex items-center gap-2"><i class="ph ph-camera text-lg text-slate-400"></i>
+                                Camera thường</span>
+                            <span class="flex items-center gap-2"><i
+                                    class="ph ph-qr-code text-lg text-tet-red dark:text-tet-gold"></i> Zalo QR (Tốt
+                                nhất)</span>
                         </div>
                     </div>
+
                 </div>
 
-                <div class="border-t border-slate-200 dark:border-slate-700/50 pt-5 mt-2">
-                     <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest mb-3">HƯỚNG DẪN QUÉT MÃ</p>
-                     
-                     <div class="grid grid-cols-2 gap-4">
-                         <div class="flex items-center gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 transition hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                             <div class="text-2xl filter drop-shadow-sm">⛄</div> 
-                             <div class="flex flex-col text-left">
-                                 <span class="text-xs font-bold text-blue-600 dark:text-blue-300">Camera</span>
-                                 <span class="text-[10px] text-slate-400">Mặc định</span>
-                             </div>
-                         </div>
+                <!-- Right: QR Code -->
+                <div class="flex flex-col items-center justify-center relative order-1 md:order-2">
+                    <div class="bg-white p-4 rounded-3xl qr-glow-tet relative z-20 shadow-xl">
+                        <canvas id="qrcode" class="block w-[220px] h-[220px] rounded-xl"></canvas>
+                    </div>
 
-                         <div class="flex items-center gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 transition hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                             <div class="text-2xl filter drop-shadow-sm">🎁</div>
-                             <div class="flex flex-col text-left">
-                                 <span class="text-xs font-bold text-blue-600 dark:text-blue-300">Zalo QR</span>
-                                 <span class="text-[10px] text-blue-400 dark:text-blue-400/70">Khuyên dùng</span>
-                             </div>
-                         </div>
-                     </div>
+                    <div
+                        class="mt-8 bg-white/80 dark:bg-black/60 backdrop-blur-md border border-slate-200 dark:border-white/10 px-6 py-2.5 rounded-full flex items-center gap-3 shadow-lg relative z-20">
+                        <span class="relative flex h-3 w-3">
+                            <span
+                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                        </span>
+                        <span id="status-text"
+                            class="text-sm font-bold text-slate-700 dark:text-white tracking-wide">Đang chờ quét
+                            mã...</span>
+                    </div>
                 </div>
 
             </div>
         </div>
+
+        <div class="mt-8 text-center animate-fade-in-up" style="animation-delay: 0.3s;">
+            <p class="text-slate-200 text-[10px] font-bold uppercase tracking-[0.2em] drop-shadow-md">© <span
+                    id="year"></span> Bin Bin Hotel Management</p>
+        </div>
     </div>
-    
-    <div class="mt-6 text-center">
-        <p class="text-white/60 text-xs font-medium">© <span id="year"></span> Bin Bin Hotel Management System</p>
-    </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
-  
-  <script>
-    // --- HIỆU ỨNG NỀN ĐỘNG ---
-    (function() {
-        const canvas = document.getElementById('snowCanvas');
-        const ctx = canvas.getContext('2d');
-        let width, height;
-        let particles = [];
-        let currentTheme = null; // Sửa thành null để kích hoạt hiệu ứng lần đầu
+    <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
 
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resize);
-        resize();
-
-        // --- Cấu hình cho hiệu ứng tuyết ---
-        function createSnowflake() {
-            return {
-                x: Math.random() * width,
-                y: Math.random() * -height,
-                radius: Math.random() * 2 + 1,
-                speed: Math.random() * 1 + 0.5,
-                opacity: Math.random() * 0.5 + 0.3
-            };
-        }
-
-        function drawSnowflakes() {
-            ctx.clearRect(0, 0, width, height);
-            ctx.fillStyle = "white";
-            particles.forEach(f => {
-                ctx.globalAlpha = f.opacity;
-                ctx.beginPath();
-                ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
-                ctx.fill();
-                f.y += f.speed;
-                f.x += Math.sin(f.y * 0.01) * 0.5;
-                if (f.y > height) {
-                    Object.assign(f, createSnowflake(), { y: -5 });
-                }
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. QR Code
+            const checkinUrl = "{{ base_url }}/attendance/checkin?token={{ qr_token }}";
+            const qr = new QRious({
+                element: document.getElementById('qrcode'),
+                value: checkinUrl,
+                size: 220,
+                level: 'H'
             });
-        }
 
-        // --- Cấu hình cho hiệu ứng lá rơi ---
-        const leafColors = ['#D42426', '#F8B229', '#f97316', '#ca8a04', '#eab308'];
-        function createLeaf() {
-            return {
-                x: Math.random() * width,
-                y: Math.random() * -height,
-                size: Math.random() * 10 + 8,
-                speed: Math.random() * 1 + 1,
-                rotation: Math.random() * 360,
-                rotationSpeed: (Math.random() - 0.5) * 2,
-                sway: Math.random() * 2 - 1,
-                color: leafColors[Math.floor(Math.random() * leafColors.length)]
-            };
-        }
+            // 2. Poll Status
+            const statusText = document.getElementById('status-text');
+            async function pollCheckin() {
+                try {
+                    const res = await fetch(`/attendance/checkin_status?token={{ qr_token }}&t=` + Date.now(), { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (data.checked_in) {
+                        statusText.textContent = 'Thành công! Đang chuyển...';
+                        statusText.className = "text-sm font-bold text-tet-red dark:text-tet-gold";
+                        const container = document.querySelector('.qr-glow-tet');
+                        if (container) container.style.borderColor = '#FFD60A';
 
-        function drawLeaves() {
-            ctx.clearRect(0, 0, width, height);
-            particles.forEach(leaf => {
-                ctx.save();
-                ctx.translate(leaf.x, leaf.y);
-                ctx.rotate(leaf.rotation * Math.PI / 180);
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.quadraticCurveTo(leaf.size / 2, -leaf.size / 4, leaf.size, 0);
-                ctx.quadraticCurveTo(leaf.size / 2, leaf.size / 4, 0, 0);
-                ctx.closePath();
-                ctx.fillStyle = leaf.color;
-                ctx.fill();
-                ctx.restore();
-
-                leaf.y += leaf.speed;
-                leaf.x += leaf.sway + Math.sin(leaf.y * 0.05);
-                leaf.rotation += leaf.rotationSpeed;
-
-                if (leaf.y > height) {
-                    Object.assign(leaf, createLeaf(), { y: -20 });
+                        if (data.redirect_to) window.location.href = data.redirect_to;
+                        else window.location.href = '/choose-function';
+                    } else {
+                        setTimeout(pollCheckin, 2500);
+                    }
+                } catch {
+                    setTimeout(pollCheckin, 3500);
                 }
-            });
-        }
+            }
+            pollCheckin();
 
-        // --- Logic chính ---
-        let animationFrameId;
-        function animate() {
-            if (currentTheme === 'dark') {
-                drawSnowflakes();
+            // 3. Shift Logic
+            const shiftNoticeEl = document.getElementById('shiftNotice');
+            const shiftTextEl = document.getElementById('shiftText');
+            const now = new Date();
+            const currentHour = now.getHours();
+            let workDate = new Date(now);
+            let shiftName = '';
+
+            if (currentHour < 7) {
+                workDate.setDate(workDate.getDate() - 1);
+                shiftName = 'Ca Đêm';
+            } else if (currentHour >= 7 && currentHour < 19) {
+                shiftName = 'Ca Ngày';
             } else {
-                drawLeaves();
+                shiftName = 'Ca Đêm';
             }
-            animationFrameId = requestAnimationFrame(animate);
-        }
 
-        window.setThemeEffect = function(theme) {
-            if (theme === currentTheme) return;
-            currentTheme = theme;
-            particles = [];
-            const particleCount = currentTheme === 'dark' ? 100 : 50;
-            const createParticle = currentTheme === 'dark' ? createSnowflake : createLeaf;
-            for(let i = 0; i < particleCount; i++) {
-                particles.push(createParticle());
+            const dateStr = `${String(workDate.getDate()).padStart(2, '0')}/${String(workDate.getMonth() + 1).padStart(2, '0')}`;
+            shiftTextEl.innerHTML = `${shiftName} <span class="text-sm font-normal opacity-70 ml-1">(${dateStr})</span>`;
+            shiftNoticeEl.classList.remove('hidden');
+            shiftNoticeEl.classList.add('flex');
+
+            // 4. Music Logic & Theme
+            const html = document.documentElement;
+            const audio = document.getElementById('bg-music');
+            const btnMusic = document.getElementById('btn-music');
+            const musicIcon = document.getElementById('music-icon');
+            let isPlaying = false;
+
+            function updateMusicIcon(play) {
+                if (play) {
+                    musicIcon.classList.replace('ph-speaker-slash', 'ph-speaker-high');
+                    musicIcon.classList.add('text-tet-red');
+                    musicIcon.classList.add('dark:text-tet-gold');
+                    musicIcon.classList.add('animate-pulse');
+                } else {
+                    musicIcon.classList.replace('ph-speaker-high', 'ph-speaker-slash');
+                    musicIcon.classList.remove('text-tet-red');
+                    musicIcon.classList.remove('dark:text-tet-gold');
+                    musicIcon.classList.remove('animate-pulse');
+                }
             }
-            if (!animationFrameId) {
-                animate();
-            }
-        }
-    })();
-  </script>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // 1. QR Code
-      const checkinUrl = "{{ base_url }}/attendance/checkin?token={{ qr_token }}";
-      const qr = new QRious({ 
-          element: document.getElementById('qrcode'), 
-          value: checkinUrl, 
-          size: 220,
-          level: 'H'
-      });
+            btnMusic.onclick = () => {
+                if (isPlaying) {
+                    audio.pause();
+                } else {
+                    audio.volume = 0.5;
+                    audio.play();
+                }
+                isPlaying = !isPlaying;
+                updateMusicIcon(isPlaying);
+            };
 
-      // 2. Poll Status
-      const statusText = document.getElementById('status-text');
-      async function pollCheckin() {
-        try {
-          const res = await fetch(`/attendance/checkin_status?token={{ qr_token }}&t=` + Date.now(), { credentials: 'same-origin' });
-          const data = await res.json();
-          if (data.checked_in) {
-            statusText.textContent = 'Thành công! Đang chuyển...';
-            statusText.className = "text-sm font-bold text-green-600";
-            if (data.redirect_to) window.location.href = data.redirect_to;
-            else window.location.href = '/choose-function';
-          } else {
-            setTimeout(pollCheckin, 2500);
-          }
-        } catch {
-          setTimeout(pollCheckin, 3500);
-        }
-      }
-      pollCheckin();
+            const tryAutoPlay = () => {
+                audio.volume = 0.5;
+                audio.play().then(() => {
+                    isPlaying = true;
+                    updateMusicIcon(true);
+                }).catch(() => {
+                    document.addEventListener('click', () => {
+                        if (!isPlaying) {
+                            audio.play();
+                            isPlaying = true;
+                            updateMusicIcon(true);
+                        }
+                    }, { once: true });
+                });
+            };
+            tryAutoPlay();
 
-      // 3. Shift Logic (Màu Đỏ Đồng Bộ)
-      const shiftNoticeEl = document.getElementById('shiftNotice');
-      const shiftTextEl = document.getElementById('shiftText');
-      const now = new Date();
-      const currentHour = now.getHours();
-      let workDate = new Date(now);
-      let shiftName = '';
-      
-      const uniformStyle = 'bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30';
 
-      if (currentHour < 7) {
-          workDate.setDate(workDate.getDate() - 1);
-          shiftName = 'Ca Đêm';
-      } else if (currentHour >= 7 && currentHour < 19) {
-          shiftName = 'Ca Ngày';
-      } else {
-          shiftName = 'Ca Đêm';
-      }
+            // Theme Logic
+            const btnTheme = document.getElementById('btn-theme');
+            btnTheme.onclick = () => {
+                html.classList.toggle('dark');
+                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+            };
 
-      const dateStr = `${String(workDate.getDate()).padStart(2, '0')}/${String(workDate.getMonth() + 1).padStart(2, '0')}`;
-      
-      shiftTextEl.innerHTML = `${shiftName} <span class="text-sm font-normal opacity-70 ml-1">(${dateStr})</span>`;
-      shiftNoticeEl.className = `flex items-center gap-4 p-4 rounded-xl transition-transform hover:scale-[1.02] ${uniformStyle}`;
-      shiftNoticeEl.querySelector('p:first-child').classList.add('text-blue-600', 'dark:text-blue-400');
-      shiftNoticeEl.querySelector('div:first-child').classList.add('bg-blue-100', 'dark:bg-blue-900/30', 'text-blue-600', 'dark:text-blue-300');
-      shiftNoticeEl.classList.remove('hidden');
+            const savedTheme = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (savedTheme) html.classList.add('dark');
 
-      // 4. Theme Toggle & Music Logic
-      const root = document.documentElement;
-      const THEME_KEY = 'theme-mode';
-      
-      const audio = document.getElementById('bg-audio');
-      const btnMusic = document.getElementById('btn-music');
-      const iconOn = document.getElementById('icon-music-on');
-      const iconOff = document.getElementById('icon-music-off');
-      let isPlaying = false;
-
-      audio.volume = 0.4;
-
-      function toggleMusicState(play) {
-        if (play) {
-            audio.play().then(() => {
-                isPlaying = true;
-                iconOn.classList.remove('hidden');
-                iconOff.classList.add('hidden');
-            }).catch(() => {
-                console.log("Autoplay blocked, waiting for interaction");
-            });
-        } else {
-            audio.pause();
-            isPlaying = false;
-            iconOn.classList.add('hidden');
-            iconOff.classList.remove('hidden');
-        }
-      }
-
-      btnMusic.addEventListener('click', () => toggleMusicState(!isPlaying));
-
-      // Cố gắng tự động phát nhạc. Nếu thất bại, sẽ chờ người dùng tương tác lần đầu.
-      let audioUnlocked = false;
-      const tryAutoPlay = () => {
-        audio.play().then(() => {
-            toggleMusicState(true);
-        }).catch(() => {
-            // Nếu tự động phát thất bại, thêm sự kiện click một lần vào trang
-            document.body.addEventListener('click', unlockAndPlay, { once: true });
+            document.getElementById('year').textContent = new Date().getFullYear();
         });
-      };
-
-      const unlockAndPlay = () => {
-        toggleMusicState(true);
-      };
-      tryAutoPlay();
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      function applyTheme(mode){
-        if (mode === 'dark' || (mode === 'system' && prefersDark)) {
-          root.classList.add('dark');
-          document.getElementById('icon-sun').classList.remove('hidden');
-          document.getElementById('icon-moon').classList.add('hidden');
-          window.setThemeEffect('dark');
-        } else {
-          root.classList.remove('dark');
-          document.getElementById('icon-sun').classList.add('hidden');
-          document.getElementById('icon-moon').classList.remove('hidden');
-          window.setThemeEffect('light');
-        }
-      }
-      const saved = localStorage.getItem(THEME_KEY) || 'system';
-      applyTheme(saved);
-      document.getElementById('btn-theme').addEventListener('click', () => {
-        const current = localStorage.getItem(THEME_KEY) || 'system';
-        const next = current === 'dark' ? 'light' : 'dark';
-        localStorage.setItem(THEME_KEY, next);
-        applyTheme(next);
-      });
-
-      document.getElementById('year').textContent = new Date().getFullYear();
-    });
-  </script>
+    </script>
 </body>
 <script>
-  function checkAndLogoutForShiftChange() {
-      const now = new Date();
-      if ((now.getHours() === 6 || now.getHours() === 18) && now.getMinutes() === 59) {
-          window.location.href = '/logout';
-      }
-  }
-  setInterval(checkAndLogoutForShiftChange, 30000);
+    function checkAndLogoutForShiftChange() {
+        const now = new Date();
+        if ((now.getHours() === 6 || now.getHours() === 18) && now.getMinutes() === 59) {
+            window.location.href = '/logout';
+        }
+    }
+    setInterval(checkAndLogoutForShiftChange, 30000);
 </script>
+
 </html>
