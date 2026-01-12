@@ -81,11 +81,14 @@
 <body
     class="h-full w-full overflow-hidden text-slate-900 dark:text-slate-100 selection:bg-tet-red selection:text-white relative flex items-center justify-center">
 
-    <!-- Video Background -->
-    <video autoplay muted loop playsinline preload="auto" poster="../static/view_hotel/anhduphong.jpg" id="bg-video"
-        class="fixed inset-0 w-full h-full object-cover z-[-1]">
-        <source src="../static/view_hotel/intro_1.mp4" type="video/mp4">
-        Your browser does not support the video tag.
+    <!-- Static Background -->
+    <div class="fixed inset-0 z-[-2]">
+        <img src="../static/view_hotel/anhduphong.jpg" class="w-full h-full object-cover" alt="Background">
+    </div>
+
+    <!-- Video Background (Desktop Only) -->
+    <video muted loop playsinline id="bg-video"
+        class="fixed inset-0 w-full h-full object-cover z-[-1] opacity-0 transition-opacity duration-1000 hidden md:block">
     </video>
 
     <!-- Overlay tối hơn một chút để tách biệt video với nội dung -->
@@ -324,6 +327,17 @@
             if (savedTheme) html.classList.add('dark');
 
             document.getElementById('year').textContent = new Date().getFullYear();
+
+            // OPTIMIZED VIDEO LOADING
+            const video = document.getElementById('bg-video');
+            if (window.matchMedia('(min-width: 768px)').matches && video) {
+                video.src = "../static/view_hotel/intro_1.mp4";
+                video.load();
+                video.oncanplay = () => {
+                    video.play().catch(() => { });
+                    video.classList.remove('opacity-0');
+                };
+            }
         });
     </script>
 </body>
