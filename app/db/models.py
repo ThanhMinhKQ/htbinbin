@@ -1,4 +1,4 @@
-# app/db/models.py
+# models.py
 import enum
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time,
@@ -8,11 +8,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from datetime import datetime
 
-# Import Base từ session
+# Import Base từ session đã cấu hình NullPool
 from .session import Base
 
 # ====================================================================
-# 1. ENUM TYPES (Định nghĩa các giá trị cố định)
+# ENUM TYPES (Định nghĩa các tập giá trị cố định)
 # ====================================================================
 
 class LostItemStatus(str, enum.Enum):
@@ -36,28 +36,12 @@ class TransactionType(str, enum.Enum):
     CASH_EXPENSE = "CASH_EXPENSE"
     OTHER = "OTHER"
 
-# Enum cho Kho (WMS)
-class TicketStatus(str, enum.Enum):
-    DRAFT = "DRAFT"           # Nháp
-    PENDING = "PENDING"       # Chờ duyệt
-    APPROVED = "APPROVED"     # Đã duyệt
-    SHIPPING = "SHIPPING"     # Đang giao
-    COMPLETED = "COMPLETED"   # Hoàn thành
-    REJECTED = "REJECTED"     # Từ chối
-    CANCELLED = "CANCELLED"   # Hủy
-
-class TransactionTypeWMS(str, enum.Enum):
-    IMPORT_PO = "IMPORT_PO"         # Nhập hàng từ NCC
-    EXPORT_TRANSFER = "EXPORT_TRANSFER" # Xuất kho (chuyển đi chi nhánh)
-    IMPORT_TRANSFER = "IMPORT_TRANSFER" # Nhập kho (nhận từ kho tổng)
-    ADJUSTMENT = "ADJUSTMENT"       # Kiểm kê/Cân chỉnh
-
 # ====================================================================
-# 2. MASTER DATA (Dữ liệu nền)
+# MASTER DATA (Dữ liệu nền)
 # ====================================================================
 
 class Branch(Base):
-    """Chi nhánh"""
+    """Chi nhánh - Dữ liệu ít thay đổi, quan trọng."""
     __tablename__ = "branches"
     
     id = Column(Integer, primary_key=True)
@@ -69,7 +53,7 @@ class Branch(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Department(Base):
-    """Phòng ban / Vai trò"""
+    """Phòng ban / Vai trò."""
     __tablename__ = "departments"
     
     id = Column(Integer, primary_key=True)
@@ -77,7 +61,7 @@ class Department(Base):
     name = Column(String(255), nullable=False)
 
 # ====================================================================
-# 3. CORE USER MODEL
+# CORE USER MODEL
 # ====================================================================
 
 class User(Base):
@@ -103,31 +87,33 @@ class User(Base):
     department = relationship("Department")
     main_branch = relationship("Branch")
     
+    # [FIX] Sửa lại cú pháp foreign_keys: Dùng string KHÔNG có ngoặc vuông []
+    
     # 1. Attendance
     attendance_logs = relationship("AttendanceLog", back_populates="user", cascade="all, delete-orphan")
     
     attendance_records_as_subject = relationship(
         "AttendanceRecord", 
-        foreign_keys="AttendanceRecord.user_id",
+        foreign_keys="AttendanceRecord.user_id", # [FIXED]
         back_populates="user", 
         cascade="all, delete-orphan"
     )
     attendance_records_as_checker = relationship(
         "AttendanceRecord", 
-        foreign_keys="AttendanceRecord.checker_id",
+        foreign_keys="AttendanceRecord.checker_id", # [FIXED]
         back_populates="checker"
     )
 
     # 2. Service Records
     service_records_as_subject = relationship(
         "ServiceRecord",
-        foreign_keys="ServiceRecord.user_id",
+        foreign_keys="ServiceRecord.user_id", # [FIXED]
         back_populates="user",
         cascade="all, delete-orphan"
     )
     service_records_as_checker = relationship(
         "ServiceRecord",
-        foreign_keys="ServiceRecord.checker_id",
+        foreign_keys="ServiceRecord.checker_id", # [FIXED]
         back_populates="checker"
     )
     
@@ -152,7 +138,7 @@ class User(Base):
 
 
 # ====================================================================
-# 4. OPERATIONAL MODELS (Nghiệp vụ hàng ngày)
+# TRANSACTIONAL MODELS (Nghiệp vụ hàng ngày)
 # ====================================================================
 
 class Task(Base):
@@ -177,6 +163,7 @@ class Task(Base):
     notes = Column(Text)
 
     branch = relationship("Branch")
+    # Ở class con, dùng list [column] cho foreign_keys là chuẩn nhất
     author = relationship("User", foreign_keys=[author_id], back_populates="created_tasks")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
     deleter = relationship("User", foreign_keys=[deleter_id], back_populates="deleted_tasks")
@@ -243,7 +230,7 @@ class ServiceRecord(Base):
     branch = relationship("Branch")
 
 # ====================================================================
-# 5. LOST & FOUND (Đồ thất lạc)
+# LOST & FOUND (Đồ thất lạc)
 # ====================================================================
 
 class LostAndFoundItem(Base):
@@ -287,7 +274,7 @@ class LostAndFoundItem(Base):
     )
 
 # ====================================================================
-# 6. SHIFT REPORT (Giao ca)
+# SHIFT REPORT (Giao ca)
 # ====================================================================
 
 class ShiftReportTransaction(Base):
