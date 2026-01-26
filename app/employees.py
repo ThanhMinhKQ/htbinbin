@@ -159,7 +159,7 @@ working_staff = [
         "role": "letan", "branch": "B11", "shift": "CT"
     },
     {
-        "employee_id": "NV037", "code": "lt.kqchung", "name": "Khổng Quang Chung",
+        "employee_id": "NV081", "code": "lt.lqan", "name": "Lâm Quốc An",
         "role": "letan", "branch": "B11", "shift": "CT"
     },
     {
@@ -365,6 +365,10 @@ off_staff = [
     {
         "employee_id": "NV077", "code": "bp.ntlanh", "name": "Nguyễn Thị Lanh",
         "role": "buongphong", "branch": "B6", "shift": "CS", "is_active": False
+    },
+    {
+        "employee_id": "NV037", "code": "lt.kqchung", "name": "Khổng Quang Chung",
+        "role": "letan", "branch": "B11", "shift": "CT", "is_active": False
     },
     #--------------------------------------- 10/1 OFF --------------------------------------------#
 ]

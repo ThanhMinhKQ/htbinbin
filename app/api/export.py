@@ -414,7 +414,7 @@ def export_attendance_calendar_excel(
         ws=ws2,
         sheet_title=f"Dịch vụ T{current_month}",
         data_source=data_pivot_svc,
-        row1_label="Giặt & Ủi",
+        row1_label="",
         row2_label="",
         row1_key="Total",
         row2_key="",

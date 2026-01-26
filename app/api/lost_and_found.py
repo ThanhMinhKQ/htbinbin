@@ -294,9 +294,10 @@ async def get_dashboard_stats(
         query_start_date = (datetime.now(VN_TZ) - timedelta(days=days - 1)).date()
         query_start_datetime = datetime.combine(query_start_date, datetime.min.time()).replace(tzinfo=VN_TZ)
 
-    # Lọc theo khoảng thời gian cho query TỔNG QUAN
-    if query_start_datetime:
-        query = query.filter(LostAndFoundItem.found_datetime >= query_start_datetime)
+    # [REMOVED] Không lọc theo thời gian cho Dashboard Status Stats để hiển thị đúng "Có thể thanh lý"
+    # (vì đồ này thường > 6 tháng) và hiển thị tổng quan kho hiện tại.
+    # if query_start_datetime:
+    #     query = query.filter(LostAndFoundItem.found_datetime >= query_start_datetime)
 
     # Group by và thực thi
     stats = query.group_by(LostAndFoundItem.status).all()
@@ -310,8 +311,10 @@ async def get_dashboard_stats(
         LostItemStatus.DISPOSED.value: 0,
     }
     for status, count in stats:
-        if status.value in stats_dict:
-            stats_dict[status.value] = count
+        # Xử lý trường hợp status là Enum object hoặc string
+        status_key = status.value if hasattr(status, "value") else status
+        if status_key in stats_dict:
+            stats_dict[status_key] = count
     
     stats_dict["total"] = sum(stats_dict.values())
 

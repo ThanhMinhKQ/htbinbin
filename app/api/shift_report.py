@@ -28,7 +28,7 @@ from ..schemas.shift_report import ( # SỬA: Schema mới
 
 from sqlalchemy.dialects.postgresql import JSONB # Import JSONB để cast và dùng toán tử JSONB
 # Import các thành phần SQLAlchemy cần thiết
-from sqlalchemy import cast, Date, desc, or_, asc, case, func, tuple_, extract
+from sqlalchemy import cast, Date, desc, or_, and_, asc, case, func, tuple_, extract
 from fastapi.encoders import jsonable_encoder
 import os
 
@@ -1142,8 +1142,54 @@ async def get_dashboard_summary(
         if transaction_type:
             tx_query = tx_query.filter(ShiftReportTransaction.transaction_type == transaction_type)
         
-        if date_filters_tx:
-            tx_query = tx_query.filter(*date_filters_tx)
+        # [FIX] Logic lọc ngày thông minh:
+        # - Đã kết ca (CLOSED): Lọc theo ngày kết ca (closed_datetime) -> Để khớp với Doanh thu PMS (ShiftCloseLog)
+        # - Chưa kết ca (PENDING): Lọc theo ngày tạo (created_datetime) -> Để hiển thị công việc tồn đọng hiện tại
+        
+        date_conditions = []
+        if start_time:
+             # Điều kiện: (Status=CLOSED AND closed >= start) OR (Status=PENDING AND created >= start)
+             # Tuy nhiên, để tối ưu và chính xác, ta kết hợp cả start/end vào từng cụm
+             pass 
+
+        # Xây dựng bộ lọc OR
+        or_conditions = []
+        
+        # 1. Logic cho CLOSED
+        closed_filters = [ShiftReportTransaction.status == ShiftReportStatus.CLOSED.value]
+        if start_time:
+            closed_filters.append(ShiftReportTransaction.closed_datetime >= start_time)
+        if end_time:
+            closed_filters.append(ShiftReportTransaction.closed_datetime <= end_time)
+        # Nếu filter theo năm/tháng (mặc định)
+        if not start_time and not end_time and user_data.get("role") != 'letan' and date_filters_log:
+             # Tái sử dụng date_filters_log nhưng áp dụng cho closed_datetime của transaction
+             # Lưu ý: date_filters_log đang áp dụng cho ShiftCloseLog, cần map sang Transaction
+             now = datetime.now(VN_TZ)
+             closed_filters.append(extract('month', ShiftReportTransaction.closed_datetime) == now.month)
+             closed_filters.append(extract('year', ShiftReportTransaction.closed_datetime) == now.year)
+
+        # 2. Logic cho PENDING
+        pending_filters = [ShiftReportTransaction.status == ShiftReportStatus.PENDING.value]
+        if start_time:
+            pending_filters.append(ShiftReportTransaction.created_datetime >= start_time)
+        if end_time:
+            pending_filters.append(ShiftReportTransaction.created_datetime <= end_time)
+        if not start_time and not end_time and user_data.get("role") != 'letan':
+             now = datetime.now(VN_TZ)
+             pending_filters.append(extract('month', ShiftReportTransaction.created_datetime) == now.month)
+             pending_filters.append(extract('year', ShiftReportTransaction.created_datetime) == now.year)
+
+        # Kết hợp
+        # AND (...closed flags...)
+        closed_group = and_(*closed_filters)
+        pending_group = and_(*pending_filters)
+
+        tx_query = tx_query.filter(or_(closed_group, pending_group))
+
+        # [REMOVED] date_filters_tx cũ (chỉ lọc theo created_datetime)
+        # if date_filters_tx:
+        #    tx_query = tx_query.filter(*date_filters_tx)
 
         # Định nghĩa các Case tính toán
         online_rev_case = case(
