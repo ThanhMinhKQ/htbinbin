@@ -57,5 +57,5 @@ Thumbs.db
 htmlcov/
 
 # Uploads and media files (if you want to exclude them)
-# uploads/
+uploads/
 # static/uploads/
