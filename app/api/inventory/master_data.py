@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, Query, Body
 from fastapi.responses import HTMLResponse, JSONResponse
+import unicodedata
+import re
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, or_
 from pydantic import BaseModel, field_validator
@@ -26,7 +28,7 @@ class CategorySchema(BaseModel):
 
 class ProductSchema(BaseModel):
     name: str
-    code: str
+    code: Optional[str] = None
     category_id: int
     base_unit: str              
     packing_unit: Optional[str] = None 
@@ -229,8 +231,26 @@ async def create_product(
     db: Session = Depends(get_db)
 ):
     """Tạo sản phẩm mới với logic quy đổi"""
+    
+    # Logic sinh mã tự động nếu không có code
+    if not payload.code:
+        # 1. Lấy mã danh mục
+        category = db.query(ProductCategory).get(payload.category_id)
+        if not category:
+             raise HTTPException(status_code=400, detail="Danh mục không tồn tại")
+        
+        # 2. Slugify tên sản phẩm
+        def slugify(text):
+            text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+            text = text.upper()
+            text = re.sub(r'[^A-Z0-9]+', '_', text)
+            return text.strip('_')
+
+        slug_name = slugify(payload.name)
+        payload.code = f"{category.code}_{slug_name}"
+
     if db.query(Product).filter(Product.code == payload.code).first():
-        raise HTTPException(status_code=400, detail="Mã sản phẩm đã tồn tại")
+        raise HTTPException(status_code=400, detail=f"Mã sản phẩm '{payload.code}' đã tồn tại")
 
     new_product = Product(
         name=payload.name,
@@ -248,7 +268,7 @@ async def create_product(
     db.commit()
     db.refresh(new_product)
     
-    return {"status": "success", "message": "Tạo sản phẩm thành công", "id": new_product.id}
+    return {"status": "success", "message": "Tạo sản phẩm thành công", "data": {"id": new_product.id, "code": new_product.code}}
 
 @router.put("/products/{product_id}/status")
 async def update_product_status(

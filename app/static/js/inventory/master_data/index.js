@@ -24,6 +24,18 @@ export function masterDataApp() {
             return new Intl.NumberFormat('vi-VN').format(amount || 0);
         },
 
+        formatCurrencyInput(value) {
+            if (!value) return '';
+            // Remove non-digits
+            const num = value.toString().replace(/[^0-9]/g, '');
+            return new Intl.NumberFormat('vi-VN').format(parseInt(num) || 0);
+        },
+
+        parseCurrencyInput(value) {
+            if (!value) return 0;
+            return parseInt(value.toString().replace(/[^0-9]/g, '')) || 0;
+        },
+
         calculateCostPrice() {
             if (this.tempPackPrice && this.pForm.conversion_rate > 0) {
                 // Tự động chia: Giá Thùng / Tỷ lệ = Giá Vốn
@@ -54,6 +66,17 @@ export function masterDataApp() {
         async initApp() {
             await this.fetchCategories();
             await this.fetchProducts();
+
+            // Watchers for filters
+            this.$watch('filters.search', () => {
+                this.pagination.page = 1;
+                this.fetchProducts();
+            });
+            this.$watch('filters.category_id', () => {
+                this.pagination.page = 1;
+                this.fetchProducts();
+            });
+
             // Không fetch kho ngay để tối ưu, chỉ fetch khi user bấm tab
         },
 

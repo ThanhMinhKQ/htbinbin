@@ -85,8 +85,7 @@
 
                     <div class="flex flex-wrap items-center gap-2" x-show="currentTab === 'products'">
                         <div class="relative">
-                            <input type="text" x-model.debounce.500ms="filters.search" @input="fetchProducts()"
-                                placeholder="Tìm tên hoặc mã..."
+                            <input type="text" x-model.debounce.500ms="filters.search" placeholder="Tìm tên hoặc mã..."
                                 class="pl-9 pr-4 py-2 text-sm border-slate-300 rounded-lg dark:bg-slate-800 dark:border-slate-700 focus:ring-primary-500 focus:border-primary-500">
                             <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24"
                                 stroke="currentColor">
@@ -95,9 +94,9 @@
                             </svg>
                         </div>
 
-                        <select x-model="filters.category_id" @change="fetchProducts()"
+                        <select x-model="filters.category_id"
                             class="form-select text-sm border-slate-300 rounded-lg dark:bg-slate-800 dark:border-slate-700 max-w-[200px]">
-                            <option value="">-- Tất cả danh mục --</option>
+                            <option value="">Tất cả danh mục</option>
                             <template x-for="c in categories" :key="c.id">
                                 <option :value="c.id" x-text="c.name"></option>
                             </template>

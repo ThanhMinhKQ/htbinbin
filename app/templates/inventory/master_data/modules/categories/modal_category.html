@@ -1,19 +1,68 @@
-<div x-show="isCatModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
-    <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm" @click="isCatModalOpen = false"></div>
+<div x-show="isCatModalOpen" class="fixed inset-0 z-[60] overflow-y-auto" x-cloak>
+    <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" x-transition.opacity
+        @click="isCatModalOpen = false"></div>
+
     <div class="flex min-h-full items-center justify-center p-4">
-        <div
-            class="relative w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 p-6">
-            <h3 class="text-lg font-bold mb-4">Thêm Danh mục</h3>
-            <div class="space-y-3">
-                <input type="text" x-model="cForm.code" placeholder="Mã danh mục (VD: DRINK)"
-                    class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
-                <input type="text" x-model="cForm.name" placeholder="Tên danh mục (VD: Đồ uống)"
-                    class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+        <div class="relative w-full max-w-lg transform rounded-2xl bg-white dark:bg-slate-900 shadow-2xl transition-all border border-slate-100 dark:border-slate-800"
+            x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+            x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95">
+
+            <!-- Header -->
+            <div
+                class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 rounded-t-2xl">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <div
+                        class="p-1.5 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600 dark:text-indigo-400">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                    Thêm Danh mục Mới
+                </h3>
+                <button @click="isCatModalOpen = false" class="text-slate-400 hover:text-slate-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
-            <div class="mt-6 flex justify-end gap-2">
-                <button @click="isCatModalOpen = false" class="px-3 py-2 text-sm border rounded-lg">Hủy</button>
+
+            <!-- Body -->
+            <div class="p-6 space-y-5">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Mã Danh mục
+                        <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="cForm.code" placeholder="VD: DRINK, FOOD..."
+                        class="w-full px-4 py-2.5 text-sm rounded-xl border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all font-mono uppercase placeholder:normal-case">
+                    <p class="mt-1 text-xs text-slate-400">Mã viết liền không dấu, dùng để quản lý hệ thống.</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Tên Danh mục
+                        <span class="text-rose-500">*</span></label>
+                    <input type="text" x-model="cForm.name" placeholder="VD: Đồ uống, Thực phẩm..."
+                        class="w-full px-4 py-2.5 text-sm rounded-xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all">
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div
+                class="px-6 py-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 rounded-b-2xl flex justify-end gap-3">
+                <button @click="isCatModalOpen = false"
+                    class="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-200 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700">
+                    Hủy bỏ
+                </button>
                 <button @click="submitCategory()"
-                    class="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Lưu</button>
+                    class="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Lưu Danh mục
+                </button>
             </div>
         </div>
     </div>
