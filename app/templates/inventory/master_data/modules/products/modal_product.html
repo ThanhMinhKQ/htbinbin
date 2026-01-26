@@ -1,0 +1,269 @@
+<div x-show="isProductModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+    <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="closeProductModal()">
+    </div>
+
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div
+            class="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-800 transform transition-all">
+
+            <!-- Header -->
+            <div
+                class="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl sticky top-0 z-10">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <span
+                            class="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                        </span>
+                        <span x-text="modalMode === 'CREATE' ? 'Thêm Sản phẩm Mới' : 'Cập nhật Sản phẩm'"></span>
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-1 ml-12">Điền thông tin chi tiết cho vật tư/hàng hóa</p>
+                </div>
+                <button @click="closeProductModal()"
+                    class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body -->
+            <div class="p-6 bg-white dark:bg-slate-900 flex justify-center">
+                <div class="w-full max-w-3xl space-y-8">
+
+                    <div class="space-y-4">
+                        <h4
+                            class="text-sm font-bold text-slate-900 dark:text-slate-100 border-l-4 border-indigo-500 pl-3 uppercase tracking-wider">
+                            1. Thông tin sản phẩm
+                        </h4>
+
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+                            <div class="md:col-span-4">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Mã quản lý <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" x-model="pForm.code" :disabled="modalMode === 'EDIT'"
+                                    placeholder="VD: SP001"
+                                    class="w-full bg-slate-50 border-0 text-slate-800 font-mono font-medium rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-800 dark:text-white placeholder:text-slate-400">
+                            </div>
+
+                            <div class="md:col-span-8">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Phân loại <span
+                                        class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <select x-model="pForm.category_id"
+                                        class="w-full bg-slate-50 border-0 text-slate-800 font-medium rounded-lg px-4 py-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-800 dark:text-white appearance-none cursor-pointer">
+                                        <option value="">-- Chọn danh mục --</option>
+                                        <template x-for="c in categories" :key="c.id">
+                                            <option :value="c.id" x-text="c.name"></option>
+                                        </template>
+                                    </select>
+                                    <div
+                                        class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-12">
+                                <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tên sản phẩm <span
+                                        class="text-red-500">*</span></label>
+                                <input type="text" x-model="pForm.name" placeholder="VD: Nước suối Aquafina 350ml"
+                                    class="w-full bg-slate-50 border-0 text-slate-800 text-lg font-semibold rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-800 dark:text-white placeholder:text-slate-400 placeholder:font-normal">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-6 border-t border-slate-100 dark:border-slate-800">
+
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                            <div>
+                                <h4
+                                    class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                                    <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                                    2. Cấu hình Giá & Đơn vị
+                                </h4>
+                                <p class="text-xs text-slate-500 mt-1">Chọn cách bạn nhập hàng từ nhà cung cấp</p>
+                            </div>
+
+                            <div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center">
+                                <button type="button"
+                                    @click="pForm.conversion_rate = 1; pForm.packing_unit = ''; tempPackPrice = '';"
+                                    :class="(!pForm.packing_unit || pForm.conversion_rate <= 1) ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'"
+                                    class="px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200">
+                                    Nhập Lẻ (Chai/Cái)
+                                </button>
+                                <button type="button" @click="setPackMode()"
+                                    :class="(pForm.packing_unit && pForm.conversion_rate > 1) ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'"
+                                    class="px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200">
+                                    Nhập Thùng/Lô
+                                </button>
+                            </div>
+                        </div>
+
+                        <div
+                            class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative">
+
+                            <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+
+                                <div class="space-y-5">
+
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-500 mb-2">Đơn vị bán lẻ
+                                            (Cơ sở) <span class="text-red-500">*</span></label>
+                                        <div class="relative group">
+                                            <div
+                                                class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                </svg>
+                                            </div>
+                                            <input type="text" x-model="pForm.base_unit" placeholder="VD: Chai, Lon..."
+                                                class="w-full bg-slate-50 border-0 text-slate-800 font-bold text-sm rounded-xl pl-10 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-900 dark:text-white">
+                                        </div>
+                                    </div>
+
+                                    <div x-show="!pForm.packing_unit || pForm.conversion_rate <= 1"
+                                        x-transition:enter="transition ease-out duration-300 transform"
+                                        x-transition:enter-start="opacity-0 translate-y-2">
+                                        <label class="block text-xs font-semibold text-slate-500 mb-2">Giá nhập mỗi
+                                            <span x-text="pForm.base_unit || 'đơn vị'"></span></label>
+                                        <div class="relative">
+                                            <input type="number" x-model="pForm.cost_price"
+                                                @input="calculatePackPrice()"
+                                                class="w-full bg-slate-50 border-0 text-indigo-600 font-bold text-lg rounded-xl pl-4 pr-12 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-900">
+                                            <span
+                                                class="absolute right-4 top-4 text-xs font-bold text-slate-400">VNĐ</span>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="pForm.packing_unit && pForm.conversion_rate > 1"
+                                        x-transition:enter="transition ease-out duration-300 transform"
+                                        x-transition:enter-start="opacity-0 -translate-y-2" class="space-y-4">
+                                        <div class="flex gap-4">
+                                            <div class="w-1/2">
+                                                <label
+                                                    class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Đơn
+                                                    vị lớn</label>
+                                                <input type="text" x-model="pForm.packing_unit" placeholder="Thùng"
+                                                    class="w-full bg-slate-50 border-0 text-slate-700 font-medium text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500">
+                                            </div>
+                                            <div class="w-1/2">
+                                                <label
+                                                    class="block text-[10px] font-bold text-slate-400 uppercase mb-1">SL/<span
+                                                        x-text="pForm.packing_unit"></span></label>
+                                                <input type="number" x-model="pForm.conversion_rate"
+                                                    @input="calculateCostPrice()"
+                                                    class="w-full bg-slate-50 border-0 text-blue-600 font-bold text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 text-center">
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Giá
+                                                nhập 1 <span x-text="pForm.packing_unit"></span></label>
+                                            <div class="relative">
+                                                <input type="number" x-model="tempPackPrice"
+                                                    @input="calculateCostPrice()" placeholder="VD: 120000"
+                                                    class="w-full bg-slate-50 border-0 text-slate-800 font-bold text-sm rounded-xl pl-3 pr-10 py-3 focus:ring-2 focus:ring-indigo-500">
+                                                <span class="absolute right-3 top-3.5 text-xs text-slate-400">VNĐ</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div
+                                    class="relative h-full min-h-[160px] bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 flex flex-col justify-center items-center text-white shadow-lg overflow-hidden group">
+
+                                    <div
+                                        class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:scale-150 transition-transform duration-1000">
+                                    </div>
+
+                                    <div class="relative z-10 text-center">
+                                        <p class="text-indigo-100 text-xs font-medium uppercase tracking-widest mb-2">
+                                            Giá vốn thực tế / <span x-text="pForm.base_unit || 'Đơn vị'"></span></p>
+
+                                        <div class="flex items-baseline justify-center gap-1">
+                                            <span class="text-4xl font-extrabold tracking-tight"
+                                                x-text="formatMoney(pForm.cost_price).replace(' ₫', '')">0</span>
+                                            <span class="text-lg font-medium text-indigo-200">đ</span>
+                                        </div>
+
+                                        <div x-show="pForm.packing_unit && pForm.conversion_rate > 1"
+                                            class="mt-4 pt-4 border-t border-white/20 text-xs text-indigo-100/80">
+                                            1 <span x-text="pForm.packing_unit"></span>
+                                            (<span x-text="formatMoney(tempPackPrice || 0)"></span>)
+                                            ÷ <span x-text="pForm.conversion_rate"></span>
+                                        </div>
+
+                                        <div x-show="!pForm.packing_unit || pForm.conversion_rate <= 1"
+                                            class="mt-4 text-xs text-indigo-200">
+                                            Đang nhập trực tiếp theo đơn vị lẻ
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div
+                                class="bg-slate-50 dark:bg-slate-900/50 px-6 py-3 border-t border-slate-100 dark:border-slate-700 flex items-start gap-2">
+                                <svg class="w-4 h-4 text-indigo-500 mt-0.5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <p class="text-[11px] text-slate-500 leading-tight">
+                                    Hệ thống sẽ dùng <strong>Giá vốn thực tế</strong> để tính báo cáo lãi lỗ và chi
+                                    phí của từng chi nhánh. Vui lòng kiểm tra kỹ.
+                                </p>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Trạng thái kinh
+                                doanh</span>
+                            <span class="text-xs text-slate-400">Cho phép nhập/xuất kho sản phẩm này</span>
+                        </div>
+
+                        <button type="button" @click="pForm.is_active = !pForm.is_active"
+                            class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            :class="pForm.is_active ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'">
+                            <span aria-hidden="true"
+                                class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                :class="pForm.is_active ? 'translate-x-5' : 'translate-x-0'"></span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div
+                class="px-8 py-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center rounded-b-2xl">
+                <button @click="closeProductModal()"
+                    class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 transition-colors">
+                    Hủy bỏ
+                </button>
+                <button @click="submitProduct()"
+                    class="px-8 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600 rounded-lg shadow-lg shadow-primary-500/30 transform transition-all active:scale-95 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span x-text="modalMode === 'CREATE' ? 'Tạo Sản phẩm' : 'Lưu Thay Đổi'"></span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>

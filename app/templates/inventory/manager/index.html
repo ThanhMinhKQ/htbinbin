@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý Kho (Admin){% endblock %}
+{% block page_title %}Quản lý Kho Tổng hợp{% endblock %}
+
+{% block content %}
+<style>
+    /* Sortable Styles - Keeping inline as they are specific to this page's table behavior */
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 24px !important;
+        transition: background-color 0.2s;
+    }
+
+    .sortable:hover {
+        background-color: rgba(241, 245, 249, 0.5);
+    }
+
+    .dark .sortable:hover {
+        background-color: rgba(30, 41, 59, 0.5);
+    }
+
+    .sortable .sort-indicator {
+        position: absolute;
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+        opacity: 0.3;
+        font-size: 0.8em;
+    }
+
+    .sortable.asc .sort-indicator,
+    .sortable.desc .sort-indicator {
+        opacity: 1;
+        color: #3b82f6;
+    }
+</style>
+
+<!-- Data Injection -->
+<script id="initial-data" type="application/json">
+    {{ initial_records | tojson | safe }}
+</script>
+<script id="products-data" type="application/json">{{ products_json | safe }}</script>
+<script id="categories-data" type="application/json">{{ categories_json | safe }}</script>
+<script id="current-warehouse-id"
+    type="application/json">{{ current_warehouse_id if current_warehouse_id else 'null' }}</script>
+<script id="user-role-data" type="application/json">{{ user_role | tojson | safe }}</script>
+<script id="warehouses-data" type="application/json">
+    [
+    {% for w in warehouses %}
+        {
+            "id": {{ w.id }},
+            "name": "{{ w.name }}",
+            "branch_id": {{ w.branch_id if w.branch_id else 'null' }},
+            "branch_name": "{{ w.branch.name if w.branch else 'Kho Tổng' }}"
+        }{{ "," if not loop.last }}
+    {% endfor %}
+    ]
+</script>
+<script id="branches-data" type="application/json">
+    [
+    {% for b in branches %}
+        {
+            "id": {{ b.id }},
+            "name": "{{ b.name }}",
+            "code": "{{ b.branch_code }}"
+        }{{ "," if not loop.last }}
+    {% endfor %}
+    ]
+</script>
+
+<!-- Initialize Global Data from Script Tags -->
+<script>
+    try {
+        window.INITIAL_RECORDS = JSON.parse(document.getElementById('initial-data').textContent || '{}');
+        window.PRODUCT_DB = JSON.parse(document.getElementById('products-data').textContent || '[]');
+        window.CATEGORY_DB = JSON.parse(document.getElementById('categories-data').textContent || '[]');
+        window.CURRENT_WAREHOUSE_ID = JSON.parse(document.getElementById('current-warehouse-id').textContent || 'null');
+        window.USER_ROLE = JSON.parse(document.getElementById('user-role-data').textContent || 'null');
+        window.WAREHOUSES_DB = JSON.parse(document.getElementById('warehouses-data').textContent || '[]');
+        window.BRANCHES_DB = JSON.parse(document.getElementById('branches-data').textContent || '[]');
+    } catch (e) { console.error("Failed to parse initial data", e); }
+</script>
+
+<!-- Loader Script to handle Module Loading -->
+<script>
+    function receptionRequestLoader(total, page, totalPages) {
+        return {
+            ready: false,
+            init() {
+                // Dynamically import the module
+                // Use new INVENTORY MANAGER module
+                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=1.6")
+                    .then(module => {
+                        // Make the factory available globally or accessible
+                        window.InventoryRequestAppFactory = module.inventoryManagerApp;
+                        // Trigger re-render
+                        this.ready = true;
+                    })
+                    .catch(err => {
+                        console.error("Failed to load inventory module:", err);
+                        alert("Lỗi tải dữ liệu. Vui lòng refresh trang.");
+                    });
+            }
+        };
+    }
+</script>
+
+<div x-data="receptionRequestLoader(
+        {{ total_records | default(0) }},
+        {{ current_page | default(1) }},
+        {{ total_pages | default(1) }}
+    )" class="flex flex-col h-full space-y-4">
+
+    <!-- Loading State -->
+    <div x-show="!ready" class="flex items-center justify-center flex-1 h-full py-20">
+        <div class="flex flex-col items-center gap-2">
+            <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+            <span class="text-sm text-slate-500">Đang tải dữ liệu...</span>
+        </div>
+    </div>
+
+    <!-- Real App Content (Only renders when ready) -->
+    <template x-if="ready">
+        <div x-data="window.InventoryRequestAppFactory(
+            {{ total_records | default(0) }},
+            {{ current_page | default(1) }},
+            {{ total_pages | default(1) }}
+        )" x-init="initApp()" class="flex flex-col h-full space-y-4">
+
+            <div class="flex flex-col h-full space-y-4">
+                <div
+                    class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sticky top-0 z-10">
+
+                    <!-- [NEW] Branch Selection and Request Button -->
+                    <div
+                        class="flex flex-col sm:flex-row items-center justify-between py-2 gap-2 border-b border-slate-100 dark:border-slate-800 mb-2">
+                        <div class="flex items-center gap-2 w-full sm:w-auto">
+                            <label class="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">Kho
+                                Hàng:</label>
+                            <select
+                                class="form-select text-sm rounded-md border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 w-full sm:w-64"
+                                onchange="changeWarehouse(this)">
+                                <option value="">-- Chọn Kho Hàng --</option>
+                                {% for w in warehouses %}
+                                <option value="{{ w.id }}" {% if current_warehouse_id==w.id %}selected{% endif %}>
+                                    {{ w.name }} ({{ w.branch.name if w.branch else 'Kho Tổng' }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <nav class="-mb-px flex space-x-8 overflow-x-auto">
+                        <button @click="currentTab = 'requests'"
+                            :class="currentTab === 'requests' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
+                            Danh sách Yêu cầu
+                        </button>
+                        <button @click="currentTab = 'approvals'; fetchApprovals()"
+                            :class="currentTab === 'approvals' ? 'border-orange-500 text-orange-600 dark:text-orange-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
+                            Duyệt Yêu Cầu Đến
+                            <span x-show="pendingCount > 0"
+                                class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 animate-pulse"
+                                x-text="pendingCount"></span>
+                        </button>
+                        <button @click="currentTab = 'import'; fetchImports(1)"
+                            :class="currentTab === 'import' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
+                            Nhập hàng trực tiếp
+                        </button>
+                        <!-- [NEW] Direct Export Tab (Only for Admin - Logic handled by backend or visual check) -->
+                        <button x-show="isCurrentWarehouseMain" @click="currentTab = 'export'; fetchExports(1)"
+                            :class="currentTab === 'export' ? 'border-red-500 text-red-600 dark:text-red-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
+                            Xuất kho trực tiếp
+                        </button>
+                        <button @click="currentTab = 'overview'; initOverview()"
+                            :class="currentTab === 'overview' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
+                            Tổng quan Kho
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Partials -->
+                {% include "inventory/manager/modules/requests/tab_requests.html" %}
+                {% include "inventory/manager/modules/approvals/tab_approvals.html" %}
+                {% include "inventory/manager/modules/overview/tab_overview.html" %}
+                {% include "inventory/manager/modules/overview/modal_product_history.html" %}
+                {% include "inventory/manager/modules/imports/tab_import.html" %}
+                {% include "inventory/manager/modules/exports/tab_export.html" %}
+
+            </div>
+
+            <!-- Modals (Moved outside overflow-hidden for safety) -->
+            {% include "inventory/manager/modules/requests/modal_create.html" %}
+            {% include "inventory/manager/modules/requests/modal_edit_request.html" %}
+            {% include "inventory/manager/modules/requests/modal_request_detail.html" %}
+            {% include "inventory/manager/modules/approvals/modal_approval_detail.html" %}
+            {% include "inventory/manager/modules/requests/modal_child_ticket.html" %}
+            {% include "inventory/manager/modules/approvals/modal_approval.html" %}
+            {% include "inventory/manager/modules/requests/modal_receipt.html" %}
+
+            <!-- Global Image Viewer Modal -->
+            <div x-show="viewingImage" style="display: none;"
+                class="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+                @click="viewingImage = null" x-cloak>
+
+                <button @click="viewingImage = null"
+                    class="absolute top-4 right-4 text-white hover:text-gray-300 p-2 z-[101]">
+                    <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
+                <img x-show="viewingImage"
+                    :src="viewingImage?.preview || (viewingImage?.file_path ? (viewingImage.file_path.startsWith('/') ? viewingImage.file_path : '/' + viewingImage.file_path) : '')"
+                    class="max-w-full max-h-full object-contain select-none" @click.stop>
+            </div>
+
+            <!-- Import/Export Modals (At root level of Alpine component to avoid nesting issues) -->
+            {% include "inventory/manager/modules/imports/modal_import.html" %}
+            {% include "inventory/manager/modules/imports/modal_edit_import.html" %}
+            {% include "inventory/manager/modules/imports/modal_import_detail.html" %}
+            {% include "inventory/manager/modules/exports/modal_export.html" %}
+            {% include "inventory/manager/modules/exports/modal_export_edit.html" %}
+            {% include "inventory/manager/modules/exports/modal_export_detail.html" %}
+        </div>
+    </template>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function changeWarehouse(el) {
+        try {
+            const currentUrl = new window.URL(window.location.href);
+            currentUrl.searchParams.set('warehouse_id', el.value);
+            // Reset page on context switch
+            currentUrl.searchParams.set('page', 1);
+            window.location.href = currentUrl.toString();
+        } catch (e) {
+            console.error("Error changing warehouse:", e);
+            alert("Lỗi chuyển kho: " + e.message);
+        }
+    }
+</script>
+{% endblock %}

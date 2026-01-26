@@ -1,0 +1,20 @@
+<div x-show="isCatModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+    <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm" @click="isCatModalOpen = false"></div>
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div
+            class="relative w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 p-6">
+            <h3 class="text-lg font-bold mb-4">Thêm Danh mục</h3>
+            <div class="space-y-3">
+                <input type="text" x-model="cForm.code" placeholder="Mã danh mục (VD: DRINK)"
+                    class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                <input type="text" x-model="cForm.name" placeholder="Tên danh mục (VD: Đồ uống)"
+                    class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button @click="isCatModalOpen = false" class="px-3 py-2 text-sm border rounded-lg">Hủy</button>
+                <button @click="submitCategory()"
+                    class="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Lưu</button>
+            </div>
+        </div>
+    </div>
+</div>

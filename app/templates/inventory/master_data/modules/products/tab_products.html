@@ -1,0 +1,72 @@
+<div x-show="!isLoading && currentTab === 'products'" class="space-y-4">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+        <table class="w-full text-sm text-left">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-700/50 border-b">
+                <tr>
+                    <th class="px-6 py-3">Mã SP</th>
+                    <th class="px-6 py-3">Tên Sản phẩm</th>
+                    <th class="px-6 py-3">Danh mục</th>
+                    <th class="px-6 py-3 text-center">ĐVT Cơ sở</th>
+                    <th class="px-6 py-3 text-center">Quy đổi</th>
+                    <th class="px-6 py-3 text-right">Giá vốn</th>
+                    <th class="px-6 py-3 text-center">Trạng thái</th>
+                    <th class="px-6 py-3 text-right">Hành động</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                <template x-for="p in products" :key="p.id">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 group">
+                        <td class="px-6 py-4 font-mono text-xs text-slate-500" x-text="p.code"></td>
+                        <td class="px-6 py-4 font-medium text-slate-900 dark:text-slate-100" x-text="p.name">
+                        </td>
+                        <td class="px-6 py-4 text-slate-500" x-text="p.category_name"></td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs"
+                                x-text="p.base_unit"></span>
+                        </td>
+                        <td class="px-6 py-4 text-center text-xs text-slate-500">
+                            <span x-show="p.packing_unit && p.conversion_rate > 1">
+                                1 <span x-text="p.packing_unit"></span> = <span
+                                    class="font-bold text-slate-700 dark:text-slate-300"
+                                    x-text="p.conversion_rate"></span> <span x-text="p.base_unit"></span>
+                            </span>
+                            <span x-show="!p.packing_unit || p.conversion_rate <= 1">-</span>
+                        </td>
+                        <td class="px-6 py-4 text-right" x-text="formatMoney(p.cost_price)"></td>
+                        <td class="px-6 py-4 text-center">
+                            <div
+                                class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" :id="'toggle_prod_' + p.id" x-model="p.is_active"
+                                    @change="toggleProductStatus(p)"
+                                    class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer duration-200 ease-in-out" />
+                                <label :for="'toggle_prod_' + p.id"
+                                    class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                            <span class="text-xs font-medium" :class="p.is_active ? 'text-green-600' : 'text-gray-500'"
+                                x-text="p.is_active ? 'Bật' : 'Tắt'"></span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button @click="openProductModal('EDIT', p)"
+                                class="text-blue-600 hover:text-blue-900 mr-3">Sửa</button>
+                            <button @click="deleteProduct(p)" class="text-red-600 hover:text-red-900">Xóa</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="products.length === 0">
+                    <td colspan="8" class="px-6 py-8 text-center text-slate-500">Không tìm thấy sản phẩm nào
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="flex justify-center gap-2" x-show="pagination.total_pages > 1">
+        <button @click="changePage(pagination.page - 1)" :disabled="pagination.page === 1"
+            class="px-3 py-1 rounded border disabled:opacity-50">Trước</button>
+        <span class="px-3 py-1 text-slate-500"
+            x-text="'Trang ' + pagination.page + ' / ' + pagination.total_pages"></span>
+        <button @click="changePage(pagination.page + 1)" :disabled="pagination.page === pagination.total_pages"
+            class="px-3 py-1 rounded border disabled:opacity-50">Sau</button>
+    </div>
+</div>

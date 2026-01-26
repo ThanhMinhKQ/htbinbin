@@ -1,0 +1,521 @@
+<!-- MODAL: CHI TIẾT LỊCH SỬ YÊU CẦU (REQUEST DETAIL) -->
+<div x-show="viewingRequestTicket" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto" aria-modal="true"
+    x-cloak>
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="closeRequestDetailModal()">
+    </div>
+
+    <!-- Modal Panel -->
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div
+            class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-5xl flex flex-col max-h-[90vh]">
+
+            <!-- Header & Status Bar -->
+            <div
+                class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-t-2xl shrink-0 flex justify-between items-start">
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-mono"
+                            x-text="viewingRequestTicket?.code"></h3>
+                        <span class="px-2.5 py-0.5 rounded text-xs font-bold border shadow-sm tracking-wide uppercase"
+                            :class="getStatusClass(viewingRequestTicket?.status)"
+                            x-text="getStatusLabel(viewingRequestTicket?.status)"></span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium flex items-center gap-3">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-text="formatDate(viewingRequestTicket?.created_at)"></span>
+                        </span>
+                        <span x-show="viewingRequestTicket?.approved_at"
+                            class="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Duyệt: <span x-text="formatDate(viewingRequestTicket?.approved_at)"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="captureModal($el.closest('.transform'))"
+                        class="text-slate-400 hover:text-blue-600 p-1.5 rounded-full hover:bg-blue-50 transition-colors"
+                        title="Chụp ảnh phiếu">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
+                    <button @click="closeRequestDetailModal()"
+                        class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards Section -->
+            <div
+                class="px-6 py-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-blue-500/10 dark:text-blue-400/10 transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng sản phẩm
+                            </p>
+                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
+                                x-text="viewingRequestTicket?.items?.length || 0"></p>
+                        </div>
+                    </div>
+
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-purple-500/10 dark:text-purple-400/10 transform rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 006.878 2.743c.284 0 .515.228.523.512l.012 5.363c0 .284-.223.516-.508.524l-6.38.188c-.283.009-.516-.217-.524-.501a.532.532 0 01.503-.564l5.352-.158-.01-4.28a13.065 13.065 0 01-5.524-2.825zM11.5 6.5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm5-5a1 1 0 100 2 1 1 0 000-2zm0 5a1 1 0 100 2 1 1 0 000-2z"
+                                    clip-rule="evenodd" />
+                                <path
+                                    d="M6 3a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-1.5c-.235 0-.46.037-.672.106a12.936 12.936 0 01-2.91 5.378c-.29.351-.767.502-1.218.49L7.22 8.786a1.532 1.532 0 01-1.488-1.577l.013-5.363A2.62 2.62 0 016 3z"
+                                    opacity="0.4" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng yêu cầu
+                            </p>
+                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
+                                x-text="(viewingRequestTicket?.items || []).reduce((sum, i) => sum + parseFloat(i.request_quantity || 0), 0).toFixed(0)">
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="relative overflow-hidden group rounded-xl p-4 border shadow-sm hover:shadow-md transition-all duration-300"
+                        :class="{
+                'bg-amber-50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING'),
+                'bg-sky-50 dark:bg-sky-900/10 border-sky-100 dark:border-sky-900/30': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'),
+                'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30': viewingRequestTicket?.has_shortage && (!viewingRequestTicket?.compensation_history || (!viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING') && !viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'))),
+                'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'COMPLETED',
+                'bg-yellow-50 dark:bg-yellow-900/10 border-yellow-100 dark:border-yellow-900/30': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'PENDING',
+                'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700': !viewingRequestTicket
+            }">
+
+                        <div class="absolute -right-4 -bottom-4 opacity-[0.08] dark:opacity-[0.1] transform -rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+                            :class="{
+                    'text-amber-600': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING'),
+                    'text-sky-600': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'),
+                    'text-red-600': viewingRequestTicket?.has_shortage && (!viewingRequestTicket?.compensation_history || (!viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING') && !viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'))),
+                    'text-green-600': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'COMPLETED',
+                    'text-yellow-600': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'PENDING'
+                 }">
+
+                            <!-- Icon: Chờ duyệt hàng bù (Clock) -->
+                            <svg x-show="viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING')"
+                                class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <!-- Icon: Chờ nhận hàng bù (Truck) -->
+                            <svg x-show="viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING')"
+                                class="w-24 h-24" fill="currentColor" viewBox="0 0 20 20">
+                                <path
+                                    d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                                <path
+                                    d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
+                            </svg>
+                            <!-- Icon: Thiếu hàng (Warning) -->
+                            <svg x-show="viewingRequestTicket?.has_shortage && (!viewingRequestTicket?.compensation_history || (!viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING') && !viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING')))"
+                                class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd"
+                                    d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <!-- Icon: Hoàn tất (Shield Check) -->
+                            <svg x-show="!viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'COMPLETED'"
+                                class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd"
+                                    d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.272-2.636-.759-3.807a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM10 8.5a.75.75 0 01.75.75v1.188a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 11-1.06-1.06l.97-.97V9.25A.75.75 0 0110 8.5zm5.25 4.5a.75.75 0 010 1.5h-4.5a.75.75 0 010-1.5h4.5z"
+                                    clip-rule="evenodd" />
+                                <path
+                                    d="M16.28 8.22a.75.75 0 10-1.06 1.06l2.25 2.25L16.28 12.72a.75.75 0 001.06 1.06l1.28-1.28a.75.75 0 000-1.06l-2.34-2.22z" />
+                            </svg>
+                            <!-- Icon: Chờ duyệt (Clock) -->
+                            <svg x-show="!viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'PENDING'"
+                                class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd"
+                                    d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold uppercase tracking-widest mb-1" :class="{
+                        'text-amber-600 dark:text-amber-400': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING'),
+                        'text-sky-600 dark:text-sky-400': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'),
+                        'text-red-600 dark:text-red-400': viewingRequestTicket?.has_shortage && (!viewingRequestTicket?.compensation_history || (!viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING') && !viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'))),
+                        'text-green-600 dark:text-green-400': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'COMPLETED',
+                        'text-yellow-600 dark:text-yellow-400': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'PENDING',
+                        'text-slate-400': !viewingRequestTicket
+                    }">Tình trạng</p>
+
+                            <div class="font-black text-2xl tracking-tight" :class="{
+                        'text-amber-600 dark:text-amber-400': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING'),
+                        'text-sky-600 dark:text-sky-400': viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'),
+                        'text-red-600 dark:text-red-400': viewingRequestTicket?.has_shortage && (!viewingRequestTicket?.compensation_history || (!viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING') && !viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING'))),
+                        'text-green-600 dark:text-green-400': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'COMPLETED',
+                        'text-yellow-600 dark:text-yellow-400': !viewingRequestTicket?.has_shortage && viewingRequestTicket?.status === 'PENDING',
+                        'text-slate-800 dark:text-white': !viewingRequestTicket
+                     }">
+                                <span
+                                    x-show="viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING')">Chờ
+                                    duyệt hàng bù</span>
+                                <span
+                                    x-show="viewingRequestTicket?.has_shortage && viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING')">Chờ
+                                    nhận hàng bù</span>
+                                <span
+                                    x-show="viewingRequestTicket?.has_shortage && (!viewingRequestTicket?.compensation_history || (!viewingRequestTicket.compensation_history.some(c => c.status === 'PENDING') && !viewingRequestTicket.compensation_history.some(c => c.status === 'SHIPPING')))">Thiếu
+                                    hàng</span>
+                                <span
+                                    x-show="viewingRequestTicket?.status === 'COMPLETED' && !viewingRequestTicket?.has_shortage">Hoàn
+                                    tất</span>
+                                <span x-show="viewingRequestTicket?.status === 'PENDING'">Chờ duyệt</span>
+                                <span x-show="!viewingRequestTicket">---</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Simplified Metadata Bar -->
+            <div
+                class="px-6 py-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                <!-- Source -->
+                <div class="flex flex-col">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Nguồn cung cấp</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="viewingRequestTicket?.source_warehouse_name"></div>
+                </div>
+
+                <!-- Requester -->
+                <div class="flex flex-col">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người yêu cầu</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="viewingRequestTicket?.requester_name"></div>
+                </div>
+
+                <!-- Approver -->
+                <div class="flex flex-col" x-show="viewingRequestTicket?.approver_name">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người duyệt</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="viewingRequestTicket?.approver_name"></div>
+                </div>
+
+                <!-- Notes (Full Width) -->
+                <div class="col-span-full pt-2 border-t border-slate-200 dark:border-slate-700"
+                    x-show="viewingRequestTicket?.notes || viewingRequestTicket?.approver_notes">
+                    <div class="flex flex-col gap-2">
+                        <div x-show="viewingRequestTicket?.notes" class="flex flex-col">
+                            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ghi chú</span>
+                            <p class="text-slate-700 dark:text-slate-300 text-sm" x-text="viewingRequestTicket?.notes">
+                            </p>
+                        </div>
+                        <div x-show="viewingRequestTicket?.approver_notes" class="flex flex-col">
+                            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ý kiến
+                                duyệt</span>
+                            <p class="text-slate-700 dark:text-slate-300 text-sm"
+                                x-text="viewingRequestTicket?.approver_notes"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/10 p-0 flex flex-col">
+
+                <!-- Alert: Compensation -->
+                <div x-show="viewingRequestTicket?.code.includes('REQ_COMP')"
+                    class="px-6 py-3 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800 flex items-center gap-3">
+                    <span
+                        class="p-1.5 bg-purple-100 dark:bg-purple-800 rounded-full text-purple-600 dark:text-purple-300">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                    </span>
+                    <p class="text-sm text-purple-800 dark:text-purple-300 font-medium">
+                        Phiếu bù hàng tự động.
+                    </p>
+                </div>
+
+                <!-- Products by Category -->
+                <div class="px-6 py-4 space-y-6 flex-1">
+                    <template x-for="(category, catName) in (viewingRequestTicket?.items || []).reduce((acc, item) => {
+                        const cat = item.category_name || 'Khác';
+                        if (!acc[cat]) acc[cat] = [];
+                        acc[cat].push(item);
+                        return acc;
+                    }, {})" :key="catName">
+                        <div class="relative">
+                            <!-- Category Header -->
+                            <div
+                                class="sticky top-0 z-10 py-2 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm mb-3 flex items-center gap-3">
+                                <span
+                                    class="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-500 to-indigo-600"></span>
+                                <h4 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider"
+                                    x-text="catName"></h4>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-bold text-slate-500"
+                                    x-text="category.length"></span>
+                            </div>
+
+                            <!-- Products in Category -->
+                            <div class="grid grid-cols-1 gap-2">
+                                <template x-for="item in category" :key="item.id">
+                                    <div
+                                        class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200">
+                                        <!-- Optimized Grid Layout for Better Space Utilization -->
+                                        <div class="grid grid-cols-12 gap-3 items-center">
+                                            <!-- Product Icon -->
+                                            <div class="col-span-1">
+                                                <div class="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                                                    <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+
+                                            <!-- Product Info - Takes more space -->
+                                            <div class="col-span-5 min-w-0">
+                                                <div class="font-semibold text-sm text-slate-800 dark:text-white truncate"
+                                                    x-text="item.product_name"></div>
+                                                <!-- Progress Bar (only show if received) -->
+                                                <div x-show="item.approved_quantity !== null && item.received_quantity !== undefined"
+                                                    class="mt-1.5">
+                                                    <div class="flex items-center justify-between text-[10px] mb-0.5">
+                                                        <span class="text-slate-500 dark:text-slate-400">Tiến độ</span>
+                                                        <span class="font-medium"
+                                                            :class="(item.received_quantity >= item.approved_quantity) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'"
+                                                            x-text="(item.approved_quantity > 0 ? Math.min(100, Math.round((item.received_quantity / item.approved_quantity) * 100)) : 0) + '%'"></span>
+                                                    </div>
+                                                    <div
+                                                        class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 overflow-hidden">
+                                                        <div class="h-full rounded-full transition-all duration-500"
+                                                            :class="(item.received_quantity >= item.approved_quantity) ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-orange-400 to-orange-500'"
+                                                            :style="`width: ${item.approved_quantity > 0 ? Math.min(100, (item.received_quantity / item.approved_quantity) * 100) : 0}%`">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Requested Quantity -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Yêu cầu
+                                                </div>
+                                                <div class="flex items-baseline gap-1 justify-center">
+                                                    <span
+                                                        class="font-medium text-slate-600 dark:text-slate-300 text-base"
+                                                        x-text="item.request_quantity"></span>
+                                                    <span class="text-xs text-slate-400"
+                                                        x-text="item.request_unit"></span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Approved Quantity -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-blue-400 uppercase font-bold mb-1">Thực
+                                                    xuất</div>
+                                                <div x-show="item.approved_quantity !== null"
+                                                    class="flex items-baseline gap-1 justify-center">
+                                                    <span class="font-bold text-blue-600 dark:text-blue-400 text-base"
+                                                        x-text="item.approved_quantity"></span>
+                                                    <span class="text-xs text-blue-400/70"
+                                                        x-text="item.request_unit"></span>
+                                                </div>
+                                                <span x-show="item.approved_quantity === null"
+                                                    class="text-slate-300 text-sm">--</span>
+                                            </div>
+
+                                            <!-- Received Quantity -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-green-400 uppercase font-bold mb-1">Thực
+                                                    nhận</div>
+                                                <div x-show="item.received_quantity !== undefined"
+                                                    class="flex items-center gap-1 justify-center">
+                                                    <span class="font-bold text-base"
+                                                        :class="(item.received_quantity < item.approved_quantity) ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'"
+                                                        x-text="item.received_quantity"></span>
+                                                    <span class="text-xs text-slate-400"
+                                                        x-text="item.request_unit"></span>
+                                                    <!-- Status Icon -->
+                                                    <svg x-show="item.received_quantity >= item.approved_quantity"
+                                                        class="w-3.5 h-3.5 text-green-600 dark:text-green-400"
+                                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                    <svg x-show="item.received_quantity < item.approved_quantity"
+                                                        class="w-3.5 h-3.5 text-red-500 dark:text-red-400" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                                    </svg>
+                                                </div>
+                                                <span x-show="item.received_quantity === undefined"
+                                                    class="text-slate-300 text-sm">chưa nhận</span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Loss Reason (if applicable) -->
+                                        <div x-show="item.received_quantity !== undefined && item.approved_quantity !== null && item.received_quantity < item.approved_quantity"
+                                            class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                                            <div
+                                                class="text-xs text-slate-600 dark:text-slate-400 bg-red-50 dark:bg-red-900/10 px-2.5 py-1.5 rounded-lg border border-red-100 dark:border-red-900/30">
+                                                <div class="flex items-center gap-2 flex-wrap">
+                                                    <span
+                                                        class="font-medium text-red-700 dark:text-red-300">Thiếu:</span>
+                                                    <span class="font-semibold text-red-600 dark:text-red-400"
+                                                        x-text="Math.round(item.approved_quantity - item.received_quantity)"></span>
+                                                    <span class="text-red-400" x-text="item.request_unit"></span>
+                                                    <template x-if="item.loss_reason && item.loss_reason.trim() !== ''">
+                                                        <div class="flex items-center gap-2">
+                                                            <span class="text-slate-300 dark:text-slate-600">|</span>
+                                                            <span class="font-medium text-red-700 dark:text-red-300">Lý
+                                                                do:</span>
+                                                            <span x-text="item.loss_reason"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Compensation History (Footer Section) -->
+                <div x-show="viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.length > 0"
+                    class="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
+                    <div
+                        class="px-6 py-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-100 dark:border-slate-700">
+                        <h4 class="font-bold text-slate-700 dark:text-white text-xs uppercase tracking-wider">Lịch sử Bù
+                            hàng</h4>
+                    </div>
+                    <div class="p-0 divide-y divide-slate-100 dark:divide-slate-700">
+                        <template x-for="(child, index) in (viewingRequestTicket?.compensation_history || [])"
+                            :key="child.id">
+                            <div
+                                class="px-6 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-xs font-bold text-purple-600"
+                                        x-text="index + 1"></div>
+                                    <div class="flex flex-col">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-bold text-slate-800 dark:text-white text-sm"
+                                                x-text="child.code"></span>
+                                            <span
+                                                class="px-1.5 py-0.5 rounded text-[10px] font-bold border uppercase tracking-wider"
+                                                :class="getStatusClass(child.status)"
+                                                x-text="getStatusLabel(child.status)"></span>
+                                        </div>
+                                        <span class="text-[10px] text-slate-400"
+                                            x-text="formatDate(child.created_at)"></span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button x-show="child.status === 'SHIPPING'"
+                                        @click="openReceiptModal(child); closeRequestDetailModal()"
+                                        class="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline">
+                                        Nhận Hàng
+                                    </button>
+                                    <button x-show="child.status !== 'SHIPPING'" @click="openChildModal(child)"
+                                        class="text-xs font-medium text-slate-500 hover:text-slate-700 hover:underline">
+                                        Chi tiết
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Images Gallery -->
+            <!-- Images Gallery -->
+            <template
+                x-if="viewingRequestTicket && viewingRequestTicket.images && viewingRequestTicket.images.length > 0">
+                <div class="px-6 py-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+                    <h4
+                        class="text-xs font-bold text-slate-700 dark:text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Hình ảnh đính kèm
+                    </h4>
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                        <template x-for="img in viewingRequestTicket.images" :key="img.id">
+                            <div class="relative group cursor-pointer" @click="viewingImage = img">
+                                <img :src="(img.thumbnail_path && img.thumbnail_path.startsWith('/') ? '' : '/') + (img.thumbnail_path || img.file_path)"
+                                    class="w-full h-24 object-cover rounded-lg border border-slate-200 dark:border-slate-700 hover:opacity-90 transition-opacity">
+                                <div
+                                    class="hidden group-hover:flex absolute inset-0 bg-black/20 rounded-lg items-center justify-center">
+                                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                    </svg>
+                                </div>
+                                <div x-show="img.file_size"
+                                    class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5 rounded-b-lg">
+                                    <div class="text-white text-[10px] font-medium text-center"
+                                        x-text="formatFileSize(img.file_size)"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Footer Actions -->
+            <div
+                class="px-6 py-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex justify-end shrink-0 rounded-b-2xl">
+                <button @click="closeRequestDetailModal()"
+                    class="px-5 py-2 rounded-lg border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 transition text-sm">
+                    Đóng
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>

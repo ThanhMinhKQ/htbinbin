@@ -1,0 +1,177 @@
+<!-- TAB 2: APPROVALS (Updated with History) -->
+<div x-show="currentTab === 'approvals'" class="p-4 flex-1 overflow-auto animate-fade-in-up" x-cloak>
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+
+        <!-- Filters & Actions -->
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-orange-50 dark:bg-orange-900/10">
+            <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
+
+                <!-- Search & Filter Group -->
+                <!-- Search & Filter Group -->
+                <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1 flex-wrap">
+                    <div class="relative w-full sm:w-64">
+                        <input type="text" x-model="approvalFilters.search" @keydown.enter="fetchApprovals()"
+                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                            placeholder="Tìm mã phiếu, chi nhánh...">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <select x-show="approvalFilter === 'HISTORY'" x-model="approvalFilters.status"
+                        @change="fetchApprovals()"
+                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="APPROVED">Đã duyệt</option>
+                        <option value="SHIPPING">Đang giao</option>
+                        <option value="COMPLETED">Đã nhận hàng</option>
+                        <option value="REJECTED">Đã từ chối</option>
+                        <option value="CANCELLED">Đã hủy</option>
+                    </select>
+
+                    <input x-show="approvalFilter === 'PENDING'" type="text" x-model="approvalFilters.requester"
+                        @keydown.enter="fetchApprovals()"
+                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                        placeholder="Người yêu cầu...">
+
+                    <input type="date" x-model="approvalFilters.date_from" @change="fetchApprovals()"
+                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                        placeholder="Từ ngày">
+
+                    <input type="date" x-model="approvalFilters.date_to" @change="fetchApprovals()"
+                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                        placeholder="Đến ngày">
+
+                    <button @click="fetchApprovals()"
+                        class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm font-medium transition">
+                        Tìm kiếm
+                    </button>
+
+                    <button @click="resetApprovalDateFilter()"
+                        class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium transition"
+                        title="Reset về tháng hiện tại">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Title & Toggle Group -->
+                <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                    <div class="text-center sm:text-right">
+                        <h3 class="font-bold text-orange-800 dark:text-orange-300 text-sm">Quản lý Yêu Cầu Đến</h3>
+                        <p class="text-xs text-orange-600 dark:text-orange-400">
+                            Yêu cầu từ chi nhánh khác
+                        </p>
+                    </div>
+
+                    <div
+                        class="flex items-center gap-2 bg-white dark:bg-slate-800 p-1 rounded-lg border border-orange-200 dark:border-orange-800">
+                        <button @click="approvalFilter = 'PENDING'; fetchApprovals()"
+                            :class="approvalFilter === 'PENDING' ? 'bg-orange-100 text-orange-700 font-bold shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                            class="px-3 py-1.5 rounded-md text-sm transition-all relative">
+                            Chờ duyệt
+                            <span x-show="pendingCount > 0"
+                                class="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] text-white font-bold animate-pulse"
+                                x-text="pendingCount"></span>
+                        </button>
+                        <div class="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
+                        <button @click="approvalFilter = 'HISTORY'; fetchApprovals()"
+                            :class="approvalFilter === 'HISTORY' ? 'bg-orange-100 text-orange-700 font-bold shadow-sm' : 'text-slate-500 hover:text-slate-700'"
+                            class="px-3 py-1.5 rounded-md text-sm transition-all">
+                            Lịch sử
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto relative min-h-[300px]">
+            <div x-show="loadingApprovals"
+                class="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-20 flex items-center justify-center backdrop-blur-sm">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+            </div>
+
+            <table class="w-full text-sm text-left">
+                <thead class="bg-slate-50 dark:bg-slate-700/50 text-xs uppercase text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3">Mã Phiếu</th>
+                        <th class="px-4 py-3">Chi nhánh yêu cầu</th>
+                        <th class="px-4 py-3">Người Yêu Cầu</th>
+                        <th class="px-4 py-3">Ngày tạo</th>
+                        <th class="px-4 py-3 text-center" x-show="approvalFilter === 'HISTORY'">Trạng thái</th>
+                        <th class="px-4 py-3 text-center">SL</th>
+                        <th class="px-4 py-3 text-right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                    <template x-for="t in approvalsList" :key="t.id">
+                        <tr class="hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors">
+                            <td class="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">
+                                <div class="flex items-center gap-1">
+                                    <span x-text="t.code"></span>
+                                    <span x-show="t.code.includes('REQ_COMP')"
+                                        class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded border border-purple-200 font-bold whitespace-nowrap">
+                                        Bù hàng
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 font-medium">
+                                <span x-text="t.branch_name"></span>
+                                <div class="text-xs text-slate-400" x-text="t.source_warehouse_name"></div>
+                            </td>
+                            <td class="px-4 py-3" x-text="t.requester_name"></td>
+                            <td class="px-4 py-3 text-slate-500" x-text="formatDate(t.created_at)"></td>
+                            <td class="px-4 py-3 text-center" x-show="approvalFilter === 'HISTORY'">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold border"
+                                    :class="getStatusClass(t.status)" x-text="getStatusLabel(t.status)"></span>
+                            </td>
+                            <td class="px-4 py-3 text-center font-bold" x-text="t.items.length"></td>
+                            <td class="px-4 py-3 text-right">
+                                <!-- Action: Approve (Only PENDING) -->
+                                <button x-show="t.status === 'PENDING'" @click="openApprovalModal(t)"
+                                    class="px-3 py-1.5 text-xs font-bold text-white bg-orange-500 rounded hover:bg-orange-600 shadow-sm transition transform hover:scale-105">
+                                    Duyệt ngay
+                                </button>
+                                <!-- Action: View Detail (History) -->
+                                <button x-show="t.status !== 'PENDING'" @click="openApprovalDetailModal(t)"
+                                    class="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 shadow-sm transition">
+                                    Xem chi tiết
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="approvalsList.length === 0 && !loadingApprovals">
+                        <td colspan="7" class="p-8 text-center text-slate-400">
+                            <span
+                                x-text="approvalFilter === 'PENDING' ? 'Không có yêu cầu nào cần duyệt.' : 'Chưa có lịch sử duyệt.'"></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div
+            class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="text-sm text-slate-500" id="approval-record-count"></div>
+                <select x-model="perPage" @change="fetchApprovals(1)"
+                    class="ml-2 text-sm border-slate-200 dark:border-slate-700 rounded-lg focus:ring-orange-500 bg-white dark:bg-slate-800">
+                    <option value="10">10 / trang</option>
+                    <option value="50">50 / trang</option>
+                    <option value="100">100 / trang</option>
+                    <option value="500">500 / trang</option>
+                </select>
+            </div>
+
+            <div id="approval-pagination-controls" class="flex items-center gap-1" x-show="totalApprovalPages > 1">
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,433 @@
+<!-- PHIẾU NHẬN HÀNG (Receipt Modal) -->
+<div x-show="isReceiptModalOpen" style="display: none;" class="fixed inset-0 z-[70] overflow-y-auto" aria-modal="true"
+    x-cloak>
+    <div x-show="isReceiptModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100" x-transition:leave="ease-in duration-200"
+        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="closeReceiptModal()"></div>
+
+    <div class="flex items-center justify-center min-h-screen px-4 py-4 sm:p-6">
+        <div x-show="isReceiptModalOpen" x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 sm:scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+            x-transition:leave-end="opacity-0 translate-y-4 sm:scale-95"
+            class="relative w-full max-w-5xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-800 text-left shadow-2xl transition-all border border-slate-100 dark:border-slate-700 flex flex-col max-h-[90vh]">
+
+            <!-- Header -->
+            <div
+                class="shrink-0 px-6 py-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-between items-center sticky top-0 z-20">
+                <div>
+                    <h3
+                        class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                        Nhận Hàng
+                        <span class="text-slate-400 font-light">/</span>
+                        <span class="text-indigo-600 dark:text-indigo-400 font-mono"
+                            x-text="receivingTicket?.code"></span>
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-1">Xác nhận số lượng thực tế nhận được tại kho.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="captureModal($el.closest('.transform'))"
+                        class="text-slate-400 hover:text-green-600 p-1.5 rounded-full hover:bg-green-50 transition-colors"
+                        title="Chụp ảnh phiếu">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
+                    <button @click="closeReceiptModal()"
+                        class="group p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                        <svg class="w-6 h-6 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards Section -->
+            <div
+                class="shrink-0 px-6 py-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Card 1: Total Products -->
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-blue-500/10 dark:text-blue-400/10 transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng sản phẩm
+                            </p>
+                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
+                                x-text="receiptForm.items?.length || 0"></p>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Total Approved -->
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-purple-500/10 dark:text-purple-400/10 transform rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 006.878 2.743c.284 0 .515.228.523.512l.012 5.363c0 .284-.223.516-.508.524l-6.38.188c-.283.009-.516-.217-.524-.501a.532.532 0 01.503-.564l5.352-.158-.01-4.28a13.065 13.065 0 01-5.524-2.825zM11.5 6.5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm5-5a1 1 0 100 2 1 1 0 000-2zm0 5a1 1 0 100 2 1 1 0 000-2z"
+                                    clip-rule="evenodd" />
+                                <path
+                                    d="M6 3a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-1.5c-.235 0-.46.037-.672.106a12.936 12.936 0 01-2.91 5.378c-.29.351-.767.502-1.218.49L7.22 8.786a1.532 1.532 0 01-1.488-1.577l.013-5.363A2.62 2.62 0 016 3z"
+                                    opacity="0.4" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng được
+                                duyệt
+                            </p>
+                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
+                                x-text="receiptForm.items.reduce((acc, item) => acc + parseInt(item.approved_quantity || 0), 0)">
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Loss Status -->
+                    <div class="relative overflow-hidden group rounded-xl p-4 border shadow-sm hover:shadow-md transition-all duration-300"
+                        x-data="{
+                            get totalLoss() {
+                                return receiptForm.items.reduce((acc, item) => acc + parseInt(item.loss_quantity || 0), 0);
+                            }
+                        }" :class="{
+                            'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30': totalLoss > 0,
+                            'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': totalLoss === 0,
+                            'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700': !receiptForm.items
+                        }">
+
+                        <div class="absolute -right-4 -bottom-4 opacity-[0.08] dark:opacity-[0.1] transform -rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
+                            :class="{
+                                'text-red-600': totalLoss > 0,
+                                'text-green-600': totalLoss === 0
+                            }">
+
+                            <svg x-show="totalLoss > 0" class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd"
+                                    d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <svg x-show="totalLoss === 0" class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd"
+                                    d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.272-2.636-.759-3.807a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM10 8.5a.75.75 0 01.75.75v1.188a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 11-1.06-1.06l.97-.97V9.25A.75.75 0 0110 8.5zm5.25 4.5a.75.75 0 010 1.5h-4.5a.75.75 0 010-1.5h4.5z"
+                                    clip-rule="evenodd" />
+                                <path
+                                    d="M16.28 8.22a.75.75 0 10-1.06 1.06l2.25 2.25L16.28 12.72a.75.75 0 001.06 1.06l1.28-1.28a.75.75 0 000-1.06l-2.34-2.22z" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold uppercase tracking-widest mb-1" :class="{
+                                'text-red-600 dark:text-red-400': totalLoss > 0,
+                                'text-green-600 dark:text-green-400': totalLoss === 0,
+                                'text-slate-400': !receiptForm.items
+                            }">Hỏng/Mất</p>
+
+                            <div class="font-black text-2xl tracking-tight" :class="{
+                                'text-red-600 dark:text-red-400': totalLoss > 0,
+                                'text-green-600 dark:text-green-400': totalLoss === 0,
+                                'text-slate-800 dark:text-white': !receiptForm.items
+                            }" x-text="totalLoss">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata Bar -->
+            <div
+                class="shrink-0 px-6 py-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
+                <!-- Source -->
+                <div class="flex flex-col">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Nguồn cung cấp</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="receivingTicket?.source_warehouse_name || 'N/A'"></div>
+                </div>
+
+                <!-- Requester -->
+                <div class="flex flex-col">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người tạo</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="receivingTicket?.requester_name || 'N/A'"></div>
+                </div>
+
+                <!-- Approver -->
+                <div class="flex flex-col" x-show="receivingTicket?.approver_name">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người duyệt</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="receivingTicket?.approver_name"></div>
+                </div>
+
+                <!-- Notes (Full Width) -->
+                <div class="col-span-full pt-2 border-t border-slate-200 dark:border-slate-700"
+                    x-show="receivingTicket?.notes || receivingTicket?.approver_notes">
+                    <div class="flex flex-col gap-2">
+                        <div x-show="receivingTicket?.notes" class="flex flex-col">
+                            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ghi chú</span>
+                            <p class="text-slate-700 dark:text-slate-300 text-sm" x-text="receivingTicket?.notes">
+                            </p>
+                        </div>
+                        <div x-show="receivingTicket?.approver_notes" class="flex flex-col">
+                            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ý kiến
+                                duyệt</span>
+                            <p class="text-slate-700 dark:text-slate-300 text-sm"
+                                x-text="receivingTicket?.approver_notes"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items List (Card Layout) -->
+            <div class="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50 px-6 py-6"
+                id="receipt-items-container">
+
+                <!-- Compensation Options -->
+                <div x-show="hasAnyLoss()"
+                    class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm mb-6">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Tùy chọn xử
+                        lý thiếu hàng</span>
+                    <div class="flex flex-col gap-2">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="comp_mode" value="none" x-model="receiptForm.compensation_mode"
+                                class="text-blue-600 focus:ring-blue-500">
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Không bù (Chấp nhận
+                                thực tế)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="comp_mode" value="loss" x-model="receiptForm.compensation_mode"
+                                class="text-amber-600 focus:ring-amber-500">
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-300">Bù hàng
+                                hỏng/mất</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Products by Category -->
+                <div class="space-y-6">
+                    <template x-for="(category, catName) in (receiptForm.items || []).reduce((acc, item) => {
+                        const cat = item.category_name || 'Khác';
+                        if (!acc[cat]) acc[cat] = [];
+                        acc[cat].push(item);
+                        return acc;
+                    }, {})" :key="catName">
+                        <div class="relative">
+                            <!-- Category Header -->
+                            <div
+                                class="sticky top-0 z-10 py-2 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm mb-3 flex items-center gap-3">
+                                <span
+                                    class="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-500 to-indigo-600"></span>
+                                <h4 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider"
+                                    x-text="catName"></h4>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-bold text-slate-500"
+                                    x-text="category.length"></span>
+                            </div>
+
+                            <!-- Products Grid -->
+                            <div class="grid grid-cols-1 gap-2">
+                                <template x-for="(item, idx) in category" :key="item.id">
+                                    <div
+                                        class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200">
+
+                                        <!-- Main Grid Layout -->
+                                        <div class="grid grid-cols-12 gap-3 items-center">
+
+                                            <!-- Product Icon -->
+                                            <div class="col-span-1">
+                                                <div class="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                                                    <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+
+                                            <!-- Product Name -->
+                                            <div class="col-span-3 min-w-0">
+                                                <div class="font-semibold text-sm text-slate-800 dark:text-white truncate"
+                                                    x-text="item.product_name"></div>
+                                                <span class="text-xs text-slate-400 font-medium"
+                                                    x-text="item.request_unit"></span>
+                                            </div>
+
+                                            <!-- Requested Quantity -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Yêu cầu
+                                                </div>
+                                                <div class="flex items-baseline gap-1 justify-center">
+                                                    <span
+                                                        class="font-medium text-slate-600 dark:text-slate-300 text-base"
+                                                        x-text="item.request_quantity"></span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Approved Quantity -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-blue-400 uppercase font-bold mb-1">Đã duyệt
+                                                </div>
+                                                <div class="flex items-baseline gap-1 justify-center">
+                                                    <span class="font-bold text-blue-600 dark:text-blue-400 text-base"
+                                                        x-text="item.approved_quantity"></span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Received Input -->
+                                            <div class="col-span-2">
+                                                <div
+                                                    class="text-[10px] text-green-400 uppercase font-bold mb-1 text-center">
+                                                    Thực nhận</div>
+                                                <input type="number" x-model.number="item.received_quantity" min="0"
+                                                    :max="item.approved_quantity"
+                                                    class="block w-full px-2 py-1.5 text-center border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10 rounded-lg text-sm font-bold text-green-700 dark:text-green-400 focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm transition-all"
+                                                    @input="
+                                                        if (item.received_quantity > item.approved_quantity) item.received_quantity = item.approved_quantity;
+                                                        if (item.received_quantity < 0) item.received_quantity = 0;
+                                                        item.loss_quantity = Math.max(0, item.approved_quantity - item.received_quantity);
+                                                    ">
+                                            </div>
+
+                                            <!-- Loss Input -->
+                                            <div class="col-span-2">
+                                                <div
+                                                    class="text-[10px] text-red-400 uppercase font-bold mb-1 text-center">
+                                                    Hỏng/Mất</div>
+                                                <input type="number" x-model.number="item.loss_quantity" min="0"
+                                                    :max="item.approved_quantity"
+                                                    class="block w-full px-2 py-1.5 text-center border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-900/10 rounded-lg text-sm font-bold text-red-600 dark:text-red-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 shadow-sm transition-all disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-800"
+                                                    :disabled="receiptForm.compensation_mode === 'none'" @input="
+                                                        if (item.loss_quantity > item.approved_quantity) item.loss_quantity = item.approved_quantity;
+                                                        if (item.loss_quantity < 0) item.loss_quantity = 0;
+                                                        item.received_quantity = Math.max(0, item.approved_quantity - item.loss_quantity);
+                                                    ">
+                                            </div>
+                                        </div>
+
+                                        <!-- Loss Reason (Full Width Below) - Only show when there's loss -->
+                                        <div x-show="item.loss_quantity > 0"
+                                            class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700"
+                                            x-transition>
+                                            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">
+                                                <svg class="w-3 h-3 inline-block mr-1" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                Lý do hỏng/mất
+                                            </label>
+                                            <input type="text" x-model="item.loss_reason"
+                                                placeholder="VD: Bể vỡ trong quá trình vận chuyển..."
+                                                class="block w-full px-3 py-2 border-slate-200 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all placeholder:text-slate-300 bg-white dark:bg-slate-900">
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Image Upload Section -->
+            <div class="px-6 pb-6">
+                <div
+                    class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-700 dark:text-white flex items-center gap-2">
+                                <svg class="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Đính kèm hình ảnh (Biên bản/Hàng hóa)
+                            </h4>
+                        </div>
+                        <label
+                            class="cursor-pointer px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-colors flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            Chọn ảnh
+                            <input type="file" multiple accept="image/*" @change="handleReceiptImageUpload($event)"
+                                class="hidden">
+                        </label>
+                    </div>
+
+                    <!-- Image Preview Grid -->
+                    <div x-show="receiptForm.images && receiptForm.images.length > 0"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                        <template x-for="(img, index) in receiptForm.images" :key="index">
+                            <div class="relative group cursor-pointer" @click="viewImage(img)">
+                                <img :src="img.preview" :alt="img.name"
+                                    class="w-full h-20 object-cover rounded-lg border border-slate-200 dark:border-slate-600 hover:border-blue-400 transition-colors">
+                                <button @click.stop="removeReceiptImage(index)" type="button"
+                                    class="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 shadow-sm">
+                                    <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div x-show="!receiptForm.images || receiptForm.images.length === 0"
+                        class="text-center py-4 text-slate-400 border-2 border-dashed border-slate-100 dark:border-slate-700 rounded-lg">
+                        <p class="text-xs">Chưa có ảnh (Chọn hoặc dán Ctrl+V)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div
+                class="px-6 py-4 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button @click="closeReceiptModal()"
+                    class="w-full sm:w-auto px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-800 rounded-xl font-bold shadow-sm transition text-sm">
+                    Hủy bỏ
+                </button>
+                <button @click="submitReceipt()" :disabled="isSubmitting"
+                    class="w-full sm:w-auto px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-blue-500/30 transition transform hover:translate-y-px active:translate-y-0 text-sm flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none">
+                    <svg x-show="!isSubmitting" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <svg x-show="isSubmitting" class="animate-spin -ml-1 mr-2 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    <span x-text="isSubmitting ? 'Đang xử lý...' : 'Xác nhận Nhập kho'"></span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>

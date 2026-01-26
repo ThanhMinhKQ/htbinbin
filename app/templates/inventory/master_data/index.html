@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý Vật tư - Bin Bin Hotel{% endblock %}
+{% block page_title %}Cấu hình Kho & Sản phẩm{% endblock %}
+
+{% block head %}
+<style>
+    /* Toggle Checkbox Custom Styles */
+    .toggle-checkbox:checked {
+        right: 0;
+        border-color: #68D391;
+    }
+
+    .toggle-checkbox:checked+.toggle-label {
+        background-color: #68D391;
+    }
+
+    .toggle-checkbox {
+        right: 50%;
+        /* Initial position */
+        border-color: #CBD5E0;
+        /* Initial border */
+    }
+</style>
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<script>
+    function masterDataLoader() {
+        return {
+            ready: false,
+            init() {
+                import("{{ url_for('static', path='/js/inventory/master_data/index.js') }}?v=1.0")
+                    .then(module => {
+                        window.MasterDataAppFactory = module.masterDataApp;
+                        this.ready = true;
+                    })
+                    .catch(err => {
+                        console.error("Failed to load master data module:", err);
+                        alert("Lỗi tải dữ liệu. Vui lòng refresh trang.");
+                    });
+            }
+        };
+    }
+</script>
+
+<div x-data="masterDataLoader()" class="flex flex-col h-full">
+
+    <div x-show="!ready" class="flex items-center justify-center flex-1 h-full py-20">
+        <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+            viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+            </path>
+        </svg>
+    </div>
+
+    <template x-if="ready">
+        <div x-data="window.MasterDataAppFactory()" x-init="initApp()" class="flex flex-col h-full">
+
+            <div
+                class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+                    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
+                        <button @click="currentTab = 'products'"
+                            :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'products', 'text-slate-500 hover:text-slate-700': currentTab !== 'products'}"
+                            class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                            Sản phẩm
+                        </button>
+                        <button @click="currentTab = 'categories'"
+                            :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'categories', 'text-slate-500 hover:text-slate-700': currentTab !== 'categories'}"
+                            class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                            Danh mục
+                        </button>
+                        <button @click="currentTab = 'warehouses'; fetchWarehouses()"
+                            :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'warehouses', 'text-slate-500 hover:text-slate-700': currentTab !== 'warehouses'}"
+                            class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                            Kho hàng
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2" x-show="currentTab === 'products'">
+                        <div class="relative">
+                            <input type="text" x-model.debounce.500ms="filters.search" @input="fetchProducts()"
+                                placeholder="Tìm tên hoặc mã..."
+                                class="pl-9 pr-4 py-2 text-sm border-slate-300 rounded-lg dark:bg-slate-800 dark:border-slate-700 focus:ring-primary-500 focus:border-primary-500">
+                            <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+
+                        <select x-model="filters.category_id" @change="fetchProducts()"
+                            class="form-select text-sm border-slate-300 rounded-lg dark:bg-slate-800 dark:border-slate-700 max-w-[200px]">
+                            <option value="">-- Tất cả danh mục --</option>
+                            <template x-for="c in categories" :key="c.id">
+                                <option :value="c.id" x-text="c.name"></option>
+                            </template>
+                        </select>
+
+                        <div class="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+                        <button @click="openProductModal('CREATE')"
+                            class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path d="M12 4v16m8-8H4" />
+                            </svg>
+                            Thêm Sản phẩm
+                        </button>
+                    </div>
+
+                    <div x-show="currentTab === 'categories'" class="flex items-center gap-2" x-cloak>
+                        <button @click="openCategoryModal()"
+                            class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path d="M12 4v16m8-8H4" />
+                            </svg>
+                            Thêm Danh mục
+                        </button>
+                    </div>
+
+                    <div x-show="currentTab === 'warehouses'" class="flex items-center gap-2" x-cloak>
+                        <button @click="openWarehouseModal()"
+                            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path d="M12 4v16m8-8H4" />
+                            </svg>
+                            Thêm Kho Mới
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 flex-1 overflow-auto bg-slate-50 dark:bg-slate-900/50">
+                <div x-show="isLoading" class="flex justify-center py-10">
+                    <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                </div>
+
+                {% include "inventory/master_data/modules/products/tab_products.html" %}
+                {% include "inventory/master_data/modules/categories/tab_categories.html" %}
+                {% include "inventory/master_data/modules/warehouses/tab_warehouses.html" %}
+            </div>
+
+            {% include "inventory/master_data/modules/products/modal_product.html" %}
+            {% include "inventory/master_data/modules/categories/modal_category.html" %}
+            {% include "inventory/master_data/modules/warehouses/modal_warehouse.html" %}
+
+        </div>
+    </template>
+</div>
+{% endblock %}

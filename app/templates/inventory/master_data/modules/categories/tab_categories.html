@@ -1,0 +1,26 @@
+<div x-show="!isLoading && currentTab === 'categories'" x-cloak class="space-y-4">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden max-w-3xl mx-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-700/50 border-b">
+                <tr>
+                    <th class="px-6 py-3 w-16">ID</th>
+                    <th class="px-6 py-3">Mã Danh mục</th>
+                    <th class="px-6 py-3">Tên Danh mục</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                <template x-for="c in categories" :key="c.id">
+                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                        <td class="px-6 py-4 text-slate-500" x-text="c.id"></td>
+                        <td class="px-6 py-4 font-mono text-xs" x-text="c.code"></td>
+                        <td class="px-6 py-4 font-bold" x-text="c.name"></td>
+                    </tr>
+                </template>
+                <tr x-show="categories.length === 0">
+                    <td colspan="3" class="px-6 py-8 text-center text-slate-500">Chưa có danh mục nào</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

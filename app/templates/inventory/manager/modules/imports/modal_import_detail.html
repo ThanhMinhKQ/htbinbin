@@ -1,0 +1,321 @@
+<div x-show="isImportDetailModalOpen" style="display: none;" class="fixed inset-0 z-[80] overflow-y-auto"
+    aria-modal="true" x-cloak>
+    <!-- Backdrop -->
+    <div x-show="isImportDetailModalOpen" x-transition:enter="ease-out duration-300"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        @click="closeImportDetailModal()">
+    </div>
+
+    <!-- Modal Panel -->
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div x-show="isImportDetailModalOpen" x-transition:enter="ease-out duration-300"
+            x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200"
+            x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+            x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+            class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-5xl flex flex-col max-h-[90vh]">
+
+            <!-- Header & Status Bar -->
+            <div
+                class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-t-2xl shrink-0 flex justify-between items-start">
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-mono"
+                            x-text="importDetail?.code"></h3>
+                        <!-- Import doesn't usually have status like Request, but we can show something if needed or just date -->
+                        <span
+                            class="px-2.5 py-0.5 rounded text-xs font-bold border shadow-sm tracking-wide uppercase bg-green-100 text-green-700 border-green-200">
+                            Đã Nhập Kho
+                        </span>
+                    </div>
+                    <div class="text-xs text-slate-500 font-medium flex items-center gap-3">
+                        <span class="flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span x-text="formatDate(importDetail?.created_at)"></span>
+                        </span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="captureModal($el.closest('.fixed').querySelector('.max-w-5xl'))"
+                        class="text-slate-400 hover:text-blue-600 p-1.5 rounded-full hover:bg-blue-50 transition-colors"
+                        title="Chụp ảnh phiếu">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
+                    <button @click="closeImportDetailModal()"
+                        class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200 transition-colors">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards Section -->
+            <div
+                class="px-6 py-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Card 1: Total Items -->
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-blue-500/10 dark:text-blue-400/10 transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path
+                                    d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng sản phẩm
+                            </p>
+                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
+                                x-text="importDetail?.items?.length || 0"></p>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Total Quantity -->
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-purple-500/10 dark:text-purple-400/10 transform rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 006.878 2.743c.284 0 .515.228.523.512l.012 5.363c0 .284-.223.516-.508.524l-6.38.188c-.283.009-.516-.217-.524-.501a.532.532 0 01.503-.564l5.352-.158-.01-4.28a13.065 13.065 0 01-5.524-2.825zM11.5 6.5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm5-5a1 1 0 100 2 1 1 0 000-2zm0 5a1 1 0 100 2 1 1 0 000-2z"
+                                    clip-rule="evenodd" />
+                                <path
+                                    d="M6 3a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-1.5c-.235 0-.46.037-.672.106a12.936 12.936 0 01-2.91 5.378c-.29.351-.767.502-1.218.49L7.22 8.786a1.532 1.532 0 01-1.488-1.577l.013-5.363A2.62 2.62 0 016 3z"
+                                    opacity="0.4" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng số lượng
+                            </p>
+                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
+                                x-text="(importDetail?.items || []).reduce((sum, i) => sum + parseFloat(i.quantity || 0), 0).toFixed(0)">
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Total Money -->
+                    <div
+                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
+                        <div
+                            class="absolute right-0 top-0 w-24 h-24 bg-green-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+                        </div>
+
+                        <div
+                            class="absolute -right-4 -bottom-4 text-green-500/10 dark:text-green-400/10 transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-transform duration-500 ease-out pointer-events-none">
+                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
+                                <path fill-rule="evenodd"
+                                    d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v.816a3.836 3.836 0 00-1.72.756c-.712.566-1.112 1.35-1.112 2.178 0 .829.4 1.612 1.113 2.178.502.4 1.102.647 1.719.756v2.978a2.536 2.536 0 01-.921-.421l-.879-.66a.75.75 0 00-.9 1.2l.879.66c.533.4 1.169.645 1.821.75V18a.75.75 0 001.5 0v-.81a4.124 4.124 0 001.821-.749c.745-.559 1.179-1.344 1.179-2.191 0-.847-.434-1.632-1.179-2.191a4.122 4.122 0 00-1.821-.75V8.354c.29.082.559.213.786.393l.415.33a.75.75 0 00.933-1.175l-.415-.33a3.836 3.836 0 00-1.719-.755V6z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                        </div>
+
+                        <div class="relative z-10 flex flex-col justify-between h-full">
+                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng tiền
+                            </p>
+                            <p class="text-3xl font-black text-green-600 dark:text-green-400 font-mono tracking-tight"
+                                x-text="formatMoney(importDetail?.total_amount)"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Compact Metadata Bar -->
+            <div
+                class="px-6 py-4 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <!-- Supplier -->
+                <div class="flex flex-col">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Nhà cung cấp</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="importDetail?.supplier_name"></div>
+                </div>
+
+                <!-- Creator -->
+                <div class="flex flex-col">
+                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người tạo</span>
+                    <div class="font-semibold text-slate-800 dark:text-white truncate"
+                        x-text="importDetail?.creator_name"></div>
+                </div>
+
+                <!-- Notes (Full Width) -->
+                <div class="col-span-full pt-2 border-t border-slate-200 dark:border-slate-700"
+                    x-show="importDetail?.notes">
+                    <div class="flex flex-col">
+                        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ghi chú</span>
+                        <p class="text-slate-700 dark:text-slate-300 text-sm" x-text="importDetail?.notes">
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scrollable Content Area -->
+            <div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/10 p-0 flex flex-col"
+                x-show="!loadingImportDetail">
+                <div class="px-6 py-4 space-y-4 flex-1">
+                    <template x-for="(category, catName) in getGroupedImportDetailItems(importDetail?.items)"
+                        :key="catName">
+                        <div class="relative">
+                            <!-- Category Header -->
+                            <div
+                                class="sticky top-0 z-10 py-2 bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-sm mb-2 flex items-center gap-2">
+                                <span class="w-1 h-5 rounded-full bg-gradient-to-b from-blue-500 to-indigo-600"></span>
+                                <h4 class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider"
+                                    x-text="catName"></h4>
+                                <span
+                                    class="px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-bold text-slate-500"
+                                    x-text="category.length"></span>
+                            </div>
+
+                            <!-- Products in Category -->
+                            <div class="grid grid-cols-1 gap-2">
+                                <template x-for="item in category" :key="item.id">
+                                    <div
+                                        class="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200">
+                                        <!-- Optimized Grid Layout for Better Space Utilization -->
+                                        <div class="grid grid-cols-12 gap-3 items-center">
+                                            <!-- Product Icon -->
+                                            <div class="col-span-1">
+                                                <div class="p-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg">
+                                                    <svg class="w-4 h-4 text-slate-600 dark:text-slate-300" fill="none"
+                                                        viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+
+                                            <!-- Product Info - Takes more space -->
+                                            <div class="col-span-5 min-w-0">
+                                                <div class="flex items-center gap-2 mb-0.5">
+                                                    <span
+                                                        class="font-mono text-[10px] text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded shrink-0"
+                                                        x-text="item.product_code"></span>
+                                                </div>
+                                                <div class="font-semibold text-sm text-slate-800 dark:text-white truncate"
+                                                    x-text="item.product_name"></div>
+                                            </div>
+
+                                            <!-- Quantity -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Số
+                                                    lượng</div>
+                                                <div class="flex items-baseline gap-1 justify-center">
+                                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-base"
+                                                        x-text="item.quantity"></span>
+                                                    <span class="text-xs text-slate-400" x-text="item.unit"></span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Unit Price -->
+                                            <div class="col-span-2 text-center">
+                                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Đơn giá
+                                                </div>
+                                                <div class="font-semibold text-sm text-slate-700 dark:text-slate-300"
+                                                    x-text="formatMoney(item.unit_price)"></div>
+                                            </div>
+
+                                            <!-- Total Price -->
+                                            <div class="col-span-2 text-right">
+                                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-1">Thành
+                                                    tiền</div>
+                                                <div class="font-bold text-base text-green-600 dark:text-green-400"
+                                                    x-text="formatMoney(item.total_price)"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Images Section -->
+                    <div x-show="importDetail?.images && importDetail.images.length > 0"
+                        class="mt-6 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <h4 class="text-sm font-bold text-slate-700 dark:text-white">
+                                Hình ảnh đính kèm
+                            </h4>
+                            <span class="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700
+                            dark:text-blue-300 text-xs font-bold" x-text="importDetail?.images?.length || 0"></span>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                            <template x-for="(img, index) in (importDetail?.images || [])" :key="img.id">
+                                <div @click="viewImage(img)"
+                                    class="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all">
+                                    <img :src="'/' + img.thumbnail_path" :alt="'Image ' + (index + 1)"
+                                        class="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-300">
+                                    <div
+                                        class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                                        <svg class="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                                        </svg>
+                                    </div>
+                                    <div
+                                        class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                                        <div class="text-white text-xs font-medium"
+                                            x-text="formatFileSize(img.file_size)"></div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Loading State -->
+            <div x-show="loadingImportDetail" class="flex-1 flex items-center justify-center min-h-[300px]">
+                <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div
+                class="px-6 py-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-700 flex justify-end shrink-0 rounded-b-2xl gap-3">
+                <button @click="openEditImportModal(importDetail?.id)"
+                    class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-bold shadow-md transition-transform active:scale-95 flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Chỉnh sửa
+                </button>
+                <button @click="closeImportDetailModal()"
+                    class="px-5 py-2 rounded-lg border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 transition text-sm">
+                    Đóng
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>

@@ -1,0 +1,61 @@
+<div x-show="isWhModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+    <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm" @click="isWhModalOpen = false"></div>
+    <div class="flex min-h-full items-center justify-center p-4">
+        <div
+            class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 p-6">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-7 0H3m4 0h5M9 7h1m-1 4h1m-1 4h1m5-4h1m-1 4h1m-1-4h1" />
+                </svg>
+                Thêm Kho Mới
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Tên Kho <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="wForm.name" placeholder="VD: Kho Tổng, Kho B1..."
+                        class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-1">Loại Kho</label>
+                    <div class="flex gap-4 mt-2">
+                        <label
+                            class="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 w-full"
+                            :class="{'border-blue-500 ring-1 ring-blue-500': wForm.type === 'BRANCH'}">
+                            <input type="radio" value="BRANCH" x-model="wForm.type"
+                                class="text-blue-600 focus:ring-blue-500">
+                            <span>Kho Nhánh</span>
+                        </label>
+                        <label
+                            class="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 w-full"
+                            :class="{'border-red-500 ring-1 ring-red-500': wForm.type === 'MAIN'}">
+                            <input type="radio" value="MAIN" x-model="wForm.type"
+                                class="text-red-600 focus:ring-red-500">
+                            <span class="font-bold text-red-600">Kho Tổng</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div x-show="wForm.type === 'BRANCH'">
+                    <label class="block text-sm font-medium mb-1">Thuộc Chi nhánh <span
+                            class="text-red-500">*</span></label>
+                    <select x-model="wForm.branch_id"
+                        class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                        <option value="">-- Chọn chi nhánh --</option>
+                        {% for b in branches %}
+                        <option value="{{ b.id }}">{{ b.name }} ({{ b.branch_code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button @click="isWhModalOpen = false"
+                    class="px-3 py-2 text-sm border rounded-lg hover:bg-slate-100">Hủy</button>
+                <button @click="submitWarehouse()"
+                    class="px-4 py-2 text-sm font-bold bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-500/30">Lưu
+                    Kho</button>
+            </div>
+        </div>
+    </div>
+</div>
