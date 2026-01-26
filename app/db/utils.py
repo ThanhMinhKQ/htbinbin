@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text, inspect
-from ..core.config import logger
-from ..db.models import User, Branch
+from ..core.config import logger, BRANCHES, ROLE_MAP, BRANCH_COORDINATES
+from ..db.models import User, Branch, Department
 
 # Import the `employees` list from the `employees` module
 from ..services.user_service import sync_employees_from_source
@@ -73,3 +73,55 @@ def sync_employees_on_startup(db: Session):
     # force_delete=False để tránh xóa nhầm nhân viên khi file nguồn có thể bị lỗi
     sync_employees_from_source(db=db, employees_source=employees, force_delete=False)
     logger.info("Employee data synchronization on startup finished.")
+
+
+def sync_master_data(db: Session):
+    """
+    Đồng bộ dữ liệu nền (Master Data): Chi nhánh & Phòng ban (Vai trò).
+    Đảm bảo các bảng branches và departments có đủ dữ liệu trước khi sync nhân viên.
+    """
+    logger.info("Starting Master Data synchronization...")
+    
+    # 1. Đồng bộ DEPARTMENTS (Roles)
+    # ROLE_MAP = {"letan": "Lễ tân", ...}
+    for code, name in ROLE_MAP.items():
+        dept = db.query(Department).filter(Department.role_code == code).first()
+        if not dept:
+            dept = Department(role_code=code, name=name)
+            db.add(dept)
+            logger.info(f"[MASTER] Created Department: {code} - {name}")
+        else:
+            if dept.name != name:
+                dept.name = name
+                logger.info(f"[MASTER] Updated Department name: {code}")
+    
+    # 2. Đồng bộ BRANCHES
+    # BRANCHES = ["B1", "B2", ...]
+    # BRANCH_COORDINATES = {"B1": [lat, lng], ...}
+    for code in BRANCHES:
+        branch = db.query(Branch).filter(Branch.branch_code == code).first()
+        
+        # Lấy tọa độ nếu có
+        coords = BRANCH_COORDINATES.get(code)
+        lat, lng = (coords[0], coords[1]) if coords else (None, None)
+        
+        if not branch:
+            branch = Branch(
+                branch_code=code, 
+                name=f"Chi nhánh {code}" if code.startswith("B") else code,
+                gps_lat=lat,
+                gps_lng=lng
+            )
+            db.add(branch)
+            logger.info(f"[MASTER] Created Branch: {code}")
+        else:
+            # Cập nhật tọa độ nếu chưa có hoặc thay đổi
+            update = False
+            if lat is not None and (branch.gps_lat != lat or branch.gps_lng != lng):
+                branch.gps_lat = lat
+                branch.gps_lng = lng
+                update = True
+                logger.info(f"[MASTER] Updated coordinates for Branch: {code}")
+            
+    db.commit()
+    logger.info("Master Data synchronization finished.")

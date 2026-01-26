@@ -18,7 +18,7 @@ from .api import (
 from .core.config import settings, logger
 from .core.utils import VN_TZ
 from .db.session import SessionLocal, engine, Base
-from .db.utils import reset_all_sequences, sync_employees_on_startup
+from .db.utils import reset_all_sequences, sync_employees_on_startup, sync_master_data
 from .db.models import User
 from .services.missing_attendance_service import run_daily_absence_check
 from .services.task_service import update_overdue_tasks_status
@@ -102,6 +102,7 @@ async def startup_event():
         # Dùng context manager để đảm bảo đóng session an toàn
         with SessionLocal() as db:
             reset_all_sequences(db)
+            sync_master_data(db) # [NEW] Đồng bộ Master Data trước
             sync_employees_on_startup(db)
 
         # Logic Scheduler (chỉ chạy ở process chính để tránh duplicate khi dev reload)
