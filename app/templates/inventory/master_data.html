@@ -1,0 +1,956 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    /* Toggle Checkbox Custom Styles */
+    .toggle-checkbox:checked {
+        right: 0;
+        border-color: #68D391;
+    }
+
+    .toggle-checkbox:checked+.toggle-label {
+        background-color: #68D391;
+    }
+
+    .toggle-checkbox {
+        right: 50%;
+        /* Initial position */
+        border-color: #CBD5E0;
+        /* Initial border */
+    }
+</style>
+<script src="//unpkg.com/alpinejs" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+{% endblock %}
+
+
+{% block title %}Quản lý Vật tư - Bin Bin Hotel{% endblock %}
+{% block page_title %}Cấu hình Kho & Sản phẩm{% endblock %}
+
+{% block content %}
+<div x-data="masterDataApp()" x-init="initApp()" class="flex flex-col h-full">
+
+    <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+
+            <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
+                <button @click="currentTab = 'products'"
+                    :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'products', 'text-slate-500 hover:text-slate-700': currentTab !== 'products'}"
+                    class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                    Sản phẩm
+                </button>
+                <button @click="currentTab = 'categories'"
+                    :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'categories', 'text-slate-500 hover:text-slate-700': currentTab !== 'categories'}"
+                    class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                    Danh mục
+                </button>
+                <button @click="currentTab = 'warehouses'; fetchWarehouses()"
+                    :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'warehouses', 'text-slate-500 hover:text-slate-700': currentTab !== 'warehouses'}"
+                    class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                    Kho hàng
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2" x-show="currentTab === 'products'">
+                <div class="relative">
+                    <input type="text" x-model.debounce.500ms="filters.search" @input="fetchProducts()"
+                        placeholder="Tìm tên hoặc mã..."
+                        class="pl-9 pr-4 py-2 text-sm border-slate-300 rounded-lg dark:bg-slate-800 dark:border-slate-700 focus:ring-primary-500 focus:border-primary-500">
+                    <svg class="w-4 h-4 absolute left-3 top-2.5 text-slate-400" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+
+                <select x-model="filters.category_id" @change="fetchProducts()"
+                    class="form-select text-sm border-slate-300 rounded-lg dark:bg-slate-800 dark:border-slate-700 max-w-[200px]">
+                    <option value="">-- Tất cả danh mục --</option>
+                    <template x-for="c in categories" :key="c.id">
+                        <option :value="c.id" x-text="c.name"></option>
+                    </template>
+                </select>
+
+                <div class="h-6 w-px bg-slate-300 dark:bg-slate-700 mx-1"></div>
+
+                <button @click="openProductModal('CREATE')"
+                    class="flex items-center gap-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M12 4v16m8-8H4" />
+                    </svg>
+                    Thêm Sản phẩm
+                </button>
+            </div>
+
+            <div x-show="currentTab === 'categories'" class="flex items-center gap-2" x-cloak>
+                <button @click="openCategoryModal()"
+                    class="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M12 4v16m8-8H4" />
+                    </svg>
+                    Thêm Danh mục
+                </button>
+            </div>
+
+            <div x-show="currentTab === 'warehouses'" class="flex items-center gap-2" x-cloak>
+                <button @click="openWarehouseModal()"
+                    class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path d="M12 4v16m8-8H4" />
+                    </svg>
+                    Thêm Kho Mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-4 flex-1 overflow-auto bg-slate-50 dark:bg-slate-900/50">
+
+        <div x-show="isLoading" class="flex justify-center py-10">
+            <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none"
+                viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+            </svg>
+        </div>
+
+        <div x-show="!isLoading && currentTab === 'products'" class="space-y-4">
+            <div
+                class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-700/50 border-b">
+                        <tr>
+                            <th class="px-6 py-3">Mã SP</th>
+                            <th class="px-6 py-3">Tên Sản phẩm</th>
+                            <th class="px-6 py-3">Danh mục</th>
+                            <th class="px-6 py-3 text-center">ĐVT Cơ sở</th>
+                            <th class="px-6 py-3 text-center">Quy đổi</th>
+                            <th class="px-6 py-3 text-right">Giá vốn</th>
+                            <th class="px-6 py-3 text-center">Trạng thái</th>
+                            <th class="px-6 py-3 text-right">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                        <template x-for="p in products" :key="p.id">
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 group">
+                                <td class="px-6 py-4 font-mono text-xs text-slate-500" x-text="p.code"></td>
+                                <td class="px-6 py-4 font-medium text-slate-900 dark:text-slate-100" x-text="p.name">
+                                </td>
+                                <td class="px-6 py-4 text-slate-500" x-text="p.category_name"></td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs"
+                                        x-text="p.base_unit"></span>
+                                </td>
+                                <td class="px-6 py-4 text-center text-xs text-slate-500">
+                                    <span x-show="p.packing_unit && p.conversion_rate > 1">
+                                        1 <span x-text="p.packing_unit"></span> = <span
+                                            class="font-bold text-slate-700 dark:text-slate-300"
+                                            x-text="p.conversion_rate"></span> <span x-text="p.base_unit"></span>
+                                    </span>
+                                    <span x-show="!p.packing_unit || p.conversion_rate <= 1">-</span>
+                                </td>
+                                <td class="px-6 py-4 text-right" x-text="formatMoney(p.cost_price)"></td>
+                                <td class="px-6 py-4 text-center">
+                                    <div
+                                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                        <input type="checkbox" :id="'toggle_prod_' + p.id" x-model="p.is_active"
+                                            @change="toggleProductStatus(p)"
+                                            class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer duration-200 ease-in-out" />
+                                        <label :for="'toggle_prod_' + p.id"
+                                            class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                                    </div>
+                                    <span class="text-xs font-medium"
+                                        :class="p.is_active ? 'text-green-600' : 'text-gray-500'"
+                                        x-text="p.is_active ? 'Bật' : 'Tắt'"></span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <button @click="openProductModal('EDIT', p)"
+                                        class="text-blue-600 hover:text-blue-900 mr-3">Sửa</button>
+                                    <button @click="deleteProduct(p)"
+                                        class="text-red-600 hover:text-red-900">Xóa</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="products.length === 0">
+                            <td colspan="8" class="px-6 py-8 text-center text-slate-500">Không tìm thấy sản phẩm nào
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-center gap-2" x-show="pagination.total_pages > 1">
+                <button @click="changePage(pagination.page - 1)" :disabled="pagination.page === 1"
+                    class="px-3 py-1 rounded border disabled:opacity-50">Trước</button>
+                <span class="px-3 py-1 text-slate-500"
+                    x-text="'Trang ' + pagination.page + ' / ' + pagination.total_pages"></span>
+                <button @click="changePage(pagination.page + 1)" :disabled="pagination.page === pagination.total_pages"
+                    class="px-3 py-1 rounded border disabled:opacity-50">Sau</button>
+            </div>
+        </div>
+
+        <div x-show="!isLoading && currentTab === 'categories'" x-cloak class="space-y-4">
+            <div
+                class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden max-w-3xl mx-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-700/50 border-b">
+                        <tr>
+                            <th class="px-6 py-3 w-16">ID</th>
+                            <th class="px-6 py-3">Mã Danh mục</th>
+                            <th class="px-6 py-3">Tên Danh mục</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                        <template x-for="c in categories" :key="c.id">
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                <td class="px-6 py-4 text-slate-500" x-text="c.id"></td>
+                                <td class="px-6 py-4 font-mono text-xs" x-text="c.code"></td>
+                                <td class="px-6 py-4 font-bold" x-text="c.name"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="categories.length === 0">
+                            <td colspan="3" class="px-6 py-8 text-center text-slate-500">Chưa có danh mục nào</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div x-show="!isLoading && currentTab === 'warehouses'" x-cloak class="space-y-4">
+            <div
+                class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden max-w-4xl mx-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-700/50 border-b">
+                        <tr>
+                            <th class="w-10"></th> <!-- Drag Handle -->
+                            <th class="px-6 py-3">Tên Kho</th>
+                            <th class="px-6 py-3 text-center">Loại Kho</th>
+                            <th class="px-6 py-3">Thuộc Chi nhánh</th>
+                            <th class="px-6 py-3 text-center">Trạng thái</th>
+                            <th class="px-6 py-3 text-right">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody x-ref="warehouseList" class="divide-y divide-slate-200 dark:divide-slate-700">
+                        <template x-for="w in warehouses" :key="w.id">
+                            <tr :data-id="w.id"
+                                class="hover:bg-slate-50 dark:hover:bg-slate-700/50 bg-white dark:bg-slate-800">
+                                <td class="pl-4 py-4 cursor-move drag-handle group">
+                                    <svg class="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors"
+                                        fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 8h16M4 16h16" />
+                                    </svg>
+                                </td>
+                                <td class="px-6 py-4 font-bold text-slate-900 dark:text-white" x-text="w.name"></td>
+                                <td class="px-6 py-4 text-center">
+                                    <span class="px-2 py-1 rounded text-xs font-bold"
+                                        :class="w.type === 'MAIN' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'"
+                                        x-text="w.type === 'MAIN' ? 'KHO TỔNG' : 'KHO NHÁNH'"></span>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600 dark:text-slate-400" x-text="w.branch_name"></td>
+                                <td class="px-6 py-4 text-center">
+                                    <div
+                                        class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                        <input type="checkbox" :id="'toggle_wh_' + w.id" x-model="w.is_active"
+                                            @change="toggleWarehouseStatus(w)"
+                                            class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer duration-200 ease-in-out" />
+                                        <label :for="'toggle_wh_' + w.id"
+                                            class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                                    </div>
+                                    <span class="text-xs font-medium"
+                                        :class="w.is_active ? 'text-green-600' : 'text-gray-500'"
+                                        x-text="w.is_active ? 'Bật' : 'Tắt'"></span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <button @click="deleteWarehouse(w)"
+                                        class="text-red-600 hover:text-red-900 text-xs font-medium border border-red-200 rounded px-2 py-1 hover:bg-red-50">Xóa</button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="warehouses.length === 0">
+                            <td colspan="6" class="px-6 py-8 text-center text-slate-500">Chưa có kho nào. Vui lòng tạo
+                                mới.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div x-show="isProductModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" @click="closeProductModal()">
+        </div>
+
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div
+                class="relative w-full max-w-4xl rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-slate-200 dark:ring-slate-800 transform transition-all">
+
+                <!-- Header -->
+                <div
+                    class="px-8 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 rounded-t-2xl sticky top-0 z-10">
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <span
+                                class="p-2 rounded-lg bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                            </span>
+                            <span x-text="modalMode === 'CREATE' ? 'Thêm Sản phẩm Mới' : 'Cập nhật Sản phẩm'"></span>
+                        </h3>
+                        <p class="text-sm text-slate-500 mt-1 ml-12">Điền thông tin chi tiết cho vật tư/hàng hóa</p>
+                    </div>
+                    <button @click="closeProductModal()"
+                        class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="p-6 bg-white dark:bg-slate-900 flex justify-center">
+                    <div class="w-full max-w-3xl space-y-8">
+
+                        <div class="space-y-4">
+                            <h4
+                                class="text-sm font-bold text-slate-900 dark:text-slate-100 border-l-4 border-indigo-500 pl-3 uppercase tracking-wider">
+                                1. Thông tin sản phẩm
+                            </h4>
+
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+                                <div class="md:col-span-4">
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Mã quản lý <span
+                                            class="text-red-500">*</span></label>
+                                    <input type="text" x-model="pForm.code" :disabled="modalMode === 'EDIT'"
+                                        placeholder="VD: SP001"
+                                        class="w-full bg-slate-50 border-0 text-slate-800 font-mono font-medium rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-800 dark:text-white placeholder:text-slate-400">
+                                </div>
+
+                                <div class="md:col-span-8">
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Phân loại <span
+                                            class="text-red-500">*</span></label>
+                                    <div class="relative">
+                                        <select x-model="pForm.category_id"
+                                            class="w-full bg-slate-50 border-0 text-slate-800 font-medium rounded-lg px-4 py-3 pr-8 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-800 dark:text-white appearance-none cursor-pointer">
+                                            <option value="">-- Chọn danh mục --</option>
+                                            <template x-for="c in categories" :key="c.id">
+                                                <option :value="c.id" x-text="c.name"></option>
+                                            </template>
+                                        </select>
+                                        <div
+                                            class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="md:col-span-12">
+                                    <label class="block text-xs font-semibold text-slate-500 mb-1.5">Tên sản phẩm <span
+                                            class="text-red-500">*</span></label>
+                                    <input type="text" x-model="pForm.name" placeholder="VD: Nước suối Aquafina 350ml"
+                                        class="w-full bg-slate-50 border-0 text-slate-800 text-lg font-semibold rounded-lg px-4 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-800 dark:text-white placeholder:text-slate-400 placeholder:font-normal">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-6 border-t border-slate-100 dark:border-slate-800">
+
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <h4
+                                        class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                                        <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                                        2. Cấu hình Giá & Đơn vị
+                                    </h4>
+                                    <p class="text-xs text-slate-500 mt-1">Chọn cách bạn nhập hàng từ nhà cung cấp</p>
+                                </div>
+
+                                <div class="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center">
+                                    <button type="button"
+                                        @click="pForm.conversion_rate = 1; pForm.packing_unit = ''; tempPackPrice = '';"
+                                        :class="(!pForm.packing_unit || pForm.conversion_rate <= 1) ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'"
+                                        class="px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200">
+                                        Nhập Lẻ (Chai/Cái)
+                                    </button>
+                                    <button type="button"
+                                        @click="pForm.conversion_rate = (pForm.conversion_rate > 1 ? pForm.conversion_rate : 24); pForm.packing_unit = (pForm.packing_unit || 'Thùng');"
+                                        :class="(pForm.packing_unit && pForm.conversion_rate > 1) ? 'bg-white text-indigo-600 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'"
+                                        class="px-4 py-2 text-xs font-bold rounded-lg transition-all duration-200">
+                                        Nhập Thùng/Lô
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden relative">
+
+                                <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+
+                                    <div class="space-y-5">
+
+                                        <div>
+                                            <label class="block text-xs font-semibold text-slate-500 mb-2">Đơn vị bán lẻ
+                                                (Cơ sở) <span class="text-red-500">*</span></label>
+                                            <div class="relative group">
+                                                <div
+                                                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                        stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                                    </svg>
+                                                </div>
+                                                <input type="text" x-model="pForm.base_unit"
+                                                    placeholder="VD: Chai, Lon..."
+                                                    class="w-full bg-slate-50 border-0 text-slate-800 font-bold text-sm rounded-xl pl-10 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-900 dark:text-white">
+                                            </div>
+                                        </div>
+
+                                        <div x-show="!pForm.packing_unit || pForm.conversion_rate <= 1"
+                                            x-transition:enter="transition ease-out duration-300 transform"
+                                            x-transition:enter-start="opacity-0 translate-y-2">
+                                            <label class="block text-xs font-semibold text-slate-500 mb-2">Giá nhập mỗi
+                                                <span x-text="pForm.base_unit || 'đơn vị'"></span></label>
+                                            <div class="relative">
+                                                <input type="number" x-model="pForm.cost_price"
+                                                    class="w-full bg-slate-50 border-0 text-indigo-600 font-bold text-lg rounded-xl pl-4 pr-12 py-3 focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all dark:bg-slate-900">
+                                                <span
+                                                    class="absolute right-4 top-4 text-xs font-bold text-slate-400">VNĐ</span>
+                                            </div>
+                                        </div>
+
+                                        <div x-show="pForm.packing_unit && pForm.conversion_rate > 1"
+                                            x-transition:enter="transition ease-out duration-300 transform"
+                                            x-transition:enter-start="opacity-0 -translate-y-2" class="space-y-4">
+                                            <div class="flex gap-4">
+                                                <div class="w-1/2">
+                                                    <label
+                                                        class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Đơn
+                                                        vị lớn</label>
+                                                    <input type="text" x-model="pForm.packing_unit" placeholder="Thùng"
+                                                        class="w-full bg-slate-50 border-0 text-slate-700 font-medium text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-indigo-500">
+                                                </div>
+                                                <div class="w-1/2">
+                                                    <label
+                                                        class="block text-[10px] font-bold text-slate-400 uppercase mb-1">SL/<span
+                                                            x-text="pForm.packing_unit"></span></label>
+                                                    <input type="number" x-model="pForm.conversion_rate"
+                                                        @input="calculateCostPrice()"
+                                                        class="w-full bg-slate-50 border-0 text-blue-600 font-bold text-sm rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-blue-500 text-center">
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label
+                                                    class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Giá
+                                                    nhập 1 <span x-text="pForm.packing_unit"></span></label>
+                                                <div class="relative">
+                                                    <input type="number" x-model="tempPackPrice"
+                                                        @input="calculateCostPrice()" placeholder="VD: 120000"
+                                                        class="w-full bg-slate-50 border-0 text-slate-800 font-bold text-sm rounded-xl pl-3 pr-10 py-3 focus:ring-2 focus:ring-indigo-500">
+                                                    <span
+                                                        class="absolute right-3 top-3.5 text-xs text-slate-400">VNĐ</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
+                                    <div
+                                        class="relative h-full min-h-[160px] bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-6 flex flex-col justify-center items-center text-white shadow-lg overflow-hidden group">
+
+                                        <div
+                                            class="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10 blur-2xl group-hover:scale-150 transition-transform duration-1000">
+                                        </div>
+
+                                        <div class="relative z-10 text-center">
+                                            <p
+                                                class="text-indigo-100 text-xs font-medium uppercase tracking-widest mb-2">
+                                                Giá vốn thực tế / <span x-text="pForm.base_unit || 'Đơn vị'"></span></p>
+
+                                            <div class="flex items-baseline justify-center gap-1">
+                                                <span class="text-4xl font-extrabold tracking-tight"
+                                                    x-text="formatMoney(pForm.cost_price).replace(' ₫', '')">0</span>
+                                                <span class="text-lg font-medium text-indigo-200">đ</span>
+                                            </div>
+
+                                            <div x-show="pForm.packing_unit && pForm.conversion_rate > 1"
+                                                class="mt-4 pt-4 border-t border-white/20 text-xs text-indigo-100/80">
+                                                1 <span x-text="pForm.packing_unit"></span>
+                                                (<span x-text="formatMoney(tempPackPrice || 0)"></span>)
+                                                ÷ <span x-text="pForm.conversion_rate"></span>
+                                            </div>
+
+                                            <div x-show="!pForm.packing_unit || pForm.conversion_rate <= 1"
+                                                class="mt-4 text-xs text-indigo-200">
+                                                Đang nhập trực tiếp theo đơn vị lẻ
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div
+                                    class="bg-slate-50 dark:bg-slate-900/50 px-6 py-3 border-t border-slate-100 dark:border-slate-700 flex items-start gap-2">
+                                    <svg class="w-4 h-4 text-indigo-500 mt-0.5" fill="none" viewBox="0 0 24 24"
+                                        stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p class="text-[11px] text-slate-500 leading-tight">
+                                        Hệ thống sẽ dùng <strong>Giá vốn thực tế</strong> để tính báo cáo lãi lỗ và chi
+                                        phí của từng chi nhánh. Vui lòng kiểm tra kỹ.
+                                    </p>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div
+                            class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-slate-700 dark:text-slate-200">Trạng thái kinh
+                                    doanh</span>
+                                <span class="text-xs text-slate-400">Cho phép nhập/xuất kho sản phẩm này</span>
+                            </div>
+
+                            <button type="button" @click="pForm.is_active = !pForm.is_active"
+                                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                :class="pForm.is_active ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'">
+                                <span aria-hidden="true"
+                                    class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                                    :class="pForm.is_active ? 'translate-x-5' : 'translate-x-0'"></span>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div
+                    class="px-8 py-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center rounded-b-2xl">
+                    <button @click="closeProductModal()"
+                        class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-700 transition-colors">
+                        Hủy bỏ
+                    </button>
+                    <button @click="submitProduct()"
+                        class="px-8 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-500 hover:to-primary-600 rounded-lg shadow-lg shadow-primary-500/30 transform transition-all active:scale-95 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span x-text="modalMode === 'CREATE' ? 'Tạo Sản phẩm' : 'Lưu Thay Đổi'"></span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div x-show="isCatModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm" @click="isCatModalOpen = false"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div
+                class="relative w-full max-w-sm rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 p-6">
+                <h3 class="text-lg font-bold mb-4">Thêm Danh mục</h3>
+                <div class="space-y-3">
+                    <input type="text" x-model="cForm.code" placeholder="Mã danh mục (VD: DRINK)"
+                        class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                    <input type="text" x-model="cForm.name" placeholder="Tên danh mục (VD: Đồ uống)"
+                        class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                </div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button @click="isCatModalOpen = false" class="px-3 py-2 text-sm border rounded-lg">Hủy</button>
+                    <button @click="submitCategory()"
+                        class="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="isWhModalOpen" class="fixed inset-0 z-50 overflow-y-auto" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm" @click="isWhModalOpen = false"></div>
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div
+                class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800 p-6">
+                <h3 class="text-lg font-bold mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-7 0H3m4 0h5M9 7h1m-1 4h1m-1 4h1m5-4h1m-1 4h1m-1-4h1" />
+                    </svg>
+                    Thêm Kho Mới
+                </h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Tên Kho <span
+                                class="text-red-500">*</span></label>
+                        <input type="text" x-model="wForm.name" placeholder="VD: Kho Tổng, Kho B1..."
+                            class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Loại Kho</label>
+                        <div class="flex gap-4 mt-2">
+                            <label
+                                class="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 w-full"
+                                :class="{'border-blue-500 ring-1 ring-blue-500': wForm.type === 'BRANCH'}">
+                                <input type="radio" value="BRANCH" x-model="wForm.type"
+                                    class="text-blue-600 focus:ring-blue-500">
+                                <span>Kho Nhánh</span>
+                            </label>
+                            <label
+                                class="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 w-full"
+                                :class="{'border-red-500 ring-1 ring-red-500': wForm.type === 'MAIN'}">
+                                <input type="radio" value="MAIN" x-model="wForm.type"
+                                    class="text-red-600 focus:ring-red-500">
+                                <span class="font-bold text-red-600">Kho Tổng</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div x-show="wForm.type === 'BRANCH'">
+                        <label class="block text-sm font-medium mb-1">Thuộc Chi nhánh <span
+                                class="text-red-500">*</span></label>
+                        <select x-model="wForm.branch_id"
+                            class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
+                            <option value="">-- Chọn chi nhánh --</option>
+                            {% for b in branches %}
+                            <option value="{{ b.id }}">{{ b.name }} ({{ b.branch_code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-2">
+                    <button @click="isWhModalOpen = false"
+                        class="px-3 py-2 text-sm border rounded-lg hover:bg-slate-100">Hủy</button>
+                    <button @click="submitWarehouse()"
+                        class="px-4 py-2 text-sm font-bold bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow-lg shadow-purple-500/30">Lưu
+                        Kho</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function masterDataApp() {
+        return {
+            currentTab: 'products',
+            isLoading: false,
+
+            // Data
+            products: [],
+            categories: [],
+            warehouses: [],
+            pagination: { page: 1, total_pages: 1 },
+            filters: { search: '', category_id: '' },
+
+            // Modal Product State
+            isProductModalOpen: false,
+            modalMode: 'CREATE', // 'CREATE' or 'EDIT'
+            pForm: {
+                id: null, code: '', name: '', category_id: '',
+                base_unit: '', packing_unit: '', conversion_rate: 1,
+                cost_price: 0, is_active: true
+            },
+            tempPackPrice: '',
+
+            calculateCostPrice() {
+                if (this.tempPackPrice && this.pForm.conversion_rate > 0) {
+                    // Tự động chia: Giá Thùng / Tỷ lệ = Giá Vốn
+                    this.pForm.cost_price = Math.round(this.tempPackPrice / this.pForm.conversion_rate);
+                }
+            },
+
+            // Modal Category State
+            isCatModalOpen: false,
+            cForm: { code: '', name: '' },
+
+            // Modal Warehouse State
+            isWhModalOpen: false,
+            wForm: { name: '', type: 'BRANCH', branch_id: '' },
+
+            async initApp() {
+                await this.fetchCategories();
+                await this.fetchProducts();
+                // Không fetch kho ngay để tối ưu, chỉ fetch khi user bấm tab
+            },
+
+            // --- API ACTIONS ---
+
+            async fetchCategories() {
+                const res = await fetch('/api/inventory/categories');
+                this.categories = await res.json();
+            },
+
+            async fetchProducts() {
+                this.isLoading = true;
+
+                const params = new URLSearchParams();
+                params.append('page', this.pagination.page);
+                params.append('limit', 20);
+
+                if (this.filters.search) params.append('search', this.filters.search);
+                if (this.filters.category_id) params.append('category_id', this.filters.category_id);
+
+                try {
+                    const res = await fetch(`/api/inventory/products?${params.toString()}`);
+                    if (!res.ok) {
+                        const err = await res.json();
+                        alert("Lỗi tải dữ liệu: " + (err.detail || res.statusText));
+                        return;
+                    }
+                    const json = await res.json();
+                    this.products = json.data;
+                    this.pagination.page = json.page;
+                    this.pagination.total_pages = json.total_pages;
+                } catch (e) { console.error(e); }
+                finally { this.isLoading = false; }
+            },
+
+            async fetchWarehouses() {
+                this.isLoading = true;
+                try {
+                    const res = await fetch('/api/inventory/warehouses');
+                    this.warehouses = await res.json();
+                    // Đợi render xong mới init sortable
+                    this.$nextTick(() => {
+                        this.initSortable();
+                    });
+                } catch (e) { console.error(e); }
+                finally { this.isLoading = false; }
+            },
+
+            changePage(p) {
+                if (p < 1 || p > this.pagination.total_pages) return;
+                this.pagination.page = p;
+                this.fetchProducts();
+            },
+
+            // --- PRODUCT MODAL ---
+
+            openProductModal(mode, product = null) {
+                this.modalMode = mode;
+                if (mode === 'CREATE') {
+                    this.pForm = {
+                        id: null, code: '', name: '', category_id: '',
+                        base_unit: 'Chai', packing_unit: 'Thùng', conversion_rate: 24,
+                        cost_price: 0, is_active: true
+                    };
+                } else {
+                    this.pForm = { ...product };
+                }
+                this.isProductModalOpen = true;
+            },
+
+            closeProductModal() {
+                this.isProductModalOpen = false;
+            },
+
+            async submitProduct() {
+                const url = this.modalMode === 'CREATE'
+                    ? '/api/inventory/products'
+                    : `/api/inventory/products/${this.pForm.id}`;
+                const method = this.modalMode === 'CREATE' ? 'POST' : 'PUT';
+
+                try {
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.pForm)
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert(data.message || "Thành công!");
+                        this.closeProductModal();
+                        this.fetchProducts();
+                    } else {
+                        alert(data.detail || "Có lỗi xảy ra");
+                    }
+                } catch (e) { alert("Lỗi kết nối"); }
+            },
+
+            async deleteProduct(product) {
+                if (!confirm(`Bạn có chắc muốn xóa "${product.name}"?`)) return;
+                try {
+                    const res = await fetch(`/api/inventory/products/${product.id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert(data.message);
+                        this.fetchProducts();
+                    } else {
+                        alert(data.detail);
+                    }
+                } catch (e) { alert("Lỗi kết nối"); }
+            },
+
+            async toggleProductStatus(product) {
+                const newStatus = product.is_active;
+                try {
+                    const res = await fetch(`/api/inventory/products/${product.id}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_active: newStatus })
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        alert(data.detail || "Lỗi cập nhật trạng thái");
+                        product.is_active = !newStatus; // Revert
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Lỗi kết nối");
+                    product.is_active = !newStatus; // Revert
+                }
+            },
+
+            // --- CATEGORY MODAL ---
+
+            openCategoryModal() {
+                this.cForm = { code: '', name: '' };
+                this.isCatModalOpen = true;
+            },
+
+            async submitCategory() {
+                try {
+                    const res = await fetch('/api/inventory/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.cForm)
+                    });
+                    if (res.ok) {
+                        this.isCatModalOpen = false;
+                        this.fetchCategories();
+                        alert("Đã thêm danh mục!");
+                    } else {
+                        alert("Lỗi khi thêm danh mục");
+                    }
+                } catch (e) { console.error(e); }
+            },
+
+            // --- WAREHOUSE MODAL ---
+
+            openWarehouseModal() {
+                this.wForm = { name: '', type: 'BRANCH', branch_id: '' };
+                this.isWhModalOpen = true;
+            },
+
+            async submitWarehouse() {
+                if (!this.wForm.name) return alert("Vui lòng nhập tên kho");
+                if (this.wForm.type === 'BRANCH' && !this.wForm.branch_id) return alert("Vui lòng chọn chi nhánh");
+
+                try {
+                    const res = await fetch('/api/inventory/warehouses', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(this.wForm)
+                    });
+
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.isWhModalOpen = false;
+                        this.fetchWarehouses();
+                        alert("Đã thêm kho thành công!");
+                    } else {
+                        alert("Lỗi: " + (data.detail || "Không thể tạo kho"));
+                    }
+                } catch (e) { alert("Lỗi kết nối"); }
+            },
+
+            async deleteWarehouse(wh) {
+                // Cảnh báo lần 1
+                if (!confirm(`XÓA KHO: Bạn có chắc chắn muốn xóa kho "${wh.name}"?`)) return;
+
+                // Cảnh báo lần 2 (Double Check)
+                if (!confirm(`⚠️ CẢNH BÁO QUAN TRỌNG ⚠️\n\nHành động này sẽ XÓA VĨNH VIỄN kho "${wh.name}" cùng với TẤT CẢ dữ liệu liên quan bao gồm:\n- Lịch sử nhập/xuất kho\n- Tồn kho hiện tại\n- Các phiếu yêu cầu/chuyển hàng\n\nDữ liệu KHÔNG THỂ KHÔI PHỤC. Bạn có thực sự chắc chắn muốn xóa?`)) return;
+
+                try {
+                    const res = await fetch(`/api/inventory/warehouses/${wh.id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (res.ok) {
+                        alert(data.message);
+                        this.fetchWarehouses();
+                    } else {
+                        alert(data.detail);
+                    }
+                } catch (e) { alert("Lỗi kết nối"); }
+            },
+
+            // --- REORDER LOGIC ---
+            initSortable() {
+                const el = this.$refs.warehouseList;
+                if (!el) return;
+
+                Sortable.create(el, {
+                    handle: '.drag-handle',
+                    animation: 150,
+                    ghostClass: 'bg-indigo-100',
+                    onEnd: (evt) => {
+                        this.reorderWarehouses();
+                    }
+                });
+            },
+
+            async reorderWarehouses() {
+                // Lấy danh sách ID theo thứ tự trong DOM
+                const rows = this.$refs.warehouseList.querySelectorAll('tr');
+                const ids = Array.from(rows).map(row => parseInt(row.dataset.id)).filter(id => !isNaN(id));
+
+                try {
+                    await fetch('/api/inventory/warehouses/reorder', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ids: ids })
+                    });
+                    // Không cần alert để trải nghiệm mượt mà
+                } catch (e) {
+                    console.error("Lỗi reorder:", e);
+                    alert("Lỗi lưu thứ tự sắp xếp");
+                }
+            },
+
+            async toggleWarehouseStatus(wh) {
+                // Với x-model, wh.is_active ĐÃ được cập nhật giá trị MỚI (true/false) khi hàm này chạy
+                // Lưu lại trạng thái cũ (ngược lại với status hiện tại) để revert nếu lỗi
+                const newStatus = wh.is_active;
+
+                try {
+                    const res = await fetch(`/api/inventory/warehouses/${wh.id}/status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_active: newStatus })
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        alert(data.detail || "Lỗi cập nhật trạng thái");
+                        wh.is_active = !newStatus; // Revert
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert("Lỗi kết nối");
+                    wh.is_active = !newStatus; // Revert
+                }
+            },
+
+            // --- UTILS ---
+            formatMoney(amount) {
+                return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+            }
+        }
+    }
+</script>
+{% endblock %}
