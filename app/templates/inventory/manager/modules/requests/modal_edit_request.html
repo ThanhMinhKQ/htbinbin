@@ -117,7 +117,7 @@
                                         nhóm</label>
                                     <select x-model="group.category_id"
                                         class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 py-2.5 pl-3 focus:ring-1 focus:ring-blue-500 cursor-pointer">
-                                        <option value="">-- Chọn danh mục --</option>
+                                        <option value="">Chọn danh mục</option>
                                         <template x-for="c in normalizedCategories" :key="c.id">
                                             <option :value="c.id" :selected="String(c.id) === String(group.category_id)"
                                                 x-text="c.name"></option>
@@ -155,7 +155,7 @@
                                                     class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-sm font-medium text-slate-700 dark:text-white py-2.5 pl-3 focus:ring-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
 
                                                     <option value=""
-                                                        x-text="group.category_id ? '-- Chọn sản phẩm --' : '-- Chọn danh mục trước --'">
+                                                        x-text="group.category_id ? 'Chọn sản phẩm' : 'Chọn danh mục trước'">
                                                     </option>
 
                                                     <template

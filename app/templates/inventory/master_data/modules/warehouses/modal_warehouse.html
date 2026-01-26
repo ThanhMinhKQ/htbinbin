@@ -42,7 +42,7 @@
                             class="text-red-500">*</span></label>
                     <select x-model="wForm.branch_id"
                         class="w-full text-sm rounded-lg border-slate-300 dark:bg-slate-800 dark:border-slate-700">
-                        <option value="">-- Chọn chi nhánh --</option>
+                        <option value="">Chọn chi nhánh</option>
                         {% for b in branches %}
                         <option value="{{ b.id }}">{{ b.name }} ({{ b.branch_code }})</option>
                         {% endfor %}
