@@ -21,7 +21,7 @@ def slugify(text):
     text = re.sub(r'[^A-Z0-9]+', '_', text)
     return text.strip('_')
 
-# Dữ liệu cần nhập
+# Dữ liệu cần nhập nè
 DATA = [
     {
         "name": "Thực phẩm ăn liền", "code": "TPAL",
