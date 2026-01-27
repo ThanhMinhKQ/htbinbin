@@ -248,7 +248,7 @@ export default {
         try {
             const payload = {
                 source_warehouse_id: this.createForm.source_warehouse_id || null,
-                dest_warehouse_id: this.currentBranchId,
+                dest_warehouse_id: this.currentWarehouseId,  // [FIX] Use warehouse ID instead of branch ID
                 notes: this.createForm.notes,
                 items: itemsToSubmit.map(i => ({
                     product_id: i.product_id,
@@ -371,7 +371,7 @@ export default {
         try {
             const payload = {
                 source_warehouse_id: this.editForm.source_warehouse_id || null,
-                dest_warehouse_id: this.currentBranchId,
+                dest_warehouse_id: this.currentWarehouseId,  // [FIX] Use warehouse ID instead of branch ID
                 notes: this.editForm.notes,
                 items: itemsToSubmit.map(i => ({
                     product_id: i.product_id,

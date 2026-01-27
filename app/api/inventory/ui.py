@@ -211,22 +211,31 @@ async def reception_request_page(
     ]
     products_json = json.dumps(products_data)
     
-    active_branch_code = request.session.get("active_branch") or user_data.get("branch")
-    current_branch_id = None
-    if active_branch_code:
-        branch_obj = db.query(Branch).filter(Branch.branch_code == active_branch_code).first()
-        if branch_obj:
-            current_branch_id = branch_obj.id
-
-    warehouses = db.query(Warehouse).order_by(Warehouse.type.desc(), Warehouse.sort_order).all() 
-    
-    # [NEW] Get user role for permission checks
+    # [FIX] Get user's actual branch from database instead of session
     from ...db.models import User
+    current_branch_id = None
     user_role = None
+    
     if user_data and user_data.get("id"):
-        user_obj = db.query(User).options(joinedload(User.department)).filter(User.id == user_data["id"]).first()
-        if user_obj and user_obj.department:
-            user_role = user_obj.department.role_code
+        user_obj = db.query(User).options(joinedload(User.department), joinedload(User.main_branch)).filter(User.id == user_data["id"]).first()
+        if user_obj:
+            # Use user's main_branch_id from database
+            if user_obj.main_branch_id:
+                current_branch_id = user_obj.main_branch_id
+            # Get user role from department
+            if user_obj.department:
+                user_role = user_obj.department.role_code
+
+    warehouses = db.query(Warehouse).order_by(Warehouse.type.desc(), Warehouse.sort_order).all()
+    
+    # [NEW] Find warehouse ID for the current branch
+    current_warehouse_id = None
+    if current_branch_id:
+        # Find the first warehouse belonging to this branch
+        branch_warehouse = db.query(Warehouse).filter(Warehouse.branch_id == current_branch_id).first()
+        if branch_warehouse:
+            current_warehouse_id = branch_warehouse.id
+
     
     # [NEW] Fetch initial requests data
     initial_data = await get_request_tickets(
@@ -255,6 +264,7 @@ async def reception_request_page(
         "categories_json": json.dumps([{"id": c.id, "name": c.name} for c in categories]),
         "active_page": "inventory_request",
         "current_branch_id": current_branch_id,
+        "current_warehouse_id": current_warehouse_id,  # [NEW] Pass warehouse ID
         "warehouses": warehouses,
         # Pagination Data
         "initial_records": initial_records,

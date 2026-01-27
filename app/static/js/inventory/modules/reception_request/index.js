@@ -33,6 +33,7 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 if (window.PRODUCT_DB) rawProducts = window.PRODUCT_DB;
                 if (window.CATEGORY_DB) rawCategories = window.CATEGORY_DB;
                 if (window.CURRENT_BRANCH_ID) this.currentBranchId = window.CURRENT_BRANCH_ID;
+                if (window.CURRENT_WAREHOUSE_ID) this.currentWarehouseId = window.CURRENT_WAREHOUSE_ID;
                 if (window.INITIAL_RECORDS) {
                     if (window.INITIAL_RECORDS.records) {
                         this.historyList = window.INITIAL_RECORDS.records;

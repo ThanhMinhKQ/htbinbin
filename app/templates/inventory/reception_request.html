@@ -45,6 +45,7 @@
 <script id="products-data" type="application/json">{{ products_json | safe }}</script>
 <script id="categories-data" type="application/json">{{ categories_json | safe }}</script>
 <script id="branch-id-data" type="application/json">{{ current_branch_id }}</script>
+<script id="warehouse-id-data" type="application/json">{{ current_warehouse_id }}</script>
 <script id="user-role-data" type="application/json">{{ user_role | tojson | safe }}</script>
 
 <!-- Initialize Global Data from Script Tags -->
@@ -54,6 +55,7 @@
         window.PRODUCT_DB = JSON.parse(document.getElementById('products-data').textContent || '[]');
         window.CATEGORY_DB = JSON.parse(document.getElementById('categories-data').textContent || '[]');
         window.CURRENT_BRANCH_ID = JSON.parse(document.getElementById('branch-id-data').textContent || 'null');
+        window.CURRENT_WAREHOUSE_ID = JSON.parse(document.getElementById('warehouse-id-data').textContent || 'null');
         window.USER_ROLE = JSON.parse(document.getElementById('user-role-data').textContent || 'null');
     } catch (e) { console.error("Failed to parse initial data", e); }
 </script>

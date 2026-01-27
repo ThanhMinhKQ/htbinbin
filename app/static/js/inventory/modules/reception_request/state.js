@@ -19,6 +19,7 @@ export default function (totalRecords, currentPage, totalPages) {
         productList: [],
         categoryList: [],
         currentBranchId: null,
+        currentWarehouseId: null,  // [NEW] Warehouse ID for the current branch
         userRole: window.USER_ROLE || null,  // User's role for permission checks
 
         // Data Lists
