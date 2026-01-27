@@ -10,15 +10,23 @@ export function masterDataApp() {
         pagination: { page: 1, total_pages: 1 },
         filters: { search: '', category_id: '' },
 
-        // Modal Product State
+        // Modal Product State (Create)
         isProductModalOpen: false,
-        modalMode: 'CREATE', // 'CREATE' or 'EDIT'
         pForm: {
             id: null, code: '', name: '', category_id: '',
             base_unit: '', packing_unit: '', conversion_rate: 1,
             cost_price: 0, is_active: true
         },
         tempPackPrice: '',
+
+        // Modal Product State (Edit)
+        isEditProductModalOpen: false,
+        editForm: {
+            id: null, code: '', name: '', category_id: '',
+            base_unit: '', packing_unit: '', conversion_rate: 1,
+            cost_price: 0, is_active: true
+        },
+        tempEditPackPrice: '',
 
         formatMoney(amount) {
             return new Intl.NumberFormat('vi-VN').format(amount || 0);
@@ -53,6 +61,25 @@ export function masterDataApp() {
             if (this.pForm.conversion_rate <= 1) this.pForm.conversion_rate = 24;
             if (!this.pForm.packing_unit) this.pForm.packing_unit = 'Thùng';
             this.calculatePackPrice();
+        },
+
+        // Edit Modal Calculation Functions
+        calculateEditCostPrice() {
+            if (this.tempEditPackPrice && this.editForm.conversion_rate > 0) {
+                this.editForm.cost_price = Math.round(this.tempEditPackPrice / this.editForm.conversion_rate);
+            }
+        },
+
+        calculateEditPackPrice() {
+            if (this.editForm.conversion_rate > 0) {
+                this.tempEditPackPrice = Math.round(this.editForm.cost_price * this.editForm.conversion_rate);
+            }
+        },
+
+        setEditPackMode() {
+            if (this.editForm.conversion_rate <= 1) this.editForm.conversion_rate = 24;
+            if (!this.editForm.packing_unit) this.editForm.packing_unit = 'Thùng';
+            this.calculateEditPackPrice();
         },
 
         // Modal Category State
@@ -131,21 +158,15 @@ export function masterDataApp() {
             this.fetchProducts();
         },
 
-        // --- PRODUCT MODAL ---
+        // --- PRODUCT MODAL (CREATE) ---
 
-        openProductModal(mode, product = null) {
-            this.modalMode = mode;
-            if (mode === 'CREATE') {
-                this.pForm = {
-                    id: null, code: '', name: '', category_id: '',
-                    base_unit: 'Chai', packing_unit: 'Thùng', conversion_rate: 24,
-                    cost_price: 0, is_active: true
-                };
-                this.tempPackPrice = '';
-            } else {
-                this.pForm = { ...product };
-                this.calculatePackPrice();
-            }
+        openProductModal() {
+            this.pForm = {
+                id: null, code: '', name: '', category_id: '',
+                base_unit: 'Chai', packing_unit: 'Thùng', conversion_rate: 24,
+                cost_price: 0, is_active: true
+            };
+            this.tempPackPrice = '';
             this.isProductModalOpen = true;
         },
 
@@ -154,14 +175,9 @@ export function masterDataApp() {
         },
 
         async submitProduct() {
-            const url = this.modalMode === 'CREATE'
-                ? '/api/inventory/products'
-                : `/api/inventory/products/${this.pForm.id}`;
-            const method = this.modalMode === 'CREATE' ? 'POST' : 'PUT';
-
             try {
-                const res = await fetch(url, {
-                    method: method,
+                const res = await fetch('/api/inventory/products', {
+                    method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.pForm)
                 });
@@ -169,6 +185,47 @@ export function masterDataApp() {
                 if (res.ok) {
                     alert(data.message || "Thành công!");
                     this.closeProductModal();
+                    this.fetchProducts();
+                } else {
+                    alert(data.detail || "Có lỗi xảy ra");
+                }
+            } catch (e) { alert("Lỗi kết nối"); }
+        },
+
+        // --- PRODUCT MODAL (EDIT) ---
+
+        openEditProductModal(product) {
+            // Tìm category_id từ category_name nếu sản phẩm không có sẵn category_id
+            let categoryId = product.category_id;
+            if (!categoryId && product.category_name && this.categories) {
+                const cat = this.categories.find(c => c.name === product.category_name);
+                if (cat) categoryId = cat.id;
+            }
+
+            // Copy product data and ensure category_id is a string for proper dropdown selection
+            this.editForm = {
+                ...product,
+                category_id: categoryId ? String(categoryId) : ''
+            };
+            this.calculateEditPackPrice();
+            this.isEditProductModalOpen = true;
+        },
+
+        closeEditProductModal() {
+            this.isEditProductModalOpen = false;
+        },
+
+        async submitEditProduct() {
+            try {
+                const res = await fetch(`/api/inventory/products/${this.editForm.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.editForm)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || "Cập nhật thành công!");
+                    this.closeEditProductModal();
                     this.fetchProducts();
                 } else {
                     alert(data.detail || "Có lỗi xảy ra");

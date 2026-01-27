@@ -47,7 +47,7 @@
                                 x-text="p.is_active ? 'Bật' : 'Tắt'"></span>
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <button @click="openProductModal('EDIT', p)"
+                            <button @click="openEditProductModal(p)"
                                 class="text-blue-600 hover:text-blue-900 mr-3">Sửa</button>
                             <button @click="deleteProduct(p)" class="text-red-600 hover:text-red-900">Xóa</button>
                         </td>
