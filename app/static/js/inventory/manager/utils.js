@@ -6,8 +6,11 @@ export default {
     formatDate(dateString) {
         if (!dateString) return '';
         try {
+            // Parse the date string
+            // If the string doesn't have timezone info, treat it as UTC
             let date;
             if (typeof dateString === 'string') {
+                // If no timezone indicator, assume it's UTC from server
                 if (dateString.indexOf('Z') === -1 && dateString.indexOf('+') === -1 && dateString.indexOf('-', 10) === -1) {
                     date = new Date(dateString + 'Z');
                 } else {
@@ -16,7 +19,10 @@ export default {
             } else {
                 date = new Date(dateString);
             }
-            if (isNaN(date.getTime())) return dateString;
+
+            if (isNaN(date.getTime())) return dateString; // Return original if parse fails
+
+            // Format with Vietnam timezone
             return new Intl.DateTimeFormat('vi-VN', {
                 hour: '2-digit',
                 minute: '2-digit',
@@ -82,285 +88,375 @@ export default {
     },
 
     updateItemUnit(item) {
-        // Giả định có this.normalizedProducts ở context gọi
-        if (this.normalizedProducts) {
-            const product = this.normalizedProducts.find(p => p.id === item.product_id);
-            if (product) {
-                item.available_units = [product.base_unit];
-                if (product.packing_unit && product.conversion_rate > 1) {
-                    item.available_units.unshift(product.packing_unit);
-                }
-                item.unit = item.available_units[0];
+        const product = this.normalizedProducts.find(p => p.id === item.product_id);
+        if (product) {
+            item.available_units = [product.base_unit];
+            if (product.packing_unit && product.conversion_rate > 1) {
+                item.available_units.unshift(product.packing_unit);
             }
+            item.unit = item.available_units[0];
         }
     },
 
     async compressImage(file) {
         return new Promise((resolve) => {
             const reader = new FileReader();
+
             reader.onload = (e) => {
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
+
                     let width = img.width;
                     let height = img.height;
                     const maxWidth = 1920;
                     const maxHeight = 1080;
+
                     if (width > maxWidth || height > maxHeight) {
                         const ratio = Math.min(maxWidth / width, maxHeight / height);
                         width = width * ratio;
                         height = height * ratio;
                     }
+
                     canvas.width = width;
                     canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
-                    canvas.toBlob((blob) => {
-                        if (blob && blob.size < file.size) {
-                            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() }));
-                        } else {
-                            resolve(null);
-                        }
-                    }, 'image/jpeg', 0.85);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob && blob.size < file.size) {
+                                const compressedFile = new File([blob], file.name, {
+                                    type: 'image/jpeg',
+                                    lastModified: Date.now()
+                                });
+                                resolve(compressedFile);
+                            } else {
+                                resolve(null);
+                            }
+                        },
+                        'image/jpeg',
+                        0.85
+                    );
                 };
                 img.src = e.target.result;
             };
+
             reader.readAsDataURL(file);
         });
     },
 
+    // View Image method commonly used
     viewImage(img) {
         this.viewingImage = img;
     },
 
-    // --- CẢI TIẾN LỚN CHO MANAGER (FULL BILL & INPUT FIX) ---
     async captureModal(element) {
         if (!element) return;
 
-        // 1. Hiệu ứng Loading chuyên nghiệp
+        // 1. Show Loading Overlay immediately
         const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'fixed inset-0 z-[9999] bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center transition-opacity duration-300';
+        loadingOverlay.className = 'fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300';
         loadingOverlay.id = 'capture-loading-overlay';
         loadingOverlay.innerHTML = `
-            <div class="relative w-20 h-20 mb-4">
-                <div class="absolute top-0 left-0 w-full h-full border-4 border-slate-700 rounded-full"></div>
-                <div class="absolute top-0 left-0 w-full h-full border-4 border-blue-500 rounded-full animate-spin border-t-transparent"></div>
-            </div>
-            <p class="text-white font-bold text-xl tracking-tight animate-pulse">Đang xuất phiếu...</p>
-            <p class="text-slate-400 text-sm mt-2">Đang xử lý dữ liệu và định dạng bản in</p>
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-white font-bold text-lg animate-pulse">Đang xử lý hình ảnh...</p>
+            <p class="text-slate-400 text-sm mt-2">Vui lòng đợi giây lát</p>
         `;
         document.body.appendChild(loadingOverlay);
 
-        // Đợi render UI
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 200)));
+        // Force a layout paint
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
 
         try {
-            // 2. Tìm Container chính xác (Smart Detection)
+            // Find the actual modal container more intelligently
             let content;
-            // Ưu tiên tìm content bên trong modal container
-            const contentSelectors = '.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full, .max-w-screen-xl';
 
-            if (element.matches(contentSelectors)) {
+            // 0. Check if the element itself IS the modal container (often the case if passed directly)
+            // Look for max-w-* classes which indicate it's the main container
+            if (element.classList.contains('max-w-3xl') ||
+                element.classList.contains('max-w-4xl') ||
+                element.classList.contains('max-w-5xl') ||
+                element.classList.contains('max-w-6xl') ||
+                element.classList.contains('max-w-7xl') ||
+                element.classList.contains('max-w-full') ||
+                element.classList.contains('max-w-screen-xl')) {
                 content = element;
-            } else {
-                content = element.querySelector(contentSelectors);
             }
 
-            // Fallback: Tìm container màu trắng/sáng
+            // 1. Look for the main modal container by size class
             if (!content) {
-                content = element.querySelector('.bg-white, .bg-slate-50, .dark\\:bg-slate-900') || element;
+                content = element.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
             }
 
-            // 3. Chuẩn bị Snapshot (Lưu state cũ)
-            const originalStyles = [];
-            const modifyStyle = (el, styles) => {
-                const originalState = { element: el, styles: {} };
-                for (const prop in styles) {
-                    originalState.styles[prop] = el.style[prop];
-                    el.style[prop] = styles[prop];
+            // 2. If not found, try to find it by going up to the fixed container first
+            if (!content) {
+                const fixedContainer = element.closest('.fixed') || element;
+                content = fixedContainer.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
+            }
+
+            // 3. If still not found, look for bg-white/slate-50 container with flex flex-col (modal structure)
+            if (!content) {
+                const candidates = element.querySelectorAll('.bg-white, .bg-slate-50, .dark\\:bg-slate-900');
+                for (const candidate of candidates) {
+                    if (candidate.classList.contains('flex') && candidate.classList.contains('flex-col')) {
+                        content = candidate;
+                        break;
+                    }
                 }
-                originalStyles.push(originalState);
-            };
+            }
 
-            // Ẩn nút bấm, thanh cuộn, các element thừa
-            const ignoredElements = content.querySelectorAll('button, .close-btn, [role="button"], ::-webkit-scrollbar');
-            ignoredElements.forEach(el => modifyStyle(el, { display: 'none' }));
+            // 4. Fallback to the element itself
+            if (!content) {
+                content = element.querySelector('.bg-white') || element;
+            }
 
-            // 4. "FORCE EXPANSION" - Ép bung toàn bộ nội dung
-            modifyStyle(content, {
-                transform: 'none',
-                transition: 'none',
-                maxHeight: 'none',
-                height: 'auto',
-                overflow: 'visible',
-                borderRadius: '0',
-                boxShadow: 'none',
-                margin: '0',
-                width: content.scrollWidth + 'px' // Fix cứng chiều rộng để tránh vỡ layout khi bung
-            });
+            // --- PREPARE FOR CAPTURE ---
 
-            // Xử lý đệ quy tất cả phần tử con
-            const allElements = content.querySelectorAll('*');
-            allElements.forEach(el => {
-                const computed = window.getComputedStyle(el);
+            // 1. Remove transforms to avoid blurring
+            const originalTransform = content.style.transform;
+            content.style.transform = 'none';
+            const hadTransformClass = content.classList.contains('transform');
+            if (hadTransformClass) content.classList.remove('transform');
 
-                // a. Bung Scroll: Nếu đang có thanh cuộn -> ép hiện hết
-                if (computed.overflowY === 'auto' || computed.overflowY === 'scroll' || computed.maxHeight !== 'none') {
-                    modifyStyle(el, {
-                        maxHeight: 'none',
-                        height: 'auto',
-                        overflow: 'visible'
+            // 2. Hide control buttons (Close/Capture/Etc)
+            const actionButtons = [];
+
+            // Header buttons (usually top right)
+            const headerActions = content.querySelectorAll('button');
+            headerActions.forEach(btn => {
+                // Heuristic: Header buttons usually contain SVGs (icons) and are in the top part
+                if (btn.querySelector('svg') && btn.offsetParent !== null) {
+                    actionButtons.push({
+                        element: btn,
+                        originalDisplay: btn.style.display
                     });
-                }
-
-                // b. Bung Text: Nếu text bị cắt (truncate) -> ép xuống dòng
-                if (
-                    el.classList.contains('truncate') ||
-                    computed.textOverflow === 'ellipsis' ||
-                    computed.whiteSpace === 'nowrap'
-                ) {
-                    modifyStyle(el, {
-                        whiteSpace: 'normal',
-                        textOverflow: 'clip',
-                        overflow: 'visible',
-                        width: 'auto',
-                        maxWidth: 'none'
-                    });
-                }
-
-                // c. INPUT FREEZER (Quan trọng cho Manager): Biến Input thành Text tĩnh
-                // Input số lượng, Input ghi chú...
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    // Sẽ được xử lý triệt để trong onclone của html2canvas
-                    // Nhưng ở đây ta set style sơ bộ để tránh layout shift
-                    modifyStyle(el, {
-                        border: 'none',
-                        background: 'transparent',
-                        boxShadow: 'none'
-                    });
+                    btn.style.display = 'none';
                 }
             });
 
-            // Chờ DOM cập nhật layout sau khi bung
+            // Footer buttons (usually in border-t area)
+            const footerButtons = content.querySelectorAll('.border-t button');
+            footerButtons.forEach(btn => {
+                actionButtons.push({
+                    element: btn,
+                    originalDisplay: btn.style.display
+                });
+                btn.style.display = 'none';
+            });
+
+            // Save and expand the modal container itself if it has max-height
+            const modalOriginalMaxHeight = content.style.maxHeight;
+            const modalOriginalHeight = content.style.height;
+            const modalOriginalOverflow = content.style.overflow;
+
+            content.style.maxHeight = 'none';
+            content.style.height = 'auto';
+            content.style.overflow = 'visible';
+
+            // Find all scrollable areas that need to be expanded
+            const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
+            const savedStyles = [];
+
+            // Save original styles and expand all scrollable areas
+            scrollableAreas.forEach((area) => {
+                savedStyles.push({
+                    element: area,
+                    maxHeight: area.style.maxHeight,
+                    overflow: area.style.overflow,
+                    height: area.style.height
+                });
+
+                // Temporarily expand to show all content
+                area.style.maxHeight = 'none';
+                area.style.overflow = 'visible';
+                area.style.height = 'auto';
+            });
+
+            // Find and expand all truncated text elements
+            const truncatedElements = content.querySelectorAll('.truncate, .overflow-hidden, .text-ellipsis');
+            const savedClasses = [];
+
+            truncatedElements.forEach((el) => {
+                const classes = {
+                    element: el,
+                    hadTruncate: el.classList.contains('truncate'),
+                    hadOverflowHidden: el.classList.contains('overflow-hidden'),
+                    hadTextEllipsis: el.classList.contains('text-ellipsis'),
+                    originalWhiteSpace: el.style.whiteSpace,
+                    originalOverflow: el.style.overflow,
+                    originalTextOverflow: el.style.textOverflow
+                };
+                savedClasses.push(classes);
+
+                // Remove truncation classes and styles
+                el.classList.remove('truncate', 'overflow-hidden', 'text-ellipsis');
+                el.style.whiteSpace = 'normal';
+                el.style.overflow = 'visible';
+                el.style.textOverflow = 'clip';
+            });
+
+            // Wait longer for the DOM to fully render layout changes
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const finalHeight = content.scrollHeight;
-            const finalWidth = content.scrollWidth;
+            // Calculate dynamic scale - Prioritize quality
+            const contentHeight = content.scrollHeight;
+            let scale = 3.0; // Increased from 2.0 to 3.0 for better clarity
 
-            // 5. Chụp ảnh với cấu hình cao cấp - Tối ưu cho độ nét và chống cắt chữ
+            // Adjust scale only if image is extremely large to prevent browser crash
+            if (contentHeight > 5000) {
+                scale = 2.5;
+            }
+            if (contentHeight > 8000) {
+                scale = 2.0;
+            }
+
+            // Capture the entire expanded content WITHOUT opacity change
+            // Disable transitions and animations to prevent ghosting
+            const originalTransition = content.style.transition;
+            const originalAnimation = content.style.animation;
+            content.style.transition = 'none';
+            content.style.animation = 'none';
+
             const canvas = await html2canvas(content, {
-                scale: 3, // Tăng lên 3 để đảm bảo độ nét tối đa, đặc biệt cho số liệu
+                scale: scale,
                 useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff', // Nền trắng chuẩn in ấn
-                width: finalWidth,
-                height: finalHeight,
-                windowWidth: finalWidth,
-                windowHeight: finalHeight,
-                scrollY: 0,
-                scrollX: 0,
-                letterRendering: true, // Cải thiện render chữ
-                logging: false, // Tắt log để tăng performance
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowHeight: content.scrollHeight,
+                height: content.scrollHeight,
+                scrollY: -window.scrollY,
+                scrollX: -window.scrollX,
                 onclone: (clonedDoc) => {
+                    // Find the cloned content using the same robust selectors
+                    const contentSelectors = '.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full, .max-w-screen-xl, .bg-white, .bg-slate-50, .dark\\:bg-slate-900';
                     const clonedContent = clonedDoc.body.querySelector(contentSelectors) || clonedDoc.body.firstChild;
-                    if (!clonedContent) return;
 
-                    // A. Xử lý Input/Textarea trong bản Clone - Cải thiện để tránh cắt chữ
-                    const inputs = clonedContent.querySelectorAll('input, textarea');
-                    inputs.forEach(input => {
-                        if (input.type === 'hidden' || input.style.display === 'none') return;
+                    if (clonedContent && clonedContent.style) {
+                        clonedContent.style.transform = 'none';
+                        clonedContent.style.transition = 'none';
+                        clonedContent.style.animation = 'none';
+                        clonedContent.style.display = 'flex'; // Ensure flex layout is preserved
+                        clonedContent.style.maxHeight = 'none';
+                        clonedContent.style.height = 'auto';
+                        clonedContent.style.overflow = 'visible';
 
-                        const value = input.value || input.getAttribute('placeholder') || '';
-                        const s = window.getComputedStyle(input);
+                        // Replace all inputs and textareas with static text for clear capture
+                        const inputs = clonedContent.querySelectorAll('input, textarea');
+                        inputs.forEach(input => {
+                            // skip hidden inputs
+                            if (input.type === 'hidden' || input.style.display === 'none') return;
 
-                        const div = clonedDoc.createElement('div');
-                        div.textContent = value;
+                            const value = input.value || '';
+                            const computedStyle = window.getComputedStyle(input);
 
-                        // Copy style quan trọng với cải thiện
-                        div.style.fontFamily = s.fontFamily;
-                        div.style.fontSize = s.fontSize;
-                        div.style.fontWeight = s.fontWeight === 'normal' ? '600' : s.fontWeight; // Tăng độ đậm nhẹ
-                        div.style.color = s.color;
-                        div.style.textAlign = s.textAlign;
-
-                        // QUAN TRỌNG: Padding và line-height để tránh cắt chữ
-                        const computedPadding = s.padding;
-                        div.style.padding = computedPadding === '0px' ? '6px 8px' : computedPadding;
-                        div.style.lineHeight = parseFloat(s.lineHeight) < 1.4 ? '1.5' : s.lineHeight;
-
-                        // Style hiển thị - Cải thiện căn chỉnh
-                        div.style.display = 'flex';
-                        div.style.alignItems = 'center';
-                        div.style.justifyContent = s.textAlign === 'center' ? 'center' : (s.textAlign === 'right' ? 'flex-end' : 'flex-start');
-                        div.style.whiteSpace = 'pre-wrap'; // Cho phép xuống dòng với textarea
-                        div.style.wordBreak = 'break-word'; // Ngắt từ dài
-                        div.style.width = '100%';
-                        div.style.minHeight = s.height;
-                        div.style.boxSizing = 'border-box';
-
-                        // Thêm margin nhỏ để tránh dính sát biên
-                        div.style.marginTop = '1px';
-                        div.style.marginBottom = '1px';
-
-                        if (input.parentNode) {
-                            input.parentNode.replaceChild(div, input);
-                        }
-                    });
-
-                    // B. Xóa placeholder trống nếu có
-                    const emptyElements = clonedContent.querySelectorAll('.empty-placeholder');
-                    emptyElements.forEach(el => el.style.display = 'none');
-
-                    // C. Đảm bảo tất cả text elements có đủ padding
-                    const textElements = clonedContent.querySelectorAll('p, span, div, td, th');
-                    textElements.forEach(el => {
-                        if (el.textContent.trim()) {
-                            const currentPadding = window.getComputedStyle(el).paddingBottom;
-                            if (parseFloat(currentPadding) < 2) {
-                                el.style.paddingBottom = '2px';
+                            // Ensure parent has overflow visible to prevent clipping
+                            if (input.parentNode) {
+                                input.parentNode.style.overflow = 'visible';
                             }
-                        }
-                    });
+
+                            const replacement = clonedDoc.createElement('div');
+
+                            // Copy all relevant styles
+                            replacement.style.fontSize = computedStyle.fontSize;
+                            replacement.style.fontWeight = computedStyle.fontWeight;
+                            replacement.style.color = computedStyle.color;
+                            replacement.style.fontFamily = computedStyle.fontFamily;
+
+                            // Use padding to create space around text (critical for preventing clipping)
+                            replacement.style.padding = '8px 12px';
+                            replacement.style.margin = '0';
+                            replacement.style.boxSizing = 'border-box';
+
+                            // Set minimum height with extra space
+                            const inputHeight = parseFloat(computedStyle.height);
+                            replacement.style.minHeight = `${inputHeight + 4}px`;
+                            replacement.style.height = 'auto';
+
+                            // Use Flexbox for perfect centering
+                            replacement.style.display = 'flex';
+                            replacement.style.alignItems = 'center';
+                            replacement.style.justifyContent = computedStyle.textAlign === 'center' ? 'center' :
+                                computedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start';
+
+                            // Text content with proper spacing
+                            replacement.textContent = value;
+                            replacement.style.lineHeight = '1.5';
+                            replacement.style.whiteSpace = 'nowrap';
+                            replacement.style.border = 'none';
+                            replacement.style.background = 'transparent';
+                            replacement.style.width = '100%';
+                            replacement.style.overflow = 'visible';
+
+                            // Replace the input
+                            if (input.parentNode) {
+                                input.parentNode.replaceChild(replacement, input);
+                            }
+                        });
+                    }
                 }
             });
 
-            // 6. Khôi phục hiện trạng (Undo Changes)
-            for (let i = originalStyles.length - 1; i >= 0; i--) {
-                const { element, styles } = originalStyles[i];
-                for (const prop in styles) {
-                    element.style[prop] = styles[prop];
-                }
-            }
+            // --- RESTORE ORIGINAL STATE ---
 
-            // 7. Xuất ảnh
+            // Restore transforms and transitions
+            content.style.transform = originalTransform;
+            content.style.transition = originalTransition;
+            content.style.animation = originalAnimation;
+            if (hadTransformClass) content.classList.add('transform');
+
+            // Restore buttons
+            actionButtons.forEach(btn => {
+                btn.element.style.display = btn.originalDisplay;
+            });
+
+            // Restore modal container styles
+            content.style.maxHeight = modalOriginalMaxHeight;
+            content.style.height = modalOriginalHeight;
+            content.style.overflow = modalOriginalOverflow;
+
+            // Restore all scrollable area styles
+            savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
+                element.style.maxHeight = maxHeight;
+                element.style.overflow = overflow;
+                element.style.height = height;
+            });
+
+            // Restore all truncated text classes and styles
+            savedClasses.forEach(({ element, hadTruncate, hadOverflowHidden, hadTextEllipsis, originalWhiteSpace, originalOverflow, originalTextOverflow }) => {
+                if (hadTruncate) element.classList.add('truncate');
+                if (hadOverflowHidden) element.classList.add('overflow-hidden');
+                if (hadTextEllipsis) element.classList.add('text-ellipsis');
+                element.style.whiteSpace = originalWhiteSpace;
+                element.style.overflow = originalOverflow;
+                element.style.textOverflow = originalTextOverflow;
+            });
+
+            // Copy to clipboard
             canvas.toBlob(async (blob) => {
-                if (!blob) throw new Error("Canvas rỗng");
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
                     await navigator.clipboard.write([item]);
-
-                    // Thông báo custom đẹp
-                    const msg = document.createElement('div');
-                    msg.className = "fixed top-5 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded-full shadow-2xl z-[10000] flex items-center gap-2 animate-bounce";
-                    msg.innerHTML = `<svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Đã sao chép phiếu! (Ctrl+V)`;
-                    document.body.appendChild(msg);
-                    setTimeout(() => msg.remove(), 3000);
-
+                    alert("Đã chụp toàn bộ phiếu và lưu vào Clipboard!");
                 } catch (err) {
-                    // Fallback tải xuống
-                    const link = document.createElement('a');
-                    link.download = `Phieu_${Date.now()}.png`;
-                    link.href = canvas.toDataURL();
-                    link.click();
+                    console.error('Clipboard failed:', err);
+                    alert("Không thể lưu vào clipboard. Bạn có thể lưu ảnh thủ công bằng cách chuột phải -> Lưu.");
                 }
             });
-
         } catch (e) {
-            console.error("Capture failed:", e);
-            alert("Lỗi khi tạo ảnh phiếu: " + e.message);
+            console.error(e);
+            alert("Lỗi khi chụp màn hình: " + e.message);
         } finally {
+            // Remove Loading Overlay
             const overlay = document.getElementById('capture-loading-overlay');
-            if (overlay) overlay.remove();
+            if (overlay) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                }, 300);
+            }
         }
     },
 
@@ -368,15 +464,21 @@ export default {
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth();
+
         const firstDay = new Date(year, month, 1);
         const lastDay = new Date(year, month + 1, 0);
+
         const formatDate = (date) => {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
             const d = String(date.getDate()).padStart(2, '0');
             return `${y}-${m}-${d}`;
         };
-        return { start: formatDate(firstDay), end: formatDate(lastDay) };
+
+        return {
+            start: formatDate(firstDay),
+            end: formatDate(lastDay)
+        };
     },
 
     getCurrentWarehouseId() {
@@ -385,26 +487,54 @@ export default {
 
     createPaginationHTML(currentPage, totalPages, fetchMethodName) {
         if (totalPages <= 1) return '';
+
         let html = '';
+
         // Previous Button
-        html += `<button class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-50" ${currentPage === 1 ? 'disabled' : `onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${currentPage - 1})"`}><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>`;
-        // Logic render số trang (giữ nguyên)
+        html += `<button class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-50" 
+            ${currentPage === 1 ? 'disabled' : `onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${currentPage - 1})"`}>
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+        </button>`;
+
+        // Page Numbers
         let startPage = Math.max(1, currentPage - 2);
         let endPage = Math.min(totalPages, currentPage + 2);
+
         if (startPage > 1) {
-            html += `<button class="px-3 py-1 rounded-md text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600" onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(1)">1</button>`;
-            if (startPage > 2) html += `<span class="px-1 text-slate-400">...</span>`;
+            html += `<button class="px-3 py-1 rounded-md text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600"
+                onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(1)">1</button>`;
+            if (startPage > 2) {
+                html += `<span class="px-1 text-slate-400">...</span>`;
+            }
         }
+
         for (let i = startPage; i <= endPage; i++) {
-            const activeClass = i === currentPage ? 'bg-red-50 text-red-600 font-bold border border-red-200' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600';
-            html += `<button class="px-3 py-1 rounded-md text-sm ${activeClass}" onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${i})">${i}</button>`;
+            const activeClass = i === currentPage
+                ? 'bg-red-50 text-red-600 font-bold border border-red-200'
+                : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600';
+
+            html += `<button class="px-3 py-1 rounded-md text-sm ${activeClass}"
+                onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${i})">${i}</button>`;
         }
+
         if (endPage < totalPages) {
-            if (endPage < totalPages - 1) html += `<span class="px-1 text-slate-400">...</span>`;
-            html += `<button class="px-3 py-1 rounded-md text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600" onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${totalPages})">${totalPages}</button>`;
+            if (endPage < totalPages - 1) {
+                html += `<span class="px-1 text-slate-400">...</span>`;
+            }
+            html += `<button class="px-3 py-1 rounded-md text-sm hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600"
+                onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${totalPages})">${totalPages}</button>`;
         }
+
         // Next Button
-        html += `<button class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-50" ${currentPage === totalPages ? 'disabled' : `onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${currentPage + 1})"`}><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>`;
+        html += `<button class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 disabled:opacity-50" 
+            ${currentPage === totalPages ? 'disabled' : `onclick="this.closest('[x-data]').__x.$data.${fetchMethodName}(${currentPage + 1})"`}>
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </button>`;
+
         return html;
     }
 };
