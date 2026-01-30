@@ -155,33 +155,78 @@ export default {
         if (!element) return;
 
         try {
-            // Find the actual content wrapper to capture, or use the element itself
-            // Modals usually have a white background container.
+            // Find the actual content wrapper to capture
             const content = element.querySelector('.bg-white') || element;
+
+            // Find all scrollable areas that need to be expanded
+            const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
+            const savedStyles = [];
+
+            // Save original styles and expand all scrollable areas
+            scrollableAreas.forEach((area) => {
+                savedStyles.push({
+                    element: area,
+                    maxHeight: area.style.maxHeight,
+                    overflow: area.style.overflow,
+                    height: area.style.height
+                });
+
+                // Temporarily expand to show all content
+                area.style.maxHeight = 'none';
+                area.style.overflow = 'visible';
+                area.style.height = 'auto';
+            });
+
+            // Wait a bit for the DOM to update
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Calculate dynamic scale based on content height
+            const contentHeight = content.scrollHeight;
+            let scale;
+            if (contentHeight < 1000) {
+                scale = 2.0; // Small content, high quality
+            } else if (contentHeight < 2000) {
+                scale = 1.5; // Medium content
+            } else if (contentHeight < 3000) {
+                scale = 1.2; // Large content
+            } else {
+                // Very large content - scale down more to keep file size reasonable
+                scale = Math.max(0.8, 3000 / contentHeight);
+            }
 
             // Visual feedback
             const originalOpacity = content.style.opacity;
             content.style.opacity = '0.7';
 
+            // Capture the entire expanded content
             const canvas = await html2canvas(content, {
-                scale: 1.5, // Better quality but not too huge
+                scale: scale,
                 useCORS: true,
                 logging: false,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff',
+                windowHeight: content.scrollHeight,
+                height: content.scrollHeight
             });
 
+            // Restore original opacity
             content.style.opacity = originalOpacity;
 
+            // Restore all original styles
+            savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
+                element.style.maxHeight = maxHeight;
+                element.style.overflow = overflow;
+                element.style.height = height;
+            });
+
+            // Copy to clipboard
             canvas.toBlob(async (blob) => {
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
                     await navigator.clipboard.write([item]);
-                    alert("Đã chụp và lưu ảnh vào Clipboard!");
+                    alert("Đã chụp toàn bộ phiếu và lưu vào Clipboard!");
                 } catch (err) {
                     console.error('Clipboard failed:', err);
                     alert("Không thể lưu vào clipboard. Bạn có thể lưu ảnh thủ công bằng cách chuột phải -> Lưu.");
-                    // Fallback: Open image in new tab or show it? 
-                    // For now, simpler is better.
                 }
             });
         } catch (e) {
