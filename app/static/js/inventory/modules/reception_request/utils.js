@@ -257,16 +257,18 @@ export default {
 
             const scrollHeight = content.scrollHeight;
 
-            // 6. Capture with html2canvas
+            // 6. Capture with html2canvas - Cấu hình cao cấp cho chất lượng tối ưu
             const canvas = await html2canvas(content, {
-                scale: 2, // Scale 2.0 là đủ nét và nhẹ, tăng lên 3 nếu cần in ấn
+                scale: 3, // Tăng lên 3 để đảm bảo độ nét cao, tránh vỡ nét
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff',
                 height: scrollHeight,
                 windowHeight: scrollHeight,
+                letterRendering: true, // Cải thiện render chữ
+                logging: false, // Tắt log để tăng performance
                 onclone: (clonedDoc) => {
-                    // Logic thay thế Input/Textarea bằng Text tĩnh (Giữ lại từ code cũ của bạn vì nó tốt)
+                    // Logic thay thế Input/Textarea bằng Text tĩnh - Cải thiện để tránh cắt chữ
                     const clonedContent = clonedDoc.body.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full') || clonedDoc.body.firstChild;
                     if (clonedContent) {
                         const inputs = clonedContent.querySelectorAll('input, textarea');
@@ -279,20 +281,48 @@ export default {
                             // Copy style cơ bản
                             const s = window.getComputedStyle(input);
                             replacement.textContent = value;
-                            replacement.style.cssText = s.cssText;
 
-                            // Override một số style để hiển thị đẹp như text
+                            // Copy font styles
+                            replacement.style.fontFamily = s.fontFamily;
+                            replacement.style.fontSize = s.fontSize;
+                            replacement.style.fontWeight = s.fontWeight === 'normal' ? '600' : s.fontWeight;
+                            replacement.style.color = s.color;
+                            replacement.style.textAlign = s.textAlign;
+
+                            // QUAN TRỌNG: Padding và line-height để tránh cắt chữ số
+                            const computedPadding = s.padding;
+                            replacement.style.padding = computedPadding === '0px' ? '6px 8px' : computedPadding;
+                            replacement.style.lineHeight = parseFloat(s.lineHeight) < 1.4 ? '1.5' : s.lineHeight;
+
+                            // Override style để hiển thị đẹp và rõ ràng
                             replacement.style.display = 'flex';
                             replacement.style.alignItems = 'center';
+                            replacement.style.justifyContent = s.textAlign === 'center' ? 'center' : (s.textAlign === 'right' ? 'flex-end' : 'flex-start');
                             replacement.style.whiteSpace = 'pre-wrap';
+                            replacement.style.wordBreak = 'break-word';
                             replacement.style.overflow = 'visible';
                             replacement.style.height = 'auto';
                             replacement.style.minHeight = s.height;
                             replacement.style.border = 'none';
                             replacement.style.background = 'transparent';
-                            replacement.style.padding = '4px 0'; // Clean padding
+                            replacement.style.boxSizing = 'border-box';
+
+                            // Thêm margin nhỏ để tránh dính sát biên
+                            replacement.style.marginTop = '1px';
+                            replacement.style.marginBottom = '1px';
 
                             if (input.parentNode) input.parentNode.replaceChild(replacement, input);
+                        });
+
+                        // Đảm bảo tất cả text elements có đủ padding để tránh cắt
+                        const textElements = clonedContent.querySelectorAll('p, span, div, td, th');
+                        textElements.forEach(el => {
+                            if (el.textContent.trim()) {
+                                const currentPadding = window.getComputedStyle(el).paddingBottom;
+                                if (parseFloat(currentPadding) < 2) {
+                                    el.style.paddingBottom = '2px';
+                                }
+                            }
                         });
                     }
                 }

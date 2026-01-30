@@ -247,9 +247,9 @@ export default {
             const finalHeight = content.scrollHeight;
             const finalWidth = content.scrollWidth;
 
-            // 5. Chụp ảnh với cấu hình Manager
+            // 5. Chụp ảnh với cấu hình cao cấp - Tối ưu cho độ nét và chống cắt chữ
             const canvas = await html2canvas(content, {
-                scale: 2.5, // Tăng độ nét cho văn bản số
+                scale: 3, // Tăng lên 3 để đảm bảo độ nét tối đa, đặc biệt cho số liệu
                 useCORS: true,
                 allowTaint: true,
                 backgroundColor: '#ffffff', // Nền trắng chuẩn in ấn
@@ -259,11 +259,13 @@ export default {
                 windowHeight: finalHeight,
                 scrollY: 0,
                 scrollX: 0,
+                letterRendering: true, // Cải thiện render chữ
+                logging: false, // Tắt log để tăng performance
                 onclone: (clonedDoc) => {
                     const clonedContent = clonedDoc.body.querySelector(contentSelectors) || clonedDoc.body.firstChild;
                     if (!clonedContent) return;
 
-                    // A. Xử lý Input/Textarea trong bản Clone (Để ảnh chụp hiện số rõ nét)
+                    // A. Xử lý Input/Textarea trong bản Clone - Cải thiện để tránh cắt chữ
                     const inputs = clonedContent.querySelectorAll('input, textarea');
                     inputs.forEach(input => {
                         if (input.type === 'hidden' || input.style.display === 'none') return;
@@ -274,22 +276,31 @@ export default {
                         const div = clonedDoc.createElement('div');
                         div.textContent = value;
 
-                        // Copy style quan trọng
+                        // Copy style quan trọng với cải thiện
                         div.style.fontFamily = s.fontFamily;
                         div.style.fontSize = s.fontSize;
-                        div.style.fontWeight = 'bold'; // Ép đậm cho dễ đọc
+                        div.style.fontWeight = s.fontWeight === 'normal' ? '600' : s.fontWeight; // Tăng độ đậm nhẹ
                         div.style.color = s.color;
-                        div.style.textAlign = s.textAlign; // Giữ căn giữa/trái/phải
-                        div.style.padding = s.padding;
-                        div.style.lineHeight = s.lineHeight;
+                        div.style.textAlign = s.textAlign;
 
-                        // Style hiển thị
+                        // QUAN TRỌNG: Padding và line-height để tránh cắt chữ
+                        const computedPadding = s.padding;
+                        div.style.padding = computedPadding === '0px' ? '6px 8px' : computedPadding;
+                        div.style.lineHeight = parseFloat(s.lineHeight) < 1.4 ? '1.5' : s.lineHeight;
+
+                        // Style hiển thị - Cải thiện căn chỉnh
                         div.style.display = 'flex';
                         div.style.alignItems = 'center';
                         div.style.justifyContent = s.textAlign === 'center' ? 'center' : (s.textAlign === 'right' ? 'flex-end' : 'flex-start');
                         div.style.whiteSpace = 'pre-wrap'; // Cho phép xuống dòng với textarea
+                        div.style.wordBreak = 'break-word'; // Ngắt từ dài
                         div.style.width = '100%';
                         div.style.minHeight = s.height;
+                        div.style.boxSizing = 'border-box';
+
+                        // Thêm margin nhỏ để tránh dính sát biên
+                        div.style.marginTop = '1px';
+                        div.style.marginBottom = '1px';
 
                         if (input.parentNode) {
                             input.parentNode.replaceChild(div, input);
@@ -299,6 +310,17 @@ export default {
                     // B. Xóa placeholder trống nếu có
                     const emptyElements = clonedContent.querySelectorAll('.empty-placeholder');
                     emptyElements.forEach(el => el.style.display = 'none');
+
+                    // C. Đảm bảo tất cả text elements có đủ padding
+                    const textElements = clonedContent.querySelectorAll('p, span, div, td, th');
+                    textElements.forEach(el => {
+                        if (el.textContent.trim()) {
+                            const currentPadding = window.getComputedStyle(el).paddingBottom;
+                            if (parseFloat(currentPadding) < 2) {
+                                el.style.paddingBottom = '2px';
+                            }
+                        }
+                    });
                 }
             });
 
