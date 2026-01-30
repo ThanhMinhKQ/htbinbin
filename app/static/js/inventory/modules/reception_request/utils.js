@@ -350,22 +350,34 @@ export default {
                             const value = input.value;
                             const replacement = clonedDoc.createElement('div');
 
-                            // Copy relevant styles to maintain look (optional, or just plain text)
+                            // Copy relevant styles to maintain look
                             const computedStyle = window.getComputedStyle(input);
                             replacement.style.fontSize = computedStyle.fontSize;
                             replacement.style.fontWeight = computedStyle.fontWeight;
-                            replacement.style.textAlign = computedStyle.textAlign;
                             replacement.style.color = computedStyle.color;
-                            replacement.style.padding = '4px 0'; // Add slight padding
+                            replacement.style.padding = computedStyle.padding; // Copy exact padding
+                            replacement.style.lineHeight = computedStyle.lineHeight; // Copy exact line-height
+                            replacement.style.height = computedStyle.height; // Copy height to fill the box
+
+                            // Use Flexbox for vertical centering, mimicking input behavior
+                            replacement.style.display = 'flex';
+                            replacement.style.alignItems = 'center';
+
+                            // Map text-align to justify-content
+                            const textAlign = computedStyle.textAlign;
+                            if (textAlign === 'center') replacement.style.justifyContent = 'center';
+                            else if (textAlign === 'right' || textAlign === 'end') replacement.style.justifyContent = 'flex-end';
+                            else replacement.style.justifyContent = 'flex-start';
 
                             // Specific styling for clarity
                             replacement.textContent = value;
                             replacement.style.border = 'none';
                             replacement.style.background = 'transparent';
                             replacement.style.width = '100%';
-                            replacement.style.whiteSpace = 'pre-wrap'; // Preserve wrapping
-                            replacement.style.overflow = 'visible';
+                            replacement.style.whiteSpace = 'pre'; // Use 'pre' to respect spaces but stay single line if input is single line
+                            replacement.style.overflow = 'hidden'; // Clip overflow like valid input
 
+                            // Ensure input is replaced
                             if (input.parentNode) {
                                 input.parentNode.replaceChild(replacement, input);
                             }
