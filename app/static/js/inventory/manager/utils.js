@@ -181,6 +181,12 @@ export default {
                 content = element.querySelector('.bg-white') || element;
             }
 
+            // Save and expand the modal container itself if it has max-height
+            const modalOriginalMaxHeight = content.style.maxHeight;
+            const modalOriginalHeight = content.style.height;
+            content.style.maxHeight = 'none';
+            content.style.height = 'auto';
+
             // Find all scrollable areas that need to be expanded
             const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
             const savedStyles = [];
@@ -200,8 +206,8 @@ export default {
                 area.style.height = 'auto';
             });
 
-            // Wait a bit for the DOM to update
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait longer for the DOM to fully render
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             // Calculate dynamic scale based on content height
             const contentHeight = content.scrollHeight;
@@ -217,24 +223,23 @@ export default {
                 scale = Math.max(0.8, 3000 / contentHeight);
             }
 
-            // Visual feedback
-            const originalOpacity = content.style.opacity;
-            content.style.opacity = '0.7';
-
-            // Capture the entire expanded content
+            // Capture the entire expanded content WITHOUT opacity change
             const canvas = await html2canvas(content, {
                 scale: scale,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
                 windowHeight: content.scrollHeight,
-                height: content.scrollHeight
+                height: content.scrollHeight,
+                scrollY: -window.scrollY,
+                scrollX: -window.scrollX
             });
 
-            // Restore original opacity
-            content.style.opacity = originalOpacity;
+            // Restore modal container styles
+            content.style.maxHeight = modalOriginalMaxHeight;
+            content.style.height = modalOriginalHeight;
 
-            // Restore all original styles
+            // Restore all scrollable area styles
             savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
                 element.style.maxHeight = maxHeight;
                 element.style.overflow = overflow;
