@@ -301,14 +301,14 @@ export default {
 
             // Calculate dynamic scale - Prioritize quality
             const contentHeight = content.scrollHeight;
-            let scale = 2.0;
+            let scale = 3.0; // Increased from 2.0 to 3.0 for better clarity
 
             // Adjust scale only if image is extremely large to prevent browser crash
             if (contentHeight > 5000) {
-                scale = 1.5;
+                scale = 2.5;
             }
             if (contentHeight > 8000) {
-                scale = 1.0;
+                scale = 2.0;
             }
 
             // Capture the entire expanded content WITHOUT opacity change
@@ -347,48 +347,48 @@ export default {
                             // skip hidden inputs
                             if (input.type === 'hidden' || input.style.display === 'none') return;
 
-                            const value = input.value;
+                            const value = input.value || '';
+                            const computedStyle = window.getComputedStyle(input);
+
+                            // Ensure parent has overflow visible to prevent clipping
+                            if (input.parentNode) {
+                                input.parentNode.style.overflow = 'visible';
+                            }
+
                             const replacement = clonedDoc.createElement('div');
 
-                            // Copy relevant styles to maintain look
-                            const computedStyle = window.getComputedStyle(input);
+                            // Copy all relevant styles
                             replacement.style.fontSize = computedStyle.fontSize;
                             replacement.style.fontWeight = computedStyle.fontWeight;
                             replacement.style.color = computedStyle.color;
+                            replacement.style.fontFamily = computedStyle.fontFamily;
 
-                            // [FIX] Use min-height instead of fixed height to prevent clipping
-                            // Remove all padding and use flexbox for perfect centering
-                            replacement.style.padding = '0';
+                            // Use padding to create space around text (critical for preventing clipping)
+                            replacement.style.padding = '8px 12px';
                             replacement.style.margin = '0';
-
-                            // Use min-height instead of height to allow content to expand if needed
-                            const inputHeight = computedStyle.height;
-                            replacement.style.minHeight = inputHeight;
                             replacement.style.boxSizing = 'border-box';
 
-                            // Use Flexbox for perfect vertical and horizontal centering
+                            // Set minimum height with extra space
+                            const inputHeight = parseFloat(computedStyle.height);
+                            replacement.style.minHeight = `${inputHeight + 4}px`;
+                            replacement.style.height = 'auto';
+
+                            // Use Flexbox for perfect centering
                             replacement.style.display = 'flex';
                             replacement.style.alignItems = 'center';
+                            replacement.style.justifyContent = computedStyle.textAlign === 'center' ? 'center' :
+                                computedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start';
 
-                            // Map text-align to justify-content
-                            const textAlign = computedStyle.textAlign;
-                            if (textAlign === 'center') replacement.style.justifyContent = 'center';
-                            else if (textAlign === 'right' || textAlign === 'end') replacement.style.justifyContent = 'flex-end';
-                            else replacement.style.justifyContent = 'flex-start';
-
-                            // Create inner span for the text to ensure proper rendering
-                            const textSpan = clonedDoc.createElement('span');
-                            textSpan.textContent = value;
-                            textSpan.style.lineHeight = '1.2';
-                            textSpan.style.whiteSpace = 'nowrap';
-
-                            replacement.appendChild(textSpan);
+                            // Text content with proper spacing
+                            replacement.textContent = value;
+                            replacement.style.lineHeight = '1.5';
+                            replacement.style.whiteSpace = 'nowrap';
                             replacement.style.border = 'none';
                             replacement.style.background = 'transparent';
                             replacement.style.width = '100%';
-                            replacement.style.overflow = 'visible'; // Allow content to be fully visible
+                            replacement.style.overflow = 'visible';
 
-                            // Ensure input is replaced
+                            // Replace the input
                             if (input.parentNode) {
                                 input.parentNode.replaceChild(replacement, input);
                             }
