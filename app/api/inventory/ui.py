@@ -212,16 +212,32 @@ async def reception_request_page(
     products_json = json.dumps(products_data)
     
     # [FIX] Get user's actual branch from database instead of session
-    from ...db.models import User
+    from ...db.models import User, AttendanceRecord
+    from datetime import date
+    
     current_branch_id = None
     user_role = None
     
     if user_data and user_data.get("id"):
-        user_obj = db.query(User).options(joinedload(User.department), joinedload(User.main_branch)).filter(User.id == user_data["id"]).first()
+        user_id = user_data["id"]
+        user_obj = db.query(User).options(joinedload(User.department), joinedload(User.main_branch)).filter(User.id == user_id).first()
+        
         if user_obj:
-            # Use user's main_branch_id from database
-            if user_obj.main_branch_id:
+            # 1. PRIORITY: Check for Active Attendance (OT / Current Shift)
+            # Find closest attendance record for today
+            today = date.today()
+            active_attendance = db.query(AttendanceRecord).filter(
+                AttendanceRecord.user_id == user_id,
+                func.date(AttendanceRecord.attendance_datetime) == today
+            ).order_by(AttendanceRecord.attendance_datetime.desc()).first()
+
+            if active_attendance:
+                 current_branch_id = active_attendance.branch_id
+            
+            # 2. FALLBACK: User's Main Branch
+            if not current_branch_id and user_obj.main_branch_id:
                 current_branch_id = user_obj.main_branch_id
+                
             # Get user role from department
             if user_obj.department:
                 user_role = user_obj.department.role_code
