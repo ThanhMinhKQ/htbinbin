@@ -155,8 +155,31 @@ export default {
         if (!element) return;
 
         try {
-            // Find the actual content wrapper to capture
-            const content = element.querySelector('.bg-white') || element;
+            // Find the actual modal container more intelligently
+            // Look for the main modal container which typically has max-w-5xl or is a bg-white flex flex-col container
+            let content = element.querySelector('.max-w-5xl');
+
+            // If not found, try to find it by going up to the fixed container first
+            if (!content) {
+                const fixedContainer = element.closest('.fixed') || element;
+                content = fixedContainer.querySelector('.max-w-5xl');
+            }
+
+            // If still not found, look for bg-white container with flex flex-col (modal structure)
+            if (!content) {
+                const candidates = element.querySelectorAll('.bg-white');
+                for (const candidate of candidates) {
+                    if (candidate.classList.contains('flex') && candidate.classList.contains('flex-col')) {
+                        content = candidate;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback to the element itself
+            if (!content) {
+                content = element.querySelector('.bg-white') || element;
+            }
 
             // Find all scrollable areas that need to be expanded
             const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
