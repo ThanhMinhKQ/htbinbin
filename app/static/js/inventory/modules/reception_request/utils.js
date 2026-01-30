@@ -299,17 +299,30 @@ export default {
             // Wait longer for the DOM to fully render layout changes
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Calculate dynamic scale - Prioritize quality
+            // Calculate dynamic scale - Prioritize MAXIMUM quality
             const contentHeight = content.scrollHeight;
-            let scale = 3.0; // Increased from 2.0 to 3.0 for better clarity
+            const contentWidth = content.scrollWidth;
+            let scale = 4.0; // Increased to 4.0 for crystal-clear quality
 
-            // Adjust scale only if image is extremely large to prevent browser crash
-            if (contentHeight > 5000) {
+            // Only reduce scale for extremely large content to prevent browser crash
+            const totalPixels = contentHeight * contentWidth;
+            if (totalPixels > 25000000) { // ~5000x5000
+                scale = 3.0;
+            }
+            if (totalPixels > 50000000) { // ~7000x7000
                 scale = 2.5;
             }
-            if (contentHeight > 8000) {
-                scale = 2.0;
-            }
+
+            // Remove padding and margins for full-screen capture
+            const originalPadding = content.style.padding;
+            const originalMargin = content.style.margin;
+            const originalBorderRadius = content.style.borderRadius;
+            const originalBoxShadow = content.style.boxShadow;
+
+            content.style.padding = '0';
+            content.style.margin = '0';
+            content.style.borderRadius = '0';
+            content.style.boxShadow = 'none';
 
             // Capture the entire expanded content WITHOUT opacity change
             // Disable transitions and animations to prevent ghosting
@@ -327,6 +340,8 @@ export default {
                 height: content.scrollHeight,
                 scrollY: -window.scrollY,
                 scrollX: -window.scrollX,
+                imageTimeout: 0,
+                removeContainer: true,
                 onclone: (clonedDoc) => {
                     // Find the cloned content using the same robust selectors
                     const contentSelectors = '.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full, .max-w-screen-xl, .bg-white, .bg-slate-50, .dark\\:bg-slate-900';
@@ -340,6 +355,12 @@ export default {
                         clonedContent.style.maxHeight = 'none';
                         clonedContent.style.height = 'auto';
                         clonedContent.style.overflow = 'visible';
+
+                        // Remove all padding and margins for full-screen
+                        clonedContent.style.padding = '0';
+                        clonedContent.style.margin = '0';
+                        clonedContent.style.borderRadius = '0';
+                        clonedContent.style.boxShadow = 'none';
 
                         // Replace all inputs and textareas with static text for clear capture
                         const inputs = clonedContent.querySelectorAll('input, textarea');
@@ -357,20 +378,20 @@ export default {
 
                             const replacement = clonedDoc.createElement('div');
 
-                            // Copy all relevant styles
+                            // Copy all relevant styles with enhanced clarity
                             replacement.style.fontSize = computedStyle.fontSize;
                             replacement.style.fontWeight = computedStyle.fontWeight;
                             replacement.style.color = computedStyle.color;
                             replacement.style.fontFamily = computedStyle.fontFamily;
 
-                            // Use padding to create space around text (critical for preventing clipping)
-                            replacement.style.padding = '8px 12px';
+                            // Enhanced padding for better text visibility
+                            replacement.style.padding = '10px 14px';
                             replacement.style.margin = '0';
                             replacement.style.boxSizing = 'border-box';
 
-                            // Set minimum height with extra space
+                            // Set minimum height with extra space for clarity
                             const inputHeight = parseFloat(computedStyle.height);
-                            replacement.style.minHeight = `${inputHeight + 4}px`;
+                            replacement.style.minHeight = `${inputHeight + 6}px`;
                             replacement.style.height = 'auto';
 
                             // Use Flexbox for perfect centering
@@ -379,14 +400,18 @@ export default {
                             replacement.style.justifyContent = computedStyle.textAlign === 'center' ? 'center' :
                                 computedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start';
 
-                            // Text content with proper spacing
+                            // Text content with optimal spacing for clarity
                             replacement.textContent = value;
-                            replacement.style.lineHeight = '1.5';
+                            replacement.style.lineHeight = '1.6'; // Increased from 1.5
                             replacement.style.whiteSpace = 'nowrap';
                             replacement.style.border = 'none';
                             replacement.style.background = 'transparent';
                             replacement.style.width = '100%';
                             replacement.style.overflow = 'visible';
+
+                            // Anti-aliasing for crisp text
+                            replacement.style.webkitFontSmoothing = 'antialiased';
+                            replacement.style.mozOsxFontSmoothing = 'grayscale';
 
                             // Replace the input
                             if (input.parentNode) {
@@ -404,6 +429,12 @@ export default {
             content.style.transition = originalTransition;
             content.style.animation = originalAnimation;
             if (hadTransformClass) content.classList.add('transform');
+
+            // Restore padding, margin, and styling
+            content.style.padding = originalPadding;
+            content.style.margin = originalMargin;
+            content.style.borderRadius = originalBorderRadius;
+            content.style.boxShadow = originalBoxShadow;
 
             // Restore buttons
             actionButtons.forEach(btn => {
