@@ -154,6 +154,20 @@ export default {
     async captureModal(element) {
         if (!element) return;
 
+        // 1. Show Loading Overlay immediately
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300';
+        loadingOverlay.id = 'capture-loading-overlay';
+        loadingOverlay.innerHTML = `
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-white font-bold text-lg animate-pulse">Đang xử lý hình ảnh...</p>
+            <p class="text-slate-400 text-sm mt-2">Vui lòng đợi giây lát</p>
+        `;
+        document.body.appendChild(loadingOverlay);
+
+        // Force a layout paint
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
+
         try {
             // Find the actual modal container more intelligently
             let content;
@@ -326,6 +340,36 @@ export default {
                         clonedContent.style.maxHeight = 'none';
                         clonedContent.style.height = 'auto';
                         clonedContent.style.overflow = 'visible';
+
+                        // Replace all inputs and textareas with static text for clear capture
+                        const inputs = clonedContent.querySelectorAll('input, textarea');
+                        inputs.forEach(input => {
+                            // skip hidden inputs
+                            if (input.type === 'hidden' || input.style.display === 'none') return;
+
+                            const value = input.value;
+                            const replacement = clonedDoc.createElement('div');
+
+                            // Copy relevant styles to maintain look (optional, or just plain text)
+                            const computedStyle = window.getComputedStyle(input);
+                            replacement.style.fontSize = computedStyle.fontSize;
+                            replacement.style.fontWeight = computedStyle.fontWeight;
+                            replacement.style.textAlign = computedStyle.textAlign;
+                            replacement.style.color = computedStyle.color;
+                            replacement.style.padding = '4px 0'; // Add slight padding
+
+                            // Specific styling for clarity
+                            replacement.textContent = value;
+                            replacement.style.border = 'none';
+                            replacement.style.background = 'transparent';
+                            replacement.style.width = '100%';
+                            replacement.style.whiteSpace = 'pre-wrap'; // Preserve wrapping
+                            replacement.style.overflow = 'visible';
+
+                            if (input.parentNode) {
+                                input.parentNode.replaceChild(replacement, input);
+                            }
+                        });
                     }
                 }
             });
@@ -379,6 +423,17 @@ export default {
         } catch (e) {
             console.error(e);
             alert("Lỗi khi chụp màn hình: " + e.message);
+        } finally {
+            // Remove Loading Overlay
+            const overlay = document.getElementById('capture-loading-overlay');
+            if (overlay) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                }, 300);
+            }
         }
     },
 
