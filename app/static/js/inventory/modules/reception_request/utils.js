@@ -206,6 +206,29 @@ export default {
                 area.style.height = 'auto';
             });
 
+            // Find and expand all truncated text elements
+            const truncatedElements = content.querySelectorAll('.truncate, .overflow-hidden, .text-ellipsis');
+            const savedClasses = [];
+
+            truncatedElements.forEach((el) => {
+                const classes = {
+                    element: el,
+                    hadTruncate: el.classList.contains('truncate'),
+                    hadOverflowHidden: el.classList.contains('overflow-hidden'),
+                    hadTextEllipsis: el.classList.contains('text-ellipsis'),
+                    originalWhiteSpace: el.style.whiteSpace,
+                    originalOverflow: el.style.overflow,
+                    originalTextOverflow: el.style.textOverflow
+                };
+                savedClasses.push(classes);
+
+                // Remove truncation classes and styles
+                el.classList.remove('truncate', 'overflow-hidden', 'text-ellipsis');
+                el.style.whiteSpace = 'normal';
+                el.style.overflow = 'visible';
+                el.style.textOverflow = 'clip';
+            });
+
             // Wait longer for the DOM to fully render
             await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -244,6 +267,16 @@ export default {
                 element.style.maxHeight = maxHeight;
                 element.style.overflow = overflow;
                 element.style.height = height;
+            });
+
+            // Restore all truncated text classes and styles
+            savedClasses.forEach(({ element, hadTruncate, hadOverflowHidden, hadTextEllipsis, originalWhiteSpace, originalOverflow, originalTextOverflow }) => {
+                if (hadTruncate) element.classList.add('truncate');
+                if (hadOverflowHidden) element.classList.add('overflow-hidden');
+                if (hadTextEllipsis) element.classList.add('text-ellipsis');
+                element.style.whiteSpace = originalWhiteSpace;
+                element.style.overflow = originalOverflow;
+                element.style.textOverflow = originalTextOverflow;
             });
 
             // Copy to clipboard
