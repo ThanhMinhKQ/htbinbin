@@ -355,9 +355,17 @@ export default {
                             replacement.style.fontSize = computedStyle.fontSize;
                             replacement.style.fontWeight = computedStyle.fontWeight;
                             replacement.style.color = computedStyle.color;
-                            replacement.style.padding = computedStyle.padding; // Copy exact padding
-                            replacement.style.lineHeight = computedStyle.lineHeight; // Copy exact line-height
+
+                            // [FIX] Reset vertical padding to 0 and use Flexbox for centering
+                            // conflicting padding + height was causing text clip
+                            replacement.style.paddingTop = '0px';
+                            replacement.style.paddingBottom = '0px';
+                            replacement.style.paddingLeft = computedStyle.paddingLeft;
+                            replacement.style.paddingRight = computedStyle.paddingRight;
+
+                            replacement.style.lineHeight = 'normal'; // Reset line-height
                             replacement.style.height = computedStyle.height; // Copy height to fill the box
+                            replacement.style.boxSizing = 'border-box';
 
                             // Use Flexbox for vertical centering, mimicking input behavior
                             replacement.style.display = 'flex';
@@ -374,8 +382,8 @@ export default {
                             replacement.style.border = 'none';
                             replacement.style.background = 'transparent';
                             replacement.style.width = '100%';
-                            replacement.style.whiteSpace = 'pre'; // Use 'pre' to respect spaces but stay single line if input is single line
-                            replacement.style.overflow = 'hidden'; // Clip overflow like valid input
+                            replacement.style.whiteSpace = 'pre';
+                            replacement.style.overflow = 'visible'; // Allow slight overflow to prevent clipping
 
                             if (input.parentNode) {
                                 input.parentNode.replaceChild(replacement, input);
