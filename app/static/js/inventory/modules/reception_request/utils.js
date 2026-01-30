@@ -181,11 +181,48 @@ export default {
                 content = element.querySelector('.bg-white') || element;
             }
 
+            // --- PREPARE FOR CAPTURE ---
+
+            // 1. Remove transforms to avoid blurring
+            const originalTransform = content.style.transform;
+            content.style.transform = 'none';
+            const hadTransformClass = content.classList.contains('transform');
+            if (hadTransformClass) content.classList.remove('transform');
+
+            // 2. Hide control buttons (Close/Capture/Etc)
+            const actionButtons = [];
+
+            // Header buttons (usually top right)
+            const headerActions = content.querySelectorAll('button');
+            headerActions.forEach(btn => {
+                // Heuristic: Header buttons usually contain SVGs (icons) and are in the top part
+                if (btn.querySelector('svg') && btn.offsetParent !== null) {
+                    actionButtons.push({
+                        element: btn,
+                        originalDisplay: btn.style.display
+                    });
+                    btn.style.display = 'none';
+                }
+            });
+
+            // Footer buttons (usually in border-t area)
+            const footerButtons = content.querySelectorAll('.border-t button');
+            footerButtons.forEach(btn => {
+                actionButtons.push({
+                    element: btn,
+                    originalDisplay: btn.style.display
+                });
+                btn.style.display = 'none';
+            });
+
             // Save and expand the modal container itself if it has max-height
             const modalOriginalMaxHeight = content.style.maxHeight;
             const modalOriginalHeight = content.style.height;
+            const modalOriginalOverflow = content.style.overflow;
+
             content.style.maxHeight = 'none';
             content.style.height = 'auto';
+            content.style.overflow = 'visible';
 
             // Find all scrollable areas that need to be expanded
             const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
@@ -229,21 +266,19 @@ export default {
                 el.style.textOverflow = 'clip';
             });
 
-            // Wait longer for the DOM to fully render
-            await new Promise(resolve => setTimeout(resolve, 300));
+            // Wait longer for the DOM to fully render layout changes
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            // Calculate dynamic scale based on content height
+            // Calculate dynamic scale - Prioritize quality
             const contentHeight = content.scrollHeight;
-            let scale;
-            if (contentHeight < 1000) {
-                scale = 2.0; // Small content, high quality
-            } else if (contentHeight < 2000) {
-                scale = 1.5; // Medium content
-            } else if (contentHeight < 3000) {
-                scale = 1.2; // Large content
-            } else {
-                // Very large content - scale down more to keep file size reasonable
-                scale = Math.max(0.8, 3000 / contentHeight);
+            let scale = 2.0;
+
+            // Adjust scale only if image is extremely large to prevent browser crash
+            if (contentHeight > 5000) {
+                scale = 1.5;
+            }
+            if (contentHeight > 8000) {
+                scale = 1.0;
             }
 
             // Capture the entire expanded content WITHOUT opacity change
@@ -255,12 +290,31 @@ export default {
                 windowHeight: content.scrollHeight,
                 height: content.scrollHeight,
                 scrollY: -window.scrollY,
-                scrollX: -window.scrollX
+                scrollX: -window.scrollX,
+                onclone: (clonedDoc) => {
+                    const clonedContent = clonedDoc.body.querySelector('.max-w-5xl') || clonedDoc.body.firstChild;
+                    if (clonedContent && clonedContent.style) {
+                        clonedContent.style.transform = 'none'; // Double down on this in clone
+                        clonedContent.style.display = 'flex';
+                    }
+                }
+            });
+
+            // --- RESTORE ORIGINAL STATE ---
+
+            // Restore transforms
+            content.style.transform = originalTransform;
+            if (hadTransformClass) content.classList.add('transform');
+
+            // Restore buttons
+            actionButtons.forEach(btn => {
+                btn.element.style.display = btn.originalDisplay;
             });
 
             // Restore modal container styles
             content.style.maxHeight = modalOriginalMaxHeight;
             content.style.height = modalOriginalHeight;
+            content.style.overflow = modalOriginalOverflow;
 
             // Restore all scrollable area styles
             savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
