@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 
 from ...db.session import get_db
 from ...db.models import (
