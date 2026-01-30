@@ -356,18 +356,17 @@ export default {
                             replacement.style.fontWeight = computedStyle.fontWeight;
                             replacement.style.color = computedStyle.color;
 
-                            // [FIX] Reset vertical padding to 0 and use Flexbox for centering
-                            // conflicting padding + height was causing text clip
-                            replacement.style.paddingTop = '0px';
-                            replacement.style.paddingBottom = '0px';
-                            replacement.style.paddingLeft = computedStyle.paddingLeft;
-                            replacement.style.paddingRight = computedStyle.paddingRight;
+                            // [FIX] Use min-height instead of fixed height to prevent clipping
+                            // Remove all padding and use flexbox for perfect centering
+                            replacement.style.padding = '0';
+                            replacement.style.margin = '0';
 
-                            replacement.style.lineHeight = 'normal'; // Reset line-height
-                            replacement.style.height = computedStyle.height; // Copy height to fill the box
+                            // Use min-height instead of height to allow content to expand if needed
+                            const inputHeight = computedStyle.height;
+                            replacement.style.minHeight = inputHeight;
                             replacement.style.boxSizing = 'border-box';
 
-                            // Use Flexbox for vertical centering, mimicking input behavior
+                            // Use Flexbox for perfect vertical and horizontal centering
                             replacement.style.display = 'flex';
                             replacement.style.alignItems = 'center';
 
@@ -377,13 +376,17 @@ export default {
                             else if (textAlign === 'right' || textAlign === 'end') replacement.style.justifyContent = 'flex-end';
                             else replacement.style.justifyContent = 'flex-start';
 
-                            // Specific styling for clarity
-                            replacement.textContent = value;
+                            // Create inner span for the text to ensure proper rendering
+                            const textSpan = clonedDoc.createElement('span');
+                            textSpan.textContent = value;
+                            textSpan.style.lineHeight = '1.2';
+                            textSpan.style.whiteSpace = 'nowrap';
+
+                            replacement.appendChild(textSpan);
                             replacement.style.border = 'none';
                             replacement.style.background = 'transparent';
                             replacement.style.width = '100%';
-                            replacement.style.whiteSpace = 'pre';
-                            replacement.style.overflow = 'visible'; // Allow slight overflow to prevent clipping
+                            replacement.style.overflow = 'visible'; // Allow content to be fully visible
 
                             // Ensure input is replaced
                             if (input.parentNode) {
