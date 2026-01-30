@@ -156,18 +156,34 @@ export default {
 
         try {
             // Find the actual modal container more intelligently
-            // Look for the main modal container which typically has max-w-5xl or is a bg-white flex flex-col container
-            let content = element.querySelector('.max-w-5xl');
+            let content;
 
-            // If not found, try to find it by going up to the fixed container first
-            if (!content) {
-                const fixedContainer = element.closest('.fixed') || element;
-                content = fixedContainer.querySelector('.max-w-5xl');
+            // 0. Check if the element itself IS the modal container (often the case if passed directly)
+            // Look for max-w-* classes which indicate it's the main container
+            if (element.classList.contains('max-w-3xl') ||
+                element.classList.contains('max-w-4xl') ||
+                element.classList.contains('max-w-5xl') ||
+                element.classList.contains('max-w-6xl') ||
+                element.classList.contains('max-w-7xl') ||
+                element.classList.contains('max-w-full') ||
+                element.classList.contains('max-w-screen-xl')) {
+                content = element;
             }
 
-            // If still not found, look for bg-white container with flex flex-col (modal structure)
+            // 1. Look for the main modal container by size class
             if (!content) {
-                const candidates = element.querySelectorAll('.bg-white');
+                content = element.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
+            }
+
+            // 2. If not found, try to find it by going up to the fixed container first
+            if (!content) {
+                const fixedContainer = element.closest('.fixed') || element;
+                content = fixedContainer.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
+            }
+
+            // 3. If still not found, look for bg-white/slate-50 container with flex flex-col (modal structure)
+            if (!content) {
+                const candidates = element.querySelectorAll('.bg-white, .bg-slate-50, .dark\\:bg-slate-900');
                 for (const candidate of candidates) {
                     if (candidate.classList.contains('flex') && candidate.classList.contains('flex-col')) {
                         content = candidate;
@@ -176,7 +192,7 @@ export default {
                 }
             }
 
-            // Fallback to the element itself
+            // 4. Fallback to the element itself
             if (!content) {
                 content = element.querySelector('.bg-white') || element;
             }
@@ -282,6 +298,12 @@ export default {
             }
 
             // Capture the entire expanded content WITHOUT opacity change
+            // Disable transitions and animations to prevent ghosting
+            const originalTransition = content.style.transition;
+            const originalAnimation = content.style.animation;
+            content.style.transition = 'none';
+            content.style.animation = 'none';
+
             const canvas = await html2canvas(content, {
                 scale: scale,
                 useCORS: true,
@@ -292,18 +314,28 @@ export default {
                 scrollY: -window.scrollY,
                 scrollX: -window.scrollX,
                 onclone: (clonedDoc) => {
-                    const clonedContent = clonedDoc.body.querySelector('.max-w-5xl') || clonedDoc.body.firstChild;
+                    // Find the cloned content using the same robust selectors
+                    const contentSelectors = '.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full, .max-w-screen-xl, .bg-white, .bg-slate-50, .dark\\:bg-slate-900';
+                    const clonedContent = clonedDoc.body.querySelector(contentSelectors) || clonedDoc.body.firstChild;
+
                     if (clonedContent && clonedContent.style) {
-                        clonedContent.style.transform = 'none'; // Double down on this in clone
-                        clonedContent.style.display = 'flex';
+                        clonedContent.style.transform = 'none';
+                        clonedContent.style.transition = 'none';
+                        clonedContent.style.animation = 'none';
+                        clonedContent.style.display = 'flex'; // Ensure flex layout is preserved
+                        clonedContent.style.maxHeight = 'none';
+                        clonedContent.style.height = 'auto';
+                        clonedContent.style.overflow = 'visible';
                     }
                 }
             });
 
             // --- RESTORE ORIGINAL STATE ---
 
-            // Restore transforms
+            // Restore transforms and transitions
             content.style.transform = originalTransform;
+            content.style.transition = originalTransition;
+            content.style.animation = originalAnimation;
             if (hadTransformClass) content.classList.add('transform');
 
             // Restore buttons
