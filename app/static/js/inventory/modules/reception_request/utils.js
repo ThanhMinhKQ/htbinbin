@@ -219,30 +219,24 @@ export default {
             const hadTransformClass = content.classList.contains('transform');
             if (hadTransformClass) content.classList.remove('transform');
 
-            // 2. Hide control buttons (Close/Capture/Etc)
+            // 2. Hide control buttons (Close/Capture/Etc) - Optimized
             const actionButtons = [];
 
-            // Header buttons (usually top right)
-            const headerActions = content.querySelectorAll('button');
-            headerActions.forEach(btn => {
-                // Heuristic: Header buttons usually contain SVGs (icons) and are in the top part
-                if (btn.querySelector('svg') && btn.offsetParent !== null) {
+            // Combined button query for better performance
+            const allButtons = content.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                // Check if it's a header button (has SVG) or footer button (in border-t)
+                const hasSvg = btn.querySelector('svg');
+                const isVisible = btn.offsetParent !== null;
+                const inFooter = btn.closest('.border-t');
+
+                if ((hasSvg && isVisible) || inFooter) {
                     actionButtons.push({
                         element: btn,
                         originalDisplay: btn.style.display
                     });
                     btn.style.display = 'none';
                 }
-            });
-
-            // Footer buttons (usually in border-t area)
-            const footerButtons = content.querySelectorAll('.border-t button');
-            footerButtons.forEach(btn => {
-                actionButtons.push({
-                    element: btn,
-                    originalDisplay: btn.style.display
-                });
-                btn.style.display = 'none';
             });
 
             // Save and expand the modal container itself if it has max-height
@@ -296,21 +290,26 @@ export default {
                 el.style.textOverflow = 'clip';
             });
 
-            // Wait longer for the DOM to fully render layout changes
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // Reduced wait time for faster capture (200ms is sufficient for most cases)
+            await new Promise(resolve => setTimeout(resolve, 200));
 
-            // Calculate dynamic scale - Prioritize MAXIMUM quality
+            // Calculate dynamic scale - Balance quality and performance
             const contentHeight = content.scrollHeight;
             const contentWidth = content.scrollWidth;
-            let scale = 4.0; // Increased to 4.0 for crystal-clear quality
-
-            // Only reduce scale for extremely large content to prevent browser crash
             const totalPixels = contentHeight * contentWidth;
-            if (totalPixels > 25000000) { // ~5000x5000
-                scale = 3.0;
-            }
-            if (totalPixels > 50000000) { // ~7000x7000
-                scale = 2.5;
+
+            // Smart scaling for optimal performance
+            let scale;
+            if (totalPixels < 5000000) { // Small modals (~2200x2200)
+                scale = 4.0; // Maximum quality for small content
+            } else if (totalPixels < 15000000) { // Medium modals (~3800x3800)
+                scale = 3.5; // High quality
+            } else if (totalPixels < 30000000) { // Large modals (~5400x5400)
+                scale = 3.0; // Good quality
+            } else if (totalPixels < 50000000) { // Very large modals (~7000x7000)
+                scale = 2.5; // Balanced
+            } else {
+                scale = 2.0; // Performance priority for huge modals
             }
 
             // Remove padding and margins for full-screen capture
