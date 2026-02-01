@@ -1676,9 +1676,8 @@ async def delete_request_ticket(
     if ticket.status != TicketStatus.PENDING:
         raise HTTPException(status_code=400, detail="Chỉ có thể xóa phiếu khi đang ở trạng thái 'Chờ duyệt' (PENDING)")
 
-    # Kiểm tra quyền: Chỉ người tạo hoặc Admin/Manager mới được xóa
-    # (Tùy chọn, ở đây tạm thời cho phép người tạo và quản lý)
-    if ticket.requester_id != user_data['id'] and user_data.get('role') not in ['admin', 'manager', 'quanly', 'boss']:
+    # Kiểm tra quyền: Chỉ người tạo hoặc Admin/Manager/Lễ tân mới được xóa
+    if ticket.requester_id != user_data['id'] and user_data.get('role') not in ['admin', 'manager', 'quanly', 'boss', 'letan']:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xóa phiếu này")
 
     try:
@@ -1713,7 +1712,7 @@ async def update_request_ticket(
     if ticket.status != TicketStatus.PENDING:
         raise HTTPException(status_code=400, detail="Chỉ có thể cập nhật phiếu khi đang ở trạng thái 'Chờ duyệt' (PENDING)")
 
-    if ticket.requester_id != user_data['id'] and user_data.get('role') not in ['admin', 'manager', 'quanly', 'boss']:
+    if ticket.requester_id != user_data['id'] and user_data.get('role') not in ['admin', 'manager', 'quanly', 'boss', 'letan']:
         raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa phiếu này")
 
     try:
