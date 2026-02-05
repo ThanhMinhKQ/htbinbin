@@ -267,7 +267,7 @@
                             <template x-for="(img, index) in (importDetail?.images || [])" :key="img.id">
                                 <div @click="viewImage(img)"
                                     class="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-slate-200 dark:border-slate-600 hover:border-blue-500 dark:hover:border-blue-400 transition-all">
-                                    <img :src="'/' + img.thumbnail_path" :alt="'Image ' + (index + 1)"
+                                    <img :src="img.thumbnail_path" :alt="'Image ' + (index + 1)"
                                         class="w-full h-32 object-cover group-hover:scale-110 transition-transform duration-300">
                                     <div
                                         class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
