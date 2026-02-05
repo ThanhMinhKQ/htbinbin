@@ -32,7 +32,7 @@ export default {
 
     // --- IMPORT LIST ---
     async fetchImports(page = 1) {
-        if (!this.currentBranchId) return;
+        if (!this.currentWarehouseId) return;
         this.loadingImports = true;
         this.currentImportPage = page;
         this.selectedImportIds = [];
@@ -41,7 +41,7 @@ export default {
 
         try {
             const params = new URLSearchParams({
-                branch_id: this.currentBranchId,
+                warehouse_id: this.currentWarehouseId,
                 page: page,
                 per_page: this.perPage,
                 sort_by: this.importSort.column,
@@ -275,7 +275,7 @@ export default {
     },
 
     async submitImport() {
-        if (!this.currentBranchId) {
+        if (!this.currentWarehouseId) {
             alert("Lỗi hệ thống: Không xác định được ID Kho hiện tại. Vui lòng tải lại trang.");
             return;
         }
@@ -295,7 +295,7 @@ export default {
         this.isSubmitting = true;
         try {
             const payload = {
-                warehouse_id: this.currentBranchId,
+                warehouse_id: this.currentWarehouseId,
                 supplier_name: this.importForm.supplier_name,
                 notes: this.importForm.notes,
                 items: validItems
@@ -533,7 +533,7 @@ export default {
 
             const payload = {
                 supplier_name: this.editImportForm.supplier_name,
-                warehouse_id: this.currentBranchId,
+                warehouse_id: this.currentWarehouseId,
                 notes: this.editImportForm.notes,
                 items: validItems
             };
