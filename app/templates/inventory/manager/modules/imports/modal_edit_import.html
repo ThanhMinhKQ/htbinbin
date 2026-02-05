@@ -228,7 +228,7 @@
                             <template x-for="img in editImportForm.existingImages" :key="img.id">
                                 <div x-show="!editImportForm.pendingDeletes.includes(img.id)" @click="viewImage(img)"
                                     class="relative group cursor-pointer">
-                                    <img :src="'/' + img.thumbnail_path" alt="Image"
+                                    <img :src="img.thumbnail_path" alt="Image"
                                         class="w-full h-20 object-cover rounded-lg border border-slate-200 dark:border-slate-600">
                                     <button @click.stop="deleteEditExistingImage(img.id)" type="button"
                                         class="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 shadow-sm">
