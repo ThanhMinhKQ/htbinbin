@@ -360,7 +360,8 @@ async def get_receipt_detail(
     try:
         receipt = db.query(InventoryReceipt).options(
             joinedload(InventoryReceipt.creator),
-            selectinload(InventoryReceipt.items).joinedload(InventoryReceiptItem.product).joinedload(Product.category)
+            selectinload(InventoryReceipt.items).joinedload(InventoryReceiptItem.product).joinedload(Product.category),
+            selectinload(InventoryReceipt.images)
         ).get(receipt_id)
         if not receipt:
             raise HTTPException(status_code=404, detail="Phiếu nhập không tồn tại")
@@ -388,7 +389,20 @@ async def get_receipt_detail(
             "creator_name": receipt.creator.name if receipt.creator else "N/A",
             "notes": receipt.notes,
             "total_amount": receipt.total_amount,
-            "items": items_data
+            "items": items_data,
+            "images": [
+                {
+                    "id": img.id,
+                    "file_path": "/" + img.file_path if img.file_path and not img.file_path.startswith("/") else img.file_path,
+                    "thumbnail_path": "/" + img.thumbnail_path if img.thumbnail_path and not img.thumbnail_path.startswith("/") else img.thumbnail_path,
+                    "file_size": img.file_size,
+                    "width": img.width,
+                    "height": img.height,
+                    "uploaded_at": img.uploaded_at.isoformat() if img.uploaded_at else "",
+                    "display_order": img.display_order
+                }
+                for img in receipt.images
+            ]
         }
     except HTTPException:
         raise
