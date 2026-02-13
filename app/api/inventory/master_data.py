@@ -26,6 +26,10 @@ class CategorySchema(BaseModel):
     name: str
     code: str
 
+class CategoryUpdateSchema(BaseModel):
+    name: str
+    code: str
+
 class ProductSchema(BaseModel):
     name: str
     code: Optional[str] = None
@@ -172,6 +176,50 @@ async def create_category(
     db.add(new_cat)
     db.commit()
     return {"status": "success", "id": new_cat.id}
+
+@router.put("/categories/{category_id}")
+async def update_category(
+    category_id: int,
+    payload: CategoryUpdateSchema,
+    db: Session = Depends(get_db)
+):
+    """Cập nhật danh mục"""
+    category = db.query(ProductCategory).filter(ProductCategory.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Danh mục không tồn tại")
+    
+    # Kiểm tra mã danh mục không trùng với danh mục khác
+    existing = db.query(ProductCategory).filter(
+        ProductCategory.code == payload.code,
+        ProductCategory.id != category_id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Mã danh mục đã tồn tại")
+    
+    category.name = payload.name
+    category.code = payload.code
+    db.commit()
+    return {"status": "success", "message": "Cập nhật danh mục thành công"}
+
+@router.delete("/categories/{category_id}")
+async def delete_category(category_id: int, db: Session = Depends(get_db)):
+    """Xóa danh mục"""
+    category = db.query(ProductCategory).filter(ProductCategory.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Danh mục không tồn tại")
+    
+    # Kiểm tra xem có sản phẩm nào thuộc danh mục này không
+    has_products = db.query(Product).filter(Product.category_id == category_id).first()
+    if has_products:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Không thể xóa danh mục '{category.name}' vì đang có sản phẩm thuộc danh mục này"
+        )
+    
+    db.delete(category)
+    db.commit()
+    return {"status": "success", "message": "Đã xóa danh mục thành công"}
+
 
 # ====================================================================
 # API: PRODUCTS
