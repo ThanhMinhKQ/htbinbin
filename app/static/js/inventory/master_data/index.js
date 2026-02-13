@@ -86,6 +86,10 @@ export function masterDataApp() {
         isCatModalOpen: false,
         cForm: { code: '', name: '' },
 
+        // Modal Edit Category State
+        isEditCatModalOpen: false,
+        editCForm: { id: null, code: '', name: '' },
+
         // Modal Warehouse State
         isWhModalOpen: false,
         wForm: { name: '', type: 'BRANCH', branch_id: '' },
@@ -295,6 +299,59 @@ export function masterDataApp() {
                 }
             } catch (e) { alert("Lỗi kết nối"); }
         },
+
+        openEditCategoryModal(category) {
+            this.editCForm = {
+                id: category.id,
+                code: category.code,
+                name: category.name
+            };
+            this.isEditCatModalOpen = true;
+        },
+
+        closeEditCategoryModal() {
+            this.isEditCatModalOpen = false;
+            this.editCForm = { id: null, code: '', name: '' };
+        },
+
+        async submitEditCategory() {
+            if (!this.editCForm.name) return alert("Vui lòng nhập tên danh mục");
+            try {
+                const res = await fetch(`/api/inventory/categories/${this.editCForm.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: this.editCForm.name,
+                        code: this.editCForm.code
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || "Cập nhật danh mục thành công!");
+                    this.closeEditCategoryModal();
+                    this.fetchCategories();
+                } else {
+                    alert(data.detail || "Lỗi cập nhật danh mục");
+                }
+            } catch (e) { alert("Lỗi kết nối"); }
+        },
+
+        async deleteCategory(category) {
+            if (!confirm(`Bạn có chắc muốn xóa danh mục "${category.name}"?`)) return;
+            try {
+                const res = await fetch(`/api/inventory/categories/${category.id}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    alert(data.message || "Đã xóa danh mục thành công");
+                    this.fetchCategories();
+                } else {
+                    alert(data.detail || "Không thể xóa danh mục");
+                }
+            } catch (e) { alert("Lỗi kết nối"); }
+        },
+
 
         // --- WAREHOUSE MODAL ---
 
