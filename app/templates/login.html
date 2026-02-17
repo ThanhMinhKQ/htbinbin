@@ -31,6 +31,9 @@
             // --- THÊM DÒNG NÀY (Định nghĩa tên animation) ---
             'breath': 'breathing 5s ease-in-out infinite',
             'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            'shimmer': 'shimmer 2s ease-in-out infinite',
+            'celebrate': 'celebrate 1s ease-out forwards',
+            'spin-slow': 'spin-slow 3s linear infinite',
           },
           keyframes: {
             shake: {
@@ -52,6 +55,19 @@
             breathing: {
               '0%, 100%': { transform: 'scale(1)' },   // Trạng thái bình thường
               '50%': { transform: 'scale(1.05)' },     // Hít vào (Phóng to 5%)
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-200% center' },
+              '100%': { backgroundPosition: '200% center' }
+            },
+            celebrate: {
+              '0%': { opacity: '0', transform: 'scale(0.8)' },
+              '50%': { transform: 'scale(1.05)' },
+              '100%': { opacity: '1', transform: 'scale(1)' }
+            },
+            'spin-slow': {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' }
             }
           }
         }
@@ -173,6 +189,70 @@
       animation: rise linear infinite;
       filter: drop-shadow(0 0 5px #D90429);
     }
+
+    /* New Year Celebration Styles - Readable in Both Modes */
+    .celebration-text {
+      background: linear-gradient(135deg,
+          #B8860B 0%,
+          /* Vàng tối (Dark Golden Rod) */
+          #D4A017 25%,
+          /* Vàng đậm */
+          #B8860B 50%,
+          /* Vàng tối */
+          #D4A017 75%,
+          /* Vàng đậm */
+          #B8860B 100%
+          /* Vàng tối */
+        );
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 3s ease-in-out infinite, gentle-bounce 2s ease-in-out infinite;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+    }
+
+    /* Dark mode - Brighter golden colors */
+    .dark .celebration-text {
+      background: linear-gradient(135deg,
+          #FFD700 0%,
+          /* Vàng kim sáng */
+          #FFA500 25%,
+          /* Vàng cam */
+          #FFD700 50%,
+          /* Vàng kim sáng */
+          #FFA500 75%,
+          /* Vàng cam */
+          #FFD700 100%
+          /* Vàng kim sáng */
+        );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+    }
+
+    .celebration-container {
+      animation: celebrate 1s ease-out forwards;
+    }
+
+    /* Bounce animation for text */
+    @keyframes gentle-bounce {
+
+      0%,
+      100% {
+        transform: translateY(0) scale(1);
+      }
+
+      50% {
+        transform: translateY(-8px) scale(1.02);
+      }
+    }
+
+    .firework-emoji {
+      display: inline-block;
+      animation: spin-slow 3s linear infinite;
+    }
   </style>
 </head>
 
@@ -224,28 +304,13 @@
           <img src="/static/logo.png" class="h-12 mx-auto mb-3 drop-shadow-sm object-contain" alt="Logo Bin Bin" />
           <h2 class="text-xl font-bold text-slate-800 dark:text-white uppercase tracking-wide mb-4">Đăng Nhập</h2>
 
-          <!-- Compact Countdown inside Form -->
-          <div id="tet-countdown"
-            class="grid grid-cols-4 gap-2 border-t border-b border-slate-200 dark:border-slate-600/50 py-3 mx-2">
-            <div class="flex flex-col items-center">
-              <span id="days" class="text-xl font-bold text-tet-red dark:text-white font-['Playfair_Display']">00</span>
-              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ngày</span>
-            </div>
-            <div class="flex flex-col items-center border-l border-slate-200 dark:border-slate-700">
-              <span id="hours"
-                class="text-xl font-bold text-slate-800 dark:text-white font-['Playfair_Display']">00</span>
-              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Giờ</span>
-            </div>
-            <div class="flex flex-col items-center border-l border-slate-200 dark:border-slate-700">
-              <span id="minutes"
-                class="text-xl font-bold text-slate-800 dark:text-white font-['Playfair_Display']">00</span>
-              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Phút</span>
-            </div>
-            <div class="flex flex-col items-center border-l border-slate-200 dark:border-slate-700">
-              <span id="seconds"
-                class="text-xl font-bold text-tet-gold font-['Playfair_Display'] tabular-nums">00</span>
-              <span class="text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Giây</span>
-            </div>
+          <!-- New Year Greeting with Gradient Effect -->
+          <div class="celebration-container flex items-center justify-center py-3 mb-3 px-2">
+            <h3 id="new-year-text"
+              class="celebration-text font-black font-['Playfair_Display'] tracking-tight text-center leading-tight"
+              style="font-size: clamp(1.1rem, 4.5vw, 1.6rem); max-width: 100%; text-transform: capitalize;">
+              Chúc Mừng Năm Mới 2026
+            </h3>
           </div>
         </div>
 
@@ -454,40 +519,8 @@
 
 
   <script>
-    // --- 6. Logic Đếm ngược đến Tết Bính Ngọ (17/02/2026) ---
-    function startTetCountdown() {
-      // Ngày đích: 17 tháng 2 năm 2026 lúc 00:00:00
-      const tetDate = new Date("February 17, 2026 00:00:00").getTime();
-
-      const updateTimer = setInterval(() => {
-        const now = new Date().getTime();
-        const distance = tetDate - now;
-
-        // Tính toán thời gian
-        const d = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const s = Math.floor((distance % (1000 * 60)) / 1000);
-
-        // Hiển thị ra màn hình (thêm số 0 nếu < 10)
-        document.getElementById("days").innerText = d < 10 ? "0" + d : d;
-        document.getElementById("hours").innerText = h < 10 ? "0" + h : h;
-        document.getElementById("minutes").innerText = m < 10 ? "0" + m : m;
-        document.getElementById("seconds").innerText = s < 10 ? "0" + s : s;
-
-        // Nếu đã qua ngày Tết
-        if (distance < 0) {
-          clearInterval(updateTimer);
-          document.getElementById("tet-countdown").innerHTML =
-            "<div class='text-2xl font-bold text-tet-gold animate-bounce'>🎆 CHÚC MỪNG NĂM MỚI! 🎆</div>";
-        }
-      }, 1000);
-    }
 
     // OPTIMIZED VIDEO LOADING - REMOVED (Direct Autoplay)
-
-    // Chạy hàm đếm ngược
-    startTetCountdown();
 
     // CLEAR ERROR PARAMS FROM URL
     if (window.history.replaceState) {
