@@ -73,6 +73,10 @@ working_staff = [
         "employee_id": "NV016", "code": "lt.ntlinh", "name": "Nguyễn Trúc Linh", 
         "role": "letan", "branch": "B6", "shift": "CT"
     },
+    { 
+        "employee_id": "NV082", "code": "bp.ntdai", "name": "Nguyễn Tấn Đại", 
+        "role": "buongphong", "branch": "B6", "shift": "CS"
+    },
 #--------------------------------------- BIN BIN HOTEL 7 --------------------------------------------#
     {
         "employee_id": "NV075", "code": "lt.lttnga", "name": "Lê Thị Thuý Nga", 
