@@ -179,10 +179,10 @@ export default {
 
             // --- ĐIỂM CHỐT 1: NHẬN DIỆN DARK MODE ---
             // Kiểm tra xem website đang ở chế độ sáng hay tối
-            const isDarkMode = document.documentElement.classList.contains('dark') || 
-                               document.body.classList.contains('dark') || 
-                               (content.closest('.dark') !== null);
-            
+            const isDarkMode = document.documentElement.classList.contains('dark') ||
+                document.body.classList.contains('dark') ||
+                (content.closest('.dark') !== null);
+
             // Chọn màu nền gốc dựa trên Mode (Tránh lỗi chữ trắng trên nền trắng)
             const baseBgColor = isDarkMode ? '#1e293b' : '#ffffff'; // Màu nền slate-800 cho Dark, Trắng cho Light
 
@@ -213,11 +213,12 @@ export default {
                     transform: none !important;
                     max-height: none !important;
                     height: auto !important;
-                    width: 1024px !important;
+                    width: 900px !important;
                     max-width: none !important;
                     overflow: visible !important;
                     background-color: ${baseBgColor} !important;
-                    margin: 0 !important;
+                    margin: 0 auto !important;
+                    border-radius: 0 !important;
                 }
 
                 .capture-mode-active * {
@@ -240,6 +241,21 @@ export default {
                 .capture-mode-active .pointer-events-none.absolute { 
                     display: none !important; 
                     opacity: 0 !important; 
+                }
+
+                /* Ẩn logo hình hộp của sản phẩm và mở rộng cột tên sản phẩm */
+                .capture-mode-active .col-span-1 {
+                    display: none !important;
+                }
+                .capture-mode-active .col-span-5 {
+                    grid-column: span 6 / span 6 !important;
+                }
+
+                /* Tinh chỉnh text để nét hơn */
+                .capture-mode-active {
+                    -webkit-font-smoothing: antialiased !important;
+                    -moz-osx-font-smoothing: grayscale !important;
+                    text-rendering: optimizeLegibility !important;
                 }
 
                 .capture-mode-active [class*="bg-gradient-"] { background-image: none !important; }
@@ -283,12 +299,8 @@ export default {
                 useCORS: true,
                 logging: false,
                 backgroundColor: baseBgColor, // Sử dụng màu nền đã detect (Trắng hoặc Đen)
-                width: 1024, 
-                windowWidth: 1024,
-                x: 0,
-                y: 0,
-                scrollX: 0, 
-                scrollY: 0
+                windowWidth: content.scrollWidth,
+                windowHeight: content.scrollHeight
             });
 
             // Dọn dẹp
