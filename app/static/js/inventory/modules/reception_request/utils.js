@@ -154,338 +154,225 @@ export default {
     async captureModal(element) {
         if (!element) return;
 
-        // 1. Show Loading Overlay immediately
+        // 1. Show Loading Overlay immediately explicitly blocking the screen
         const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300';
+        loadingOverlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity 0.3s ease;';
         loadingOverlay.id = 'capture-loading-overlay';
         loadingOverlay.innerHTML = `
-            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p class="text-white font-bold text-lg animate-pulse">Đang xử lý hình ảnh...</p>
-            <p class="text-slate-400 text-sm mt-2">Vui lòng đợi giây lát</p>
+            <div style="width:56px;height:56px;border:4px solid rgba(59,130,246,0.3);border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;"></div>
+            <p style="color:#ffffff;font-weight:700;font-size:16px;">Đang xử lý hình ảnh...</p>
+            <p style="color:#94a3b8;font-size:13px;margin-top:6px;">Quá trình này có thể mất vài giây</p>
         `;
         document.body.appendChild(loadingOverlay);
 
-        // Force a layout paint
-        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
+        // Force browser to paint overlay
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const originalStyles = new Map();
+        const temporaryElements = [];
 
         try {
-            // Find the actual modal container more intelligently
-            let content;
+            // --- STEP 1: Find the target content inside modal ---
+            let content =
+                element.querySelector('[data-capture-target]') ||
+                element.closest('[data-capture-target]') ||
+                element.querySelector('.max-w-3xl,.max-w-4xl,.max-w-5xl,.max-w-6xl,.max-w-7xl,.max-w-full[class*="bg-white"]') ||
+                element.querySelector('.bg-white') ||
+                element;
 
-            // 0. Check if the element itself IS the modal container (often the case if passed directly)
-            // Look for max-w-* classes which indicate it's the main container
-            if (element.classList.contains('max-w-3xl') ||
-                element.classList.contains('max-w-4xl') ||
-                element.classList.contains('max-w-5xl') ||
-                element.classList.contains('max-w-6xl') ||
-                element.classList.contains('max-w-7xl') ||
-                element.classList.contains('max-w-full') ||
-                element.classList.contains('max-w-screen-xl')) {
-                content = element;
+            const sizeClasses = ['max-w-3xl', 'max-w-4xl', 'max-w-5xl', 'max-w-6xl', 'max-w-7xl', 'max-w-full'];
+            if (content === element && !sizeClasses.some(c => element.classList.contains(c))) {
+                const child = element.querySelector('.flex.flex-col');
+                if (child) content = child;
             }
 
-            // 1. Look for the main modal container by size class
-            if (!content) {
-                content = element.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
-            }
+            const saveStyle = (el, props) => {
+                if (!originalStyles.has(el)) originalStyles.set(el, { inline: {}, classes: [] });
+                const state = originalStyles.get(el);
+                props.forEach(p => { if (!(p in state.inline)) state.inline[p] = el.style[p]; });
+            };
 
-            // 2. If not found, try to find it by going up to the fixed container first
-            if (!content) {
-                const fixedContainer = element.closest('.fixed') || element;
-                content = fixedContainer.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
-            }
+            // --- STEP 2: Mutate LIVE DOM temporarily (Hidden behind overlay) ---
 
-            // 3. If still not found, look for bg-white/slate-50 container with flex flex-col (modal structure)
-            if (!content) {
-                const candidates = element.querySelectorAll('.bg-white, .bg-slate-50, .dark\\:bg-slate-900');
-                for (const candidate of candidates) {
-                    if (candidate.classList.contains('flex') && candidate.classList.contains('flex-col')) {
-                        content = candidate;
-                        break;
-                    }
-                }
-            }
+            // 2a. Expand scrollable areas explicitly
+            content.querySelectorAll('.overflow-y-auto, .overflow-auto, .max-h-[80vh], .max-h-[calc(100vh-10rem)]').forEach(el => {
+                saveStyle(el, ['overflow', 'maxHeight', 'height']);
+                el.style.overflow = 'visible';
+                el.style.maxHeight = 'none';
+                el.style.height = 'auto';
+            });
 
-            // 4. Fallback to the element itself
-            if (!content) {
-                content = element.querySelector('.bg-white') || element;
-            }
-
-            // --- PREPARE FOR CAPTURE ---
-
-            // 1. Remove transforms to avoid blurring
-            const originalTransform = content.style.transform;
+            // Expand the main content wrapper
+            saveStyle(content, ['maxHeight', 'height', 'overflow', 'transform', 'borderRadius']);
+            content.style.maxHeight = 'none';
+            content.style.height = 'auto';
+            content.style.overflow = 'visible';
             content.style.transform = 'none';
-            const hadTransformClass = content.classList.contains('transform');
-            if (hadTransformClass) content.classList.remove('transform');
+            content.style.borderRadius = '0'; // Flat corners for capture
 
-            // 2. Hide control buttons (Close/Capture/Etc) - Optimized
-            const actionButtons = [];
-
-            // Combined button query for better performance
-            const allButtons = content.querySelectorAll('button');
-            allButtons.forEach(btn => {
-                // Check if it's a header button (has SVG) or footer button (in border-t)
-                const hasSvg = btn.querySelector('svg');
-                const isVisible = btn.offsetParent !== null;
-                const inFooter = btn.closest('.border-t');
-
-                if ((hasSvg && isVisible) || inFooter) {
-                    actionButtons.push({
-                        element: btn,
-                        originalDisplay: btn.style.display
-                    });
+            // 2b. Hide buttons (footer / headers)
+            content.querySelectorAll('button').forEach(btn => {
+                const inHeader = btn.closest('div[class*="border-b"]') && btn.querySelector('svg');
+                const inFooter = btn.closest('div[class*="border-t"]');
+                if (inHeader || inFooter || btn.textContent.toLowerCase().includes('chụp')) {
+                    saveStyle(btn, ['display']);
                     btn.style.display = 'none';
                 }
             });
 
-            // Save and expand the modal container itself if it has max-height
-            const modalOriginalMaxHeight = content.style.maxHeight;
-            const modalOriginalHeight = content.style.height;
-            const modalOriginalOverflow = content.style.overflow;
-
-            content.style.maxHeight = 'none';
-            content.style.height = 'auto';
-            content.style.overflow = 'visible';
-
-            // Find all scrollable areas that need to be expanded
-            const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
-            const savedStyles = [];
-
-            // Save original styles and expand all scrollable areas
-            scrollableAreas.forEach((area) => {
-                savedStyles.push({
-                    element: area,
-                    maxHeight: area.style.maxHeight,
-                    overflow: area.style.overflow,
-                    height: area.style.height
-                });
-
-                // Temporarily expand to show all content
-                area.style.maxHeight = 'none';
-                area.style.overflow = 'visible';
-                area.style.height = 'auto';
+            // 2c. Fix sticky headers
+            content.querySelectorAll('.sticky').forEach(el => {
+                saveStyle(el, ['position', 'top']);
+                const state = originalStyles.get(el);
+                if (el.classList.contains('sticky')) {
+                    state.classes.push('sticky');
+                    el.classList.remove('sticky');
+                }
+                el.style.position = 'relative';
+                el.style.top = 'auto';
             });
 
-            // Find and expand all truncated text elements
-            const truncatedElements = content.querySelectorAll('.truncate, .overflow-hidden, .text-ellipsis');
-            const savedClasses = [];
+            // 2d. Prevent Safari & html2canvas bugs with backdrop-blur
+            const globalFixStyle = document.createElement('style');
+            globalFixStyle.textContent = `
+                [data-capture-temp-scope] * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; animation: none !important; transition: none !important; }
+                [data-capture-temp-scope] .backdrop-blur-sm, [data-capture-temp-scope] .backdrop-blur-md, [data-capture-temp-scope] .backdrop-blur { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+                [data-capture-temp-scope] .truncate, [data-capture-temp-scope] .text-ellipsis { overflow: visible !important; text-overflow: clip !important; white-space: normal !important; }
+            `;
+            document.head.appendChild(globalFixStyle);
+            content.setAttribute('data-capture-temp-scope', 'true');
 
-            truncatedElements.forEach((el) => {
-                const classes = {
-                    element: el,
-                    hadTruncate: el.classList.contains('truncate'),
-                    hadOverflowHidden: el.classList.contains('overflow-hidden'),
-                    hadTextEllipsis: el.classList.contains('text-ellipsis'),
-                    originalWhiteSpace: el.style.whiteSpace,
-                    originalOverflow: el.style.overflow,
-                    originalTextOverflow: el.style.textOverflow
-                };
-                savedClasses.push(classes);
+            // 2e. Replace inputs/textareas to prevent text clipping
+            content.querySelectorAll('input:not([type="hidden"]), textarea, select').forEach(input => {
+                const cs = window.getComputedStyle(input);
+                if (cs.display === 'none') return;
 
-                // Remove truncation classes and styles
-                el.classList.remove('truncate', 'overflow-hidden', 'text-ellipsis');
-                el.style.whiteSpace = 'normal';
-                el.style.overflow = 'visible';
-                el.style.textOverflow = 'clip';
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    font-size: ${cs.fontSize};
+                    font-weight: ${cs.fontWeight};
+                    font-family: ${cs.fontFamily};
+                    color: ${cs.color};
+                    background: ${cs.backgroundColor !== 'rgba(0, 0, 0, 0)' ? cs.backgroundColor : 'transparent'};
+                    padding: ${cs.paddingTop} ${cs.paddingRight} ${cs.paddingBottom} ${cs.paddingLeft};
+                    border: ${cs.borderWidth} ${cs.borderStyle} ${cs.borderColor !== 'rgba(0, 0, 0, 0)' ? cs.borderColor : 'transparent'};
+                    border-radius: ${cs.borderRadius};
+                    min-height: ${cs.height !== 'auto' ? cs.height : '38px'};
+                    width: ${cs.width !== 'auto' ? cs.width : '100%'};
+                    display: flex;
+                    align-items: ${input.tagName.toLowerCase() === 'textarea' ? 'flex-start' : 'center'};
+                    justify-content: ${cs.textAlign === 'center' ? 'center' : cs.textAlign === 'right' ? 'flex-end' : 'flex-start'};
+                    line-height: ${cs.lineHeight !== 'normal' ? cs.lineHeight : '1.5'};
+                    white-space: pre-wrap;
+                    word-break: break-word;
+                    box-sizing: border-box;
+                    overflow: visible;
+                `;
+
+                if (input.tagName.toLowerCase() === 'select') {
+                    const selected = input.options[input.selectedIndex];
+                    div.textContent = selected ? selected.text : '';
+                } else {
+                    div.textContent = input.value || '';
+                }
+
+                input.parentNode.insertBefore(div, input);
+                saveStyle(input, ['display']);
+                input.style.display = 'none';
+                temporaryElements.push(div);
             });
 
-            // Reduced wait time for faster capture (200ms is sufficient for most cases)
-            await new Promise(resolve => setTimeout(resolve, 200));
+            // Let browser paint the expanded layout behind overlay
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-            // Calculate dynamic scale - Balance quality and performance
-            const contentHeight = content.scrollHeight;
-            const contentWidth = content.scrollWidth;
-            const totalPixels = contentHeight * contentWidth;
+            // STEP 3: CAPTURE
+            // Ensure no scroll offset disrupts html2canvas
+            const currentScrollX = window.scrollX;
+            const currentScrollY = window.scrollY;
+            window.scrollTo(0, 0);
 
-            // Smart scaling for optimal performance
-            let scale;
-            if (totalPixels < 5000000) { // Small modals (~2200x2200)
-                scale = 4.0; // Maximum quality for small content
-            } else if (totalPixels < 15000000) { // Medium modals (~3800x3800)
-                scale = 3.5; // High quality
-            } else if (totalPixels < 30000000) { // Large modals (~5400x5400)
-                scale = 3.0; // Good quality
-            } else if (totalPixels < 50000000) { // Very large modals (~7000x7000)
-                scale = 2.5; // Balanced
-            } else {
-                scale = 2.0; // Performance priority for huge modals
-            }
+            const captureW = content.scrollWidth;
+            const captureH = content.scrollHeight;
 
-            // Remove padding and margins for full-screen capture
-            const originalPadding = content.style.padding;
-            const originalMargin = content.style.margin;
-            const originalBorderRadius = content.style.borderRadius;
-            const originalBoxShadow = content.style.boxShadow;
+            const textOverlay = document.querySelector('#capture-loading-overlay p:first-of-type');
+            if (textOverlay) textOverlay.textContent = 'Đang trích xuất ảnh siêu nét...';
 
-            content.style.padding = '0';
-            content.style.margin = '0';
-            content.style.borderRadius = '0';
-            content.style.boxShadow = 'none';
-
-            // Capture the entire expanded content WITHOUT opacity change
-            // Disable transitions and animations to prevent ghosting
-            const originalTransition = content.style.transition;
-            const originalAnimation = content.style.animation;
-            content.style.transition = 'none';
-            content.style.animation = 'none';
+            await new Promise(resolve => setTimeout(resolve, 50));
 
             const canvas = await html2canvas(content, {
-                scale: scale,
+                scale: window.devicePixelRatio > 1 ? 2 : 2, // High resolution
                 useCORS: true,
+                allowTaint: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                windowHeight: content.scrollHeight,
-                height: content.scrollHeight,
-                scrollY: -window.scrollY,
-                scrollX: -window.scrollX,
-                imageTimeout: 0,
-                removeContainer: true,
-                onclone: (clonedDoc) => {
-                    // Find the cloned content using the same robust selectors
-                    const contentSelectors = '.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full, .max-w-screen-xl, .bg-white, .bg-slate-50, .dark\\:bg-slate-900';
-                    const clonedContent = clonedDoc.body.querySelector(contentSelectors) || clonedDoc.body.firstChild;
-
-                    if (clonedContent && clonedContent.style) {
-                        clonedContent.style.transform = 'none';
-                        clonedContent.style.transition = 'none';
-                        clonedContent.style.animation = 'none';
-                        clonedContent.style.display = 'flex'; // Ensure flex layout is preserved
-                        clonedContent.style.maxHeight = 'none';
-                        clonedContent.style.height = 'auto';
-                        clonedContent.style.overflow = 'visible';
-
-                        // Remove all padding and margins for full-screen
-                        clonedContent.style.padding = '0';
-                        clonedContent.style.margin = '0';
-                        clonedContent.style.borderRadius = '0';
-                        clonedContent.style.boxShadow = 'none';
-
-                        // Replace all inputs and textareas with static text for clear capture
-                        const inputs = clonedContent.querySelectorAll('input, textarea');
-                        inputs.forEach(input => {
-                            // skip hidden inputs
-                            if (input.type === 'hidden' || input.style.display === 'none') return;
-
-                            const value = input.value || '';
-                            const computedStyle = window.getComputedStyle(input);
-
-                            // Ensure parent has overflow visible to prevent clipping
-                            if (input.parentNode) {
-                                input.parentNode.style.overflow = 'visible';
-                            }
-
-                            const replacement = clonedDoc.createElement('div');
-
-                            // Copy all relevant styles with enhanced clarity
-                            replacement.style.fontSize = computedStyle.fontSize;
-                            replacement.style.fontWeight = computedStyle.fontWeight;
-                            replacement.style.color = computedStyle.color;
-                            replacement.style.fontFamily = computedStyle.fontFamily;
-
-                            // Enhanced padding for better text visibility
-                            replacement.style.padding = '10px 14px';
-                            replacement.style.margin = '0';
-                            replacement.style.boxSizing = 'border-box';
-
-                            // Set minimum height with extra space for clarity
-                            const inputHeight = parseFloat(computedStyle.height);
-                            replacement.style.minHeight = `${inputHeight + 6}px`;
-                            replacement.style.height = 'auto';
-
-                            // Use Flexbox for perfect centering
-                            replacement.style.display = 'flex';
-                            replacement.style.alignItems = 'center';
-                            replacement.style.justifyContent = computedStyle.textAlign === 'center' ? 'center' :
-                                computedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start';
-
-                            // Text content with optimal spacing for clarity
-                            replacement.textContent = value;
-                            replacement.style.lineHeight = '1.6'; // Increased from 1.5
-                            replacement.style.whiteSpace = 'nowrap';
-                            replacement.style.border = 'none';
-                            replacement.style.background = 'transparent';
-                            replacement.style.width = '100%';
-                            replacement.style.overflow = 'visible';
-
-                            // Anti-aliasing for crisp text
-                            replacement.style.webkitFontSmoothing = 'antialiased';
-                            replacement.style.mozOsxFontSmoothing = 'grayscale';
-
-                            // Replace the input
-                            if (input.parentNode) {
-                                input.parentNode.replaceChild(replacement, input);
-                            }
-                        });
-                    }
-                }
+                width: captureW,
+                height: captureH,
+                windowWidth: Math.max(captureW, window.innerWidth),
+                windowHeight: Math.max(captureH, window.innerHeight),
+                x: window.scrollX,
+                y: window.scrollY,
+                scrollX: 0,
+                scrollY: 0
             });
 
-            // --- RESTORE ORIGINAL STATE ---
+            window.scrollTo(currentScrollX, currentScrollY);
 
-            // Restore transforms and transitions
-            content.style.transform = originalTransform;
-            content.style.transition = originalTransition;
-            content.style.animation = originalAnimation;
-            if (hadTransformClass) content.classList.add('transform');
+            // STEP 4: RESULT
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
 
-            // Restore padding, margin, and styling
-            content.style.padding = originalPadding;
-            content.style.margin = originalMargin;
-            content.style.borderRadius = originalBorderRadius;
-            content.style.boxShadow = originalBoxShadow;
+            if (!blob) {
+                alert('Lỗi: Trình duyệt không thể tạo ảnh. Vui lòng tải lại trang và thử lại.');
+                return;
+            }
 
-            // Restore buttons
-            actionButtons.forEach(btn => {
-                btn.element.style.display = btn.originalDisplay;
-            });
+            try {
+                const item = new ClipboardItem({ 'image/png': blob });
+                await navigator.clipboard.write([item]);
+                alert('Đã chụp siêu nét toàn bộ phiếu và tự động Copy (Lưu vào bộ nhớ tạm)! Bạn có thể dán (Paste) vào bất cứ đâu.');
+            } catch (err) {
+                console.warn('Clipboard fallback to download:', err);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Phieu_${Date.now()}.png`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                alert('Đã chụp và tải ảnh xuống thiết bị thành công!');
+            }
 
-            // Restore modal container styles
-            content.style.maxHeight = modalOriginalMaxHeight;
-            content.style.height = modalOriginalHeight;
-            content.style.overflow = modalOriginalOverflow;
-
-            // Restore all scrollable area styles
-            savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
-                element.style.maxHeight = maxHeight;
-                element.style.overflow = overflow;
-                element.style.height = height;
-            });
-
-            // Restore all truncated text classes and styles
-            savedClasses.forEach(({ element, hadTruncate, hadOverflowHidden, hadTextEllipsis, originalWhiteSpace, originalOverflow, originalTextOverflow }) => {
-                if (hadTruncate) element.classList.add('truncate');
-                if (hadOverflowHidden) element.classList.add('overflow-hidden');
-                if (hadTextEllipsis) element.classList.add('text-ellipsis');
-                element.style.whiteSpace = originalWhiteSpace;
-                element.style.overflow = originalOverflow;
-                element.style.textOverflow = originalTextOverflow;
-            });
-
-            // Copy to clipboard
-            canvas.toBlob(async (blob) => {
-                try {
-                    const item = new ClipboardItem({ 'image/png': blob });
-                    await navigator.clipboard.write([item]);
-                    alert("Đã chụp toàn bộ phiếu và lưu vào Clipboard!");
-                } catch (err) {
-                    console.error('Clipboard failed:', err);
-                    alert("Không thể lưu vào clipboard. Bạn có thể lưu ảnh thủ công bằng cách chuột phải -> Lưu.");
-                }
-            });
         } catch (e) {
-            console.error(e);
-            alert("Lỗi khi chụp màn hình: " + e.message);
+            console.error('Lỗi captureModal:', e);
+            alert('Lỗi khởi tạo chụp phiếu: ' + e.message);
         } finally {
-            // Remove Loading Overlay
+            // STEP 5: RESTORE ALL LIVE DOM MANIPULATIONS smoothly!
+            content.removeAttribute('data-capture-temp-scope');
+            document.head.querySelectorAll('style').forEach(s => {
+                if (s.textContent.includes('data-capture-temp-scope')) {
+                    s.parentNode.removeChild(s);
+                }
+            });
+
+            // Restore all element styles and classes
+            originalStyles.forEach((state, el) => {
+                Object.entries(state.inline).forEach(([prop, val]) => {
+                    el.style[prop] = val;
+                });
+                state.classes.forEach(cls => {
+                    el.classList.add(cls);
+                });
+            });
+
+            // Remove temporary divs
+            temporaryElements.forEach(el => {
+                if (el.parentNode) el.parentNode.removeChild(el);
+            });
+
+            // Fade out overlay
             const overlay = document.getElementById('capture-loading-overlay');
             if (overlay) {
-                overlay.classList.add('opacity-0');
-                setTimeout(() => {
-                    if (overlay && overlay.parentNode) {
-                        overlay.parentNode.removeChild(overlay);
-                    }
-                }, 300);
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.parentNode && overlay.parentNode.removeChild(overlay), 300);
             }
         }
     },
