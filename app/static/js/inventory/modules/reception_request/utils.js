@@ -171,10 +171,11 @@ export default {
 
         const originalStyles = new Map();
         const temporaryElements = [];
+        let content;
 
         try {
             // --- STEP 1: Find the target content inside modal ---
-            let content =
+            content =
                 element.querySelector('[data-capture-target]') ||
                 element.closest('[data-capture-target]') ||
                 element.querySelector('.max-w-3xl,.max-w-4xl,.max-w-5xl,.max-w-6xl,.max-w-7xl,.max-w-full[class*="bg-white"]') ||
