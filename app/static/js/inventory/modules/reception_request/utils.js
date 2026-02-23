@@ -235,16 +235,21 @@ export default {
                     text-overflow: clip !important;
                 }
 
-                /* Ẩn các nút bấm để layout sạch */
-                .capture-mode-active button { 
-                    display: none !important; 
-                    opacity: 0 !important; 
-                }
-
                 /* Đảm bảo nội dung luôn hiển thị toàn bộ không bị ngắt quãng (tearing) */
                 .capture-mode-active {
                     height: max-content !important;
                     min-height: 100% !important;
+                }
+
+                /* Ẩn toàn bộ SVG Icon theo yêu cầu */
+                .capture-mode-active svg {
+                    display: none !important;
+                }
+
+                /* Xóa gradient lỗi làm đứt gãy màu nền dashboard */
+                .capture-mode-active .bg-gradient-to-br,
+                .capture-mode-active .group {
+                    background-image: none !important;
                 }
 
                 /* Ẩn logo hình hộp của sản phẩm và mở rộng cột tên sản phẩm */
