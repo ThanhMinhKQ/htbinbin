@@ -196,7 +196,7 @@ export default {
             // --- STEP 2: Mutate LIVE DOM temporarily (Hidden behind overlay) ---
 
             // 2a. Expand scrollable areas explicitly
-            content.querySelectorAll('.overflow-y-auto, .overflow-auto, .max-h-[80vh], .max-h-[calc(100vh-10rem)]').forEach(el => {
+            content.querySelectorAll('.overflow-y-auto, .overflow-auto, .max-h-\\[80vh\\], .max-h-\\[calc\\(100vh-10rem\\)\\]').forEach(el => {
                 saveStyle(el, ['overflow', 'maxHeight', 'height']);
                 el.style.overflow = 'visible';
                 el.style.maxHeight = 'none';
