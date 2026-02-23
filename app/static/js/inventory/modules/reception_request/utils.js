@@ -235,12 +235,16 @@ export default {
                     text-overflow: clip !important;
                 }
 
-                /* Ẩn các hình khối trang trí (gây rác layout) và nút bấm */
-                .capture-mode-active button,
-                .capture-mode-active [class*="blur-"],
-                .capture-mode-active .pointer-events-none.absolute { 
+                /* Ẩn các nút bấm để layout sạch */
+                .capture-mode-active button { 
                     display: none !important; 
                     opacity: 0 !important; 
+                }
+
+                /* Đảm bảo nội dung luôn hiển thị toàn bộ không bị ngắt quãng (tearing) */
+                .capture-mode-active {
+                    height: max-content !important;
+                    min-height: 100% !important;
                 }
 
                 /* Ẩn logo hình hộp của sản phẩm và mở rộng cột tên sản phẩm */
