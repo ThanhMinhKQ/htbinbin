@@ -163,7 +163,7 @@ export default {
             overlay.innerHTML = `
                 <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p class="text-white font-bold text-lg animate-pulse">Đang xử lý hình ảnh...</p>
-                <p class="text-slate-400 text-sm mt-2">Đang tối ưu độ nét và layout...</p>
+                <p class="text-slate-400 text-sm mt-2">Đang đồng bộ màu sắc và layout...</p>
             `;
             document.body.appendChild(overlay);
         }
@@ -174,8 +174,17 @@ export default {
             let content = element.classList.contains('max-w-5xl') ? element :
                 element.closest('.max-w-5xl, .max-w-full') ||
                 element.querySelector('.max-w-5xl, .max-w-full') ||
-                element.querySelector('.bg-white') ||
+                element.querySelector('.bg-white, .dark\\:bg-slate-800') ||
                 element;
+
+            // --- ĐIỂM CHỐT 1: NHẬN DIỆN DARK MODE ---
+            // Kiểm tra xem website đang ở chế độ sáng hay tối
+            const isDarkMode = document.documentElement.classList.contains('dark') || 
+                               document.body.classList.contains('dark') || 
+                               (content.closest('.dark') !== null);
+            
+            // Chọn màu nền gốc dựa trên Mode (Tránh lỗi chữ trắng trên nền trắng)
+            const baseBgColor = isDarkMode ? '#1e293b' : '#ffffff'; // Màu nền slate-800 cho Dark, Trắng cho Light
 
             // Đồng bộ dữ liệu Input
             const inputs = content.querySelectorAll('input, textarea');
@@ -188,7 +197,7 @@ export default {
                 }
             });
 
-            // 4. CSS INJECTION: PHIÊN BẢN TRỊ LỖI CARO VÀ RÁCH LAYOUT
+            // --- ĐIỂM CHỐT 2: CSS INJECTION THEO CHỦ ĐỀ (THEME) ---
             const styleId = 'capture-temp-style';
             let styleEl = document.getElementById(styleId);
             if (!styleEl) {
@@ -198,24 +207,25 @@ export default {
             }
 
             styleEl.innerHTML = `
-                /* Ép khuôn Width: Khóa chặt chiều rộng để tránh mép phải bị cắt xén */
+                /* Ép khuôn Width và xóa sạch hiệu ứng gây lỗi caro */
                 .capture-mode-active {
                     position: relative !important;
                     transform: none !important;
                     max-height: none !important;
                     height: auto !important;
-                    width: 1024px !important; /* Đóng đinh chiều rộng chuẩn */
+                    width: 1024px !important;
                     max-width: none !important;
                     overflow: visible !important;
-                    box-shadow: none !important;
-                    background-color: #ffffff !important;
+                    background-color: ${baseBgColor} !important;
                     margin: 0 !important;
                 }
 
-                /* Xóa mọi loại Scrollbar để vẽ đủ chiều dài */
                 .capture-mode-active * {
                     overflow: visible !important;
                     max-height: none !important;
+                    backdrop-filter: none !important;
+                    -webkit-backdrop-filter: none !important;
+                    box-shadow: none !important; /* QUAN TRỌNG: Xóa bóng đổ để trị dứt điểm sọc caro/nền xám */
                 }
 
                 .capture-mode-active .truncate,
@@ -224,65 +234,75 @@ export default {
                     text-overflow: clip !important;
                 }
 
-                .capture-mode-active button { display: none !important; }
-
-                /* --- VÁ LỖI NỀN CARO (CHÓI TRONG SUỐT) --- */
-                .capture-mode-active * {
-                    backdrop-filter: none !important;
-                    -webkit-backdrop-filter: none !important;
+                /* Ẩn các hình khối trang trí (gây rác layout) và nút bấm */
+                .capture-mode-active button,
+                .capture-mode-active [class*="blur-"],
+                .capture-mode-active .pointer-events-none.absolute { 
+                    display: none !important; 
+                    opacity: 0 !important; 
                 }
 
-                /* Thay thế các màu nền có /30, /50 của Tailwind bằng màu đặc (Solid) tương ứng */
-                /* Các dấu slash (/) phải được escape (\\\\/) trong CSS */
-                .capture-mode-active .bg-slate-50\\/50,
-                .capture-mode-active .bg-slate-50\\/95,
-                .capture-mode-active .bg-slate-900\\/50 { background-color: #f8fafc !important; }
-                
-                .capture-mode-active .bg-green-50\\/30 { background-color: #f0fdf4 !important; }
-                .capture-mode-active .bg-red-50\\/30 { background-color: #fef2f2 !important; }
-
-                /* --- VÁ LỖI GRADIENT VÀ BLUR --- */
                 .capture-mode-active [class*="bg-gradient-"] { background-image: none !important; }
-                .capture-mode-active .from-slate-50 { background-color: #f8fafc !important; }
-                .capture-mode-active .from-blue-500,
-                .capture-mode-active .from-blue-600 { background-color: #3b82f6 !important; }
-                .capture-mode-active .from-indigo-600 { background-color: #4f46e5 !important; }
-                .capture-mode-active [class*="blur-"] { display: none !important; }
+
+                /* Tự động đổ màu Nền Solid dựa vào Chế độ Sáng/Tối */
+                ${isDarkMode ? `
+                    /* CHIẾN LƯỢC CHO DARK MODE */
+                    .capture-mode-active .bg-slate-50\\/50,
+                    .capture-mode-active .bg-slate-50\\/95,
+                    .capture-mode-active .bg-slate-900\\/50 { background-color: #0f172a !important; } /* slate-900 */
+                    .capture-mode-active .bg-green-50\\/30,
+                    .capture-mode-active .bg-green-900\\/10 { background-color: #14532d !important; } /* green-900 */
+                    .capture-mode-active .bg-red-50\\/30,
+                    .capture-mode-active .bg-red-900\\/10 { background-color: #7f1d1d !important; } /* red-900 */
+                    
+                    /* Đảm bảo màu chữ hiển thị rõ trong Dark Mode */
+                    .capture-mode-active .text-slate-800,
+                    .capture-mode-active .text-slate-700 { color: #f8fafc !important; }
+                ` : `
+                    /* CHIẾN LƯỢC CHO LIGHT MODE */
+                    .capture-mode-active .bg-slate-50\\/50,
+                    .capture-mode-active .bg-slate-50\\/95,
+                    .capture-mode-active .bg-slate-900\\/50 { background-color: #f8fafc !important; }
+                    .capture-mode-active .bg-green-50\\/30,
+                    .capture-mode-active .bg-green-900\\/10 { background-color: #f0fdf4 !important; }
+                    .capture-mode-active .bg-red-50\\/30,
+                    .capture-mode-active .bg-red-900\\/10 { background-color: #fef2f2 !important; }
+                `}
             `;
 
             content.classList.add('capture-mode-active');
 
-            // Đợi 250ms (dài hơn một chút) để trình duyệt kịp tính toán lại toàn bộ khung 1024px
-            await new Promise(resolve => setTimeout(resolve, 250));
+            // Đợi 300ms để trình duyệt áp dụng xong toàn bộ màu sắc mới
+            await new Promise(resolve => setTimeout(resolve, 300));
 
             const scale = Math.min(window.devicePixelRatio || 2, 2);
 
-            // 5. Cấu hình html2canvas tối ưu layout tĩnh
+            // --- ĐIỂM CHỐT 3: TRUYỀN ĐÚNG MÀU NỀN VÀO HTML2CANVAS ---
             const canvas = await html2canvas(content, {
                 scale: scale,
                 useCORS: true,
                 logging: false,
-                backgroundColor: '#ffffff',
-                width: 1024, // Ép cứng width khớp với CSS bên trên
+                backgroundColor: baseBgColor, // Sử dụng màu nền đã detect (Trắng hoặc Đen)
+                width: 1024, 
                 windowWidth: 1024,
                 x: 0,
                 y: 0,
-                scrollX: 0, // Vô hiệu hóa ảnh hưởng của thanh cuộn trình duyệt
+                scrollX: 0, 
                 scrollY: 0
             });
 
             // Dọn dẹp
             content.classList.remove('capture-mode-active');
 
-            // 6. Chép vào Clipboard
+            // Chép vào Clipboard
             canvas.toBlob(async (blob) => {
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
                     await navigator.clipboard.write([item]);
-                    alert("Đã chụp toàn bộ phiếu sắc nét và lưu vào Clipboard!");
+                    alert("Đã chụp phiếu (hỗ trợ Dark/Light mode) và lưu vào Clipboard!");
                 } catch (err) {
                     console.error('Lỗi lưu clipboard:', err);
-                    alert("Không thể lưu tự động vào clipboard. Có thể do cài đặt bảo mật của trình duyệt.");
+                    alert("Không thể tự động lưu vào clipboard do trình duyệt chặn.");
                 }
             }, 'image/png', 1.0);
 
