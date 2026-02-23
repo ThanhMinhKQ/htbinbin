@@ -154,7 +154,7 @@ export default {
     async captureModal(element) {
         if (!element) return;
 
-        // 1. Hiển thị Loading Overlay ngay lập tức
+        // 1. Hiển thị Loading Overlay
         const loadingId = 'capture-loading-overlay';
         if (!document.getElementById(loadingId)) {
             const overlay = document.createElement('div');
@@ -163,7 +163,7 @@ export default {
             overlay.innerHTML = `
                 <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                 <p class="text-white font-bold text-lg animate-pulse">Đang xử lý hình ảnh...</p>
-                <p class="text-slate-400 text-sm mt-2">Vui lòng đợi giây lát</p>
+                <p class="text-slate-400 text-sm mt-2">Đang tối ưu độ nét và layout...</p>
             `;
             document.body.appendChild(overlay);
         }
@@ -177,6 +177,7 @@ export default {
                 element.querySelector('.bg-white') ||
                 element;
 
+            // Đồng bộ dữ liệu Input
             const inputs = content.querySelectorAll('input, textarea');
             inputs.forEach(input => {
                 if (input.type !== 'radio' && input.type !== 'checkbox') {
@@ -187,78 +188,98 @@ export default {
                 }
             });
 
-            // 4. Bơm CSS cục bộ: BẢN VÁ LỖI GRADIENT VÀ BLUR
+            // 4. CSS INJECTION: PHIÊN BẢN TRỊ LỖI CARO VÀ RÁCH LAYOUT
             const styleId = 'capture-temp-style';
             let styleEl = document.getElementById(styleId);
             if (!styleEl) {
                 styleEl = document.createElement('style');
                 styleEl.id = styleId;
-                styleEl.innerHTML = `
-                    .capture-mode-active {
-                        max-height: none !important;
-                        height: auto !important;
-                        overflow: visible !important;
-                        transform: none !important;
-                        box-shadow: none !important;
-                    }
-                    .capture-mode-active .overflow-y-auto,
-                    .capture-mode-active .overflow-hidden {
-                        max-height: none !important;
-                        overflow: visible !important;
-                        height: auto !important;
-                    }
-                    .capture-mode-active .truncate,
-                    .capture-mode-active .text-ellipsis {
-                        white-space: normal !important;
-                        overflow: visible !important;
-                        text-overflow: clip !important;
-                    }
-                    .capture-mode-active button {
-                        display: none !important;
-                    }
-
-                    /* --- VÁ LỖI CANVAS GRADIENT (addColorStop error) --- */
-                    /* Tắt render hình ảnh gradient do html2canvas không hiểu CSS Variables */
-                    .capture-mode-active [class*="bg-gradient-"] {
-                        background-image: none !important;
-                    }
-                    /* Thay thế bằng màu nền solid tương ứng để giữ thẩm mỹ */
-                    .capture-mode-active .from-slate-50 { background-color: #f8fafc !important; }
-                    .capture-mode-active .from-blue-500 { background-color: #3b82f6 !important; }
-                    .capture-mode-active .from-blue-600 { background-color: #2563eb !important; }
-                    .capture-mode-active .from-indigo-600 { background-color: #4f46e5 !important; }
-
-                    /* --- VÁ LỖI LAG & RÁC ĐỒ HOẠ --- */
-                    /* Ẩn triệt để các khối trang trí dùng filter: blur vì render cực tốn tài nguyên và dễ văng lỗi */
-                    .capture-mode-active [class*="blur-"] {
-                        display: none !important;
-                        filter: none !important;
-                    }
-                `;
                 document.head.appendChild(styleEl);
             }
 
+            styleEl.innerHTML = `
+                /* Ép khuôn Width: Khóa chặt chiều rộng để tránh mép phải bị cắt xén */
+                .capture-mode-active {
+                    position: relative !important;
+                    transform: none !important;
+                    max-height: none !important;
+                    height: auto !important;
+                    width: 1024px !important; /* Đóng đinh chiều rộng chuẩn */
+                    max-width: none !important;
+                    overflow: visible !important;
+                    box-shadow: none !important;
+                    background-color: #ffffff !important;
+                    margin: 0 !important;
+                }
+
+                /* Xóa mọi loại Scrollbar để vẽ đủ chiều dài */
+                .capture-mode-active * {
+                    overflow: visible !important;
+                    max-height: none !important;
+                }
+
+                .capture-mode-active .truncate,
+                .capture-mode-active .text-ellipsis {
+                    white-space: normal !important;
+                    text-overflow: clip !important;
+                }
+
+                .capture-mode-active button { display: none !important; }
+
+                /* --- VÁ LỖI NỀN CARO (CHÓI TRONG SUỐT) --- */
+                .capture-mode-active * {
+                    backdrop-filter: none !important;
+                    -webkit-backdrop-filter: none !important;
+                }
+
+                /* Thay thế các màu nền có /30, /50 của Tailwind bằng màu đặc (Solid) tương ứng */
+                /* Các dấu slash (/) phải được escape (\\\\/) trong CSS */
+                .capture-mode-active .bg-slate-50\\/50,
+                .capture-mode-active .bg-slate-50\\/95,
+                .capture-mode-active .bg-slate-900\\/50 { background-color: #f8fafc !important; }
+                
+                .capture-mode-active .bg-green-50\\/30 { background-color: #f0fdf4 !important; }
+                .capture-mode-active .bg-red-50\\/30 { background-color: #fef2f2 !important; }
+
+                /* --- VÁ LỖI GRADIENT VÀ BLUR --- */
+                .capture-mode-active [class*="bg-gradient-"] { background-image: none !important; }
+                .capture-mode-active .from-slate-50 { background-color: #f8fafc !important; }
+                .capture-mode-active .from-blue-500,
+                .capture-mode-active .from-blue-600 { background-color: #3b82f6 !important; }
+                .capture-mode-active .from-indigo-600 { background-color: #4f46e5 !important; }
+                .capture-mode-active [class*="blur-"] { display: none !important; }
+            `;
+
             content.classList.add('capture-mode-active');
-            await new Promise(resolve => setTimeout(resolve, 150));
+
+            // Đợi 250ms (dài hơn một chút) để trình duyệt kịp tính toán lại toàn bộ khung 1024px
+            await new Promise(resolve => setTimeout(resolve, 250));
 
             const scale = Math.min(window.devicePixelRatio || 2, 2);
 
+            // 5. Cấu hình html2canvas tối ưu layout tĩnh
             const canvas = await html2canvas(content, {
                 scale: scale,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
-                windowWidth: content.scrollWidth,
-                windowHeight: content.scrollHeight,
+                width: 1024, // Ép cứng width khớp với CSS bên trên
+                windowWidth: 1024,
+                x: 0,
+                y: 0,
+                scrollX: 0, // Vô hiệu hóa ảnh hưởng của thanh cuộn trình duyệt
+                scrollY: 0
             });
 
+            // Dọn dẹp
             content.classList.remove('capture-mode-active');
 
+            // 6. Chép vào Clipboard
             canvas.toBlob(async (blob) => {
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
                     await navigator.clipboard.write([item]);
-                    alert("Đã chụp toàn bộ phiếu và lưu vào Clipboard!");
+                    alert("Đã chụp toàn bộ phiếu sắc nét và lưu vào Clipboard!");
                 } catch (err) {
                     console.error('Lỗi lưu clipboard:', err);
                     alert("Không thể lưu tự động vào clipboard. Có thể do cài đặt bảo mật của trình duyệt.");
