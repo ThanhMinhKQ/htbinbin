@@ -172,6 +172,9 @@ export default {
         const originalStyles = new Map();
         const temporaryElements = [];
         let content;
+        let originalParent = null;
+        let originalNextSibling = null;
+        let originalWidth = null;
 
         try {
             // --- STEP 1: Find the target content inside modal ---
@@ -204,8 +207,22 @@ export default {
                 el.style.height = 'auto';
             });
 
+            originalParent = content.parentNode;
+            originalNextSibling = content.nextSibling;
+            originalWidth = content.offsetWidth;
+
             // Expand the main content wrapper
-            saveStyle(content, ['maxHeight', 'height', 'overflow', 'transform', 'borderRadius']);
+            saveStyle(content, ['position', 'top', 'left', 'zIndex', 'width', 'margin', 'maxHeight', 'height', 'overflow', 'transform', 'borderRadius']);
+
+            // Move to body to escape any modal wrappers (fixed positioning, flex centering, overflow hidden)
+            document.body.appendChild(content);
+
+            content.style.position = 'absolute';
+            content.style.top = '0';
+            content.style.left = '0';
+            content.style.zIndex = '99998'; // Just below overlay
+            content.style.width = originalWidth + 'px'; // Preserve exact width
+            content.style.margin = '0';
             content.style.maxHeight = 'none';
             content.style.height = 'auto';
             content.style.overflow = 'visible';
@@ -311,8 +328,8 @@ export default {
                 height: captureH,
                 windowWidth: Math.max(captureW, window.innerWidth),
                 windowHeight: Math.max(captureH, window.innerHeight),
-                x: window.scrollX,
-                y: window.scrollY,
+                x: 0,
+                y: 0,
                 scrollX: 0,
                 scrollY: 0
             });
@@ -363,6 +380,15 @@ export default {
                     el.classList.add(cls);
                 });
             });
+
+            // Restore DOM Position
+            if (originalParent) {
+                if (originalNextSibling) {
+                    originalParent.insertBefore(content, originalNextSibling);
+                } else {
+                    originalParent.appendChild(content);
+                }
+            }
 
             // Remove temporary divs
             temporaryElements.forEach(el => {
