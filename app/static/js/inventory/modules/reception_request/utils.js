@@ -168,19 +168,15 @@ export default {
             document.body.appendChild(overlay);
         }
 
-        // Nhường 1 frame cho trình duyệt render UI loading
         await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
 
         try {
-            // 2. Tìm container chính xác, nhanh gọn hơn
             let content = element.classList.contains('max-w-5xl') ? element :
                 element.closest('.max-w-5xl, .max-w-full') ||
                 element.querySelector('.max-w-5xl, .max-w-full') ||
                 element.querySelector('.bg-white') ||
                 element;
 
-            // 3. Xử lý Input thần tốc: Đồng bộ giá trị (value property) vào thuộc tính (attribute)
-            // Để html2canvas tự động đọc được chữ trong input mà không cần thay bằng <div>
             const inputs = content.querySelectorAll('input, textarea');
             inputs.forEach(input => {
                 if (input.type !== 'radio' && input.type !== 'checkbox') {
@@ -191,8 +187,7 @@ export default {
                 }
             });
 
-            // 4. Bơm CSS cục bộ dùng 1 lần (Giải pháp chống Lag triệt để)
-            // Thay vì dùng JS lặp qua hàng trăm thẻ để đổi style, ta áp 1 class lên cha là xong.
+            // 4. Bơm CSS cục bộ: BẢN VÁ LỖI GRADIENT VÀ BLUR
             const styleId = 'capture-temp-style';
             let styleEl = document.getElementById(styleId);
             if (!styleEl) {
@@ -218,38 +213,47 @@ export default {
                         overflow: visible !important;
                         text-overflow: clip !important;
                     }
-                    /* Tự động ẩn toàn bộ nút bấm khỏi ảnh chụp */
                     .capture-mode-active button {
                         display: none !important;
+                    }
+
+                    /* --- VÁ LỖI CANVAS GRADIENT (addColorStop error) --- */
+                    /* Tắt render hình ảnh gradient do html2canvas không hiểu CSS Variables */
+                    .capture-mode-active [class*="bg-gradient-"] {
+                        background-image: none !important;
+                    }
+                    /* Thay thế bằng màu nền solid tương ứng để giữ thẩm mỹ */
+                    .capture-mode-active .from-slate-50 { background-color: #f8fafc !important; }
+                    .capture-mode-active .from-blue-500 { background-color: #3b82f6 !important; }
+                    .capture-mode-active .from-blue-600 { background-color: #2563eb !important; }
+                    .capture-mode-active .from-indigo-600 { background-color: #4f46e5 !important; }
+
+                    /* --- VÁ LỖI LAG & RÁC ĐỒ HOẠ --- */
+                    /* Ẩn triệt để các khối trang trí dùng filter: blur vì render cực tốn tài nguyên và dễ văng lỗi */
+                    .capture-mode-active [class*="blur-"] {
+                        display: none !important;
+                        filter: none !important;
                     }
                 `;
                 document.head.appendChild(styleEl);
             }
 
-            // Kích hoạt chế độ mở rộng UI để chụp
             content.classList.add('capture-mode-active');
-
-            // Đợi 150ms để trình duyệt áp dụng xong CSS và Reflow lại khung hình
             await new Promise(resolve => setTimeout(resolve, 150));
 
-            // 5. CHỐNG LỖI ẢNH TRẮNG BẰNG CÁCH GIỚI HẠN SCALE
-            // Scale 2 là mức hoàn hảo (tương đương chuẩn Retina), nét căng nhưng không làm crash trình duyệt
             const scale = Math.min(window.devicePixelRatio || 2, 2);
 
-            // 6. Gọi html2canvas với cấu hình tinh gọn
             const canvas = await html2canvas(content, {
                 scale: scale,
                 useCORS: true,
-                logging: false, // Tắt log để tăng tốc độ thực thi
+                logging: false,
                 backgroundColor: '#ffffff',
                 windowWidth: content.scrollWidth,
                 windowHeight: content.scrollHeight,
             });
 
-            // 7. Dọn dẹp UI ngay lập tức để người dùng không thấy sự thay đổi
             content.classList.remove('capture-mode-active');
 
-            // 8. Chép vào Clipboard
             canvas.toBlob(async (blob) => {
                 try {
                     const item = new ClipboardItem({ 'image/png': blob });
@@ -265,7 +269,6 @@ export default {
             console.error(e);
             alert("Lỗi khi chụp màn hình: " + e.message);
         } finally {
-            // Tắt Loading
             const overlay = document.getElementById('capture-loading-overlay');
             if (overlay) {
                 overlay.classList.add('opacity-0');
