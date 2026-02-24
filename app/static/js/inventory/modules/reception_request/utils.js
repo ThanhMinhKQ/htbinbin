@@ -206,34 +206,41 @@ export default {
             }
 
             styleEl.innerHTML = `
-                /* Ép khuôn Width và xóa sạch hiệu ứng gây lỗi caro */
+                /* Giữ nguyên độ rộng tự nhiên hoặc tối thiểu 1100px để capture các Element Dashboard, Báo cáo chuẩn Form Desktop */
                 .capture-mode-active {
                     position: relative !important;
                     transform: none !important;
                     max-height: none !important;
                     height: auto !important;
-                    width: 900px !important;
+                    min-width: 1100px !important;
+                    width: max-content !important;
                     max-width: none !important;
                     overflow: visible !important;
                     background-color: ${baseBgColor} !important;
                     margin: 0 auto !important;
-                    border-radius: 0 !important;
+                    padding: 24px !important;
+                    border-radius: 8px !important;
                 }
 
-                /* TẮT MẠNH TAY CÁC HIỆU ỨNG GÂY LỖI RENDER (LỖI CHIA 2 NỀN) */
+                /* Ẩn thanh cuộn để ảnh không bị dính scrollbar */
+                .capture-mode-active::-webkit-scrollbar,
+                .capture-mode-active *::-webkit-scrollbar {
+                    display: none !important;
+                }
+
+                /* TẮT CÁC HIỆU ỨNG LỖI RENDER CANVAS (nhưng giữ gradient và shadow để đảm bảo độ Đẹp) */
                 .capture-mode-active * {
                     overflow: visible !important;
                     max-height: none !important;
                     backdrop-filter: none !important;
                     -webkit-backdrop-filter: none !important;
-                    box-shadow: none !important; /* Xóa bóng đổ */
-                    background-image: none !important; /* Xóa TOÀN BỘ gradient gây đứt gãy màu */
+                    /* KHÔNG XÓA box-shadow và background-image để bảng màu, biểu đồ và button hiển thị đúng */
                 }
 
-                /* Ẩn triệt để các cục màu Blur (Decoration blobs) và các mảng trang trí absolute */
+                /* Ẩn triệt để các cục màu Blur (Decoration blobs) và thành phần overlay */
                 .capture-mode-active [class*="absolute"][class*="blur"],
                 .capture-mode-active [class*="absolute"][class*="-z-"],
-                .capture-mode-active .absolute.inset-0:not([class*="bg-"]) {
+                .capture-mode-active .fixed.inset-0:not([class*="bg-"]) {
                     display: none !important;
                     opacity: 0 !important;
                 }
@@ -249,46 +256,45 @@ export default {
                     min-height: 100% !important;
                 }
 
-                .capture-mode-active svg {
-                    display: none !important;
-                }
+                /* Lưu ý: Đã bỏ đoạn ẩn SVG (để Icon hiển thị) và đoạn ẩn col-span-1 (để giữ Layout chuẩn) */
 
-                /* Ẩn logo hình hộp của sản phẩm và mở rộng cột tên sản phẩm */
-                .capture-mode-active .col-span-1 {
-                    display: none !important;
-                }
-                .capture-mode-active .col-span-5 {
-                    grid-column: span 6 / span 6 !important;
-                }
-
+                /* Tối ưu render Text cho ảnh được Mượt và Nét */
                 .capture-mode-active {
                     -webkit-font-smoothing: antialiased !important;
                     -moz-osx-font-smoothing: grayscale !important;
                     text-rendering: optimizeLegibility !important;
                 }
 
-                /* Ép lại màu nền Solid để chống trong suốt */
+                /* Ép lại màu nền Solid để chống trong suốt (Vấn đề khiến html2canvas bị tối đen nền) */
                 ${isDarkMode ? `
                     .capture-mode-active .bg-slate-50\\/50,
                     .capture-mode-active .bg-slate-50\\/95,
-                    .capture-mode-active .bg-slate-900\\/50 { background-color: #0f172a !important; }
+                    .capture-mode-active .bg-slate-900\\/50,
+                    .capture-mode-active .bg-white\\/5 { background-color: #1e293b !important; }
                     .capture-mode-active .bg-green-50\\/30,
-                    .capture-mode-active .bg-green-900\\/10 { background-color: #14532d !important; }
+                    .capture-mode-active .bg-green-900\\/10,
+                    .capture-mode-active .bg-green-500\\/10 { background-color: rgba(20, 83, 45, 0.8) !important; }
                     .capture-mode-active .bg-red-50\\/30,
-                    .capture-mode-active .bg-red-900\\/10 { background-color: #7f1d1d !important; }
+                    .capture-mode-active .bg-red-900\\/10,
+                    .capture-mode-active .bg-red-500\\/10 { background-color: rgba(127, 29, 29, 0.8) !important; }
+                    .capture-mode-active .bg-blue-500\\/10 { background-color: rgba(30, 58, 138, 0.8) !important; }
                     .capture-mode-active .text-slate-800,
                     .capture-mode-active .text-slate-700 { color: #f8fafc !important; }
                 ` : `
                     .capture-mode-active .bg-slate-50\\/50,
                     .capture-mode-active .bg-slate-50\\/95,
                     .capture-mode-active .bg-slate-900\\/50,
-                    .capture-mode-active .bg-white\\/50 { background-color: #f8fafc !important; }
+                    .capture-mode-active .bg-white\\/50,
+                    .capture-mode-active .bg-white\\/80 { background-color: #f8fafc !important; }
                     .capture-mode-active .bg-green-50\\/30,
-                    .capture-mode-active .bg-green-900\\/10 { background-color: #f0fdf4 !important; }
+                    .capture-mode-active .bg-green-900\\/10,
+                    .capture-mode-active .bg-green-500\\/10 { background-color: #f0fdf4 !important; }
                     .capture-mode-active .bg-red-50\\/30,
-                    .capture-mode-active .bg-red-900\\/10 { background-color: #fef2f2 !important; }
+                    .capture-mode-active .bg-red-900\\/10,
+                    .capture-mode-active .bg-red-500\\/10 { background-color: #fef2f2 !important; }
+                    .capture-mode-active .bg-blue-500\\/10 { background-color: #eff6ff !important; }
                     /* Ép các thẻ có nền trắng mờ thành trắng đặc */
-                    .capture-mode-active .bg-white { background-color: #ffffff !important; }
+                    .capture-mode-active .bg-white { background-color: #ffffff !important; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important; }
                 `}
             `;
 
@@ -351,7 +357,7 @@ export default {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
             const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
+            return `${y} -${m} -${d} `;
         };
 
         return {
