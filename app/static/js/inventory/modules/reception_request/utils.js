@@ -249,8 +249,12 @@ export default {
                     opacity: 0 !important;
                 }
 
-                /* Ẩn Header và Footer của Phiếu (Các đoạn thừa/Nút bấm) */
-                .capture-mode-active > .rounded-t-2xl,
+                /* Ẩn các Nút bấm tiện ích (Đóng, Chụp) nằm ở góc phải Header */
+                .capture-mode-active > .rounded-t-2xl .flex.items-center.gap-2 > button {
+                    display: none !important;
+                }
+
+                /* Ẩn Footer thao tác của Phiếu (Các nút Đóng / Duyệt ở đáy màn hình) */
                 .capture-mode-active > .rounded-b-2xl {
                     display: none !important;
                     height: 0 !important;
