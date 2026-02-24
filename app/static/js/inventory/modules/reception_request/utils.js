@@ -206,22 +206,23 @@ export default {
             }
 
             styleEl.innerHTML = `
-                /* Giữ nguyên độ rộng tự nhiên hoặc tối thiểu 1100px để capture các Element Dashboard, Báo cáo chuẩn Form Desktop */
+                /* Giữ nguyên độ rộng tự nhiên để capture chuẩn Form Desktop */
                 .capture-mode-active {
                     position: relative !important;
                     transform: none !important;
                     max-height: none !important;
                     height: auto !important;
-                    min-width: 1000px !important;
+                    min-width: 1024px !important;
                     width: max-content !important;
                     max-width: none !important;
                     overflow: visible !important;
                     background-color: ${baseBgColor} !important;
                     margin: 0 auto !important;
-                    padding: 0 !important;
+                    padding: 24px !important;
                     border-radius: 0 !important;
                     box-shadow: none !important;
                     border: none !important;
+                    box-sizing: border-box !important;
                 }
 
                 /* Ẩn thanh cuộn để ảnh không bị dính scrollbar */
@@ -230,13 +231,14 @@ export default {
                     display: none !important;
                 }
 
-                /* TẮT CÁC HIỆU ỨNG LỖI RENDER CANVAS (nhưng giữ gradient và shadow để đảm bảo độ Đẹp) */
+                /* TẮT CÁC HIỆU ỨNG GÂY XUYÊN THẤU RENDER CANVAS (GÂY LỖI CARO TRONG SUỐT) */
                 .capture-mode-active * {
                     overflow: visible !important;
                     max-height: none !important;
                     backdrop-filter: none !important;
                     -webkit-backdrop-filter: none !important;
-                    /* KHÔNG XÓA box-shadow và background-image để bảng màu, biểu đồ và button hiển thị đúng */
+                    /* BẮT BUỘC bỏ box-shadow, vì khi vẽ bóng lên canvas, vùng bóng bị biến thành trong suốt (caro) */
+                    box-shadow: none !important;
                 }
 
                 /* Ẩn triệt để các cục màu Blur (Decoration blobs) và thành phần overlay */
@@ -247,7 +249,7 @@ export default {
                     opacity: 0 !important;
                 }
 
-                /* Ẩn Header và Footer của Phiếu */
+                /* Ẩn Header và Footer của Phiếu (Các đoạn thừa/Nút bấm) */
                 .capture-mode-active > .rounded-t-2xl,
                 .capture-mode-active > .rounded-b-2xl {
                     display: none !important;
@@ -255,6 +257,7 @@ export default {
                     overflow: hidden !important;
                     padding: 0 !important;
                     border: none !important;
+                    margin: 0 !important;
                 }
 
                 .capture-mode-active .truncate,
@@ -267,8 +270,6 @@ export default {
                     height: max-content !important;
                     min-height: 100% !important;
                 }
-
-                /* Lưu ý: Đã bỏ đoạn ẩn SVG (để Icon hiển thị) và đoạn ẩn col-span-1 (để giữ Layout chuẩn) */
 
                 /* Tối ưu render Text cho ảnh được Mượt và Nét */
                 .capture-mode-active {
@@ -305,8 +306,8 @@ export default {
                     .capture-mode-active .bg-red-900\\/10,
                     .capture-mode-active .bg-red-500\\/10 { background-color: #fef2f2 !important; }
                     .capture-mode-active .bg-blue-500\\/10 { background-color: #eff6ff !important; }
-                    /* Ép các thẻ có nền trắng mờ thành trắng đặc */
-                    .capture-mode-active .bg-white { background-color: #ffffff !important; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important; }
+                    /* Ép các thẻ có nền trắng mờ thành trắng đặc, tuyệt đối không dùng box-shadow */
+                    .capture-mode-active .bg-white { background-color: #ffffff !important; }
                 `}
             `;
 
