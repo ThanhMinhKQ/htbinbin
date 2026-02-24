@@ -212,14 +212,16 @@ export default {
                     transform: none !important;
                     max-height: none !important;
                     height: auto !important;
-                    min-width: 1100px !important;
+                    min-width: 1000px !important;
                     width: max-content !important;
                     max-width: none !important;
                     overflow: visible !important;
                     background-color: ${baseBgColor} !important;
                     margin: 0 auto !important;
-                    padding: 24px !important;
-                    border-radius: 8px !important;
+                    padding: 0 !important;
+                    border-radius: 0 !important;
+                    box-shadow: none !important;
+                    border: none !important;
                 }
 
                 /* Ẩn thanh cuộn để ảnh không bị dính scrollbar */
@@ -243,6 +245,16 @@ export default {
                 .capture-mode-active .fixed.inset-0:not([class*="bg-"]) {
                     display: none !important;
                     opacity: 0 !important;
+                }
+
+                /* Ẩn Header và Footer của Phiếu */
+                .capture-mode-active > .rounded-t-2xl,
+                .capture-mode-active > .rounded-b-2xl {
+                    display: none !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                    padding: 0 !important;
+                    border: none !important;
                 }
 
                 .capture-mode-active .truncate,
