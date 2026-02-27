@@ -303,6 +303,10 @@ working_staff = [
         "role": "ktv", "branch": "KTV", "shift": None
     },
     {
+        "employee_id": "NV084", "code": "ktv.hvsau", "name": "Huỳnh Văn Sáu",
+        "role": "ktv", "branch": "KTV", "shift": None
+    },
+    {
         "employee_id": "NV072", "code": "ql.tpnguyen", "name": "Trần Phát Nguyên",
         "role": "quanly", "branch": "QL", "shift": None
     },
