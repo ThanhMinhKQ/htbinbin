@@ -259,6 +259,10 @@ working_staff = [
         "role": "letan", "branch": "B16", "shift": "CT"
     },
     {
+        "employee_id": "NV085", "code": "lt.tqhuy", "name": "Trịnh Quang Huy",
+        "role": "letan", "branch": "B16", "shift": "CT"
+    },
+    {
         "employee_id": "NV059", "code": "bp.lttam", "name": "Lê Thị Tám",
         "role": "buongphong", "branch": "B16", "shift": "CS"
     },
