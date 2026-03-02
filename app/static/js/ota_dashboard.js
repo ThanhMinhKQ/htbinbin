@@ -10,40 +10,174 @@ let currentPage = 1;
 const PAGE_SIZE = 20;
 let searchTimer = null;
 let autoRefreshInterval = null;
+let lastKnownCount = null;  // số booking lần poll trước
+let newBookingCount = 0;    // số booking mới chưa xem
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.onload = () => {
     loadStats();
     loadBranches();
     loadBookings();
-    startAutoRefresh();
+    startSmartPolling();
 };
 
-function startAutoRefresh() {
-    autoRefreshInterval = setInterval(() => {
-        loadStats();
-        loadBookings(false); // silent refresh
-    }, 60000); // 60s
+// ── Smart Polling (15s) ────────────────────────────────────────────────────
+function startSmartPolling() {
+    autoRefreshInterval = setInterval(checkForNewBookings, 15000);
+}
+
+async function checkForNewBookings() {
+    try {
+        const config = window.OTA_CONFIG || {};
+        let url = '/api/ota/stats';
+        let branch = '';
+        if (!config.isAdmin && config.currentBranch) {
+            branch = config.currentBranch;
+        } else {
+            const el = document.getElementById('branchFilter');
+            branch = el ? el.value : '';
+        }
+        if (branch) url += `?branch_name=${encodeURIComponent(branch)}`;
+
+        const res = await fetch(url);
+        const d = await res.json();
+        const newTotal = d.total_bookings ?? 0;
+
+        if (lastKnownCount === null) {
+            // Lần đầu — chỉ lưu baseline, không notify
+            lastKnownCount = newTotal;
+            return;
+        }
+
+        if (newTotal > lastKnownCount) {
+            // Có booking mới!
+            const delta = newTotal - lastKnownCount;
+            newBookingCount += delta;
+            lastKnownCount = newTotal;
+
+            // Hiện notification banner
+            showNewBookingBanner(delta);
+
+            // Cập nhật stats cards và bảng ngay lập tức (silent)
+            updateStatsFromData(d);
+            loadBookings(false);
+        }
+    } catch (e) {
+        // Silently ignore polling errors
+    }
+}
+
+function showNewBookingBanner(count) {
+    const existing = document.getElementById('newBookingBanner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'newBookingBanner';
+    banner.style.cssText = `
+        position: fixed; top: 72px; right: 20px; z-index: 9999;
+        background: #1a73e8; color: #fff; border-radius: 12px;
+        padding: 14px 20px; box-shadow: 0 4px 20px rgba(26,115,232,0.4);
+        display: flex; align-items: center; gap: 12px;
+        font-size: 14px; font-weight: 500;
+        animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1);
+        cursor: pointer;
+    `;
+    banner.innerHTML = `
+        <span style="font-size:20px;">🔔</span>
+        <div>
+            <div style="font-weight:700; font-size:13px; color:#fff;">Đặt phòng mới!</div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.85);">${count} đặt phòng vừa được thêm — Đang tải...</div>
+        </div>
+        <button onclick="document.getElementById('newBookingBanner').remove(); newBookingCount=0;"
+            style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px;">✕</button>
+    `;
+
+    // Tự đóng sau 8s
+    setTimeout(() => banner.remove(), 8000);
+    document.body.appendChild(banner);
+
+    // Cập nhật badge trên title trang
+    updatePageBadge();
+}
+
+function updatePageBadge() {
+    if (newBookingCount > 0) {
+        document.title = `(${newBookingCount}) Đặt phòng mới — OTA Dashboard`;
+    } else {
+        document.title = 'Quản lý đặt phòng OTA — Bin Bin Hotel';
+    }
+}
+
+// Cập nhật stats mà không cần gọi API lần nữa (dùng data từ poll)
+function updateStatsFromData(d) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
+    set('statTotal', d.total_bookings);
+    set('statConfirmed', d.confirmed_count);
+    set('statCancelled', d.cancelled_count);
+    set('statToday', d.bookings_today);
+    set('statMonth', d.bookings_this_month);
+    const rev = d.total_revenue || 0;
+    const el = document.getElementById('statRevenue');
+    if (el) el.textContent = rev > 0 ? rev.toLocaleString('vi-VN') + ' ₫' : '—';
+}
+
+// Đặt count ban đầu ngay sau load đầu tiên
+function setInitialCount(total) {
+    if (lastKnownCount === null) lastKnownCount = total;
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────
 async function loadStats() {
     try {
-        const res = await fetch('/api/ota/stats');
+        const config = window.OTA_CONFIG || {};
+        let url = '/api/ota/stats';
+
+        let branch = '';
+        if (!config.isAdmin && config.currentBranch) {
+            // Letan: luôn dùng chi nhánh từ session
+            branch = config.currentBranch;
+        } else {
+            // Admin/manager: đọc từ dropdown (nếu đã chọn chi nhánh cụ thể)
+            const branchEl = document.getElementById('branchFilter');
+            branch = branchEl ? branchEl.value : '';
+        }
+
+        if (branch) url += `?branch_name=${encodeURIComponent(branch)}`;
+
+        const res = await fetch(url);
         const d = await res.json();
+
         document.getElementById('statTotal').textContent = d.total_bookings ?? '—';
-        document.getElementById('statSuccess').textContent = d.success_count ?? '—';
-        document.getElementById('statFailed').textContent = d.failed_count ?? '—';
+        document.getElementById('statConfirmed').textContent = d.confirmed_count ?? '—';
+        document.getElementById('statCancelled').textContent = d.cancelled_count ?? '—';
         document.getElementById('statToday').textContent = d.bookings_today ?? '—';
+        document.getElementById('statMonth').textContent = d.bookings_this_month ?? '—';
+
+        // Format doanh thu
+        const rev = d.total_revenue || 0;
+        document.getElementById('statRevenue').textContent =
+            rev > 0 ? rev.toLocaleString('vi-VN') + ' ₫' : '—';
+
+        // Lưu baseline cho smart polling
+        setInitialCount(d.total_bookings ?? 0);
     } catch (e) {
         console.error('Error loading stats:', e);
     }
 }
 
+// Gọi cả stats + bookings cùng lúc (dùng khi đổi chi nhánh)
+function reloadAll() {
+    loadStats();
+    loadBookings();
+}
+
 // ── Branches ───────────────────────────────────────────────────────────────
 async function loadBranches() {
+    // Letan không cần dropdown vì đã auto-filter
+    const config = window.OTA_CONFIG || {};
+    if (!config.isAdmin) return;
+
     try {
-        // Load từ bookings để lấy danh sách chi nhánh duy nhất
         const res = await fetch('/api/ota/bookings?limit=100');
         const bookings = await res.json();
         const branchSet = new Map();
@@ -52,6 +186,7 @@ async function loadBranches() {
         });
 
         const sel = document.getElementById('branchFilter');
+        if (!sel) return;
         branchSet.forEach((name) => {
             const opt = document.createElement('option');
             opt.value = name;
@@ -75,9 +210,21 @@ async function loadBookings(showLoader = true) {
             </tr>`;
     }
 
+    const config = window.OTA_CONFIG || {};
     const ota = document.getElementById('otaFilter').value;
-    let url = `/api/ota/bookings?limit=100`;
+
+    let url = `/api/ota/bookings?limit=200`;
     if (ota) url += `&ota=${encodeURIComponent(ota)}`;
+
+    // Nếu là letan → tự động lọc theo chi nhánh hiện tại từ server
+    if (!config.isAdmin && config.currentBranch) {
+        url += `&branch_name=${encodeURIComponent(config.currentBranch)}`;
+    } else {
+        // Admin/manager: dùng dropdown chọn chi nhánh
+        const branchFilter = document.getElementById('branchFilter');
+        const branch = branchFilter ? branchFilter.value : '';
+        if (branch) url += `&branch_name=${encodeURIComponent(branch)}`;
+    }
 
     try {
         const res = await fetch(url);

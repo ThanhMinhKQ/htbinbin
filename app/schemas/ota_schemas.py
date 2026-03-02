@@ -10,13 +10,12 @@ from datetime import datetime
 
 class OTAStats(BaseModel):
     total_bookings: int
-    total_logs: int
-    success_count: int
-    failed_count: int
-    success_rate: float
-    bookings_today: int
+    confirmed_count: int       # Đang xác nhận / thành công
+    cancelled_count: int       # Đã huỷ
+    bookings_today: int        # Hôm nay
     bookings_this_week: int
     bookings_this_month: int
+    total_revenue: float       # Tổng doanh thu (VND)
 
     class Config:
         from_attributes = True

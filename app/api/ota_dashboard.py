@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 from app.db.session import get_db
-from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, Branch
+from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatus, Branch
 from app.services.ota_agent.ota_service import ota_dashboard_service
 from app.services.ota_agent.gmail_service import gmail_service
 from app.schemas.ota_schemas import (
@@ -40,8 +40,18 @@ templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirna
 
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 def ota_dashboard_ui(request: Request):
-    """Serve OTA Dashboard UI"""
-    return templates.TemplateResponse("ota_dashboard.html", {"request": request})
+    """Serve OTA Dashboard UI - tích hợp vào base.html"""
+    user = request.session.get("user", {})
+    # Lấy chi nhánh hiện tại từ session
+    current_branch = request.session.get("active_branch") or user.get("last_active_branch") or ""
+    user_role = (user.get("role") or "").lower()
+    return templates.TemplateResponse("ota_dashboard.html", {
+        "request": request,
+        "user": user,
+        "active_page": "ota-dashboard",
+        "current_branch": current_branch,   # chi nhánh đang chọn
+        "user_role": user_role,             # role để JS biết có filter không
+    })
 
 
 # ============================================================================
@@ -49,63 +59,61 @@ def ota_dashboard_ui(request: Request):
 # ============================================================================
 
 @router.get("/stats", response_model=OTAStats)
-def get_ota_stats(db: Session = Depends(get_db)):
-    """Get overall OTA statistics"""
-    
-    # Total bookings
-    total_bookings = db.query(Booking).count()
-    
-    # Total logs
-    total_logs = db.query(OTAParsingLog).count()
-    
-    # Success/Failed counts
-    success_count = db.query(OTAParsingLog).filter(
-        OTAParsingLog.status == OTAParsingStatus.SUCCESS
-    ).count()
-    
-    failed_count = db.query(OTAParsingLog).filter(
-        OTAParsingLog.status == OTAParsingStatus.FAILED
-    ).count()
-    
-    # Success rate
-    success_rate = (success_count / total_logs * 100) if total_logs > 0 else 0
-    
-    # Time-based counts
+def get_ota_stats(
+    branch_name: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Get booking statistics, optionally filtered by branch"""
+    from sqlalchemy import func
+
+    # Base query — join Branch nếu cần filter
+    booking_q = db.query(Booking)
+    if branch_name:
+        booking_q = booking_q.join(Branch, Booking.branch_id == Branch.id).filter(Branch.name == branch_name)
+
+    # Tổng đặt phòng
+    total_bookings = booking_q.count()
+
+    # Đặt phòng đang xác nhận
+    confirmed_count = booking_q.filter(Booking.status == BookingStatus.CONFIRMED).count()
+
+    # Đã huỷ
+    cancelled_count = booking_q.filter(Booking.status == BookingStatus.CANCELLED).count()
+
+    # Doanh thu ước tính (tổng total_price của các booking CONFIRMED)
+    revenue_row = booking_q.filter(
+        Booking.status == BookingStatus.CONFIRMED
+    ).with_entities(func.coalesce(func.sum(Booking.total_price), 0)).scalar()
+    total_revenue = float(revenue_row or 0)
+
+    # Thống kê theo thời gian
     now = datetime.now()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
-    
-    bookings_today = db.query(Booking).filter(
-        Booking.created_at >= today_start
-    ).count()
-    
-    bookings_this_week = db.query(Booking).filter(
-        Booking.created_at >= week_start
-    ).count()
-    
-    bookings_this_month = db.query(Booking).filter(
-        Booking.created_at >= month_start
-    ).count()
-    
+
+    bookings_today = booking_q.filter(Booking.created_at >= today_start).count()
+    bookings_this_week = booking_q.filter(Booking.created_at >= week_start).count()
+    bookings_this_month = booking_q.filter(Booking.created_at >= month_start).count()
+
     return OTAStats(
         total_bookings=total_bookings,
-        total_logs=total_logs,
-        success_count=success_count,
-        failed_count=failed_count,
-        success_rate=round(success_rate, 2),
+        confirmed_count=confirmed_count,
+        cancelled_count=cancelled_count,
         bookings_today=bookings_today,
         bookings_this_week=bookings_this_week,
-        bookings_this_month=bookings_this_month
+        bookings_this_month=bookings_this_month,
+        total_revenue=total_revenue,
     )
 
 
 @router.get("/bookings", response_model=List[BookingResponse])
 def get_bookings(
-    limit: int = Query(50, le=100),
+    limit: int = Query(200, le=500),
     offset: int = Query(0, ge=0),
     ota: Optional[str] = None,
     branch_id: Optional[int] = None,
+    branch_name: Optional[str] = None,   # filter theo tên chi nhánh (dùng cho letan)
     db: Session = Depends(get_db)
 ):
     """Get list of bookings with filters"""
@@ -120,6 +128,9 @@ def get_bookings(
     
     if branch_id:
         query = query.filter(Booking.branch_id == branch_id)
+
+    if branch_name:
+        query = query.filter(Branch.name == branch_name)
     
     results = query.limit(limit).offset(offset).all()
     
