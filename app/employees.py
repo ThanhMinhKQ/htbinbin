@@ -55,6 +55,10 @@ working_staff = [
         "employee_id": "NV014", "code": "bp.lttruong", "name": "Lê Tấn Trường",
         "role": "buongphong", "branch": "B5", "shift": "CT"
     },
+    {
+        "employee_id": "NV069", "code": "bp.vtdly", "name": "Võ Thị Diệu Lý",
+        "role": "buongphong", "branch": "B5", "shift": "CS"
+    },
 #--------------------------------------- BIN BIN HOTEL 6 --------------------------------------------#
     {
         "employee_id": "NV015", "code": "lt.ntmhuynh", "name": "Nguyễn Thị Mai Huỳnh",
@@ -274,10 +278,6 @@ working_staff = [
     },
     {
         "employee_id": "NV068", "code": "bp.tnanh", "name": "Trần Ngọc Ánh",
-        "role": "buongphong", "branch": "DI DONG", "shift": None
-    },
-    {
-        "employee_id": "NV069", "code": "bp.vtdly", "name": "Võ Thị Diệu Lý",
         "role": "buongphong", "branch": "DI DONG", "shift": None
     },
 #--------------------------------------- QUẢN LÍ VÀ KTV --------------------------------------------#

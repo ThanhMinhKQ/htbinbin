@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý đặt phòng - OTA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: #f5f6fa;
+            min-height: 100vh;
+        }
+
+        /* ── Topbar ── */
+        .topbar {
+            background: #fff;
+            border-bottom: 1px solid #e8eaf0;
+            padding: 0 28px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13.5px;
+            color: #555;
+        }
+
+        .topbar-left a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+
+        .topbar-left .bi-dot {
+            color: #bbb;
+            font-size: 20px;
+        }
+
+        .hotel-select {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13.5px;
+            color: #333;
+        }
+
+        .hotel-select select {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 13.5px;
+            color: #333;
+            background: #fff;
+            cursor: pointer;
+            outline: none;
+            min-width: 240px;
+        }
+
+        /* ── Main content ── */
+        .main-content {
+            padding: 28px 32px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 24px;
+        }
+
+        /* ── Toolbar ── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 0;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 380px;
+        }
+
+        .search-box input {
+            width: 100%;
+            border: 1px solid #dde1ea;
+            border-radius: 8px;
+            padding: 9px 14px 9px 38px;
+            font-size: 13.5px;
+            color: #333;
+            background: #fff;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: #1a73e8;
+        }
+
+        .search-box .bi-search {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+            font-size: 14px;
+        }
+
+        .search-box .filter-icon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            font-size: 13.5px;
+            color: #555;
+        }
+
+        .filter-select {
+            border: 1px solid #dde1ea;
+            border-radius: 8px;
+            padding: 9px 12px;
+            font-size: 13.5px;
+            color: #333;
+            background: #fff;
+            outline: none;
+            cursor: pointer;
+            min-width: 120px;
+        }
+
+        .btn-excel {
+            background: #e8390e;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-size: 13.5px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            margin-left: auto;
+        }
+
+        .btn-excel:hover {
+            background: #c62d08;
+            color: #fff;
+        }
+
+        /* ── Table card ── */
+        .table-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+            overflow: hidden;
+            margin-top: 16px;
+        }
+
+        .booking-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13.5px;
+        }
+
+        .booking-table thead tr {
+            border-bottom: 2px solid #f0f2f7;
+        }
+
+        .booking-table thead th {
+            padding: 14px 16px;
+            color: #888;
+            font-weight: 500;
+            font-size: 13px;
+            white-space: nowrap;
+            background: #fff;
+            text-align: left;
+        }
+
+        .booking-table tbody tr {
+            border-bottom: 1px solid #f4f5f9;
+            transition: background 0.15s;
+        }
+
+        .booking-table tbody tr:hover {
+            background: #f8f9fc;
+        }
+
+        .booking-table tbody td {
+            padding: 14px 16px;
+            vertical-align: top;
+            color: #333;
+        }
+
+        /* Đơn phòng cell */
+        .order-id {
+            color: #1a73e8;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 13.5px;
+            line-height: 1.3;
+        }
+
+        .order-id:hover {
+            text-decoration: underline;
+        }
+
+        .order-date {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+
+        /* Phòng cell */
+        .room-name {
+            font-weight: 500;
+            color: #333;
+        }
+
+        /* Khách hàng cell */
+        .guest-email {
+            color: #1a73e8;
+            font-size: 12.5px;
+            text-decoration: none;
+        }
+
+        .guest-email:hover {
+            text-decoration: underline;
+        }
+
+        .guest-name {
+            font-weight: 600;
+            color: #1a1a2e;
+            margin-top: 2px;
+            text-transform: uppercase;
+            font-size: 12.5px;
+            letter-spacing: 0.2px;
+        }
+
+        .guest-count {
+            font-size: 12px;
+            color: #888;
+            margin-top: 1px;
+        }
+
+        /* Trạng thái badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 3px 0;
+        }
+
+        .status-badge.success {
+            color: #22c55e;
+        }
+
+        .status-badge.pending {
+            color: #f59e0b;
+        }
+
+        .status-badge.cancelled {
+            color: #ef4444;
+        }
+
+        /* OTA cell */
+        .ota-info {
+            font-size: 12.5px;
+            color: #555;
+        }
+
+        .ota-source {
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+
+        .ota-id {
+            font-size: 11.5px;
+            color: #999;
+            margin-top: 1px;
+        }
+
+        /* Số ngày & phòng */
+        .stay-info {
+            font-size: 12.5px;
+            color: #555;
+        }
+
+        .stay-dates {
+            font-weight: 500;
+            color: #333;
+        }
+
+        .stay-nights {
+            color: #888;
+            font-size: 12px;
+            margin-top: 1px;
+        }
+
+        /* Tổng tiền */
+        .total-price {
+            color: #e8390e;
+            font-weight: 700;
+            font-size: 13.5px;
+            white-space: nowrap;
+        }
+
+        /* Mã đặt phòng / check-in */
+        .booking-code {
+            font-size: 13px;
+            color: #444;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* ── Pagination ── */
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            border-top: 1px solid #f0f2f7;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .pagination-bar .page-btns {
+            display: flex;
+            gap: 4px;
+        }
+
+        .pagination-bar .page-btn {
+            border: 1px solid #dde1ea;
+            background: #fff;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 13px;
+            color: #555;
+            transition: all 0.15s;
+        }
+
+        .pagination-bar .page-btn:hover,
+        .pagination-bar .page-btn.active {
+            background: #1a73e8;
+            border-color: #1a73e8;
+            color: #fff;
+        }
+
+        /* ── Empty / Loading state ── */
+        .loading-row td,
+        .empty-row td {
+            text-align: center;
+            padding: 48px !important;
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        /* ── Stats row (optional quick stats) ── */
+        .stats-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: #fff;
+            border-radius: 10px;
+            padding: 14px 20px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+            min-width: 160px;
+        }
+
+        .stat-chip .label {
+            font-size: 12px;
+            color: #999;
+            font-weight: 500;
+        }
+
+        .stat-chip .value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-top: 2px;
+        }
+
+        .stat-chip .value.green {
+            color: #22c55e;
+        }
+
+        .stat-chip .value.red {
+            color: #ef4444;
+        }
+
+        .stat-chip .value.orange {
+            color: #e8390e;
+        }
+
+        /* ── Toast ── */
+        .toast-container {
+            z-index: 9999;
+        }
+
+        /* ── Modal booking detail ── */
+        .detail-table td:first-child {
+            font-weight: 500;
+            color: #666;
+            width: 140px;
+            white-space: nowrap;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 16px;
+            }
+
+            .stats-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Topbar -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <a href="/choose-function"><i class="bi bi-house-fill"></i> Trang chủ</a>
+            <span class="bi bi-dot"></span>
+            <span style="color:#333; font-weight:500;">Quản lý đặt phòng OTA</span>
+        </div>
+        <div class="hotel-select">
+            <span style="color:#777;">Chọn chi nhánh:</span>
+            <select id="branchFilter" onchange="loadBookings()">
+                <option value="">Tất cả chi nhánh</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <h1 class="page-title">Quản lý đặt phòng</h1>
+
+        <!-- Stats Row -->
+        <div class="stats-row" id="statsRow">
+            <div class="stat-chip">
+                <div class="label">Tổng đơn</div>
+                <div class="value" id="statTotal">—</div>
+            </div>
+            <div class="stat-chip">
+                <div class="label">Thành công</div>
+                <div class="value green" id="statSuccess">—</div>
+            </div>
+            <div class="stat-chip">
+                <div class="label">Thất bại</div>
+                <div class="value red" id="statFailed">—</div>
+            </div>
+            <div class="stat-chip">
+                <div class="label">Hôm nay</div>
+                <div class="value orange" id="statToday">—</div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Nhập mã đơn hàng, mã đặt phòng..."
+                    oninput="onSearchInput()">
+                <i class="bi bi-sliders filter-icon" title="Bộ lọc nâng cao"></i>
+            </div>
+
+            <div class="filter-group">
+                <span>Lọc theo</span>
+                <select class="filter-select" id="otaFilter" onchange="loadBookings()">
+                    <option value="">Tất cả</option>
+                    <option value="Booking.com">Booking.com</option>
+                    <option value="Agoda">Agoda</option>
+                    <option value="Go2Joy">Go2Joy</option>
+                    <option value="Expedia">Expedia</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <select class="filter-select" id="statusFilter" onchange="loadBookings()">
+                    <option value="">Mọi trạng thái</option>
+                    <option value="SUCCESS">Thành công</option>
+                    <option value="PENDING">Đang xử lý</option>
+                    <option value="CANCELLED">Đã huỷ</option>
+                </select>
+            </div>
+
+            <a href="/api/ota/export/bookings-excel" download class="btn-excel" id="exportExcelBtn"
+                onclick="exportExcel(event)">
+                <i class="bi bi-file-earmark-excel-fill"></i> Xuất file excel
+            </a>
+        </div>
+
+        <!-- Table Card -->
+        <div class="table-card">
+            <div class="table-responsive">
+                <table class="booking-table">
+                    <thead>
+                        <tr>
+                            <th>Đơn phòng</th>
+                            <th>Phòng</th>
+                            <th>Khách hàng</th>
+                            <th>Trạng thái</th>
+                            <th>Mã đặt phòng</th>
+                            <th>Mã check-in</th>
+                            <th>OTA</th>
+                            <th>Số ngày lưu trú</th>
+                            <th>Tổng tiền đơn hàng</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bookingsTable">
+                        <tr class="loading-row">
+                            <td colspan="9">
+                                <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div>
+                                Đang tải dữ liệu...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination-bar">
+                <span id="paginationInfo">—</span>
+                <div class="page-btns" id="paginationBtns"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Detail Modal -->
+    <div class="modal fade" id="bookingDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-0" style="border-radius:14px; overflow:hidden;">
+                <div class="modal-header" style="background:#f8f9fc; border-bottom:1px solid #eee;">
+                    <h5 class="modal-title" style="font-weight:700;">
+                        <i class="bi bi-calendar2-check text-primary me-2"></i>
+                        Chi tiết đặt phòng
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4" id="bookingDetailContent">
+                </div>
+                <div class="modal-footer" style="background:#f8f9fc; border-top:1px solid #eee;">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="mainToast" class="toast align-items-center text-white border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body" id="toastBody"></div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/ota_dashboard.js"></script>
+</body>
+
+</html>

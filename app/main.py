@@ -1,4 +1,13 @@
 # app/main.py
+import warnings
+warnings.filterwarnings("ignore", message=".*NotOpenSSLWarning.*")
+warnings.filterwarnings("ignore", message=".*urllib3.*LibreSSL.*")
+try:
+    from urllib3.exceptions import NotOpenSSLWarning
+    warnings.filterwarnings("ignore", category=NotOpenSSLWarning)
+except ImportError:
+    pass
+
 import os
 import atexit
 from fastapi import FastAPI, Request
@@ -12,7 +21,8 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from .api import (
     users, attendance, tasks, lost_and_found, 
     choose_function, utils, calendar, qr_checkin, 
-    results, export, service, shift_report, inventory
+    results, export, service, shift_report, inventory,
+    ota_dashboard
 )
 
 from .core.config import settings, logger
@@ -123,9 +133,42 @@ async def startup_event():
                 misfire_grace_time=300, id="update_overdue_tasks"
             )
             
+            # --- OTA AGENT SCHEDULER (10 phút/lần) ---
+            # [TẠM TẮT] - Tắt chức năng quét đặt phòng OTA qua gmail
+            # from .services.ota_agent.integration import ota_agent
+            # scheduler.add_job(
+            #     ota_agent.run_once,
+            #     'interval', minutes=10,
+            #     id="ota_booking_sync",
+            #     misfire_grace_time=300
+            # )
+
+            # --- GMAIL WATCH RENEWAL (Mỗi ngày 06:00) ---
+            # Gmail watch() hết hạn sau 7 ngày -> cần gia hạn định kỳ
+            def renew_gmail_watch():
+                try:
+                    from app.services.ota_agent.gmail_service import gmail_service
+                    result = gmail_service.watch_inbox()
+                    if result:
+                        logger.info(f"✅ [Scheduler] Gmail Watch gia hạn thành công! historyId={result.get('historyId')}")
+                    else:
+                        logger.warning("⚠️ [Scheduler] Gmail Watch gia hạn thất bại - kiểm tra token và Pub/Sub config")
+                except Exception as e:
+                    logger.error(f"❌ [Scheduler] Lỗi gia hạn Gmail Watch: {e}")
+
+            scheduler.add_job(
+                renew_gmail_watch,
+                'cron', hour=6, minute=0,
+                misfire_grace_time=900,
+                id="gmail_watch_renewal"
+            )
+            logger.info("📧 Cronjob Gmail Watch Renewal đã đăng ký (chạy mỗi ngày 06:00)")
+
             scheduler.start()
             atexit.register(lambda: scheduler.shutdown())
             logger.info("✅ Các tác vụ nền (Scheduler) đã được lập lịch.")
+
+
 
     except Exception as e:
         logger.error(f"❌ Lỗi khởi động: {e}", exc_info=True)
@@ -159,6 +202,9 @@ app.include_router(tasks.router, tags=["Tasks"])
 app.include_router(choose_function.router, tags=["Core UI"])
 app.include_router(utils.router, tags=["Utilities"])
 app.include_router(export.router, tags=["Export"])
+
+# OTA Dashboard API
+app.include_router(ota_dashboard.router, tags=["OTA Dashboard"])
 
 
 # --- ROOT ENDPOINT ---

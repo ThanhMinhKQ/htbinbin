@@ -38,6 +38,10 @@ ENV/
 .env.local
 .env.*.local
 
+# Gmail OAuth2 credentials (KHÔNG commit lên Git - chứa token nhạy cảm)
+gmail_token.json
+client_secrets.json
+
 # Database
 *.db
 *.sqlite
@@ -56,6 +60,6 @@ Thumbs.db
 .coverage
 htmlcov/
 
-# Uploads and media files (if you want to exclude them)
-uploads/
-# static/uploads/
+# Uploads and media files (ignore content but keep folder structure)
+uploads/*
+!uploads/.gitkeep

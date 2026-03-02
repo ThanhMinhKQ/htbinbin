@@ -569,3 +569,80 @@ class TransferImage(Base):
     display_order = Column(Integer, default=0)
     
     transfer = relationship("InventoryTransfer", back_populates="images")
+
+# ====================================================================
+# 8. OTA BOOKING AGENT (AI AGENT)
+# ====================================================================
+
+class BookingStatus(str, enum.Enum):
+    CONFIRMED = "CONFIRMED"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED" # Đã check-out (nếu cần)
+    NO_SHOW = "NO_SHOW"
+
+class OTAParsingStatus(str, enum.Enum):
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+class Booking(Base):
+    """Đặt phòng từ OTA (Booking.com, Agoda, Traveloka...)"""
+    __tablename__ = "bookings"
+
+    id = Column(BIGINT, primary_key=True)
+    booking_source = Column(String(50), nullable=False, index=True) # Booking.com, Agoda
+    external_id = Column(String(50), unique=True, nullable=False, index=True) # Mã đặt phòng OTA
+
+    guest_name = Column(String(255), nullable=False, index=True)
+    check_in = Column(Date, nullable=False, index=True)
+    check_out = Column(Date, nullable=False, index=True)
+    room_type = Column(String(255))
+    
+    num_guests = Column(Integer, default=1)
+    num_adults = Column(Integer, default=1)       # Số người lớn
+    num_children = Column(Integer, default=0)     # Số trẻ em
+    guest_phone = Column(String(50), nullable=True)  # SĐT khách
+    checkin_code = Column(String(50), nullable=True) # Mã PIN check-in phòng
+    total_price = Column(NUMERIC(15, 2), default=0)
+    currency = Column(String(10), default='VND')
+    
+    # Payment info
+    is_prepaid = Column(Boolean, default=False)
+    payment_method = Column(String(100)) # Visa ..4242 / Cash
+    deposit_amount = Column(NUMERIC(15, 2), default=0)
+
+    status = Column(SQLAlchemyEnum(BookingStatus, native_enum=True), default=BookingStatus.CONFIRMED, index=True)
+    
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    raw_data = Column(JSONB) # Full JSON extracted from AI
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    branch = relationship("Branch")
+
+class OTAParsingLog(Base):
+    """Log lịch sử đọc mail & parse của AI"""
+    __tablename__ = "ota_parsing_logs"
+
+    id = Column(BIGINT, primary_key=True)
+    received_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+    
+    email_subject = Column(String(500))
+    email_sender = Column(String(255))
+    email_message_id = Column(String(255), unique=True, index=True, nullable=True)  # Unique email ID for deduplication
+    
+    status = Column(SQLAlchemyEnum(OTAParsingStatus, native_enum=True), index=True)
+    error_message = Column(Text)
+    error_traceback = Column(Text, nullable=True)  # Full stack trace for debugging
+    
+    raw_content = Column(Text)  # Nội dung email HTML
+    extracted_data = Column(JSONB, nullable=True)  # Data extracted by AI
+    
+    retry_count = Column(Integer, default=0)  # Number of retry attempts
+    last_retry_at = Column(DateTime(timezone=True), nullable=True)  # Last retry timestamp
+    
+    booking_id = Column(BIGINT, ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True, index=True)  # Link to created booking
+    
+    # Relationship
+    booking = relationship("Booking", foreign_keys=[booking_id])

@@ -14,6 +14,21 @@ class Settings(BaseSettings):
     DATABASE_URL: PostgresDsn
     LOG_LEVEL: str = "INFO"
 
+    # OTA Agent Config (IMAP legacy)
+    IMAP_SERVER: str = "imap.gmail.com"
+    IMAP_USER: Optional[str] = None
+    IMAP_PASSWORD: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
+    OTA_SENDERS: str = "noreply@booking.com,reservations@agoda.com,no-reply@expedia.com" # Comma separated
+
+    # Gmail Push Notification (Pub/Sub) - Thay thế IMAP polling
+    GMAIL_CLIENT_ID: Optional[str] = None
+    GMAIL_CLIENT_SECRET: Optional[str] = None
+    GMAIL_REDIRECT_URI: str = "http://localhost:8000/api/ota/oauth/callback"
+    GOOGLE_PUBSUB_TOPIC: Optional[str] = None
+    GMAIL_WATCH_EMAIL: Optional[str] = None
+    PUBSUB_VERIFICATION_TOKEN: str = "binbin_pubsub_secret_2024"
+
     @field_validator("DATABASE_URL", mode='before')
     def build_db_connection(cls, v: Optional[str]) -> str:
         if v is None:
