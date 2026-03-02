@@ -310,7 +310,6 @@ function renderTable() {
             </td>
             <td>
                 <div class="room-name">${escapeHtml(roomType)}</div>
-                <div class="guest-count">${numGuests} người</div>
             </td>
             <td>
                 <div class="guest-name">${escapeHtml(b.guest_name)}</div>
