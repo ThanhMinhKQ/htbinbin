@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from app.core.config import settings, logger
 import json
 import re
+import time
 
 class OTAExtractor:
     def __init__(self):
@@ -107,24 +108,36 @@ class OTAExtractor:
         """
 
         
-        try:
-            logger.info(f"[OTA Extractor] Sending request to Gemini for: {subject}")
-            
-            response = self.client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt,
-                config={
-                    'response_mime_type': 'application/json'
-                }
-            )
-            
-            if response.text:
-                data = json.loads(response.text)
-                data["status"] = "SUCCESS"
-                return data
-            else:
-                return {"error": "Empty response from AI", "status": "FAILED"}
+        max_retries = 3
+        base_delay = 5  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"[OTA Extractor] Sending request to Gemini for: {subject} (Attempt {attempt + 1}/{max_retries})")
                 
-        except Exception as e:
-            logger.error(f"[OTA Extractor] Gemini Processing Error: {e}")
-            return {"error": str(e), "status": "FAILED"}
+                response = self.client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=prompt,
+                    config={
+                        'response_mime_type': 'application/json'
+                    }
+                )
+                
+                if response.text:
+                    data = json.loads(response.text)
+                    data["status"] = "SUCCESS"
+                    return data
+                else:
+                    return {"error": "Empty response from AI", "status": "FAILED"}
+                    
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "429" in error_msg or "quota" in error_msg or "rate limit" in error_msg:
+                    if attempt < max_retries - 1:
+                        sleep_time = base_delay * (attempt + 1)
+                        logger.warning(f"[OTA Extractor] Rate limit (429) encountered. Retrying in {sleep_time}s...")
+                        time.sleep(sleep_time)
+                        continue
+                        
+                logger.error(f"[OTA Extractor] Gemini Processing Error: {e}")
+                return {"error": str(e), "status": "FAILED"}
