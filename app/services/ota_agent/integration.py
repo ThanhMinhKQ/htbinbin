@@ -39,7 +39,12 @@ class OTAAgent:
     def process_email(self, db: Session, mapper: HotelMapper, email: dict):
         logger.info(f"[OTA Agent] Processing email: {email['subject']}")
 
-        # 0. Dedup: Kiểm tra message_id đã xử lý SUCCESS chưa (tránh gọi AI thừa khi quét lại)
+        # 0a. Subject filter: bỏ qua email không phải booking (report, newsletter...)
+        from app.services.ota_agent.gmail_service import gmail_service
+        if not gmail_service.is_booking_subject(email.get('subject', '')):
+            return  # Bỏ qua siên - không tạo log, không gọi AI
+
+        # 0b. Dedup: Kiểm tra message_id đã xử lý SUCCESS chưa (tránh gọi AI thừa khi quét lại)
         message_id = email.get('message_id')
         if message_id:
             existing_log = db.query(OTAParsingLog).filter(

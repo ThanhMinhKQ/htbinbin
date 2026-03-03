@@ -293,6 +293,67 @@ class GmailService:
         """Helper không dùng - thay bằng _parse_payload."""
         pass
 
+    # ── Booking subject filter ────────────────────────────────────────────────
+
+    # Từ khoá subject BẮT BUỘC phải có ít nhất 1 (ngôn ngữ: VN/EN)
+    BOOKING_KEYWORDS = [
+        # English
+        'booking', 'reservation', 'confirmed', 'confirmation',
+        'new booking', 'booking confirmation',
+        'cancelled', 'cancellation', 'amendment', 'modified',
+        'check-in', 'check in', 'checkout', 'check out',
+        'guest', 'accommodation',
+        # Vietnamese
+        'đặt phòng', 'xác nhận', 'hủy phòng', 'hủy đặt',
+        'nhận phòng', 'trả phòng', 'đặt chỗ',
+        # Go2Joy specific
+        'đặt chỗ thành công', 'booking thành công',
+    ]
+
+    # Từ khoá subject → BỎ QUA ngay (không gọi AI)
+    SKIP_KEYWORDS = [
+        # Reports / Analytics
+        'báo cáo', 'hiệu suất', 'thống kê', 'phân tích',
+        'report', 'performance', 'analytics', 'weekly', 'monthly',
+        'insights', 'summary', 'digest',
+        # Marketing / Newsletter
+        'newsletter', 'promotion', 'khuyến mãi', 'ưu đãi',
+        'offer', 'deal', 'discount', 'sale', 'marketing',
+        'unsubscribe', 'hủy đăng ký',
+        # System / Admin
+        'payment received', 'invoice', 'receipt', 'statement',
+        'hóa đơn', 'thanh toán thành công',
+        'verify', 'xác minh', 'password', 'mật khẩu',
+        'login', 'security alert',
+    ]
+
+    def is_booking_subject(self, subject: str) -> bool:
+        """
+        Kiểm tra subject email có khả năng là booking confirmation không.
+        - Nếu chứa SKIP_KEYWORDS → False (bỏ qua ngay, không gọi AI)
+        - Nếu chứa BOOKING_KEYWORDS → True (xử lý)
+        - Nếu không match gì → True (uncertain, để AI quyết định)
+        """
+        if not subject:
+            return True  # Không có subject → để AI phán
+
+        subject_lower = subject.lower()
+
+        # 1. Bỏ qua ngay nếu là report/newsletter/marketing
+        for skip_kw in self.SKIP_KEYWORDS:
+            if skip_kw in subject_lower:
+                logger.info(f"[Gmail Filter] ⏭️ Bỏ qua (subject không phải booking): '{subject[:80]}'")
+                return False
+
+        # 2. Ưu tiên nếu có từ khoá booking rõ ràng
+        for book_kw in self.BOOKING_KEYWORDS:
+            if book_kw in subject_lower:
+                return True
+
+        # 3. Không chắc → vẫn cho qua (để AI phán)
+        logger.debug(f"[Gmail Filter] ⚠️ Subject không rõ ràng, vẫn xử lý: '{subject[:80]}'")
+        return True
+
     def is_ota_sender(self, sender_email: str) -> bool:
         """Kiểm tra email có phải từ OTA không."""
         sender_lower = sender_email.lower()
