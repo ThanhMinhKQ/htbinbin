@@ -42,34 +42,44 @@ class OTAAgent:
         # 0a. Subject filter: bỏ qua email không phải booking (report, newsletter...)
         from app.services.ota_agent.gmail_service import gmail_service
         if not gmail_service.is_booking_subject(email.get('subject', '')):
-            return  # Bỏ qua siên - không tạo log, không gọi AI
+            return  # Bỏ qua - không tạo log, không gọi AI
 
-        # 0b. Dedup: Kiểm tra message_id đã xử lý SUCCESS chưa (tránh gọi AI thừa khi quét lại)
+        # 0b. Dedup: Kiểm tra message_id đã tồn tại chưa (tránh UniqueViolation)
         message_id = email.get('message_id')
+        existing_log = None
         if message_id:
             existing_log = db.query(OTAParsingLog).filter(
-                OTAParsingLog.email_message_id == message_id,
-                OTAParsingLog.status == OTAParsingStatus.SUCCESS
+                OTAParsingLog.email_message_id == message_id
             ).first()
             if existing_log:
-                logger.info(
-                    f"[OTA Agent] ⏭️ Bỏ qua email đã xử lý (message_id={message_id}, "
-                    f"booking_id={existing_log.booking_id})"
-                )
-                return
+                if existing_log.status == OTAParsingStatus.SUCCESS:
+                    logger.info(
+                        f"[OTA Agent] ⏭️ Bỏ qua email đã xử lý thành công "
+                        f"(message_id={message_id}, booking_id={existing_log.booking_id})"
+                    )
+                    return
+                else:
+                    # Đã có log FAILED/pending → dùng lại log đó, không INSERT mới
+                    logger.info(
+                        f"[OTA Agent] ↺ Retry email (message_id={message_id}, "
+                        f"status={existing_log.status}, retry={existing_log.retry_count})"
+                    )
 
-        # 1. Init Log with enhanced fields
-        log_entry = OTAParsingLog(
-            email_subject=email['subject'],
-            email_sender=email['sender'],
-            email_message_id=message_id,
-            raw_content=email.get('html') or email.get('text', ''),
-            received_at=datetime.now(),
-            retry_count=0
-        )
-        db.add(log_entry)
-        db.commit()
-        db.refresh(log_entry)
+        # 1. Init Log
+        if existing_log:
+            log_entry = existing_log  # Reuse log cũ cho retry
+        else:
+            log_entry = OTAParsingLog(
+                email_subject=email['subject'],
+                email_sender=email['sender'],
+                email_message_id=message_id,
+                raw_content=email.get('html') or email.get('text', ''),
+                received_at=datetime.now(),
+                retry_count=0
+            )
+            db.add(log_entry)
+            db.commit()
+            db.refresh(log_entry)
 
 
         try:

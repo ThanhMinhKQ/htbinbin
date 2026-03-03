@@ -186,8 +186,9 @@ class GmailService:
                 userId='me',
                 startHistoryId=start_history_id,
                 historyTypes=['messageAdded'],
-                labelId='INBOX',
+                # Không filter labelId='INBOX' - email OTA có thể bị gán nhãn khác
             ).execute()
+
 
             messages = []
             changes = history_response.get('history', [])
