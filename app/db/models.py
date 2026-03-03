@@ -646,3 +646,13 @@ class OTAParsingLog(Base):
     
     # Relationship
     booking = relationship("Booking", foreign_keys=[booking_id])
+
+
+class AppConfig(Base):
+    """Lưu cấu hình key-value của ứng dụng (persist qua server restart)."""
+    __tablename__ = "app_config"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Text, nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+

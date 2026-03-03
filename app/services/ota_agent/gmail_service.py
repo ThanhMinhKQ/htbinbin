@@ -369,6 +369,39 @@ class GmailService:
         sender_lower = sender_email.lower()
         return any(ota_domain in sender_lower for ota_domain in self.ota_senders)
 
+    def _get_last_history_id_from_db(self) -> Optional[str]:
+        """Đọc last_history_id từ DB (persist qua server restart)."""
+        try:
+            from app.db.session import SessionLocal
+            from app.db.models import AppConfig
+            db = SessionLocal()
+            try:
+                row = db.query(AppConfig).filter(AppConfig.key == "gmail_last_history_id").first()
+                return row.value if row else None
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[Gmail Service] Không đọc được last_history_id từ DB: {e}")
+            return None
+
+    def _save_last_history_id_to_db(self, history_id: str):
+        """Lưu last_history_id vào DB để persist qua restart."""
+        try:
+            from app.db.session import SessionLocal
+            from app.db.models import AppConfig
+            db = SessionLocal()
+            try:
+                row = db.query(AppConfig).filter(AppConfig.key == "gmail_last_history_id").first()
+                if row:
+                    row.value = history_id
+                else:
+                    db.add(AppConfig(key="gmail_last_history_id", value=history_id))
+                db.commit()
+            finally:
+                db.close()
+        except Exception as e:
+            logger.warning(f"[Gmail Service] Không lưu được last_history_id vào DB: {e}")
+
     def fetch_new_emails_from_history(self, webhook_history_id: str) -> List[Dict]:
         """
         Entry point chính khi nhận webhook.
@@ -378,38 +411,45 @@ class GmailService:
           Webhook gửi historyId MỚI nhất (N) → ta phải query từ historyId CŨ (N-1)
 
         Flow:
-          1. Dùng self._last_history_id làm startHistoryId
-          2. Update self._last_history_id = webhook_history_id
-          3. Lọc email OTA từ kết quả
+          1. Đọc last_history_id từ DB (persist qua restart)
+          2. Dùng last_history_id làm startHistoryId
+          3. Lưu webhook_history_id vào DB cho lần sau
+          4. Lọc email OTA từ kết quả
         """
-        # Khởi tạo historyId nếu chưa có (sau khởi động server / sau Render restart)
+        # Ưu tiên in-memory (nhanh hơn), fallback sang DB khi restart
+        if not self._last_history_id:
+            self._last_history_id = self._get_last_history_id_from_db()
+
+        # Khởi tạo lần đầu (sau khi deploy mới hoàn toàn)
         if not self._last_history_id:
             current = self.get_current_history_id()
-            if current:
-                self._last_history_id = current
-                logger.info(
-                    f"[Gmail Service] Khởi tạo historyId từ profile: {self._last_history_id}. "
-                    "Email trước thời điểm này sẽ không được xử lý qua webhook."
-                )
-                # Cập nhật lên webhook_history_id để lần tới có point mới
-                self._last_history_id = webhook_history_id
-                return []  # Lần đầu sau restart ‑ bỏ qua, lần sau sẽ đúng
-            else:
-                logger.warning("[Gmail Service] Không lấy được historyId hiện tại")
-                self._last_history_id = webhook_history_id
-                return []
+            start_from = current or webhook_history_id
+            logger.info(
+                f"[Gmail Service] ⚠️ Khởi tạo historyId lần đầu: {start_from}. "
+                "Email trước thời điểm này sẽ không được xử lý qua webhook."
+            )
+            self._last_history_id = webhook_history_id
+            self._save_last_history_id_to_db(webhook_history_id)
+            return []
 
         start_from = self._last_history_id
         logger.info(
             f"[Gmail Service] Query history từ {start_from} → {webhook_history_id}"
         )
 
-        # Cập nhật ngưỡc trước (ngay cả khi lỗi, tránh query lại từ điểm cũ)
+        # Cập nhật trước (tránh query lại từ điểm cũ nếu lỗi)
         self._last_history_id = webhook_history_id
+        self._save_last_history_id_to_db(webhook_history_id)
+
+        # Không query nếu 2 historyId giống nhau (duplicate notification)
+        if start_from == webhook_history_id:
+            logger.info("[Gmail Service] Duplicate notification (start==end), bỏ qua.")
+            return []
 
         messages = self.get_history(start_from)
         if not messages:
             return []
+
 
         results = []
         for msg_meta in messages:
