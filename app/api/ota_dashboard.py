@@ -628,6 +628,7 @@ async def _scan_emails_for_date(target_date):
     Background task: Quét các email OTA trong một ngày cụ thể từ Gmail API.
     target_date: datetime UTC (giờ 00:00:00 của ngày cần quét)
     """
+    import asyncio
     from app.core.config import logger
     from app.services.ota_agent.integration import ota_agent
     from app.db.session import SessionLocal
@@ -657,11 +658,11 @@ async def _scan_emails_for_date(target_date):
         logger.info(f"[Manual Scan] Gmail query: {query}")
 
         result = service.users().messages().list(
-            userId='me', q=query, maxResults=50
+            userId='me', q=query, maxResults=20  # Giới hạn 20 mail/lần quét
         ).execute()
 
         messages = result.get('messages', [])
-        logger.info(f"[Manual Scan] Tìm thấy {len(messages)} email ngày {date_str}")
+        logger.info(f"[Manual Scan] Tìm thấy {len(messages)} email ngày {date_str} (trước lọc OTA)")
 
         if not messages:
             logger.info(f"[Manual Scan] ✅ Không có email OTA nào ngày {date_str}")
@@ -675,25 +676,44 @@ async def _scan_emails_for_date(target_date):
             email = gmail_service.get_message(msg_id)
             if email and gmail_service.is_ota_sender(email['sender']):
                 emails.append(email)
-                logger.info(f"[Manual Scan] ✉️ {email['sender']} | {email['subject']}")
+                logger.info(f"[Manual Scan] ✉️ OTA email: {email['sender']} | {email['subject']}")
+            else:
+                if email:
+                    logger.debug(f"[Manual Scan] Bỏ qua (không phải OTA): {email.get('sender', '?')}")
 
-        logger.info(f"[Manual Scan] Xử lý {len(emails)} email OTA...")
+        logger.info(f"[Manual Scan] {len(emails)} email OTA cần xử lý (sau khi lọc)")
+
+        if not emails:
+            logger.info(f"[Manual Scan] ✅ Không có email OTA nào đợc lọc ngày {date_str}")
+            return
 
         db = SessionLocal()
         try:
             mapper = HotelMapper(db)
             processed = 0
-            for email in emails:
+            skipped = 0
+            failed = 0
+            for i, email in enumerate(emails):
                 try:
+                    result_before = processed  # để biết có bị skip không
                     ota_agent.process_email(db, mapper, email)
                     processed += 1
                 except Exception as e:
                     logger.error(f"[Manual Scan] Lỗi xử lý email {email.get('uid')}: {e}")
                     db.rollback()
+                    failed += 1
+
+                # Delay 2s giữa các email để tránh 429 Gemini rate limit
+                # (trừ email cuối cùng)
+                if i < len(emails) - 1:
+                    await asyncio.sleep(2)
         finally:
             db.close()
 
-        logger.info(f"[Manual Scan] ✅ Hoàn thành: {processed}/{len(emails)} email OTA ngày {date_str}")
+        logger.info(
+            f"[Manual Scan] ✅ Hoàn thành ngày {date_str}: "
+            f"đã xử lý={processed}, thất bại={failed} / tổng {len(emails)} email OTA"
+        )
 
     except Exception as e:
         logger.error(f"[Manual Scan] ❌ Lỗi: {e}")

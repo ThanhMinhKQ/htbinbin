@@ -108,8 +108,9 @@ class OTAExtractor:
         """
 
         
-        max_retries = 3
-        base_delay = 5  # seconds
+        max_retries = 4
+        # Exponential back-off: 5s, 15s, 30s, 60s
+        retry_delays = [5, 15, 30, 60]
         
         for attempt in range(max_retries):
             try:
@@ -132,12 +133,19 @@ class OTAExtractor:
                     
             except Exception as e:
                 error_msg = str(e).lower()
-                if "429" in error_msg or "quota" in error_msg or "rate limit" in error_msg:
+                if "429" in error_msg or "quota" in error_msg or "rate limit" in error_msg or "resource_exhausted" in error_msg:
                     if attempt < max_retries - 1:
-                        sleep_time = base_delay * (attempt + 1)
-                        logger.warning(f"[OTA Extractor] Rate limit (429) encountered. Retrying in {sleep_time}s...")
+                        sleep_time = retry_delays[attempt]
+                        logger.warning(
+                            f"[OTA Extractor] Rate limit (429) — chờ {sleep_time}s trước khi retry "
+                            f"(lần {attempt + 1}/{max_retries})..."
+                        )
                         time.sleep(sleep_time)
                         continue
+                    else:
+                        logger.error(f"[OTA Extractor] Vẫn bị 429 sau {max_retries} lần thử. Bỏ qua email này.")
+                        return {"error": "Rate limit exceeded after max retries", "status": "FAILED"}
                         
                 logger.error(f"[OTA Extractor] Gemini Processing Error: {e}")
                 return {"error": str(e), "status": "FAILED"}
+
