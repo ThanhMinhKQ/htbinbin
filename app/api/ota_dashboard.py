@@ -703,10 +703,10 @@ async def _scan_emails_for_date(target_date):
                     db.rollback()
                     failed += 1
 
-                # Delay 2s giữa các email để tránh 429 Gemini rate limit
-                # (trừ email cuối cùng)
+                # Delay giữa các email để tránh 429 RPM limit (gemini-1.5-flash: 15 RPM)
+                # 6s delay → ~10 RPM → an toàn
                 if i < len(emails) - 1:
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(6)
         finally:
             db.close()
 
