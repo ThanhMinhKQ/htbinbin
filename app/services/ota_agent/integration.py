@@ -38,19 +38,34 @@ class OTAAgent:
 
     def process_email(self, db: Session, mapper: HotelMapper, email: dict):
         logger.info(f"[OTA Agent] Processing email: {email['subject']}")
-        
+
+        # 0. Dedup: Kiểm tra message_id đã xử lý SUCCESS chưa (tránh gọi AI thừa khi quét lại)
+        message_id = email.get('message_id')
+        if message_id:
+            existing_log = db.query(OTAParsingLog).filter(
+                OTAParsingLog.email_message_id == message_id,
+                OTAParsingLog.status == OTAParsingStatus.SUCCESS
+            ).first()
+            if existing_log:
+                logger.info(
+                    f"[OTA Agent] ⏭️ Bỏ qua email đã xử lý (message_id={message_id}, "
+                    f"booking_id={existing_log.booking_id})"
+                )
+                return
+
         # 1. Init Log with enhanced fields
         log_entry = OTAParsingLog(
             email_subject=email['subject'],
             email_sender=email['sender'],
-            email_message_id=email.get('message_id'),  # For deduplication
-            raw_content=email.get('html') or email.get('text', ''),  # Save full HTML content
+            email_message_id=message_id,
+            raw_content=email.get('html') or email.get('text', ''),
             received_at=datetime.now(),
             retry_count=0
         )
         db.add(log_entry)
         db.commit()
         db.refresh(log_entry)
+
 
         try:
             # 2. Extract Data (AI)

@@ -596,6 +596,111 @@ async def _process_gmail_push(history_id: str):
         logger.error(traceback.format_exc())
 
 
+@router.post("/scan-today")
+async def manual_scan_today(
+    background_tasks: BackgroundTasks,
+    scan_date: Optional[str] = Query(None, description="Ngày quét (YYYY-MM-DD). Mặc định: hôm nay")
+):
+    """
+    Quét thủ công các email OTA trong ngày chỉ định (mặc định: hôm nay).
+    Dùng khi webhook bị miss hoặc muốn kiểm tra lại.
+    """
+    from app.core.config import logger
+    from datetime import datetime, timezone, timedelta
+
+    # Parse ngày cần quét
+    if scan_date:
+        try:
+            target_date = datetime.strptime(scan_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="scan_date phải đúng định dạng YYYY-MM-DD")
+    else:
+        target_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    date_str = target_date.strftime("%d/%m/%Y")
+    logger.info(f"[Manual Scan] 🔍 Bắt đầu quét email ngày {date_str}...")
+    background_tasks.add_task(_scan_emails_for_date, target_date)
+    return {"status": "started", "message": f"Đang quét email ngày {date_str} trong nền...", "scan_date": scan_date or "today"}
+
+
+async def _scan_emails_for_date(target_date):
+    """
+    Background task: Quét các email OTA trong một ngày cụ thể từ Gmail API.
+    target_date: datetime UTC (giờ 00:00:00 của ngày cần quét)
+    """
+    from app.core.config import logger
+    from app.services.ota_agent.integration import ota_agent
+    from app.db.session import SessionLocal
+    from app.services.ota_agent.mapper import HotelMapper
+    from datetime import timedelta
+
+    date_str = target_date.strftime("%d/%m/%Y")
+    logger.info(f"[Manual Scan] Đang tìm email OTA ngày {date_str}...")
+    try:
+        service = gmail_service.build_service()
+        if not service:
+            logger.error("[Manual Scan] ❌ Không thể kết nối Gmail API")
+            return
+
+        ota_senders = gmail_service.ota_senders
+        if not ota_senders:
+            logger.warning("[Manual Scan] Không có OTA sender nào được cấu hình")
+            return
+
+        sender_query = " OR ".join([f"from:{s}" for s in ota_senders])
+
+        # Gmail after/before dùng Unix timestamp: tìm email trong đúng ngày đó
+        after_ts = int(target_date.timestamp())
+        before_ts = int((target_date + timedelta(days=1)).timestamp())
+
+        query = f"({sender_query}) after:{after_ts} before:{before_ts}"
+        logger.info(f"[Manual Scan] Gmail query: {query}")
+
+        result = service.users().messages().list(
+            userId='me', q=query, maxResults=50
+        ).execute()
+
+        messages = result.get('messages', [])
+        logger.info(f"[Manual Scan] Tìm thấy {len(messages)} email ngày {date_str}")
+
+        if not messages:
+            logger.info(f"[Manual Scan] ✅ Không có email OTA nào ngày {date_str}")
+            return
+
+        emails = []
+        for msg_meta in messages:
+            msg_id = msg_meta.get('id')
+            if not msg_id:
+                continue
+            email = gmail_service.get_message(msg_id)
+            if email and gmail_service.is_ota_sender(email['sender']):
+                emails.append(email)
+                logger.info(f"[Manual Scan] ✉️ {email['sender']} | {email['subject']}")
+
+        logger.info(f"[Manual Scan] Xử lý {len(emails)} email OTA...")
+
+        db = SessionLocal()
+        try:
+            mapper = HotelMapper(db)
+            processed = 0
+            for email in emails:
+                try:
+                    ota_agent.process_email(db, mapper, email)
+                    processed += 1
+                except Exception as e:
+                    logger.error(f"[Manual Scan] Lỗi xử lý email {email.get('uid')}: {e}")
+                    db.rollback()
+        finally:
+            db.close()
+
+        logger.info(f"[Manual Scan] ✅ Hoàn thành: {processed}/{len(emails)} email OTA ngày {date_str}")
+
+    except Exception as e:
+        logger.error(f"[Manual Scan] ❌ Lỗi: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+
 @router.post("/gmail/watch")
 def trigger_gmail_watch():
     """

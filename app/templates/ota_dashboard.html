@@ -101,6 +101,60 @@
         color: #fff;
     }
 
+    .btn-scan {
+        background: #1a73e8;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-size: 13.5px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: background 0.2s;
+        white-space: nowrap;
+    }
+
+    .btn-scan:hover {
+        background: #1557b0;
+    }
+
+    .btn-scan:disabled {
+        background: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    .scan-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .scan-date-input {
+        border: 1px solid #dde1ea;
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-size: 13px;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+
+    .scan-date-input:focus {
+        border-color: #1a73e8;
+    }
+
+    .dark .scan-date-input {
+        background: #0f172a;
+        border-color: #1e293b;
+        color: #f8fafc;
+        color-scheme: dark;
+    }
+
     /* ── Table card ── */
     .table-card {
         background: #fff;
@@ -588,6 +642,12 @@
             </select>
         </div>
 
+        <div class="scan-group">
+            <input type="date" id="scanDateInput" class="scan-date-input" title="Chọn ngày quét">
+            <button class="btn-scan" id="btnScanToday" onclick="scanTodayEmails()">
+                <i class="bi bi-arrow-repeat"></i> Quét mail
+            </button>
+        </div>
         <a href="#" class="btn-excel" onclick="exportExcel(event)">
             <i class="bi bi-file-earmark-excel-fill"></i> Xuất Excel
         </a>

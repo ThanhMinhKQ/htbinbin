@@ -43,18 +43,36 @@ class GmailService:
         ]
 
     def get_credentials(self) -> Optional[Credentials]:
-        """Đọc credentials từ token file, tự động refresh nếu hết hạn."""
+        """Đọc credentials từ token file hoặc env var, tự động refresh nếu hết hạn."""
         creds = None
 
         if TOKEN_PATH.exists():
             try:
                 creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
             except Exception as e:
-                logger.error(f"[Gmail Service] Lỗi đọc token: {e}")
-                return None
+                logger.error(f"[Gmail Service] Lỗi đọc token file: {e}")
+        
+        # Fallback: đọc từ env var GMAIL_TOKEN_JSON (dùng khi deploy trên Render/cloud)
+        if not creds:
+            token_json_str = os.environ.get("GMAIL_TOKEN_JSON", "")
+            if token_json_str:
+                try:
+                    token_data = json.loads(token_json_str)
+                    creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                    logger.info("[Gmail Service] Đọc token từ env var GMAIL_TOKEN_JSON")
+                except Exception as e:
+                    logger.error(f"[Gmail Service] Lỗi đọc token từ env var: {e}")
+                    return None
+
+        if not creds:
+            logger.warning(
+                "[Gmail Service] Token không tìm thấy. "
+                "Hãy set env var GMAIL_TOKEN_JSON hoặc chạy scripts/gmail_auth.py"
+            )
+            return None
 
         # Refresh nếu hết hạn
-        if creds and creds.expired and creds.refresh_token:
+        if creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
                 self._save_token(creds)
@@ -63,11 +81,8 @@ class GmailService:
                 logger.error(f"[Gmail Service] Không thể refresh token: {e}")
                 return None
 
-        if not creds or not creds.valid:
-            logger.warning(
-                "[Gmail Service] Token không hợp lệ hoặc chưa có. "
-                "Hãy chạy scripts/gmail_auth.py để xác thực lần đầu."
-            )
+        if not creds.valid:
+            logger.warning("[Gmail Service] Token không hợp lệ")
             return None
 
         return creds
@@ -332,7 +347,8 @@ class GmailService:
 
     def is_configured(self) -> bool:
         """Kiểm tra Gmail service đã sẵn sàng chưa."""
-        return TOKEN_PATH.exists() and settings.GOOGLE_PUBSUB_TOPIC is not None
+        has_token = TOKEN_PATH.exists() or bool(os.environ.get("GMAIL_TOKEN_JSON", ""))
+        return has_token and settings.GOOGLE_PUBSUB_TOPIC is not None
 
     def get_watch_status(self) -> Dict:
         """Trả về trạng thái hiện tại của Gmail service."""

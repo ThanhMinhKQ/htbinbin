@@ -15,6 +15,16 @@ let newBookingCount = 0;    // số booking mới chưa xem
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.onload = () => {
+    // Set mặc định date picker là hôm nay
+    const dateInput = document.getElementById('scanDateInput');
+    if (dateInput) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        dateInput.value = `${yyyy}-${mm}-${dd}`;
+        dateInput.max = `${yyyy}-${mm}-${dd}`;
+    }
     loadStats();
     loadBranches();
     loadBookings();
@@ -454,6 +464,53 @@ function exportExcel(event) {
     URL.revokeObjectURL(url);
 
     showToast('Đã xuất file Excel thành công!', 'success');
+}
+
+// ── Manual Scan (ngày tùy chọn) ───────────────────────────────────────────
+async function scanTodayEmails() {
+    const btn = document.getElementById('btnScanToday');
+    const dateInput = document.getElementById('scanDateInput');
+    const selectedDate = dateInput ? dateInput.value : '';
+
+    // Hiển thị ngày dưới dạng dd/mm/yyyy
+    let dateLabel = 'hôm nay';
+    if (selectedDate) {
+        const [y, m, d] = selectedDate.split('-');
+        dateLabel = `${d}/${m}/${y}`;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Đang quét...';
+    }
+
+    try {
+        let url = '/api/ota/scan-today';
+        if (selectedDate) url += `?scan_date=${encodeURIComponent(selectedDate)}`;
+
+        const res = await fetch(url, { method: 'POST' });
+        const data = await res.json();
+
+        if (data.status === 'started') {
+            showToast(`✅ Đang quét email ngày ${dateLabel}! Dữ liệu sẽ cập nhật sau vài giây...`, 'success');
+            setTimeout(() => {
+                loadStats();
+                loadBookings();
+            }, 5000);
+        } else {
+            showToast('Không thể bắt đầu quét: ' + (data.message || ''), 'error');
+        }
+    } catch (e) {
+        showToast('Lỗi kết nối khi quét email', 'error');
+        console.error('Scan error:', e);
+    } finally {
+        setTimeout(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Quét mail';
+            }
+        }, 6000);
+    }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
