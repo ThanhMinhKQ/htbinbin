@@ -239,7 +239,12 @@ async function loadBookings(showLoader = true) {
     try {
         const res = await fetch(url);
         const data = await res.json();
-        allBookings = Array.isArray(data) ? data : [];
+        // Sort mới nhất lên đầu (dự phòng server đã sort sẵn)
+        allBookings = (Array.isArray(data) ? data : []).sort((a, b) => {
+            const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return tb - ta;
+        });
         applyFilters();
     } catch (e) {
         console.error('Error loading bookings:', e);
@@ -259,6 +264,12 @@ function applyFilters() {
     const keyword = (document.getElementById('searchInput').value || '').toLowerCase().trim();
     const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
     const branchFilter = document.getElementById('branchFilter').value.toLowerCase();
+    const dateFrom = document.getElementById('dateFromFilter')?.value || '';
+    const dateTo = document.getElementById('dateToFilter')?.value || '';
+
+    // Parse date range (về đầu/cuối ngày)
+    const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
+    const toTs = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : null;
 
     filteredBookings = allBookings.filter(b => {
         // Search keyword
@@ -279,12 +290,28 @@ function applyFilters() {
         // Branch filter
         if (branchFilter && (b.branch_name || '').toLowerCase() !== branchFilter) return false;
 
+        // Date filter (theo ngày tạo đơn)
+        if (fromTs || toTs) {
+            const createdTs = b.created_at ? new Date(b.created_at).getTime() : null;
+            if (!createdTs) return false;
+            if (fromTs && createdTs < fromTs) return false;
+            if (toTs && createdTs > toTs) return false;
+        }
+
         return true;
     });
 
     currentPage = 1;
     renderTable();
     renderPagination();
+}
+
+function clearDateFilter() {
+    const fromEl = document.getElementById('dateFromFilter');
+    const toEl = document.getElementById('dateToFilter');
+    if (fromEl) fromEl.value = '';
+    if (toEl) toEl.value = '';
+    applyFilters();
 }
 
 // ── Render Table ───────────────────────────────────────────────────────────

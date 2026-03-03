@@ -155,6 +155,68 @@
         color-scheme: dark;
     }
 
+    .date-filter-group {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+        font-size: 13.5px;
+        color: #555;
+    }
+
+    .dark .date-filter-group {
+        color: #94a3b8;
+    }
+
+    .date-filter-input {
+        border: 1px solid #dde1ea;
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-size: 13px;
+        color: #333;
+        background: #fff;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.2s;
+    }
+
+    .date-filter-input:focus {
+        border-color: #1a73e8;
+    }
+
+    .dark .date-filter-input {
+        background: #0f172a;
+        border-color: #1e293b;
+        color: #f8fafc;
+        color-scheme: dark;
+    }
+
+    .btn-clear-filter {
+        background: none;
+        border: 1px solid #dde1ea;
+        border-radius: 8px;
+        padding: 9px 10px;
+        font-size: 12px;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-clear-filter:hover {
+        background: #f0f2f7;
+        color: #333;
+    }
+
+    .dark .btn-clear-filter {
+        border-color: #1e293b;
+        color: #64748b;
+    }
+
+    .dark .btn-clear-filter:hover {
+        background: #1e293b;
+        color: #f8fafc;
+    }
+
     /* ── Table card ── */
     .table-card {
         background: #fff;
@@ -642,12 +704,24 @@
             </select>
         </div>
 
+        <div class="date-filter-group">
+            <span><i class="bi bi-calendar3"></i></span>
+            <input type="date" id="dateFromFilter" class="date-filter-input" title="Từ ngày" onchange="applyFilters()">
+            <span style="color:#bbb;">—</span>
+            <input type="date" id="dateToFilter" class="date-filter-input" title="Đến ngày" onchange="applyFilters()">
+            <button class="btn-clear-filter" onclick="clearDateFilter()" title="Xóa bộ lọc ngày">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+
+        {% if user_role in ['admin', 'boss', 'quanly'] %}
         <div class="scan-group">
             <input type="date" id="scanDateInput" class="scan-date-input" title="Chọn ngày quét">
             <button class="btn-scan" id="btnScanToday" onclick="scanTodayEmails()">
                 <i class="bi bi-arrow-repeat"></i> Quét mail
             </button>
         </div>
+        {% endif %}
         <a href="#" class="btn-excel" onclick="exportExcel(event)">
             <i class="bi bi-file-earmark-excel-fill"></i> Xuất Excel
         </a>
