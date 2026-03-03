@@ -567,7 +567,8 @@ async def _process_gmail_push(history_id: str):
     logger.info(f"[Gmail Push] ⏳ Bắt đầu xử lý historyId={history_id}")
 
     try:
-        emails = gmail_service.fetch_new_emails_from_history(history_id)
+        # fetch_new_emails_from_history gọi Gmail API (blocking I/O) → chạy trong thread
+        emails = await asyncio.to_thread(gmail_service.fetch_new_emails_from_history, history_id)
 
         if not emails:
             logger.info(f"[Gmail Push] Không có email OTA mới từ historyId={history_id}")
@@ -580,7 +581,8 @@ async def _process_gmail_push(history_id: str):
             mapper = HotelMapper(db)
             for email in emails:
                 try:
-                    ota_agent.process_email(db, mapper, email)
+                    # process_email chứa time.sleep → chạy trong thread để không block event loop
+                    await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
                 except Exception as e:
                     logger.error(f"[Gmail Push] Lỗi xử lý email {email.get('uid')}: {e}")
                     db.rollback()
@@ -695,16 +697,15 @@ async def _scan_emails_for_date(target_date):
             failed = 0
             for i, email in enumerate(emails):
                 try:
-                    result_before = processed  # để biết có bị skip không
-                    ota_agent.process_email(db, mapper, email)
+                    # Chạy trong thread pool → không block event loop khi Gemini sleep/retry
+                    await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
                     processed += 1
                 except Exception as e:
                     logger.error(f"[Manual Scan] Lỗi xử lý email {email.get('uid')}: {e}")
                     db.rollback()
                     failed += 1
 
-                # Delay giữa các email để tránh 429 RPM limit (gemini-1.5-flash: 15 RPM)
-                # 6s delay → ~10 RPM → an toàn
+                # Giữ khoảng cách giữa email (Gemini RPM limit)
                 if i < len(emails) - 1:
                     await asyncio.sleep(6)
         finally:
