@@ -68,8 +68,8 @@ class OTAExtractor:
         Required JSON Structure:
         {{
             "action_type": "NEW" | "MODIFY" | "CANCEL",
-            "booking_source": "Booking.com" | "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Other",
-            "external_id": "string",      // Booking ID / Confirmation Number from OTA (e.g. "4266983", "BDC-1234567")
+            "booking_source": "Booking.com" | "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Website" | "Other",
+            "external_id": "string",      // Booking ID / Confirmation Number from OTA (e.g. "4266983", "BDC-1234567", "#1987")
             "checkin_code": "string",     // PIN code or access code for room check-in (if available, else null). NOT the booking ID.
             "guest_name": "string",       // Full name of the primary guest
             "guest_phone": "string",      // Guest phone number (if available, else null)
@@ -92,7 +92,7 @@ class OTAExtractor:
         1. If information is missing or unclear, set value to null (or 0 for numeric fields).
         2. Format all dates strictly as YYYY-MM-DD.
         3. Ensure numeric fields are numbers, NOT strings. Remove any commas or currency symbols from prices.
-        4. Detect action_type from keywords: "New booking" / "Booking confirmed" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
+        4. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
         5. For booking_source, infer from sender email domain or email branding:
            - @booking.com / guest.booking.com → "Booking.com"
            - @agoda.com → "Agoda"
@@ -100,8 +100,10 @@ class OTAExtractor:
            - @trip.com / @ctrip.com → "Trip.com"
            - @traveloka.com → "Traveloka"
            - @airbnb.com → "Airbnb"
-        6. checkin_code: A short numeric/alphanumeric PIN to access the room or building. May appear as "PIN", "Access code", "Check-in code", "Mã check-in". Leave null if not present.
-        7. Return ONLY the JSON object. No markdown formatting, no explanation.
+           - Email subject contains "[Khách sạn Bin Bin]" or sender is binbinhotel.ota@gmail.com → "Website"
+        6. For "Website" bookings: external_id is the order number after "#" in subject (e.g. subject "[Khách sạn Bin Bin] Đơn hàng mới #1987" → external_id = "WEB-1987").
+        7. checkin_code: A short numeric/alphanumeric PIN to access the room or building. May appear as "PIN", "Access code", "Check-in code", "Mã check-in". Leave null if not present.
+        8. Return ONLY the JSON object. No markdown formatting, no explanation.
         
         Email Content:
         {cleaned_body}

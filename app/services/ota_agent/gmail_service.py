@@ -302,10 +302,12 @@ class GmailService:
         'new booking', 'booking confirmation',
         'cancelled', 'cancellation', 'amendment', 'modified',
         'check-in', 'check in', 'checkout', 'check out',
-        'guest', 'accommodation',
+        'guest', 'accommodation', 'order',
         # Vietnamese
         'đặt phòng', 'xác nhận', 'hủy phòng', 'hủy đặt',
         'nhận phòng', 'trả phòng', 'đặt chỗ',
+        'đơn hàng', 'đơn hàng mới',  # Website khách sạn
+        'bin bin',                          # [Khách sạn Bin Bin] ...
         # Go2Joy specific
         'đặt chỗ thành công', 'booking thành công',
     ]
