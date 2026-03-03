@@ -41,6 +41,10 @@ class GmailService:
             for s in (settings.OTA_SENDERS or "").split(',')
             if s.strip()
         ]
+        # Lưu historyId đã xử lý gần nhất.
+        # Gmail History API dùng startHistoryId để lấy thay đổi SAU historyId đó.
+        # Webhook gửi historyId MỚI ("hiện tại") → ta phải dùng historyId cũ để query.
+        self._last_history_id: Optional[str] = None
 
     def get_credentials(self) -> Optional[Credentials]:
         """Đọc credentials từ token file hoặc env var, tự động refresh nếu hết hạn."""
@@ -118,9 +122,8 @@ class GmailService:
 
     def watch_inbox(self) -> Optional[Dict]:
         """
-        Đăng ký Gmail watch với Pub/Sub topic.
-        Hết hạn sau 7 ngày -> cần gia hạn định kỳ.
-        Returns: {'historyId': '...', 'expiration': '...'}
+        Đăng ký Gmail Push Notification qua Pub/Sub.
+        Hết hạn sau 7 ngày → cần gia hạn định kỳ.
         """
         topic = settings.GOOGLE_PUBSUB_TOPIC
         if not topic:
@@ -141,16 +144,20 @@ class GmailService:
                 }
             ).execute()
 
-            logger.info(
-                f"[Gmail Service] ✅ Watch đã đăng ký thành công! "
-                f"historyId={result.get('historyId')}, "
-                f"Hết hạn: {result.get('expiration')}"
-            )
+            # Lưu historyId từ watch response làm điểm xuất phát cho History API
+            if result.get('historyId'):
+                self._last_history_id = str(result['historyId'])
+                logger.info(
+                    f"[Gmail Service] ✅ Watch đã đăng ký! "
+                    f"historyId baseline: {self._last_history_id}, "
+                    f"Hết hạn: {result.get('expiration')}"
+                )
             return result
 
         except HttpError as e:
             logger.error(f"[Gmail Service] Lỗi đăng ký watch: {e}")
             return None
+
 
     def stop_watch(self) -> bool:
         """Huỷ Gmail watch hiện tại."""
@@ -361,15 +368,45 @@ class GmailService:
         sender_lower = sender_email.lower()
         return any(ota_domain in sender_lower for ota_domain in self.ota_senders)
 
-    def fetch_new_emails_from_history(self, history_id: str) -> List[Dict]:
+    def fetch_new_emails_from_history(self, webhook_history_id: str) -> List[Dict]:
         """
         Entry point chính khi nhận webhook.
-        1. Lấy danh sách message mới từ historyId
-        2. Lọc chỉ email từ OTA
-        3. Lấy đầy đủ nội dung
-        Returns: List email dict (cùng format với OTAListener)
+
+        Gmail History API hoạt động:
+          history.list(startHistoryId=X) → trả về thay đổi xảy ra SAU X
+          Webhook gửi historyId MỚI nhất (N) → ta phải query từ historyId CŨ (N-1)
+
+        Flow:
+          1. Dùng self._last_history_id làm startHistoryId
+          2. Update self._last_history_id = webhook_history_id
+          3. Lọc email OTA từ kết quả
         """
-        messages = self.get_history(history_id)
+        # Khởi tạo historyId nếu chưa có (sau khởi động server / sau Render restart)
+        if not self._last_history_id:
+            current = self.get_current_history_id()
+            if current:
+                self._last_history_id = current
+                logger.info(
+                    f"[Gmail Service] Khởi tạo historyId từ profile: {self._last_history_id}. "
+                    "Email trước thời điểm này sẽ không được xử lý qua webhook."
+                )
+                # Cập nhật lên webhook_history_id để lần tới có point mới
+                self._last_history_id = webhook_history_id
+                return []  # Lần đầu sau restart ‑ bỏ qua, lần sau sẽ đúng
+            else:
+                logger.warning("[Gmail Service] Không lấy được historyId hiện tại")
+                self._last_history_id = webhook_history_id
+                return []
+
+        start_from = self._last_history_id
+        logger.info(
+            f"[Gmail Service] Query history từ {start_from} → {webhook_history_id}"
+        )
+
+        # Cập nhật ngưỡc trước (ngay cả khi lỗi, tránh query lại từ điểm cũ)
+        self._last_history_id = webhook_history_id
+
+        messages = self.get_history(start_from)
         if not messages:
             return []
 
