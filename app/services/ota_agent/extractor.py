@@ -4,6 +4,29 @@ from app.core.config import settings, logger
 import json
 import re
 import time
+import threading
+
+# ── Global Gemini Rate Limiter ─────────────────────────────────────────────
+# gemini-2.0-flash free tier: 15 RPM → max 1 call / 4s
+# Dùng Lock + timestamp để đảm bảo mọi thread (webhook + manual scan)
+# không vượt quá 10 RPM (1 call / 6s để có buffer an toàn)
+_gemini_lock = threading.Lock()
+_last_gemini_call_at: float = 0.0
+_MIN_CALL_INTERVAL = 6.0  # giây giữa 2 lần gọi Gemini bất kỳ
+
+def _wait_for_gemini_slot():
+    """Chờ đến khi đủ thời gian giữa 2 lần gọi Gemini (global rate limiter)."""
+    global _last_gemini_call_at
+    with _gemini_lock:
+        now = time.monotonic()
+        elapsed = now - _last_gemini_call_at
+        if elapsed < _MIN_CALL_INTERVAL:
+            wait = _MIN_CALL_INTERVAL - elapsed
+            logger.debug(f"[Gemini RateLimiter] Chờ {wait:.1f}s trước khi gọi API...")
+            time.sleep(wait)
+        _last_gemini_call_at = time.monotonic()
+# ──────────────────────────────────────────────────────────────────────────
+
 
 class OTAExtractor:
     def __init__(self):
@@ -13,6 +36,7 @@ class OTAExtractor:
         else:
             logger.warning("[OTA Extractor] GEMINI_API_KEY is missing!")
             self.client = None
+
 
     def clean_html(self, html_content: str) -> str:
         """
@@ -116,6 +140,8 @@ class OTAExtractor:
         
         for attempt in range(max_retries):
             try:
+                # Chờ slot khả dụng (global rate limiter - tránh RPM limit)
+                _wait_for_gemini_slot()
                 logger.info(f"[OTA Extractor] Sending request to Gemini for: {subject} (Attempt {attempt + 1}/{max_retries})")
                 
                 response = self.client.models.generate_content(
@@ -125,6 +151,7 @@ class OTAExtractor:
                         'response_mime_type': 'application/json'
                     }
                 )
+
                 
                 if response.text:
                     data = json.loads(response.text)
