@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request, HTTPException, Backgroun
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
+from sqlalchemy import func, case, or_
 from app.db.session import get_db
 from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatus, Branch
 from app.services.ota_agent.ota_service import ota_dashboard_service
@@ -131,7 +131,14 @@ def get_bookings(
         query = query.filter(Booking.branch_id == branch_id)
 
     if branch_name:
-        query = query.filter(Branch.name == branch_name)
+        # Match cả tên đầy đủ (admin dropdown) lẫn branch code (lễ tân lưu trong session)
+        # VD: "Bin Bin Hotel 10" hoặc "B10" đều khớp được
+        query = query.filter(
+            or_(
+                Branch.name.ilike(branch_name),
+                Branch.branch_code.ilike(branch_name)
+            )
+        )
     
     results = query.limit(limit).offset(offset).all()
     
