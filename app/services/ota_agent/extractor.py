@@ -164,7 +164,7 @@ class OTAExtractor:
                 logger.info(f"[OTA Extractor] Sending request to Gemini for: {subject} (Attempt {attempt + 1}/{max_retries})")
                 
                 response = self.client.models.generate_content(
-                    model='gemini-2.0-flash-lite',  # 30 RPM / 1500 RPD - quota riêng
+                    model='gemini-2.5-flash',  # gemini-2.5-flash với API key mới
                     contents=prompt,
                     config={
                         'response_mime_type': 'application/json'
