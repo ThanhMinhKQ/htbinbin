@@ -5,27 +5,46 @@ import json
 import re
 import time
 import threading
+import re as _re
 
 # ── Global Gemini Rate Limiter ─────────────────────────────────────────────
-# gemini-2.0-flash free tier: 15 RPM → max 1 call / 4s
-# Dùng Lock + timestamp để đảm bảo mọi thread (webhook + manual scan)
-# không vượt quá 10 RPM (1 call / 6s để có buffer an toàn)
+# gemini-2.0-flash free tier: 15 RPM
+# Giữ ở mức ~7.5 RPM (1 call / 8s) để có buffer an toàn
 _gemini_lock = threading.Lock()
 _last_gemini_call_at: float = 0.0
-_MIN_CALL_INTERVAL = 6.0  # giây giữa 2 lần gọi Gemini bất kỳ
+_MIN_CALL_INTERVAL = 8.0        # giây tối thiểu giữa 2 lần gọi Gemini
+_global_backoff_until: float = 0.0  # khi nhận 429, nghỉ thêm N giây
 
 def _wait_for_gemini_slot():
     """Chờ đến khi đủ thời gian giữa 2 lần gọi Gemini (global rate limiter)."""
     global _last_gemini_call_at
     with _gemini_lock:
         now = time.monotonic()
+        # Nếu đang trong global backoff (sau 429) → chờ thêm
+        if now < _global_backoff_until:
+            extra = _global_backoff_until - now
+            logger.info(f"[Gemini RateLimiter] Global backoff: chờ thêm {extra:.1f}s...")
+            time.sleep(extra)
+        # Giữ khoảng cách tối thiểu giữa 2 call
+        now = time.monotonic()
         elapsed = now - _last_gemini_call_at
         if elapsed < _MIN_CALL_INTERVAL:
             wait = _MIN_CALL_INTERVAL - elapsed
-            logger.debug(f"[Gemini RateLimiter] Chờ {wait:.1f}s trước khi gọi API...")
+            logger.info(f"[Gemini RateLimiter] Rate limit: chờ {wait:.1f}s...")
             time.sleep(wait)
         _last_gemini_call_at = time.monotonic()
+
+def _apply_global_backoff(error_msg: str, default_seconds: int = 60):
+    """Đọc retryDelay từ error message 429 và áp dụng global backoff."""
+    global _global_backoff_until
+    # Tìm số giây trong message: "Please retry in 28.97s"
+    match = _re.search(r'retry in (\d+(?:\.\d+)?)', error_msg, _re.IGNORECASE)
+    seconds = float(match.group(1)) if match else default_seconds
+    seconds = min(seconds + 5, 120)  # +5s buffer, max 120s
+    _global_backoff_until = time.monotonic() + seconds
+    logger.warning(f"[Gemini RateLimiter] 429 nhận được → global backoff {seconds:.0f}s")
 # ──────────────────────────────────────────────────────────────────────────
+
 
 
 class OTAExtractor:
@@ -161,8 +180,11 @@ class OTAExtractor:
                     return {"error": "Empty response from AI", "status": "FAILED"}
                     
             except Exception as e:
-                error_msg = str(e).lower()
-                if "429" in error_msg or "quota" in error_msg or "rate limit" in error_msg or "resource_exhausted" in error_msg:
+                error_msg = str(e)
+                error_lower = error_msg.lower()
+                if "429" in error_lower or "quota" in error_lower or "rate limit" in error_lower or "resource_exhausted" in error_lower:
+                    # Áp dụng global backoff cho mọi thread (đọc retryDelay từ error message)
+                    _apply_global_backoff(error_msg)
                     if attempt < max_retries - 1:
                         sleep_time = retry_delays[attempt]
                         logger.warning(
@@ -174,6 +196,7 @@ class OTAExtractor:
                     else:
                         logger.error(f"[OTA Extractor] Vẫn bị 429 sau {max_retries} lần thử. Bỏ qua email này.")
                         return {"error": "Rate limit exceeded after max retries", "status": "FAILED"}
+
                         
                 logger.error(f"[OTA Extractor] Gemini Processing Error: {e}")
                 return {"error": str(e), "status": "FAILED"}
