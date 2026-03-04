@@ -101,14 +101,18 @@ class OTAAgent:
             # 4. Upsert Booking
             booking = self.upsert_booking(db, data)
 
-            # 5. Success Log with extracted data and booking link
+            # 5. Success Log
             log_entry.status = OTAParsingStatus.SUCCESS
-            log_entry.extracted_data = data  # Save AI extracted data
-            log_entry.booking_id = booking.id if booking else None  # Link to booking
-            log_entry.error_message = None  # Clear any previous errors
+            log_entry.extracted_data = data
+            log_entry.booking_id = booking.id if booking else None
+            log_entry.error_message = None
             log_entry.error_traceback = None
             db.commit()
-            logger.info(f"[OTA Agent] Successfully processed booking {data.get('external_id')}")
+            if booking:
+                logger.info(f"[OTA Agent] ✅ Đã xử lý booking {data.get('external_id')}")
+            else:
+                logger.info(f"[OTA Agent] ⏭️ Bỏ qua (CANCEL không tồn tại): {data.get('external_id')}")
+
 
         except Exception as e:
             # Enhanced error logging with full traceback
@@ -133,14 +137,13 @@ class OTAAgent:
 
         if not existing_booking:
             if action_type == 'CANCEL':
-                # Trường hợp đặc biệt: Nhận mail hủy trước khi nhận mail đặt (hiếm gặp)
-                # Hoặc mail rác. Vẫn tạo nhưng set status cancel
-                logger.warning(f"Received CANCEL for non-existent booking {external_id}")
-                new_booking = self._create_booking_obj(data)
-                new_booking.status = BookingStatus.CANCELLED
-                db.add(new_booking)
-                db.flush()  # Get ID immediately
-                return new_booking
+                # Booking chưa tồn tại mà nhận được CANCEL → bỏ qua
+                # Không INSERT vì check_in/check_out sẽ null → DB constraint violation
+                logger.warning(
+                    f"[OTA Agent] ⏭️ Bỏ qua CANCEL cho booking chưa tồn tại: {external_id}"
+                )
+                return None
+
             else:
                 # NEW or MODIFY (treat as NEW if not exists)
                 new_booking = self._create_booking_obj(data)
