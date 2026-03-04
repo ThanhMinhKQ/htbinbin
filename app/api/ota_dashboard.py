@@ -70,7 +70,9 @@ def get_ota_stats(
     # Base query — join Branch nếu cần filter
     booking_q = db.query(Booking)
     if branch_name:
-        booking_q = booking_q.join(Branch, Booking.branch_id == Branch.id).filter(Branch.name == branch_name)
+        booking_q = booking_q.join(Branch, Booking.branch_id == Branch.id).filter(
+            or_(Branch.name.ilike(branch_name), Branch.branch_code.ilike(branch_name))
+        )
 
     # Tổng đặt phòng
     total_bookings = booking_q.count()
