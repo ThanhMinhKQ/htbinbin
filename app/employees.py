@@ -52,12 +52,16 @@ working_staff = [
         "role": "letan", "branch": "B5", "shift": "CT"
     },
     {
-        "employee_id": "NV014", "code": "bp.lttruong", "name": "Lê Tấn Trường",
-        "role": "buongphong", "branch": "B5", "shift": "CT"
+        "employee_id": "NV086", "code": "bp.ntttuyen", "name": "Nguyễn Thị Thanh Tuyền",
+        "role": "buongphong", "branch": "B5", "shift": "CS"
     },
     {
         "employee_id": "NV069", "code": "bp.vtdly", "name": "Võ Thị Diệu Lý",
         "role": "buongphong", "branch": "B5", "shift": "CS"
+    },
+    {
+        "employee_id": "NV014", "code": "bp.lttruong", "name": "Lê Tấn Trường",
+        "role": "buongphong", "branch": "B5", "shift": "CT"
     },
 #--------------------------------------- BIN BIN HOTEL 6 --------------------------------------------#
     {
