@@ -12,10 +12,6 @@ working_staff = [
         "employee_id": "NV002", "code": "lt.ttctu", "name": "Tô Thị Cẩm Tú",
         "role": "letan", "branch": "B1", "shift": "CT"
     },
-    {
-        "employee_id": "NV003", "code": "bp.dkphuong", "name": "Đỗ Kim Phượng",
-        "role": "buongphong", "branch": "B1", "shift": "CS"
-    },
 #--------------------------------------- BIN BIN HOTEL 2 --------------------------------------------#
     {
         "employee_id": "NV004", "code": "lt.ppthuy", "name": "Phan Phương Thúy",
@@ -262,10 +258,6 @@ working_staff = [
         "employee_id": "NV061", "code": "lt.nhtminh", "name": "Nguyễn Hoàng Thanh Minh",
         "role": "letan", "branch": "B17", "shift": "CT"
     },
-    {
-        "employee_id": "NV062", "code": "bp.ntdiep", "name": "Nguyễn Thị Điệp",
-        "role": "buongphong", "branch": "B17", "shift": "CS"
-    },
 #--------------------------------------- LỄ TÂN CHẠY CA & DỰ BỊ --------------------------------------------#
     {
         "employee_id": "NV063", "code": "lt.lmtrung", "name": "Lê Minh Trung",
@@ -388,6 +380,14 @@ off_staff = [
     {
         "employee_id": "NV081", "code": "lt.lqan", "name": "Lâm Quốc An",
         "role": "letan", "branch": "B11", "shift": "CT"
+    },
+    {
+        "employee_id": "NV003", "code": "bp.dkphuong", "name": "Đỗ Kim Phượng",
+        "role": "buongphong", "branch": "B1", "shift": "CS"
+    },
+    {
+        "employee_id": "NV062", "code": "bp.ntdiep", "name": "Nguyễn Thị Điệp",
+        "role": "buongphong", "branch": "B17", "shift": "CS"
     },
 ]
 
