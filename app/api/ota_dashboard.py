@@ -523,6 +523,14 @@ async def gmail_pubsub_webhook(
     """
     from app.core.config import settings, logger
 
+    # ── Kiểm tra OTA_ENABLED flag ────────────────────────────────────────────
+    # Để tạm dừng OTA: set OTA_ENABLED=false trên Render → restart service
+    # Để bật lại:      set OTA_ENABLED=true  trên Render → restart service
+    if not settings.OTA_ENABLED:
+        logger.info("[Webhook] ⏸️ OTA_ENABLED=false → bỏ qua webhook (đang tạm dừng)")
+        return {"status": "paused", "reason": "OTA_ENABLED is false"}
+    # ─────────────────────────────────────────────────────────────────────────
+
     # Validate token (bảo vệ endpoint)
     if token and token != settings.PUBSUB_VERIFICATION_TOKEN:
         return {"status": "ignored", "reason": "invalid_token"}

@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     GOOGLE_PUBSUB_TOPIC: Optional[str] = None
     GMAIL_WATCH_EMAIL: Optional[str] = None
     PUBSUB_VERIFICATION_TOKEN: str = "binbin_pubsub_secret_2024"
+    
+    # Bật/tắt toàn bộ OTA pipeline (set OTA_ENABLED=false trên Render để tạm dừng)
+    OTA_ENABLED: bool = True
 
     @field_validator("DATABASE_URL", mode='before')
     def build_db_connection(cls, v: Optional[str]) -> str:
