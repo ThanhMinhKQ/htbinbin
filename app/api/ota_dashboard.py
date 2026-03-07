@@ -568,6 +568,9 @@ async def _process_gmail_push(history_id: str):
     """
     Background task: Lấy email mới từ Gmail API và đưa vào pipeline xử lý.
     Tái sử dụng hoàn toàn OTAAgent.process_email() đã có sẵn.
+
+    FIX: Mỗi email được cấp 1 DB session riêng để tránh giữ connection
+    trong suốt thời gian time.sleep() của Gemini rate limiter.
     """
     from app.core.config import logger
     from app.services.ota_agent.integration import ota_agent
@@ -586,20 +589,23 @@ async def _process_gmail_push(history_id: str):
 
         logger.info(f"[Gmail Push] Xử lý {len(emails)} email OTA mới...")
 
-        db = SessionLocal()
-        try:
-            mapper = HotelMapper(db)
-            for email in emails:
-                try:
-                    # process_email chứa time.sleep → chạy trong thread để không block event loop
-                    await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
-                except Exception as e:
-                    logger.error(f"[Gmail Push] Lỗi xử lý email {email.get('uid')}: {e}")
-                    db.rollback()
-        finally:
-            db.close()
+        # FIX: Mỗi email = 1 session riêng → trả connection về pool ngay sau khi xong
+        # (không giữ connection trong time.sleep của Gemini retry)
+        processed = 0
+        for email in emails:
+            db = SessionLocal()
+            try:
+                mapper = HotelMapper(db)
+                # process_email chứa time.sleep → chạy trong thread để không block event loop
+                await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
+                processed += 1
+            except Exception as e:
+                logger.error(f"[Gmail Push] Lỗi xử lý email {email.get('uid')}: {e}")
+                db.rollback()
+            finally:
+                db.close()  # Trả về pool NGAY sau mỗi email, không chờ email khác
 
-        logger.info(f"[Gmail Push] ✅ Xử lý xong {len(emails)} email")
+        logger.info(f"[Gmail Push] ✅ Xử lý xong {processed}/{len(emails)} email")
 
     except Exception as e:
         from app.core.config import logger
@@ -699,27 +705,25 @@ async def _scan_emails_for_date(target_date):
             logger.info(f"[Manual Scan] ✅ Không có email OTA nào đợc lọc ngày {date_str}")
             return
 
-        db = SessionLocal()
-        try:
-            mapper = HotelMapper(db)
-            processed = 0
-            skipped = 0
-            failed = 0
-            for i, email in enumerate(emails):
-                try:
-                    # Chạy trong thread pool → không block event loop khi Gemini sleep/retry
-                    await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
-                    processed += 1
-                except Exception as e:
-                    logger.error(f"[Manual Scan] Lỗi xử lý email {email.get('uid')}: {e}")
-                    db.rollback()
-                    failed += 1
+        # FIX: Mỗi email = 1 session riêng → trả connection về pool ngay sau khi xong
+        processed = 0
+        failed = 0
+        for i, email in enumerate(emails):
+            db = SessionLocal()
+            try:
+                mapper = HotelMapper(db)
+                await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
+                processed += 1
+            except Exception as e:
+                logger.error(f"[Manual Scan] Lỗi xử lý email {email.get('uid')}: {e}")
+                db.rollback()
+                failed += 1
+            finally:
+                db.close()  # Trả về pool NGAY sau mỗi email
 
-                # Giữ khoảng cách giữa email (Gemini RPM limit)
-                if i < len(emails) - 1:
-                    await asyncio.sleep(6)
-        finally:
-            db.close()
+            # Giữ khoảng cách giữa email (Gemini RPM limit) - không cần nếu đã có _wait_for_gemini_slot()
+            if i < len(emails) - 1:
+                await asyncio.sleep(6)
 
         logger.info(
             f"[Manual Scan] ✅ Hoàn thành ngày {date_str}: "

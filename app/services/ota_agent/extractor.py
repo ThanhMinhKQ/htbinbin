@@ -8,11 +8,11 @@ import threading
 import re as _re
 
 # ── Global Gemini Rate Limiter ─────────────────────────────────────────────
-# gemini-2.0-flash free tier: 15 RPM
-# Giữ ở mức ~7.5 RPM (1 call / 8s) để có buffer an toàn
+# gemini-2.5-flash free tier: 10 RPM
+# Giữ ở mức ~6 RPM (1 call / 10s) để có buffer an toàn
 _gemini_lock = threading.Lock()
 _last_gemini_call_at: float = 0.0
-_MIN_CALL_INTERVAL = 8.0        # giây tối thiểu giữa 2 lần gọi Gemini
+_MIN_CALL_INTERVAL = 10.0       # giây tối thiểu giữa 2 lần gọi Gemini
 _global_backoff_until: float = 0.0  # khi nhận 429, nghỉ thêm N giây
 
 def _wait_for_gemini_slot():
@@ -40,7 +40,7 @@ def _apply_global_backoff(error_msg: str, default_seconds: int = 60):
     # Tìm số giây trong message: "Please retry in 28.97s"
     match = _re.search(r'retry in (\d+(?:\.\d+)?)', error_msg, _re.IGNORECASE)
     seconds = float(match.group(1)) if match else default_seconds
-    seconds = min(seconds + 5, 120)  # +5s buffer, max 120s
+    seconds = min(seconds + 5, 60)   # +5s buffer, max 60s (tránh giữ thread quá lâu)
     _global_backoff_until = time.monotonic() + seconds
     logger.warning(f"[Gemini RateLimiter] 429 nhận được → global backoff {seconds:.0f}s")
 # ──────────────────────────────────────────────────────────────────────────
@@ -153,9 +153,9 @@ class OTAExtractor:
         """
 
         
-        max_retries = 4
-        # Exponential back-off: 5s, 15s, 30s, 60s
-        retry_delays = [5, 15, 30, 60]
+        max_retries = 2
+        # Back-off ngắn: fail nhanh để tránh giữ DB connection và thread pool
+        retry_delays = [10, 30]
         
         for attempt in range(max_retries):
             try:

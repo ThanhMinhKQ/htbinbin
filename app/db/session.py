@@ -10,8 +10,11 @@ from ..core.config import settings
 engine = create_engine(
     str(settings.DATABASE_URL),  # Chuyển đổi PostgresDsn thành string
     pool_pre_ping=True,
-    # Giữ nguyên cấu hình tắt prepared statements để fix lỗi trước đó
-    connect_args={"prepare_threshold": None} 
+    pool_size=10,           # 10 connections luôn sẵn trong pool
+    max_overflow=5,         # Tối đa 15 connections tổng (10 + 5 overflow)
+    pool_timeout=30,        # Timeout sau 30s nếu không lấy được connection (thay vì chờ mãi)
+    pool_recycle=1800,      # Recycle connection sau 30 phút tránh stale connection
+    connect_args={"prepare_threshold": None}  # Fix lỗi prepared statements
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
