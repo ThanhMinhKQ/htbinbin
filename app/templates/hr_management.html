@@ -1,0 +1,1159 @@
+{% extends "base.html" %}
+
+{% block title %}Quản lý Nhân sự{% endblock %}
+{% block page_title %}Quản lý Nhân sự{% endblock %}
+
+{% block head %}
+<style>
+    /* Role badge colors */
+    .role-letan {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .role-buongphong {
+        background: #ede9fe;
+        color: #6d28d9;
+    }
+
+    .role-baove {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .role-ktv {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .role-quanly {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .role-admin {
+        background: #f0fdf4;
+        color: #15803d;
+    }
+
+    .role-boss {
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .role-other {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .dark .role-letan {
+        background: #1e3a5f;
+        color: #93c5fd;
+    }
+
+    .dark .role-buongphong {
+        background: #2e1065;
+        color: #c4b5fd;
+    }
+
+    .dark .role-baove {
+        background: #450a0a;
+        color: #fca5a5;
+    }
+
+    .dark .role-ktv {
+        background: #064e3b;
+        color: #6ee7b7;
+    }
+
+    .dark .role-quanly {
+        background: #451a03;
+        color: #fcd34d;
+    }
+
+    .dark .role-admin {
+        background: #052e16;
+        color: #86efac;
+    }
+
+    .dark .role-boss {
+        background: #431407;
+        color: #fdba74;
+    }
+
+    .dark .role-other {
+        background: #1e293b;
+        color: #94a3b8;
+    }
+
+    /* Status badge */
+    .status-active {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+
+    .status-inactive {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+
+    .dark .status-active {
+        background: #052e16;
+        color: #4ade80;
+    }
+
+    .dark .status-inactive {
+        background: #450a0a;
+        color: #f87171;
+    }
+
+    /* Branch card hover */
+    .branch-card {
+        transition: all 0.2s ease;
+    }
+
+    .branch-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Employee row hover */
+    .emp-card {
+        transition: background 0.15s;
+        cursor: pointer;
+    }
+
+    .emp-card:hover {
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    /* Modal transition */
+    .modal-enter {
+        animation: modal-in 0.2s ease-out;
+    }
+
+    @keyframes modal-in {
+        from {
+            opacity: 0;
+            transform: scale(0.95) translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    /* Tabs */
+    .tab-btn.active {
+        color: #2563eb;
+        border-bottom: 2px solid #2563eb;
+    }
+
+    .dark .tab-btn.active {
+        color: #60a5fa;
+        border-color: #60a5fa;
+    }
+
+    /* Stat card gradient */
+    .stat-card-1 {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card-2 {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .stat-card-3 {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .stat-card-4 {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="p-4 sm:p-6 space-y-6" x-data="hrApp()" x-init="init()">
+
+    <!-- ======================================================= -->
+    <!-- STAT CARDS -->
+    <!-- ======================================================= -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card-1 rounded-2xl p-4 text-white shadow-lg">
+            <p class="text-sm font-medium opacity-80">Nhân viên Active</p>
+            <p class="text-3xl font-bold mt-1" x-text="stats.active"></p>
+        </div>
+        <div class="stat-card-2 rounded-2xl p-4 text-white shadow-lg">
+            <p class="text-sm font-medium opacity-80">Nhân viên Inactive</p>
+            <p class="text-3xl font-bold mt-1" x-text="stats.inactive"></p>
+        </div>
+        <div class="stat-card-3 rounded-2xl p-4 text-white shadow-lg">
+            <p class="text-sm font-medium opacity-80">Số Chi nhánh</p>
+            <p class="text-3xl font-bold mt-1" x-text="branches.length"></p>
+        </div>
+        <div class="stat-card-4 rounded-2xl p-4 text-white shadow-lg">
+            <p class="text-sm font-medium opacity-80">Phòng ban / Role</p>
+            <p class="text-3xl font-bold mt-1" x-text="departments.length"></p>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- TOOLBAR -->
+    <!-- ======================================================= -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <!-- Tabs -->
+        <div class="flex border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
+            <button
+                class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 transition-colors"
+                :class="{ 'active': activeTab === 'overview' }" @click="activeTab = 'overview'">
+                📊 Tổng quan Chi nhánh
+            </button>
+            <button
+                class="tab-btn px-4 py-2 text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-primary-600 transition-colors"
+                :class="{ 'active': activeTab === 'table' }" @click="activeTab = 'table'">
+                📋 Danh sách
+            </button>
+        </div>
+
+        <div class="flex-1"></div>
+
+        <!-- Actions -->
+        <div class="flex items-center gap-2">
+            <button @click="openAddModal()"
+                class="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-semibold rounded-xl hover:bg-primary-700 transition-colors shadow focus:outline-none focus:ring-2 focus:ring-primary-500">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Thêm nhân viên
+            </button>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- TAB: TỔNG QUAN CHI NHÁNH (Card Grid) -->
+    <!-- ======================================================= -->
+    <div x-show="activeTab === 'overview'" x-cloak>
+        <!-- Loading -->
+        <div x-show="loading" class="flex justify-center py-12">
+            <div class="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+
+        <div x-show="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <template x-for="branch in branches" :key="branch.id">
+                <div
+                    class="branch-card bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm">
+                    <!-- Branch Header -->
+                    <div
+                        class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider flex-shrink-0"
+                                x-text="branch.branch_code"></span>
+                            <span class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate"
+                                x-text="branch.name"></span>
+                        </div>
+                        <div class="flex items-center gap-1 flex-shrink-0">
+                            <span
+                                class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 font-medium"
+                                x-text="branch.active_employee_count + ' NV'"></span>
+                            <button @click="openEditBranchModal(branch)"
+                                class="p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 transition-colors"
+                                title="Đổi tên chi nhánh">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Employees -->
+                    <div class="p-3 space-y-1.5 max-h-64 overflow-y-auto">
+                        <template x-for="emp in getEmployeesByBranch(branch.id)" :key="emp.id">
+                            <div class="emp-card flex items-center gap-2 p-2 rounded-xl group"
+                                @click="openEditModal(emp)">
+                                <!-- Avatar -->
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                    :class="getRoleClass(emp.role_code)" x-text="(emp.name || 'U')[0].toUpperCase()">
+                                </div>
+                                <!-- Info -->
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate"
+                                        x-text="emp.name"></p>
+                                    <p class="text-[10px] text-slate-400 truncate" x-text="emp.employee_code"></p>
+                                </div>
+                                <!-- Role badge -->
+                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0"
+                                    :class="getRoleClass(emp.role_code)" x-text="getRoleLabel(emp.role_code)"></span>
+                            </div>
+                        </template>
+                        <div x-show="getEmployeesByBranch(branch.id).length === 0"
+                            class="text-center py-4 text-xs text-slate-400 italic">
+                            Không có nhân viên
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- ======================================================= -->
+    <!-- TAB: DANH SÁCH (Table) -->
+    <!-- ======================================================= -->
+    <div x-show="activeTab === 'table'" x-cloak>
+        <!-- Filter bar -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+            <input type="text" placeholder="🔍 Tìm theo tên, mã NV..." x-model="filterSearch" @input="applyFilters()"
+                class="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition">
+
+            <select x-model="filterBranch" @change="applyFilters()"
+                class="px-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition">
+                <option value="">Tất cả Chi nhánh</option>
+                <template x-for="b in branches" :key="b.id">
+                    <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+                </template>
+            </select>
+
+            <select x-model="filterDept" @change="applyFilters()"
+                class="px-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition">
+                <option value="">Tất cả Role</option>
+                <template x-for="d in departments" :key="d.id">
+                    <option :value="d.id" x-text="d.name"></option>
+                </template>
+            </select>
+
+            <select x-model="filterStatus" @change="applyFilters()"
+                class="px-3 py-2.5 text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 transition">
+                <option value="">Tất cả Trạng thái</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+
+        <!-- Table -->
+        <div
+            class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+            <!-- Loading -->
+            <div x-show="loading" class="flex justify-center py-12">
+                <div class="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+
+            <div x-show="!loading" class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Mã NV</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Tên nhân viên</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Mã đăng nhập</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Chi nhánh</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Role</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Ca</th>
+                            <th
+                                class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Trạng thái</th>
+                            <th
+                                class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <template x-for="emp in filteredEmployees" :key="emp.id">
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                <td class="px-4 py-3 text-xs text-slate-400 font-mono" x-text="emp.employee_id"></td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                            :class="getRoleClass(emp.role_code)"
+                                            x-text="(emp.name || 'U')[0].toUpperCase()"></div>
+                                        <span class="font-medium text-slate-800 dark:text-slate-100 whitespace-nowrap"
+                                            x-text="emp.name"></span>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300"
+                                    x-text="emp.employee_code"></td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="text-xs font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">
+                                        <span class="text-slate-400" x-text="emp.branch_code"></span>
+                                        <span x-text="' — ' + (emp.branch_name || '—')"></span>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3">
+                                    <span class="text-xs font-medium px-2 py-1 rounded-lg whitespace-nowrap"
+                                        :class="getRoleClass(emp.role_code)"
+                                        x-text="emp.department_name || emp.role_code || '—'"></span>
+                                </td>
+                                <td class="px-4 py-3 text-xs text-slate-500" x-text="emp.shift || '—'"></td>
+                                <td class="px-4 py-3">
+                                    <span class="text-xs font-semibold px-2 py-1 rounded-full"
+                                        :class="emp.is_active ? 'status-active' : 'status-inactive'"
+                                        x-text="emp.is_active ? 'Active' : 'Inactive'"></span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <div class="flex items-center justify-end gap-1">
+                                        <button @click="openResetPasswordModal(emp)"
+                                            class="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 text-amber-500 transition-colors group relative"
+                                            title="Đặt lại mật khẩu">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                                            </svg>
+                                        </button>
+                                        <button @click="openEditModal(emp)"
+                                            class="p-1.5 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-500 transition-colors"
+                                            title="Chỉnh sửa">
+                                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                stroke-width="2">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                                            </svg>
+                                        </button>
+                                        <button @click="toggleActive(emp)"
+                                            :title="emp.is_active ? 'Vô hiệu hoá' : 'Kích hoạt lại'"
+                                            class="p-1.5 rounded-lg transition-colors"
+                                            :class="emp.is_active ? 'hover:bg-red-100 dark:hover:bg-red-900/30 text-red-400' : 'hover:bg-green-100 dark:hover:bg-green-900/30 text-green-500'">
+                                            <template x-if="emp.is_active">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                                                </svg>
+                                            </template>
+                                            <template x-if="!emp.is_active">
+                                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                                                    stroke="currentColor" stroke-width="2">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                            </template>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="filteredEmployees.length === 0 && !loading">
+                            <td colspan="8" class="px-4 py-10 text-center text-slate-400 text-sm italic">Không tìm thấy
+                                nhân viên nào.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination info -->
+            <div x-show="!loading"
+                class="px-4 py-3 border-t border-slate-100 dark:border-slate-700 text-xs text-slate-400">
+                Hiển thị <span class="font-semibold text-slate-600 dark:text-slate-300"
+                    x-text="filteredEmployees.length"></span> /
+                <span x-text="allEmployees.length"></span> nhân viên
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ======================================================= -->
+    <!-- TOAST NOTIFICATION -->
+    <!-- ======================================================= -->
+    <div x-show="toast.show" x-cloak x-transition
+        class="fixed bottom-6 right-6 z-[200] max-w-sm px-5 py-3.5 rounded-2xl shadow-2xl text-white text-sm font-medium flex items-center gap-3"
+        :class="toast.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'">
+        <template x-if="toast.type === 'success'">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        </template>
+        <template x-if="toast.type === 'error'">
+            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+        </template>
+        <span x-text="toast.message"></span>
+    </div>
+
+
+    <!-- ======================================================= -->
+    <!-- MODAL: THÊM / SỬA NHÂN VIÊN -->
+    <!-- ======================================================= -->
+    <div x-show="showEmployeeModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div
+            class="modal-enter bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100"
+                    x-text="editingEmployee ? '✏️ Sửa thông tin nhân viên' : '➕ Thêm nhân viên mới'"></h2>
+                <button @click="showEmployeeModal = false"
+                    class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                <!-- Row 1: Mã NV + Mã đăng nhập -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Mã NV
+                            <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="form.employee_id" :disabled="!!editingEmployee"
+                            placeholder="VD: NV099"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Mã
+                            đăng nhập <span class="text-red-500">*</span></label>
+                        <input type="text" x-model="form.employee_code" placeholder="VD: lt.abcde"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+
+                <!-- Tên -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Họ và tên
+                        <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="form.name" placeholder="Nguyễn Văn A"
+                        class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+
+                <!-- Chi nhánh + Role -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Chi
+                            nhánh <span class="text-red-500">*</span></label>
+                        <select x-model="form.main_branch_id"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">Chọn chi nhánh</option>
+                            <template x-for="b in branches" :key="b.id">
+                                <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Vai
+                            trò <span class="text-red-500">*</span></label>
+                        <select x-model="form.department_id"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">Chọn vai trò</option>
+                            <template x-for="d in departments" :key="d.id">
+                                <option :value="d.id" x-text="d.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Ca + Mật khẩu -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Ca làm
+                            việc</label>
+                        <select x-model="form.shift"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                            <option value="">Không có ca</option>
+                            <option value="CS">CS (Sáng)</option>
+                            <option value="CT">CT (Tối)</option>
+                        </select>
+                    </div>
+                    <div x-show="!editingEmployee">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Mật
+                            khẩu ban đầu</label>
+                        <input type="text" x-model="form.password" placeholder="123456"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+
+                <!-- SĐT + Email -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Số
+                            điện thoại</label>
+                        <input type="text" x-model="form.phone_number" placeholder="0901234567"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                    <div>
+                        <label
+                            class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Email</label>
+                        <input type="email" x-model="form.email" placeholder="abc@gmail.com"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                    </div>
+                </div>
+
+                <!-- Separator -->
+                <div class="border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">📋 Thông tin cá nhân</p>
+
+                    <!-- CCCD + Ngày sinh -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Số
+                                CCCD / CMND</label>
+                            <input type="text" x-model="form.cccd" placeholder="079xxxxxxxxx"
+                                class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        </div>
+                        <div>
+                            <label
+                                class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Ngày
+                                sinh</label>
+                            <input type="date" x-model="form.date_of_birth"
+                                class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                        </div>
+                    </div>
+
+                    <!-- Địa chỉ -->
+                    <div class="mt-3">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Địa
+                            chỉ</label>
+                        <textarea x-model="form.address"
+                            placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố" rows="2"
+                            class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"></textarea>
+                    </div>
+                </div>
+
+                <!-- Trạng thái + Thời gian hoạt động (chỉ khi sửa) -->
+                <div x-show="editingEmployee" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Trạng
+                            thái</label>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" :value="true" x-model="form.is_active"
+                                    class="w-4 h-4 accent-emerald-500">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">Active</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" :value="false" x-model="form.is_active"
+                                    class="w-4 h-4 accent-red-500">
+                                <span class="text-sm text-slate-700 dark:text-slate-300">Inactive</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Account Info Panel -->
+                    <div x-show="editingEmployee?.created_at"
+                        class="flex items-center gap-4 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Ngày tạo
+                                tài khoản</p>
+                            <p class="text-sm font-medium text-slate-700 dark:text-slate-200"
+                                x-text="editingEmployee?.created_at ? new Date(editingEmployee.created_at).toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—'">
+                            </p>
+                        </div>
+                        <div class="w-px h-8 bg-slate-200 dark:bg-slate-700"></div>
+                        <div class="flex-1 min-w-0 text-right">
+                            <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Thời
+                                gian hoạt động</p>
+                            <p class="text-sm font-bold text-primary-600 dark:text-primary-400"
+                                x-text="formatAccountAge(editingEmployee?.account_age_days)"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div
+                class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                <button @click="showEmployeeModal = false"
+                    class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                    Huỷ
+                </button>
+                <button @click="saveEmployee()" :disabled="saving"
+                    class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2">
+                    <span x-show="saving"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    <span x-text="editingEmployee ? 'Lưu thay đổi' : 'Thêm nhân viên'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ======================================================= -->
+    <!-- MODAL: ĐẶT LẠI MẬT KHẨU -->
+    <!-- ======================================================= -->
+    <div x-show="showPasswordModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div
+            class="modal-enter bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">🔑 Đặt lại mật khẩu</h2>
+                <button @click="showPasswordModal = false"
+                    class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="px-6 py-5 space-y-4">
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    Đặt lại mật khẩu cho <span class="font-semibold text-slate-800 dark:text-slate-200"
+                        x-text="passwordTarget?.name"></span>
+                </p>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Mật khẩu
+                        mới <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="newPassword" placeholder="Nhập mật khẩu mới (tối thiểu 4 ký tự)"
+                        @keydown.enter="doResetPassword()"
+                        class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+            <div
+                class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                <button @click="showPasswordModal = false"
+                    class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                    Huỷ
+                </button>
+                <button @click="doResetPassword()" :disabled="saving"
+                    class="px-5 py-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2">
+                    <span x-show="saving"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Đặt lại mật khẩu
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ======================================================= -->
+    <!-- MODAL: ĐỔI TÊN CHI NHÁNH -->
+    <!-- ======================================================= -->
+    <div x-show="showBranchModal" x-cloak
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div
+            class="modal-enter bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                <h2 class="text-base font-semibold text-slate-800 dark:text-slate-100">🏨 Đổi tên Chi nhánh</h2>
+                <button @click="showBranchModal = false"
+                    class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="px-6 py-5 space-y-4">
+                <p class="text-sm text-slate-500">
+                    Chi nhánh: <span class="font-bold text-slate-800 dark:text-slate-200"
+                        x-text="editingBranch?.branch_code"></span>
+                </p>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Tên mới
+                        <span class="text-red-500">*</span></label>
+                    <input type="text" x-model="branchNewName" placeholder="Tên chi nhánh mới"
+                        @keydown.enter="doUpdateBranch()"
+                        class="w-full px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500">
+                </div>
+            </div>
+            <div
+                class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+                <button @click="showBranchModal = false"
+                    class="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:bg-slate-50 transition-colors">
+                    Huỷ
+                </button>
+                <button @click="doUpdateBranch()" :disabled="saving"
+                    class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-xl transition-colors disabled:opacity-50 flex items-center gap-2">
+                    <span x-show="saving"
+                        class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    Lưu tên mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function hrApp() {
+        return {
+            // State
+            activeTab: 'overview',
+            loading: true,
+            saving: false,
+
+            // Data
+            allEmployees: [],
+            filteredEmployees: [],
+            branches: [],
+            departments: [],
+
+            // Stats
+            stats: { active: 0, inactive: 0 },
+
+            // Filters
+            filterSearch: '',
+            filterBranch: '',
+            filterDept: '',
+            filterStatus: '',
+
+            // Modals
+            showEmployeeModal: false,
+            showPasswordModal: false,
+            showBranchModal: false,
+
+            editingEmployee: null,
+            form: {},
+
+            passwordTarget: null,
+            newPassword: '',
+
+            editingBranch: null,
+            branchNewName: '',
+
+            toast: { show: false, message: '', type: 'success' },
+
+            // ===================================================
+            // INIT
+            // ===================================================
+            async init() {
+                await Promise.all([
+                    this.fetchEmployees(),
+                    this.fetchBranches(),
+                    this.fetchDepartments()
+                ]);
+                this.loading = false;
+            },
+
+            // ===================================================
+            // DATA FETCHING
+            // ===================================================
+            async fetchEmployees() {
+                try {
+                    const res = await fetch('/api/hr/employees');
+                    if (!res.ok) throw new Error(await res.text());
+                    this.allEmployees = await res.json();
+                    this.computeStats();
+                    this.applyFilters();
+                } catch (e) {
+                    this.showToast('Lỗi tải danh sách nhân viên: ' + e.message, 'error');
+                }
+            },
+
+            async fetchBranches() {
+                try {
+                    const res = await fetch('/api/hr/branches');
+                    if (!res.ok) throw new Error(await res.text());
+                    this.branches = await res.json();
+                } catch (e) {
+                    this.showToast('Lỗi tải danh sách chi nhánh.', 'error');
+                }
+            },
+
+            async fetchDepartments() {
+                try {
+                    const res = await fetch('/api/hr/departments');
+                    if (!res.ok) throw new Error(await res.text());
+                    this.departments = await res.json();
+                } catch (e) {
+                    this.showToast('Lỗi tải danh sách phòng ban.', 'error');
+                }
+            },
+
+            computeStats() {
+                this.stats.active = this.allEmployees.filter(e => e.is_active).length;
+                this.stats.inactive = this.allEmployees.filter(e => !e.is_active).length;
+            },
+
+            // ===================================================
+            // FILTERING
+            // ===================================================
+            applyFilters() {
+                let result = [...this.allEmployees];
+
+                if (this.filterSearch) {
+                    const q = this.filterSearch.toLowerCase();
+                    result = result.filter(e =>
+                        (e.name || '').toLowerCase().includes(q) ||
+                        (e.employee_code || '').toLowerCase().includes(q) ||
+                        (e.employee_id || '').toLowerCase().includes(q)
+                    );
+                }
+                if (this.filterBranch) {
+                    result = result.filter(e => e.main_branch_id == this.filterBranch);
+                }
+                if (this.filterDept) {
+                    result = result.filter(e => e.department_id == this.filterDept);
+                }
+                if (this.filterStatus !== '') {
+                    const active = this.filterStatus === 'true';
+                    result = result.filter(e => e.is_active === active);
+                }
+
+                this.filteredEmployees = result;
+            },
+
+            getEmployeesByBranch(branchId) {
+                return this.allEmployees.filter(e => e.main_branch_id === branchId && e.is_active);
+            },
+
+            // ===================================================
+            // ROLE HELPERS
+            // ===================================================
+            getRoleClass(roleCode) {
+                const map = {
+                    'letan': 'role-letan',
+                    'buongphong': 'role-buongphong',
+                    'baove': 'role-baove',
+                    'ktv': 'role-ktv',
+                    'quanly': 'role-quanly',
+                    'admin': 'role-admin',
+                    'boss': 'role-boss',
+                };
+                return map[roleCode?.toLowerCase()] || 'role-other';
+            },
+
+            getRoleLabel(roleCode) {
+                const map = {
+                    'letan': 'LT',
+                    'buongphong': 'BP',
+                    'baove': 'BV',
+                    'ktv': 'KTV',
+                    'quanly': 'QL',
+                    'admin': 'ADM',
+                    'boss': 'BOSS',
+                };
+                return map[roleCode?.toLowerCase()] || roleCode || '?';
+            },
+
+            formatAccountAge(days) {
+                if (days === null || days === undefined) return '—';
+                if (days < 30) return days + ' ngày';
+                if (days < 365) return Math.floor(days / 30) + ' tháng ' + (days % 30) + ' ngày';
+                const years = Math.floor(days / 365);
+                const rem = Math.floor((days % 365) / 30);
+                return years + ' năm' + (rem > 0 ? ' ' + rem + ' tháng' : '');
+            },
+
+            // ===================================================
+            // MODALS
+            // ===================================================
+            openAddModal() {
+                this.editingEmployee = null;
+                this.form = {
+                    employee_id: '',
+                    employee_code: '',
+                    name: '',
+                    department_id: '',
+                    main_branch_id: '',
+                    shift: '',
+                    password: '123456',
+                    phone_number: '',
+                    email: '',
+                    is_active: true,
+                    cccd: '',
+                    date_of_birth: '',
+                    address: '',
+                };
+                this.showEmployeeModal = true;
+            },
+
+            openEditModal(emp) {
+                this.editingEmployee = emp;
+                this.form = {
+                    employee_id: emp.employee_id,
+                    employee_code: emp.employee_code,
+                    name: emp.name,
+                    department_id: emp.department_id,
+                    main_branch_id: emp.main_branch_id,
+                    shift: emp.shift || '',
+                    password: '',
+                    phone_number: emp.phone_number || '',
+                    email: emp.email || '',
+                    is_active: emp.is_active,
+                    cccd: emp.cccd || '',
+                    date_of_birth: emp.date_of_birth || '',
+                    address: emp.address || '',
+                };
+                this.showEmployeeModal = true;
+            },
+
+            openResetPasswordModal(emp) {
+                this.passwordTarget = emp;
+                this.newPassword = '';
+                this.showPasswordModal = true;
+            },
+
+            openEditBranchModal(branch) {
+                this.editingBranch = branch;
+                this.branchNewName = branch.name;
+                this.showBranchModal = true;
+            },
+
+            // ===================================================
+            // SAVE EMPLOYEE (Create or Update)
+            // ===================================================
+            async saveEmployee() {
+                // Validate
+                if (!this.form.name?.trim()) { this.showToast('Vui lòng nhập tên nhân viên.', 'error'); return; }
+                if (!this.form.employee_code?.trim()) { this.showToast('Vui lòng nhập mã đăng nhập.', 'error'); return; }
+                if (!this.form.main_branch_id) { this.showToast('Vui lòng chọn chi nhánh.', 'error'); return; }
+                if (!this.form.department_id) { this.showToast('Vui lòng chọn vai trò.', 'error'); return; }
+
+                this.saving = true;
+                try {
+                    let res;
+                    const body = {
+                        ...this.form,
+                        department_id: parseInt(this.form.department_id),
+                        main_branch_id: parseInt(this.form.main_branch_id),
+                    };
+
+                    if (this.editingEmployee) {
+                        // UPDATE
+                        res = await fetch(`/api/hr/employees/${this.editingEmployee.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                    } else {
+                        // CREATE
+                        if (!this.form.employee_id?.trim()) { this.showToast('Vui lòng nhập mã nhân viên (VD: NV099).', 'error'); this.saving = false; return; }
+                        res = await fetch('/api/hr/employees', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        });
+                    }
+
+                    const data = await res.json();
+                    if (!res.ok) {
+                        this.showToast(data.detail || 'Có lỗi xảy ra.', 'error');
+                        return;
+                    }
+
+                    // Update local data
+                    if (this.editingEmployee) {
+                        const idx = this.allEmployees.findIndex(e => e.id === this.editingEmployee.id);
+                        if (idx !== -1) this.allEmployees[idx] = data.employee;
+                    } else {
+                        this.allEmployees.push(data.employee);
+                    }
+
+                    this.computeStats();
+                    this.applyFilters();
+                    this.showEmployeeModal = false;
+                    this.showToast(this.editingEmployee ? 'Đã cập nhật thông tin nhân viên!' : 'Đã thêm nhân viên mới!', 'success');
+
+                } catch (e) {
+                    this.showToast('Lỗi kết nối: ' + e.message, 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            // ===================================================
+            // TOGGLE ACTIVE / INACTIVE
+            // ===================================================
+            async toggleActive(emp) {
+                const action = emp.is_active ? 'vô hiệu hoá' : 'kích hoạt lại';
+                if (!confirm(`Bạn có chắc muốn ${action} nhân viên "${emp.name}"?`)) return;
+
+                try {
+                    const res = await fetch(`/api/hr/employees/${emp.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_active: !emp.is_active })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { this.showToast(data.detail || 'Lỗi cập nhật.', 'error'); return; }
+
+                    const idx = this.allEmployees.findIndex(e => e.id === emp.id);
+                    if (idx !== -1) this.allEmployees[idx] = data.employee;
+                    this.computeStats();
+                    this.applyFilters();
+                    this.showToast(`Đã ${action} nhân viên ${emp.name}.`, 'success');
+                } catch (e) {
+                    this.showToast('Lỗi kết nối.', 'error');
+                }
+            },
+
+            // ===================================================
+            // RESET PASSWORD
+            // ===================================================
+            async doResetPassword() {
+                if (!this.newPassword || this.newPassword.length < 4) {
+                    this.showToast('Mật khẩu phải có ít nhất 4 ký tự.', 'error'); return;
+                }
+                this.saving = true;
+                try {
+                    const res = await fetch(`/api/hr/employees/${this.passwordTarget.id}/reset-password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ new_password: this.newPassword })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { this.showToast(data.detail || 'Lỗi.', 'error'); return; }
+                    this.showPasswordModal = false;
+                    this.showToast(data.message || 'Đã đặt lại mật khẩu thành công!', 'success');
+                } catch (e) {
+                    this.showToast('Lỗi kết nối.', 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            // ===================================================
+            // UPDATE BRANCH NAME
+            // ===================================================
+            async doUpdateBranch() {
+                if (!this.branchNewName?.trim()) {
+                    this.showToast('Tên chi nhánh không được để trống.', 'error'); return;
+                }
+                this.saving = true;
+                try {
+                    const res = await fetch(`/api/hr/branches/${this.editingBranch.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: this.branchNewName.trim() })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { this.showToast(data.detail || 'Lỗi.', 'error'); return; }
+
+                    // Update local data
+                    const idx = this.branches.findIndex(b => b.id === this.editingBranch.id);
+                    if (idx !== -1) {
+                        this.branches[idx].name = data.branch.name;
+                    }
+                    // Also update in allEmployees
+                    this.allEmployees.forEach(e => {
+                        if (e.main_branch_id === this.editingBranch.id) {
+                            e.branch_name = data.branch.name;
+                        }
+                    });
+                    this.applyFilters();
+                    this.showBranchModal = false;
+                    this.showToast(data.message || 'Đã đổi tên chi nhánh!', 'success');
+                } catch (e) {
+                    this.showToast('Lỗi kết nối.', 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            // ===================================================
+            // TOAST
+            // ===================================================
+            showToast(message, type = 'success') {
+                this.toast = { show: true, message, type };
+                setTimeout(() => { this.toast.show = false; }, 3500);
+            },
+        }
+    }
+</script>
+{% endblock %}

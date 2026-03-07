@@ -4,6 +4,7 @@ from sqlalchemy import (
     Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time,
     Enum as SQLAlchemyEnum, ForeignKey, BIGINT, NUMERIC, Index, func
 )
+from datetime import date as date_type
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from datetime import datetime
@@ -98,6 +99,11 @@ class User(Base):
     phone_number = Column(String(20))
     email = Column(String(255))
     last_active_branch = Column(String, nullable=True)
+
+    # Thông tin cá nhân bổ sung
+    cccd = Column(String(20), nullable=True)           # Số CCCD/CMND
+    date_of_birth = Column(Date, nullable=True)        # Ngày sinh
+    address = Column(Text, nullable=True)              # Địa chỉ
 
     # --- Relationships ---
     department = relationship("Department")

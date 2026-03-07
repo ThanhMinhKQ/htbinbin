@@ -22,7 +22,7 @@ from .api import (
     users, attendance, tasks, lost_and_found, 
     choose_function, utils, calendar, qr_checkin, 
     results, export, service, shift_report, inventory,
-    ota_dashboard
+    ota_dashboard, hr_management
 )
 
 from .core.config import settings, logger
@@ -220,6 +220,9 @@ app.include_router(export.router, tags=["Export"])
 
 # OTA Dashboard API
 app.include_router(ota_dashboard.router, tags=["OTA Dashboard"])
+
+# HR Management (Admin only)
+app.include_router(hr_management.router, tags=["HR Management"])
 
 
 # --- ROOT ENDPOINT ---
