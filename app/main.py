@@ -27,7 +27,7 @@ from .api import (
 
 from .core.config import settings, logger
 from .core.utils import VN_TZ
-from .db.session import SessionLocal, engine, Base
+from .db.session import SessionLocal, engine, _task_engine, Base
 from .db.utils import reset_all_sequences, sync_employees_on_startup, sync_master_data
 from .db.models import User
 from .services.missing_attendance_service import run_daily_absence_check
@@ -113,7 +113,8 @@ async def startup_event():
     for _attempt in range(_max_startup_retries):
         try:
             # Tạo bảng nếu chưa có
-            Base.metadata.create_all(bind=engine)
+            # Dùng _task_engine (NullPool) để tránh cạnh tranh connection pool
+            Base.metadata.create_all(bind=_task_engine)
 
             # Dùng context manager để đảm bảo đóng session an toàn
             with SessionLocal() as db:

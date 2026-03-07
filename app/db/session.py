@@ -11,9 +11,9 @@ from ..core.config import settings
 engine = create_engine(
     str(settings.DATABASE_URL),
     pool_pre_ping=True,
-    pool_size=3,            # 3 connections luôn sẵn (HTTP requests thông thường)
-    max_overflow=2,         # Tối đa 5 connections tổng
-    pool_timeout=20,        # Timeout sau 20s, fail nhanh thay vì chờ mãi
+    pool_size=8,            # Supabase $25: đủ connections cho HTTP requests đồng thời
+    max_overflow=7,         # Tối đa 15 connections tổng khi tải cao
+    pool_timeout=30,        # Tăng timeout lên 30s để chịu Supabase cold start
     pool_recycle=1800,      # Recycle sau 30 phút tránh stale connection
     connect_args={"prepare_threshold": None}  # Fix lỗi prepared statements
 )
