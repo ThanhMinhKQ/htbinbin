@@ -582,7 +582,7 @@ async def _process_gmail_push(history_id: str):
     """
     from app.core.config import logger
     from app.services.ota_agent.integration import ota_agent
-    from app.db.session import SessionLocal
+    from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP
     from app.services.ota_agent.mapper import HotelMapper
 
     logger.info(f"[Gmail Push] ⏳ Bắt đầu xử lý historyId={history_id}")
@@ -601,7 +601,7 @@ async def _process_gmail_push(history_id: str):
         # (không giữ connection trong time.sleep của Gemini retry)
         processed = 0
         for email in emails:
-            db = SessionLocal()
+            db = TaskSessionLocal()
             try:
                 mapper = HotelMapper(db)
                 # process_email chứa time.sleep → chạy trong thread để không block event loop
@@ -657,7 +657,7 @@ async def _scan_emails_for_date(target_date):
     import asyncio
     from app.core.config import logger
     from app.services.ota_agent.integration import ota_agent
-    from app.db.session import SessionLocal
+    from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP
     from app.services.ota_agent.mapper import HotelMapper
     from datetime import timedelta
 
@@ -717,7 +717,7 @@ async def _scan_emails_for_date(target_date):
         processed = 0
         failed = 0
         for i, email in enumerate(emails):
-            db = SessionLocal()
+            db = TaskSessionLocal()
             try:
                 mapper = HotelMapper(db)
                 await asyncio.to_thread(ota_agent.process_email, db, mapper, email)
