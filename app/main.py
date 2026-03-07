@@ -105,16 +105,43 @@ async def startup_event():
     """
     logger.info("🚀 Bắt đầu quá trình khởi động ứng dụng...")
 
-    # Tạo bảng nếu chưa có
-    Base.metadata.create_all(bind=engine)
-    
-    try:
-        # Dùng context manager để đảm bảo đóng session an toàn
-        with SessionLocal() as db:
-            reset_all_sequences(db)
-            sync_master_data(db) # [NEW] Đồng bộ Master Data trước
-            sync_employees_on_startup(db)
+    # ── Retry DB startup (chịu transient Supabase errors: "DbHandler exited") ──
+    import asyncio as _asyncio
+    _max_startup_retries = 5
+    _startup_retry_delays = [3, 6, 12, 20, 30]  # giây giữa các lần thử
 
+    for _attempt in range(_max_startup_retries):
+        try:
+            # Tạo bảng nếu chưa có
+            Base.metadata.create_all(bind=engine)
+
+            # Dùng context manager để đảm bảo đóng session an toàn
+            with SessionLocal() as db:
+                reset_all_sequences(db)
+                sync_master_data(db)
+                sync_employees_on_startup(db)
+
+            logger.info(f"✅ DB startup thành công (lần thử {_attempt + 1})")
+            break  # Thành công → thoát retry loop
+
+        except Exception as e:
+            if _attempt < _max_startup_retries - 1:
+                _wait = _startup_retry_delays[_attempt]
+                logger.warning(
+                    f"⚠️ DB startup lỗi (lần {_attempt + 1}/{_max_startup_retries}): {e}. "
+                    f"Thử lại sau {_wait}s..."
+                )
+                await _asyncio.sleep(_wait)
+            else:
+                # Hết retry → vẫn tiếp tục khởi động (không crash app)
+                # App sẽ hoạt động nhưng DB queries sẽ fail cho đến khi Supabase phục hồi
+                logger.error(
+                    f"❌ DB startup thất bại sau {_max_startup_retries} lần thử: {e}. "
+                    "App vẫn khởi động — DB sẽ tự phục hồi khi Supabase ổn định."
+                )
+    # ──────────────────────────────────────────────────────────────────────────
+
+    try:
         # Logic Scheduler (chỉ chạy ở process chính để tránh duplicate khi dev reload)
         if os.environ.get("UVICORN_RELOAD") != "true":
             scheduler = BackgroundScheduler(timezone=str(VN_TZ))
@@ -132,19 +159,8 @@ async def startup_event():
                 'cron', hour='0-23', minute='*/30', 
                 misfire_grace_time=300, id="update_overdue_tasks"
             )
-            
-            # --- OTA AGENT SCHEDULER (10 phút/lần) ---
-            # [TẠM TẮT] - Tắt chức năng quét đặt phòng OTA qua gmail
-            # from .services.ota_agent.integration import ota_agent
-            # scheduler.add_job(
-            #     ota_agent.run_once,
-            #     'interval', minutes=10,
-            #     id="ota_booking_sync",
-            #     misfire_grace_time=300
-            # )
 
             # --- GMAIL WATCH RENEWAL (Mỗi ngày 06:00) ---
-            # Gmail watch() hết hạn sau 7 ngày -> cần gia hạn định kỳ
             def renew_gmail_watch():
                 try:
                     from app.services.ota_agent.gmail_service import gmail_service
@@ -168,10 +184,8 @@ async def startup_event():
             atexit.register(lambda: scheduler.shutdown())
             logger.info("✅ Các tác vụ nền (Scheduler) đã được lập lịch.")
 
-
-
     except Exception as e:
-        logger.error(f"❌ Lỗi khởi động: {e}", exc_info=True)
+        logger.error(f"❌ Lỗi khởi động Scheduler: {e}", exc_info=True)
     
     logger.info("✅ Startup hoàn tất.")
 
