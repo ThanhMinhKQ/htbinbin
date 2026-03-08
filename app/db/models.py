@@ -104,6 +104,7 @@ class User(Base):
     cccd = Column(String(20), nullable=True)           # Số CCCD/CMND
     date_of_birth = Column(Date, nullable=True)        # Ngày sinh
     address = Column(Text, nullable=True)              # Địa chỉ
+    gender = Column(String(10), nullable=True)         # Giới tính: Nam / Nữ / Khác
 
     # --- Relationships ---
     department = relationship("Department")

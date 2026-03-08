@@ -64,6 +64,7 @@ def user_to_dict(user: User) -> dict:
         "cccd": user.cccd,
         "date_of_birth": user.date_of_birth.isoformat() if user.date_of_birth else None,
         "address": user.address,
+        "gender": user.gender,
         # Thời gian hoạt động
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "account_age_days": account_age_days,
@@ -99,6 +100,7 @@ class EmployeeUpdate(BaseModel):
     cccd: Optional[str] = None
     date_of_birth: Optional[str] = None  # ISO date string: "YYYY-MM-DD"
     address: Optional[str] = None
+    gender: Optional[str] = None  # Nam / Nữ / Khác
 
 class ResetPasswordPayload(BaseModel):
     new_password: str
@@ -121,6 +123,7 @@ class EmployeeCreateFull(BaseModel):
     cccd: Optional[str] = None
     date_of_birth: Optional[str] = None  # ISO date string: "YYYY-MM-DD"
     address: Optional[str] = None
+    gender: Optional[str] = None  # Nam / Nữ / Khác
 
 
 # ====================================================================
@@ -216,6 +219,7 @@ def create_employee(
         cccd=payload.cccd,
         date_of_birth=date_type.fromisoformat(payload.date_of_birth) if payload.date_of_birth else None,
         address=payload.address,
+        gender=payload.gender,
     )
     db.add(new_user)
     try:
@@ -289,6 +293,8 @@ def update_employee(
         user.date_of_birth = date_type.fromisoformat(payload.date_of_birth) if payload.date_of_birth.strip() else None
     if payload.address is not None:
         user.address = payload.address if payload.address.strip() else None
+    if payload.gender is not None:
+        user.gender = payload.gender if payload.gender.strip() else None
 
     try:
         db.commit()
