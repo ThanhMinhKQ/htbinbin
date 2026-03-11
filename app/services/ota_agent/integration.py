@@ -111,7 +111,7 @@ class OTAAgent:
             if booking:
                 logger.info(f"[OTA Agent] ✅ Đã xử lý booking {data.get('external_id')}")
             else:
-                logger.info(f"[OTA Agent] ⏭️ Bỏ qua (CANCEL không tồn tại): {data.get('external_id')}")
+                logger.info(f"[OTA Agent] ⏭️ Bỏ qua (không đủ thông tin hoặc không phải booking): {data.get('external_id', 'N/A')}")
 
 
         except Exception as e:
@@ -128,7 +128,10 @@ class OTAAgent:
     def upsert_booking(self, db: Session, data: dict) -> Booking:
         external_id = data.get('external_id')
         if not external_id:
-            raise ValueError("Missing external_id from Extractor")
+            # Email không phải booking thật (admin/newsletter) → Gemini không parse được ID
+            # Đây không phải lỗi → skip quietly, đánh dấu log SUCCESS để tránh retry
+            logger.info(f"[OTA Agent] ⏭️ Bỏ qua email không có external_id (có thể là email admin/thông báo)")
+            return None
 
         action_type = data.get('action_type', 'NEW').upper()
         
@@ -146,6 +149,13 @@ class OTAAgent:
 
             else:
                 # NEW or MODIFY (treat as NEW if not exists)
+                # Bỏ qua nếu thiếu check_out (email không đủ thông tin, không phải lỗi thật)
+                if not data.get('check_out') and action_type == 'NEW':
+                    logger.warning(
+                        f"[OTA Agent] ⏭️ Bỏ qua booking {external_id}: thiếu check_out "
+                        f"(email có thể chỉ là thông báo, không phải xác nhận booking đầy đủ)"
+                    )
+                    return None
                 new_booking = self._create_booking_obj(data)
                 db.add(new_booking)
                 db.flush()  # Get ID immediately
