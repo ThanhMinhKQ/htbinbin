@@ -741,6 +741,11 @@ async function scanTodayEmails() {
         dateLabel = `${d}/${m}/${y}`;
     }
 
+    const confirmMsg = `Bạn có chắc chắn muốn chạy quét toàn bộ email đặt phòng OTA của ${dateLabel} không?\n\nLưu ý: Quá trình AI đọc và trích xuất dữ liệu có thể tốn khá nhiều thời gian (khoảng 30 giây tới vài phút) tùy thuộc vào độ trễ của hộp thư. Vui lòng không nhấn quét liên tục.`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Đang quét...';

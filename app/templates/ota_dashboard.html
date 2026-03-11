@@ -10,9 +10,19 @@
     .ota-toolbar {
         display: flex;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 16px;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
         flex-wrap: wrap;
+        background: #fff;
+        padding: 16px 20px;
+        border-radius: 12px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .dark .ota-toolbar {
+        background: #0f172a;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
     }
 
     .search-box {
@@ -55,10 +65,11 @@
     .filter-group {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
         white-space: nowrap;
         font-size: 13.5px;
         color: #555;
+        font-weight: 500;
     }
 
     .filter-select {
@@ -447,18 +458,27 @@
 
     /* ── Stats ── */
     .stats-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
         gap: 16px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
+        margin-bottom: 24px;
     }
 
     .stat-chip {
         background: #fff;
-        border-radius: 10px;
-        padding: 14px 20px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-        min-width: 160px;
+        border-radius: 14px;
+        padding: 18px 22px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        border: 1px solid #f0f2f7;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-chip:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     }
 
     .dark .stat-chip {
@@ -467,16 +487,18 @@
     }
 
     .stat-chip .label {
-        font-size: 12px;
-        color: #999;
-        font-weight: 500;
+        font-size: 12.5px;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 6px;
     }
 
     .stat-chip .value {
-        font-size: 22px;
+        font-size: 26px;
         font-weight: 700;
-        color: #1a1a2e;
-        margin-top: 2px;
+        color: #1e293b;
     }
 
     .dark .stat-chip .value {
@@ -677,57 +699,64 @@
 
     <!-- Toolbar -->
     <div class="ota-toolbar">
-        <div class="search-box">
-            <i class="bi bi-search"></i>
-            <input type="text" id="searchInput" placeholder="Tìm mã đơn, tên khách, mã đặt phòng..."
-                oninput="onSearchInput()">
+        <!-- Left Side: Search & Scan -->
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; flex: 1; min-width: 300px;">
+            <div class="search-box" style="flex: 1; min-width: 250px; max-width: 380px;">
+                <i class="bi bi-search"></i>
+                <input type="text" id="searchInput" placeholder="Tìm mã đơn, tên khách, mã đặt phòng..."
+                    oninput="onSearchInput()">
+            </div>
+            {% if user_role in ['admin', 'boss', 'quanly'] %}
+            <div class="scan-group">
+                <input type="date" id="scanDateInput" class="scan-date-input" title="Chọn ngày quét">
+                <button class="btn-scan" id="btnScanToday" onclick="scanTodayEmails()">
+                    <i class="bi bi-arrow-repeat"></i> Quét mail
+                </button>
+            </div>
+            {% endif %}
         </div>
 
-        <div class="filter-group">
-            <span>OTA:</span>
-            <select class="filter-select" id="otaFilter" onchange="loadBookings()">
-                <option value="">Tất cả</option>
-                <option value="Agoda">Agoda</option>
-                <option value="Go2Joy">Go2Joy</option>
-                <option value="Expedia">Expedia</option>
-                <option value="Airbnb">Airbnb</option>
-                <option value="Trip.com">Trip.com</option>
-                <option value="Traveloka">Traveloka</option>
-                <option value="Mytour">Mytour</option>
-            </select>
-        </div>
+        <!-- Right Side: Filters -->
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <div class="filter-group">
+                <span class="d-none d-sm-inline">OTA:</span>
+                <select class="filter-select" id="otaFilter" onchange="loadBookings()">
+                    <option value="">Tất cả</option>
+                    <option value="Agoda">Agoda</option>
+                    <option value="Go2Joy">Go2Joy</option>
+                    <option value="Expedia">Expedia</option>
+                    <option value="Airbnb">Airbnb</option>
+                    <option value="Trip.com">Trip.com</option>
+                    <option value="Traveloka">Traveloka</option>
+                    <option value="Mytour">Mytour</option>
+                </select>
+            </div>
 
-        <div class="filter-group">
-            <span>Trạng thái:</span>
-            <select class="filter-select" id="statusFilter" onchange="applyFilters()">
-                <option value="">Tất cả</option>
-                <option value="CONFIRMED">Thành công</option>
-                <option value="CANCELLED">Đã huỷ</option>
-                <option value="NO_SHOW">No-show</option>
-            </select>
-        </div>
+            <div class="filter-group">
+                <span class="d-none d-sm-inline">Bởi:</span>
+                <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+                    <option value="">Trạng thái</option>
+                    <option value="CONFIRMED">Thành công</option>
+                    <option value="CANCELLED">Đã huỷ</option>
+                    <option value="NO_SHOW">No-show</option>
+                </select>
+            </div>
 
-        <div class="date-filter-group">
-            <span><i class="bi bi-calendar3"></i></span>
-            <input type="date" id="dateFromFilter" class="date-filter-input" title="Từ ngày" onchange="applyFilters()">
-            <span style="color:#bbb;">—</span>
-            <input type="date" id="dateToFilter" class="date-filter-input" title="Đến ngày" onchange="applyFilters()">
-            <button class="btn-clear-filter" onclick="clearDateFilter()" title="Xóa bộ lọc ngày">
-                <i class="bi bi-x"></i>
-            </button>
-        </div>
+            <div class="date-filter-group">
+                <input type="date" id="dateFromFilter" class="date-filter-input" title="Từ ngày"
+                    onchange="applyFilters()">
+                <span style="color:#bbb;">—</span>
+                <input type="date" id="dateToFilter" class="date-filter-input" title="Đến ngày"
+                    onchange="applyFilters()">
+                <button class="btn-clear-filter" onclick="clearDateFilter()" title="Xóa bộ lọc ngày">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
 
-        {% if user_role in ['admin', 'boss', 'quanly'] %}
-        <div class="scan-group">
-            <input type="date" id="scanDateInput" class="scan-date-input" title="Chọn ngày quét">
-            <button class="btn-scan" id="btnScanToday" onclick="scanTodayEmails()">
-                <i class="bi bi-arrow-repeat"></i> Quét mail
-            </button>
+            <a href="#" class="btn-excel" onclick="exportExcel(event)">
+                <i class="bi bi-file-earmark-excel-fill"></i> Xuất Excel
+            </a>
         </div>
-        {% endif %}
-        <a href="#" class="btn-excel" onclick="exportExcel(event)">
-            <i class="bi bi-file-earmark-excel-fill"></i> Xuất Excel
-        </a>
     </div>
 
     <!-- Table Card -->
@@ -976,5 +1005,5 @@
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/ota_dashboard.js?v=21"></script>
+<script src="/static/js/ota_dashboard.js?v=22"></script>
 {% endblock %}
