@@ -597,6 +597,21 @@
             const isOtaPage = window.location.pathname.includes('/api/ota/dashboard');
             let globalLastCount = null;
             let globalAudio = null;
+            let audioUnlocked = false;
+
+            // -- Unlock audio khi có tương tác đầu tiên của user trên toàn trang --
+            function unlockGlobalAudio() {
+                if (audioUnlocked) return;
+                try {
+                    if (!globalAudio) globalAudio = new Audio('/static/sounds/Add.mp3');
+                    globalAudio.play().then(() => {
+                        globalAudio.pause();
+                        globalAudio.currentTime = 0;
+                        audioUnlocked = true;
+                    }).catch(() => { });
+                } catch (e) { }
+            }
+            document.addEventListener('click', unlockGlobalAudio, { once: true });
 
             // -- Badge UI --
             function refreshBadge() {
@@ -610,12 +625,17 @@
                 }
             }
 
-            // -- \u00c2m thanh (d\u00f9ng tr\u00ean m\u1ecdi trang) --
+            // -- Âm thanh (dùng trên mọi trang) --
             function playGlobalSound() {
                 try {
                     if (!globalAudio) globalAudio = new Audio('/static/sounds/Add.mp3');
                     globalAudio.currentTime = 0;
-                    globalAudio.play().catch(() => { });
+                    const playPromise = globalAudio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(() => {
+                            // Bỏ qua lỗi nếu vẫn bị chặn (chưa tương tác)
+                        });
+                    }
                 } catch (e) { }
             }
 
