@@ -351,6 +351,10 @@
         color: #ef4444;
     }
 
+    .status-badge.no-show {
+        color: #8b5cf6;
+    }
+
     .ota-source {
         font-weight: 600;
         color: #1a1a2e;
@@ -922,9 +926,9 @@
                             style="font-size:12px; font-weight:600; color:#64748b; text-transform:uppercase;">Trạng
                             thái</label>
                         <select id="em-status" class="form-select form-select-sm">
-                            <option value="CONFIRMED">Xác nhận</option>
-                            <option value="CANCELLED">Hủy</option>
-                            <option value="PENDING">Chờ</option>
+                            <option value="CONFIRMED">Thành công</option>
+                            <option value="CANCELLED">Đã huỷ</option>
+                            <option value="NO_SHOW">No-show</option>
                         </select>
                     </div>
                     <div>
@@ -975,5 +979,5 @@
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/ota_dashboard.js?v=13"></script>
+<script src="/static/js/ota_dashboard.js?v=14"></script>
 {% endblock %}

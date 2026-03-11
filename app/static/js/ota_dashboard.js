@@ -829,10 +829,12 @@ function renderStatus(status) {
     const s = (status || '').toUpperCase();
     if (s === 'SUCCESS' || s === 'CONFIRMED' || s === 'ACTIVE') {
         return `<span class="status-badge success"><i class="bi bi-check-circle-fill"></i> Thành công</span>`;
-    } else if (s === 'PENDING' || s === 'PROCESSING') {
-        return `<span class="status-badge pending"><i class="bi bi-clock-fill"></i> Đang xử lý</span>`;
     } else if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
         return `<span class="status-badge cancelled"><i class="bi bi-x-circle-fill"></i> Đã huỷ</span>`;
+    } else if (s === 'NO_SHOW') {
+        return `<span class="status-badge no-show"><i class="bi bi-person-slash"></i> No-show</span>`;
+    } else if (s === 'PENDING' || s === 'PROCESSING') {
+        return `<span class="status-badge pending"><i class="bi bi-clock-fill"></i> Đang xử lý</span>`;
     }
     return `<span class="status-badge" style="color:#888;">${escapeHtml(status)}</span>`;
 }
