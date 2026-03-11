@@ -482,12 +482,14 @@ function showBookingDetail(bookingId) {
     const checkOut = b.check_out ? formatDate(b.check_out) : '—';
     const nights = calcNights(b.check_in, b.check_out);
     const nightsNum = calcNightsNum(b.check_in, b.check_out);
+    const isSameDay = b.check_in && b.check_out && b.check_in === b.check_out;
+    const isHourly = isSameDay || nightsNum === 0;
     const totalPrice = b.total_price ? b.total_price.toLocaleString('vi-VN') + ' ' + (b.currency || 'VND') : '—';
 
-    const checkinTimeStr = b.check_in_time ? ` <span style="color:#6366f1">${escapeHtml(b.check_in_time)}</span>` : '';
-    const checkoutTimeStr = b.check_out_time ? ` <span style="color:#6366f1">${escapeHtml(b.check_out_time)}</span>` : '';
+    const checkinTimeStr = (isHourly && b.check_in_time) ? ` <span style="color:#6366f1">${escapeHtml(b.check_in_time)}</span>` : '';
+    const checkoutTimeStr = (isHourly && b.check_out_time) ? ` <span style="color:#6366f1">${escapeHtml(b.check_out_time)}</span>` : '';
     const timeRangeStr = (b.check_in_time || b.check_out_time) ? `${b.check_in_time || '?'} – ${b.check_out_time || '?'}` : null;
-    const nightsDisplay = nightsNum === 0
+    const nightsDisplay = isHourly
         ? `<span style="color:#6366f1; font-weight:600;">${timeRangeStr || 'Thuê giờ'}</span>`
         : nights;
 
