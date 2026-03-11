@@ -486,8 +486,9 @@ function showBookingDetail(bookingId) {
 
     const checkinTimeStr = b.check_in_time ? ` <span style="color:#6366f1">${escapeHtml(b.check_in_time)}</span>` : '';
     const checkoutTimeStr = b.check_out_time ? ` <span style="color:#6366f1">${escapeHtml(b.check_out_time)}</span>` : '';
+    const timeRangeStr = (b.check_in_time || b.check_out_time) ? `${b.check_in_time || '?'} – ${b.check_out_time || '?'}` : null;
     const nightsDisplay = nightsNum === 0
-        ? `<span style="color:#6366f1">Thuê giờ ${b.check_in_time && b.check_out_time ? '(' + b.check_in_time + ' – ' + b.check_out_time + ')' : ''}</span>`
+        ? `<span style="color:#6366f1; font-weight:600;">${timeRangeStr || 'Thuê giờ'}</span>`
         : nights;
 
     const guestStr = (() => {
@@ -659,10 +660,10 @@ function formatGuestText(b) {
 // Render cột "Số ngày lưu trú" với hỗ trợ thuê giờ (Go2Joy)
 function renderStayCell(b, checkIn, checkOut, nights) {
     const n = calcNightsNum(b.check_in, b.check_out);
-    const hasTime = b.check_in_time || b.check_out_time;
+    const isSameDay = b.check_in && b.check_out && b.check_in === b.check_out;
 
-    if (n === 0 || (n !== null && n < 1)) {
-        // Booking thuê giờ
+    if (isSameDay || n === 0) {
+        // Phòng giờ: check-in và check-out cùng ngày
         const timeFrom = b.check_in_time || '?';
         const timeTo = b.check_out_time || '?';
         const timeRange = (b.check_in_time || b.check_out_time)
@@ -670,15 +671,13 @@ function renderStayCell(b, checkIn, checkOut, nights) {
             : null;
         return `
             <div class="stay-dates">${checkIn}</div>
-            <div class="stay-nights" style="color:#6366f1; font-weight:600;">Thuê giờ</div>
-            ${timeRange ? `<div class="stay-nights" style="color:#6366f1;">${timeRange}</div>` : ''}`;
+            <div class="stay-nights" style="color:#6366f1; font-weight:600;">${timeRange || 'Thuê giờ'}</div>`;
     }
 
-    // Booking đêm bình thường
+    // Phòng ngày bình thường: chỉ hiện ngày và số đêm
     return `
         <div class="stay-dates">${checkIn} – ${checkOut}</div>
-        <div class="stay-nights">${nights}</div>
-        ${hasTime ? `<div class="stay-nights" style="color:#888;">${b.check_in_time || ''} – ${b.check_out_time || ''}</div>` : ''}`;
+        <div class="stay-nights">${nights}</div>`;
 }
 
 function renderPaymentLabel(status) {
