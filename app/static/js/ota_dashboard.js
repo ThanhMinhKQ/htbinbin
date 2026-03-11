@@ -29,6 +29,12 @@ function playSound(filename) {
 // Unlock âm thanh sau lần đầu user click vào trang
 document.addEventListener('click', () => { _soundUnlocked = true; }, { once: true });
 
+// Cập nhật title tab trình duyệt với số booking mới
+function updateTabTitle(count) {
+    const base = 'OTA Dashboard';
+    document.title = count > 0 ? `(${count}) ${base} - Bin Bin Hotel` : `${base} - Bin Bin Hotel`;
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
 window.onload = () => {
     // Set mặc định date picker là hôm nay
@@ -45,6 +51,13 @@ window.onload = () => {
     loadBranches();
     loadBookings();
     startSmartPolling();
+
+    // User đang xem OTA Dashboard → clear badge và reset title
+    localStorage.setItem('otaNewCount', '0');
+    updateTabTitle(0);
+    // Nếu badge vẫn còn trong cùng tab (ít xảy ra)
+    const navBadge = document.getElementById('ota-nav-badge');
+    if (navBadge) navBadge.style.display = 'none';
 };
 
 // ── Smart Polling (15s) ────────────────────────────────────────────────────
@@ -83,6 +96,13 @@ async function checkForNewBookings() {
 
             // Phát âm thanh thông báo đặt phòng mới
             playSound('Add.mp3');
+
+            // Cập nhật localStorage để badge hiển thị trên các trang khác
+            const prev = parseInt(localStorage.getItem('otaNewCount') || '0', 10);
+            localStorage.setItem('otaNewCount', prev + delta);
+
+            // Cập nhật title tab trình duyệt
+            updateTabTitle(prev + delta);
 
             // Hiện notification banner
             showNewBookingBanner(delta);
