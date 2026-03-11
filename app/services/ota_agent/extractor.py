@@ -111,15 +111,18 @@ class OTAExtractor:
         Required JSON Structure:
         {{
             "action_type": "NEW" | "MODIFY" | "CANCEL",
-            "booking_source": "Booking.com" | "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Website" | "Other",
+            "booking_source": "Booking.com" | "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Mytour" | "Website" | "Other",
             "external_id": "string",      // Booking ID / Confirmation Number from OTA (e.g. "4266983", "BDC-1234567", "#1987")
             "checkin_code": "string",     // PIN code or access code for room check-in (if available, else null). NOT the booking ID.
             "guest_name": "string",       // Full name of the primary guest
             "guest_phone": "string",      // Guest phone number (if available, else null)
             "hotel_name": "string",       // Hotel/property name as stated in the email
             "check_in": "YYYY-MM-DD",     // Check-in date
+            "check_in_time": "HH:MM",       // Check-in time in 24h format (e.g. "14:00"), null if not mentioned
             "check_out": "YYYY-MM-DD",    // Check-out date
+            "check_out_time": "HH:MM",      // Check-out time in 24h format (e.g. "18:00"), null if not mentioned
             "room_type": "string",        // Room type/name (e.g. "Superior Room", "Deluxe Double")
+            "num_rooms": integer,         // Number of rooms booked (default 1 if not mentioned)
             "num_guests": integer,        // Total number of guests (adults + children)
             "num_adults": integer,        // Number of adults only
             "num_children": integer,      // Number of children (0 if not mentioned)
@@ -134,19 +137,27 @@ class OTAExtractor:
         Rules:
         1. If information is missing or unclear, set value to null (or 0 for numeric fields).
         2. Format all dates strictly as YYYY-MM-DD.
-        3. Ensure numeric fields are numbers, NOT strings. Remove any commas or currency symbols from prices.
-        4. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
-        5. For booking_source, infer from sender email domain or email branding:
+        3. Format check_in_time and check_out_time as HH:MM (24h). For Go2Joy hourly bookings both dates are the same but there are specific check-in/check-out times. Extract them carefully.
+        4. Ensure numeric fields are numbers, NOT strings. Remove any commas or currency symbols from prices.
+        5. For total_price, apply these source-specific rules:
+           - Go2Joy: use "Tiền phòng" (room price), NOT "Số tiền thanh toán" (final payment). E.g. "Tiền phòng: 600.000" and "Số tiền thanh toán: 560.000" → total_price = 600000.
+           - Agoda: use "Net rate (incl. taxes & fees)" / "Giá thực tế (bao gồm thuế & phí)", NOT "Reference sell rate" / "Giá bán tham khảo". E.g. Net rate = 550,000 and Reference sell rate = 687,500 → total_price = 550000.
+           - Expedia: use "Amount to Charge Expedia Group", NOT "Total Booking Amount". E.g. Amount to Charge = 603,789 and Total Booking Amount = 726,158 → total_price = 603789.
+           - Mytour: use "Tổng tiền trả khách sạn" (total amount paid to hotel).
+           - Other OTAs: use the main booking total shown in the confirmation.
+        6. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
+        7. For booking_source, infer from sender email domain or email branding:
            - @booking.com / guest.booking.com → "Booking.com"
            - @agoda.com → "Agoda"
            - @go2joy.vn → "Go2Joy"
            - @trip.com / @ctrip.com → "Trip.com"
            - @traveloka.com → "Traveloka"
            - @airbnb.com → "Airbnb"
+           - noreply@mytour.vn / @mytour.vn → "Mytour"
            - Email subject contains "[Khách sạn Bin Bin]" or sender is binbinhotel.ota@gmail.com → "Website"
-        6. For "Website" bookings: external_id is the order number after "#" in subject (e.g. subject "[Khách sạn Bin Bin] Đơn hàng mới #1987" → external_id = "WEB-1987").
-        7. checkin_code: A short numeric/alphanumeric PIN to access the room or building. May appear as "PIN", "Access code", "Check-in code", "Mã check-in". Leave null if not present.
-        8. Return ONLY the JSON object. No markdown formatting, no explanation.
+        8. For "Website" bookings: external_id is the order number after "#" in subject (e.g. subject "[Khách sạn Bin Bin] Đơn hàng mới #1987" → external_id = "WEB-1987").
+        9. checkin_code: A short numeric/alphanumeric PIN to access the room or building. May appear as "PIN", "Access code", "Check-in code", "Mã check-in". Leave null if not present.
+        10. Return ONLY the JSON object. No markdown formatting, no explanation.
         
         Email Content:
         {cleaned_body}

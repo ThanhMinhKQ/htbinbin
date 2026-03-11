@@ -29,8 +29,11 @@ class BookingResponse(BaseModel):
     guest_phone: Optional[str] = None
     checkin_code: Optional[str] = None
     check_in: Optional[str]
+    check_in_time: Optional[str] = None
     check_out: Optional[str]
+    check_out_time: Optional[str] = None
     room_type: Optional[str]
+    num_rooms: Optional[int] = 1
     num_guests: int
     num_adults: Optional[int] = None
     num_children: Optional[int] = None
@@ -38,6 +41,7 @@ class BookingResponse(BaseModel):
     currency: str
     branch_name: Optional[str]
     status: str
+    special_requests: Optional[str] = None
     created_at: datetime
 
     class Config:

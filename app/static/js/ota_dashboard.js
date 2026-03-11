@@ -213,7 +213,7 @@ async function loadBookings(showLoader = true) {
     if (showLoader) {
         document.getElementById('bookingsTable').innerHTML = `
             <tr class="loading-row">
-                <td colspan="9">
+                <td colspan="8">
                     <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div>
                     Đang tải dữ liệu...
                 </td>
@@ -250,7 +250,7 @@ async function loadBookings(showLoader = true) {
         console.error('Error loading bookings:', e);
         showToast('Không thể tải danh sách đặt phòng', 'error');
         document.getElementById('bookingsTable').innerHTML = `
-            <tr class="empty-row"><td colspan="9">Lỗi tải dữ liệu. Vui lòng thử lại.</td></tr>`;
+            <tr class="empty-row"><td colspan="8">Lỗi tải dữ liệu. Vui lòng thử lại.</td></tr>`;
     }
 }
 
@@ -321,7 +321,7 @@ function renderTable() {
     const pageData = filteredBookings.slice(start, start + PAGE_SIZE);
 
     if (pageData.length === 0) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Không tìm thấy đơn đặt phòng nào.</td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Không tìm thấy đơn đặt phòng nào.</td></tr>`;
         return;
     }
 
@@ -335,6 +335,9 @@ function renderTable() {
         const statusBadge = renderStatus(b.status);
         const roomType = b.room_type || '—';
         const branchName = b.branch_name || 'Chưa map';
+        const paymentLabel = renderPaymentLabel(b.status);
+        const specialReq = b.special_requests || null;
+        const stayCell = renderStayCell(b, checkIn, checkOut, nights);
 
         return `
         <tr onclick="showBookingDetail(${b.id})" style="cursor:pointer;">
@@ -343,27 +346,34 @@ function renderTable() {
                     ${escapeHtml(b.external_id)}
                 </a>
                 <div class="order-date">${createdDate}</div>
-                <div class="order-date" style="color:#aaa;">${escapeHtml(branchName)}</div>
             </td>
             <td>
                 <div class="room-name">${escapeHtml(roomType)}</div>
+                <div class="order-date" style="color:#aaa; margin-top:2px;">${escapeHtml(branchName)}</div>
+                ${(b.num_rooms || 1) > 1
+                ? `<div style="margin-top:3px;"><span style="background:#fff3e0; color:#e8390e; font-size:11px; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #ffd8b0;">${b.num_rooms} phòng</span></div>`
+                : ''}
             </td>
             <td>
                 <div class="guest-name">${escapeHtml(b.guest_name)}</div>
                 <div class="guest-count">${numGuests > 1 ? formatGuestText(b) : (numGuests + ' người lớn')}</div>
             </td>
             <td>${statusBadge}</td>
-            <td><span class="booking-code">${escapeHtml(b.external_id)}</span></td>
-            <td><span class="booking-code">${escapeHtml(b.checkin_code || '—')}</span></td>
+            <td style="max-width:180px;">
+                ${specialReq
+                ? `<span style="font-size:12.5px; color:#374151; line-height:1.4;">${escapeHtml(specialReq)}</span>`
+                : `<span style="color:#bbb; font-size:12px;">—</span>`
+            }
+            </td>
             <td>
                 <div class="ota-source">${escapeHtml(b.booking_source || '—')}</div>
                 <div class="ota-id">ID: ${b.id}</div>
             </td>
+            <td>${stayCell}</td>
             <td>
-                <div class="stay-dates">${checkIn} - ${checkOut}</div>
-                <div class="stay-nights">${nights}</div>
+                <span class="total-price">${totalPrice}</span>
+                ${paymentLabel}
             </td>
-            <td><span class="total-price">${totalPrice}</span></td>
         </tr>`;
     }).join('');
 }
@@ -435,6 +445,13 @@ function showBookingDetail(bookingId) {
     const nights = calcNights(b.check_in, b.check_out);
     const totalPrice = b.total_price ? b.total_price.toLocaleString('vi-VN') + ' ' + (b.currency || 'VND') : '—';
 
+    const specialReqDetail = b.special_requests
+        ? `<tr><td>Yêu cầu</td><td style="color:#374151;">${escapeHtml(b.special_requests)}</td></tr>`
+        : '';
+    const checkinCodeRow = b.checkin_code
+        ? `<tr><td>Mã check-in</td><td><span style="font-family:monospace; font-weight:600; color:#1a73e8;">${escapeHtml(b.checkin_code)}</span></td></tr>`
+        : '';
+
     document.getElementById('bookingDetailContent').innerHTML = `
         <table class="table table-borderless detail-table">
             <tr><td>Mã đặt phòng</td><td><strong style="font-family:monospace">${escapeHtml(b.external_id)}</strong></td></tr>
@@ -443,13 +460,17 @@ function showBookingDetail(bookingId) {
             <tr><td>Khách hàng</td><td><strong>${escapeHtml(b.guest_name)}</strong></td></tr>
             <tr><td>Số khách</td><td>${b.num_guests || 0} người</td></tr>
             <tr><td>Loại phòng</td><td>${escapeHtml(b.room_type || '—')}</td></tr>
-            <tr><td>Check-in</td><td>${checkIn}</td></tr>
-            <tr><td>Check-out</td><td>${checkOut}</td></tr>
-            <tr><td>Số đêm</td><td>${nights}</td></tr>
+            ${(b.num_rooms || 1) > 1 ? `<tr><td>Số phòng</td><td><strong style="color:#e8390e;">${b.num_rooms} phòng</strong></td></tr>` : ''}
+            <tr><td>Check-in</td><td>${checkIn}${b.check_in_time ? ' <span style="color:#6366f1; font-weight:600;">' + escapeHtml(b.check_in_time) + '</span>' : ''}</td></tr>
+            <tr><td>Check-out</td><td>${checkOut}${b.check_out_time ? ' <span style="color:#6366f1; font-weight:600;">' + escapeHtml(b.check_out_time) + '</span>' : ''}</td></tr>
+            <tr><td>Số đêm</td><td>${calcNightsNum(b.check_in, b.check_out) === 0 ? '<span style="color:#6366f1; font-weight:600;">Thuê giờ</span>' : nights}</td></tr>
+            ${checkinCodeRow}
             <tr><td>Tổng tiền</td><td><strong style="color:#e8390e;">${totalPrice}</strong></td></tr>
             <tr><td>Trạng thái</td><td>${renderStatus(b.status)}</td></tr>
+            ${specialReqDetail}
             <tr><td>Ngày tạo</td><td>${formatDateTime(b.created_at)}</td></tr>
         </table>`;
+
 
     const modal = new bootstrap.Modal(document.getElementById('bookingDetailModal'));
     modal.show();
@@ -577,6 +598,43 @@ function formatGuestText(b) {
     const n = b.num_guests || 0;
     if (n <= 0) return '';
     return `${n} người lớn`;
+}
+
+// Render cột "Số ngày lưu trú" với hỗ trợ thuê giờ (Go2Joy)
+function renderStayCell(b, checkIn, checkOut, nights) {
+    const n = calcNightsNum(b.check_in, b.check_out);
+    const hasTime = b.check_in_time || b.check_out_time;
+
+    if (n === 0 || (n !== null && n < 1)) {
+        // Booking thuê giờ
+        const timeFrom = b.check_in_time || '?';
+        const timeTo = b.check_out_time || '?';
+        const timeRange = (b.check_in_time || b.check_out_time)
+            ? `${timeFrom} – ${timeTo}`
+            : null;
+        return `
+            <div class="stay-dates">${checkIn}</div>
+            <div class="stay-nights" style="color:#6366f1; font-weight:600;">Thuê giờ</div>
+            ${timeRange ? `<div class="stay-nights" style="color:#6366f1;">${timeRange}</div>` : ''}`;
+    }
+
+    // Booking đêm bình thường
+    return `
+        <div class="stay-dates">${checkIn} – ${checkOut}</div>
+        <div class="stay-nights">${nights}</div>
+        ${hasTime ? `<div class="stay-nights" style="color:#888;">${b.check_in_time || ''} – ${b.check_out_time || ''}</div>` : ''}`;
+}
+
+function renderPaymentLabel(status) {
+    const s = (status || '').toUpperCase();
+    if (s === 'SUCCESS' || s === 'CONFIRMED' || s === 'ACTIVE') {
+        return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán</div>`;
+    } else if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
+        return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">— Đã hủy</div>`;
+    } else if (s === 'PENDING' || s === 'PROCESSING') {
+        return `<div style="font-size:11px; color:#f59e0b; margin-top:3px; font-weight:500;">⏳ Chưa xác nhận</div>`;
+    }
+    return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">Chưa rõ</div>`;
 }
 
 function renderStatus(status) {

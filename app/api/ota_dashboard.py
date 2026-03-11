@@ -110,6 +110,19 @@ def get_ota_stats(
     )
 
 
+def _extract_special_requests(raw_data: dict) -> Optional[str]:
+    """Trích yêu cầu đặc biệt của khách từ raw_data JSON (Gemini đã parse)."""
+    if not raw_data or not isinstance(raw_data, dict):
+        return None
+    # Thử các key phổ biến từ các OTA khác nhau
+    for key in ('special_requests', 'special_request', 'guest_requests',
+                'guest_notes', 'notes', 'remarks', 'requests'):
+        val = raw_data.get(key)
+        if val and str(val).strip() and str(val).strip().lower() not in ('none', 'null', '-', 'n/a', ''):
+            return str(val).strip()
+    return None
+
+
 @router.get("/bookings", response_model=List[BookingResponse])
 def get_bookings(
     limit: int = Query(200, le=500),
@@ -153,8 +166,11 @@ def get_bookings(
             guest_phone=booking.guest_phone,
             checkin_code=booking.checkin_code,
             check_in=str(booking.check_in) if booking.check_in else None,
+            check_in_time=(booking.raw_data or {}).get('check_in_time') or None,
             check_out=str(booking.check_out) if booking.check_out else None,
+            check_out_time=(booking.raw_data or {}).get('check_out_time') or None,
             room_type=booking.room_type,
+            num_rooms=int((booking.raw_data or {}).get('num_rooms') or 1),
             num_guests=booking.num_guests,
             num_adults=booking.num_adults,
             num_children=booking.num_children,
@@ -162,6 +178,7 @@ def get_bookings(
             currency=booking.currency,
             branch_name=branch_name,
             status=booking.status.value if hasattr(booking.status, 'value') else str(booking.status),
+            special_requests=_extract_special_requests(booking.raw_data),
             created_at=booking.created_at
         )
         for booking, branch_name in results

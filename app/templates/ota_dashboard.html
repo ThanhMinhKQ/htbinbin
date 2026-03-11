@@ -690,6 +690,7 @@
                 <option value="Airbnb">Airbnb</option>
                 <option value="Trip.com">Trip.com</option>
                 <option value="Traveloka">Traveloka</option>
+                <option value="Mytour">Mytour</option>
             </select>
         </div>
 
@@ -737,8 +738,7 @@
                         <th>Phòng</th>
                         <th>Khách hàng</th>
                         <th>Trạng thái</th>
-                        <th>Mã đặt phòng</th>
-                        <th>Mã check-in</th>
+                        <th>Yêu cầu</th>
                         <th>OTA</th>
                         <th>Số ngày lưu trú</th>
                         <th>Tổng tiền</th>
@@ -746,7 +746,7 @@
                 </thead>
                 <tbody id="bookingsTable">
                     <tr class="loading-row">
-                        <td colspan="9">
+                        <td colspan="8">
                             <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div>
                             Đang tải dữ liệu...
                         </td>
@@ -805,5 +805,5 @@
     };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/static/js/ota_dashboard.js"></script>
+<script src="/static/js/ota_dashboard.js?v=6"></script>
 {% endblock %}
