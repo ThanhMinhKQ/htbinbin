@@ -111,7 +111,7 @@ class OTAExtractor:
         Required JSON Structure:
         {{
             "action_type": "NEW" | "MODIFY" | "CANCEL",
-            "booking_source": "Booking.com" | "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Mytour" | "Website" | "Other",
+            "booking_source": "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Mytour" | "Website" | "Other",
             "external_id": "string",      // Booking ID / Confirmation Number from OTA (e.g. "4266983", "BDC-1234567", "#1987")
             "checkin_code": "string",     // PIN code or access code for room check-in (if available, else null). NOT the booking ID.
             "guest_name": "string",       // Full name of the primary guest
@@ -147,7 +147,6 @@ class OTAExtractor:
            - Other OTAs: use the main booking total shown in the confirmation.
         6. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
         7. For booking_source, infer from sender email domain or email branding:
-           - @booking.com / guest.booking.com → "Booking.com"
            - @agoda.com → "Agoda"
            - @go2joy.vn → "Go2Joy"
            - @trip.com / @ctrip.com → "Trip.com"
