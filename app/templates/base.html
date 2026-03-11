@@ -590,13 +590,17 @@
     </script>
 
 
-    <!-- OTA Badge Script: đọc localStorage và cập nhật badge trên mọi trang -->
+    <!-- Global OTA Notifier: ch\u1ea1y tr\u00ean m\u1ecdi trang, poll 60s \u0111\u1ec3 detect booking m\u1edbi -->
     <script>
         (function () {
             const badge = document.getElementById('ota-nav-badge');
-            if (!badge) return;
+            const isOtaPage = window.location.pathname.includes('/api/ota/dashboard');
+            let globalLastCount = null;
+            let globalAudio = null;
 
+            // -- Badge UI --
             function refreshBadge() {
+                if (!badge) return;
                 const count = parseInt(localStorage.getItem('otaNewCount') || '0', 10);
                 if (count > 0) {
                     badge.textContent = count > 99 ? '99+' : count;
@@ -606,11 +610,70 @@
                 }
             }
 
-            refreshBadge(); // load ngay khi trang mở
+            // -- \u00c2m thanh (d\u00f9ng tr\u00ean m\u1ecdi trang) --
+            function playGlobalSound() {
+                try {
+                    if (!globalAudio) globalAudio = new Audio('/static/sounds/Add.mp3');
+                    globalAudio.currentTime = 0;
+                    globalAudio.play().catch(() => { });
+                } catch (e) { }
+            }
 
-            // Lắng nghe khi tab khác thay đổi localStorage
+            // -- Title tab --
+            function updateTitle(count) {
+                const base = document.title.replace(/^\(\d+\)\s*/, '');
+                document.title = count > 0 ? `(${count}) ${base}` : base;
+            }
+
+            // -- Poll nh\u1eb9 (ch\u1ec9 ch\u1ea1y khi KHÔNG \u1edf trang OTA, v\u00ec trang OTA t\u1ef1 lo) --
+            async function globalCheckOTA() {
+                if (isOtaPage) return;              // OTA t\u1ef1 poll 15s, kh\u1ecfi tr\u00f9ng
+                if (document.hidden) return;        // ti\u1ebft ki\u1ec7m t\u00e0i nguy\u00ean khi tab \u1ea9n
+
+                try {
+                    const res = await fetch('/api/ota/stats', { credentials: 'same-origin' });
+                    if (!res.ok) return;
+                    const d = await res.json();
+                    const newTotal = d.total_bookings ?? 0;
+
+                    if (globalLastCount === null) {
+                        globalLastCount = newTotal;
+                        return;
+                    }
+
+                    if (newTotal > globalLastCount) {
+                        const delta = newTotal - globalLastCount;
+                        globalLastCount = newTotal;
+
+                        // C\u1eadp nh\u1eadt localStorage \u0111\u1ec3 badge l\u01b0u tr\u1ea1ng th\u00e1i
+                        const prev = parseInt(localStorage.getItem('otaNewCount') || '0', 10);
+                        const newCount = prev + delta;
+                        localStorage.setItem('otaNewCount', newCount);
+
+                        refreshBadge();
+                        updateTitle(parseInt(localStorage.getItem('otaNewCount') || '0', 10));
+                        playGlobalSound();
+                    }
+                } catch (e) { }
+            }
+
+            // Kh\u1edfi \u0111\u1ed9ng
+            refreshBadge();
+            if (!isOtaPage) {
+                setInterval(globalCheckOTA, 60000); // 60s \u0111\u1ec3 nh\u1eb9 h\u01a1n 15s c\u1ee7a OTA page
+            }
+
+            // L\u1ea5y badge real-time khi OTA Dashboard (\u1edf tab kh\u00e1c) ghi localStorage
             window.addEventListener('storage', function (e) {
-                if (e.key === 'otaNewCount') refreshBadge();
+                if (e.key === 'otaNewCount') {
+                    refreshBadge();
+                    const count = parseInt(e.newValue || '0', 10);
+                    updateTitle(count);
+                    // Ph\u00e1t \u00e2m thanh khi nh\u1eadn \u0111\u01b0\u1ee3c t\u00edn hi\u1ec7u t\u1eeb tab OTA
+                    if (count > parseInt(e.oldValue || '0', 10)) {
+                        playGlobalSound();
+                    }
+                }
             });
         })();
     </script>
