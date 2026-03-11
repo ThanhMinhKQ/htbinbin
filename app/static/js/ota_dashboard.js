@@ -12,6 +12,22 @@ let searchTimer = null;
 let autoRefreshInterval = null;
 let lastKnownCount = null;  // số booking lần poll trước
 let newBookingCount = 0;    // số booking mới chưa xem
+let _soundUnlocked = false; // Web Audio đã được unlock bởi user gesture
+
+// ── Sound ──────────────────────────────────────────────────────────────
+const _soundCache = {};
+function playSound(filename) {
+    try {
+        if (!_soundCache[filename]) {
+            _soundCache[filename] = new Audio(`/static/sounds/${filename}`);
+        }
+        const audio = _soundCache[filename];
+        audio.currentTime = 0;
+        audio.play().catch(() => { });
+    } catch (e) { }
+}
+// Unlock âm thanh sau lần đầu user click vào trang
+document.addEventListener('click', () => { _soundUnlocked = true; }, { once: true });
 
 // ── Init ───────────────────────────────────────────────────────────────────
 window.onload = () => {
@@ -64,6 +80,9 @@ async function checkForNewBookings() {
             const delta = newTotal - lastKnownCount;
             newBookingCount += delta;
             lastKnownCount = newTotal;
+
+            // Phát âm thanh thông báo đặt phòng mới
+            playSound('Add.mp3');
 
             // Hiện notification banner
             showNewBookingBanner(delta);
