@@ -204,6 +204,8 @@ def update_booking(
     if user_role not in ADMIN_ROLES:
         raise HTTPException(status_code=403, detail="Chỉ admin mới có thể chỉnh sửa phiếu đặt phòng.")
 
+    from datetime import datetime, date
+
     # Lấy booking
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
@@ -229,17 +231,14 @@ def update_booking(
     if payload.checkin_code is not None:
         booking.checkin_code = payload.checkin_code
     if payload.check_in is not None:
-        from datetime import date
         booking.check_in = date.fromisoformat(payload.check_in)
     if payload.check_out is not None:
-        from datetime import date
         booking.check_out = date.fromisoformat(payload.check_out)
     if payload.status is not None:
         try:
             new_status = BookingStatus[payload.status.upper()]
             # Nếu set trạng thái NO_SHOW, validate xem đã đến ngày/giờ check-out chưa
             if new_status == BookingStatus.NO_SHOW:
-                from datetime import datetime
                 # Xác định thời điểm check-out (ưu tiên check_out_time, nếu không mặc định là 12:00 của ngày check_out)
                 co_date = payload.check_out if payload.check_out is not None else booking.check_out
                 # Do booking.check_out là date, ta cần get datetime
@@ -256,7 +255,6 @@ def update_booking(
                     
                     # Convert co_date (date object or string iso) sang datetime
                     if isinstance(co_date, str):
-                        from datetime import date
                         co_date_obj = date.fromisoformat(co_date)
                     else:
                         co_date_obj = co_date

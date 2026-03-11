@@ -126,7 +126,7 @@ class OTAExtractor:
             "num_guests": integer,        // Total number of guests (adults + children)
             "num_adults": integer,        // Number of adults only
             "num_children": integer,      // Number of children (0 if not mentioned)
-            "total_price": number,        // Total amount as raw number without currency symbol or commas
+            "total_price": number,        // Total amount as raw number without currency symbol or commas. For Go2Joy, carefully look for "Tiền phòng", "Tổng cộng" or "Tổng tiền thanh toán".
             "currency": "string",         // VND, USD, EUR...
             "is_prepaid": boolean,        // true = paid online already; false = pay at hotel
             "payment_method": "string",   // e.g. "Visa ending 1234", "Cash", "Bank Transfer", null if unknown
