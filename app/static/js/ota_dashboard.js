@@ -436,45 +436,101 @@ function goPage(page) {
 }
 
 // ── Booking Detail Modal ───────────────────────────────────────────────────
+let _currentBookingId = null;
+
+function copyBookingId() {
+    const id = document.getElementById('bm-booking-id')?.textContent?.trim();
+    if (!id || id === '—') return;
+    navigator.clipboard.writeText(id).then(() => {
+        const btn = document.getElementById('bm-copy-btn');
+        if (btn) {
+            btn.innerHTML = '<i class="bi bi-check2" style="font-size:13px;"></i> Đã sao chép';
+            btn.style.background = 'rgba(34,197,94,0.35)';
+            setTimeout(() => {
+                btn.innerHTML = '<i class="bi bi-clipboard" style="font-size:13px;"></i> Sao chép';
+                btn.style.background = 'rgba(255,255,255,0.2)';
+            }, 1800);
+        }
+        showToast('Đã sao chép mã đặt phòng!', 'success');
+    });
+}
+
+function infoCard(icon, label, value, accent) {
+    if (!value && value !== 0) return '';
+    const color = accent || '#374151';
+    return `
+    <div style="background:#f8faff; border:1px solid #e8edf5; border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:3px;">
+        <div style="font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:.6px; font-weight:600;">
+            <i class="bi bi-${icon}" style="margin-right:4px;"></i>${label}
+        </div>
+        <div style="font-size:14px; font-weight:600; color:${color}; line-height:1.4;">${value}</div>
+    </div>`;
+}
+
 function showBookingDetail(bookingId) {
     const b = allBookings.find(x => x.id === bookingId);
     if (!b) return;
+    _currentBookingId = b.external_id;
 
+    // ── Cập nhật header modal ──
+    document.getElementById('bm-guest-name').textContent = b.guest_name || '—';
+    document.getElementById('bm-booking-id').textContent = b.external_id || '—';
+    document.getElementById('bm-ota-badge').textContent = b.booking_source || '—';
+
+    // ── Tính toán dữ liệu ──
     const checkIn = b.check_in ? formatDate(b.check_in) : '—';
     const checkOut = b.check_out ? formatDate(b.check_out) : '—';
     const nights = calcNights(b.check_in, b.check_out);
+    const nightsNum = calcNightsNum(b.check_in, b.check_out);
     const totalPrice = b.total_price ? b.total_price.toLocaleString('vi-VN') + ' ' + (b.currency || 'VND') : '—';
 
-    const specialReqDetail = b.special_requests
-        ? `<tr><td>Yêu cầu</td><td style="color:#374151;">${escapeHtml(b.special_requests)}</td></tr>`
-        : '';
-    const checkinCodeRow = b.checkin_code
-        ? `<tr><td>Mã check-in</td><td><span style="font-family:monospace; font-weight:600; color:#1a73e8;">${escapeHtml(b.checkin_code)}</span></td></tr>`
-        : '';
+    const checkinTimeStr = b.check_in_time ? ` <span style="color:#6366f1">${escapeHtml(b.check_in_time)}</span>` : '';
+    const checkoutTimeStr = b.check_out_time ? ` <span style="color:#6366f1">${escapeHtml(b.check_out_time)}</span>` : '';
+    const nightsDisplay = nightsNum === 0
+        ? `<span style="color:#6366f1">Thuê giờ ${b.check_in_time && b.check_out_time ? '(' + b.check_in_time + ' – ' + b.check_out_time + ')' : ''}</span>`
+        : nights;
 
+    const guestStr = (() => {
+        const parts = [];
+        if (b.num_adults) parts.push(b.num_adults + ' người lớn');
+        if (b.num_children) parts.push(b.num_children + ' trẻ em');
+        return parts.length ? parts.join(', ') : (b.num_guests || 0) + ' người';
+    })();
+
+    const roomStr = b.room_type
+        ? (b.room_type + ((b.num_rooms || 1) > 1 ? ` × ${b.num_rooms} phòng` : ''))
+        : '—';
+
+    // ── Render body dạng grid card ──
     document.getElementById('bookingDetailContent').innerHTML = `
-        <table class="table table-borderless detail-table">
-            <tr><td>Mã đặt phòng</td><td><strong style="font-family:monospace">${escapeHtml(b.external_id)}</strong></td></tr>
-            <tr><td>Nguồn OTA</td><td><strong>${escapeHtml(b.booking_source || '—')}</strong></td></tr>
-            <tr><td>Chi nhánh</td><td>${escapeHtml(b.branch_name || 'Chưa map')}</td></tr>
-            <tr><td>Khách hàng</td><td><strong>${escapeHtml(b.guest_name)}</strong></td></tr>
-            <tr><td>Số khách</td><td>${b.num_guests || 0} người</td></tr>
-            <tr><td>Loại phòng</td><td>${escapeHtml(b.room_type || '—')}</td></tr>
-            ${(b.num_rooms || 1) > 1 ? `<tr><td>Số phòng</td><td><strong style="color:#e8390e;">${b.num_rooms} phòng</strong></td></tr>` : ''}
-            <tr><td>Check-in</td><td>${checkIn}${b.check_in_time ? ' <span style="color:#6366f1; font-weight:600;">' + escapeHtml(b.check_in_time) + '</span>' : ''}</td></tr>
-            <tr><td>Check-out</td><td>${checkOut}${b.check_out_time ? ' <span style="color:#6366f1; font-weight:600;">' + escapeHtml(b.check_out_time) + '</span>' : ''}</td></tr>
-            <tr><td>Số đêm</td><td>${calcNightsNum(b.check_in, b.check_out) === 0 ? '<span style="color:#6366f1; font-weight:600;">Thuê giờ</span>' : nights}</td></tr>
-            ${checkinCodeRow}
-            <tr><td>Tổng tiền</td><td><strong style="color:#e8390e;">${totalPrice}</strong></td></tr>
-            <tr><td>Trạng thái</td><td>${renderStatus(b.status)}</td></tr>
-            ${specialReqDetail}
-            <tr><td>Ngày tạo</td><td>${formatDateTime(b.created_at)}</td></tr>
-        </table>`;
-
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            ${infoCard('building', 'Chi nhánh', escapeHtml(b.branch_name || 'Chưa map'))}
+            ${infoCard('door-open', 'Loại phòng', escapeHtml(roomStr))}
+            ${infoCard('box-arrow-in-right', 'Check-in', checkIn + checkinTimeStr)}
+            ${infoCard('box-arrow-right', 'Check-out', checkOut + checkoutTimeStr)}
+            ${infoCard('moon', 'Lưu trú', nightsDisplay)}
+            ${infoCard('people', 'Số khách', guestStr)}
+            ${infoCard('cash-stack', 'Tổng tiền', totalPrice, '#e8390e')}
+            ${infoCard('patch-check', 'Trạng thái', renderStatus(b.status))}
+            ${b.checkin_code ? infoCard('key', 'Mã check-in', `<span style="font-family:monospace; color:#1a73e8;">${escapeHtml(b.checkin_code)}</span>`) : ''}
+            ${b.guest_phone ? infoCard('telephone', 'Điện thoại', escapeHtml(b.guest_phone)) : ''}
+        </div>
+        ${b.special_requests ? `
+        <div style="margin-top:12px; background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 14px;">
+            <div style="font-size:11px; color:#92400e; text-transform:uppercase; letter-spacing:.6px; font-weight:600; margin-bottom:6px;">
+                <i class="bi bi-chat-left-text me-1"></i>Yêu cầu của khách
+            </div>
+            <div style="font-size:13.5px; color:#78350f; line-height:1.5;">${escapeHtml(b.special_requests)}</div>
+        </div>` : ''}
+        <div style="margin-top:10px; font-size:11.5px; color:#94a3b8; text-align:right;">
+            <i class="bi bi-clock me-1"></i>Ngày tạo: ${formatDateTime(b.created_at)}
+        </div>`;
 
     const modal = new bootstrap.Modal(document.getElementById('bookingDetailModal'));
     modal.show();
 }
+
+
 
 // ── Export Excel ───────────────────────────────────────────────────────────
 function exportExcel(event) {
