@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, Request, HTTPException, Backgroun
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case, or_
+from sqlalchemy import func, case, or_, and_
 from app.db.session import get_db
 from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatus, Branch
 from app.services.ota_agent.ota_service import ota_dashboard_service
@@ -83,9 +83,12 @@ def get_ota_stats(
     # Đã huỷ
     cancelled_count = booking_q.filter(Booking.status == BookingStatus.CANCELLED).count()
 
-    # Doanh thu ước tính (tổng total_price của các booking CONFIRMED)
+    # Doanh thu ước tính (tổng total_price của CONFIRMED + NO_SHOW đã thanh toán)
     revenue_row = booking_q.filter(
-        Booking.status == BookingStatus.CONFIRMED
+        or_(
+            Booking.status == BookingStatus.CONFIRMED,
+            and_(Booking.status == BookingStatus.NO_SHOW, Booking.is_prepaid == True)
+        )
     ).with_entities(func.coalesce(func.sum(Booking.total_price), 0)).scalar()
     total_revenue = float(revenue_row or 0)
 
@@ -179,7 +182,8 @@ def get_bookings(
             branch_name=branch_name,
             status=booking.status.value if hasattr(booking.status, 'value') else str(booking.status),
             special_requests=_extract_special_requests(booking.raw_data),
-            created_at=booking.created_at
+            created_at=booking.created_at,
+            is_prepaid=booking.is_prepaid
         )
         for booking, branch_name in results
     ]
@@ -232,9 +236,40 @@ def update_booking(
         booking.check_out = date.fromisoformat(payload.check_out)
     if payload.status is not None:
         try:
-            booking.status = BookingStatus[payload.status.upper()]
+            new_status = BookingStatus[payload.status.upper()]
+            # Nếu set trạng thái NO_SHOW, validate xem đã đến ngày/giờ check-out chưa
+            if new_status == BookingStatus.NO_SHOW:
+                from datetime import datetime
+                # Xác định thời điểm check-out (ưu tiên check_out_time, nếu không mặc định là 12:00 của ngày check_out)
+                co_date = payload.check_out if payload.check_out is not None else booking.check_out
+                # Do booking.check_out là date, ta cần get datetime
+                if co_date:
+                    co_time_str = payload.check_out_time if payload.check_out_time is not None else (booking.raw_data or {}).get('check_out_time')
+                    if co_time_str:
+                        try:
+                            # Cố gắng parse giờ check-out (VD: "12:00", "14:30")
+                            hr, mn = map(int, co_time_str.replace('h', ':').split(':')[:2])
+                        except Exception:
+                            hr, mn = 12, 0
+                    else:
+                        hr, mn = 12, 0
+                    
+                    # Convert co_date (date object or string iso) sang datetime
+                    if isinstance(co_date, str):
+                        from datetime import date
+                        co_date_obj = date.fromisoformat(co_date)
+                    else:
+                        co_date_obj = co_date
+                        
+                    co_datetime = datetime.combine(co_date_obj, datetime.min.time()).replace(hour=hr, minute=mn)
+                    if datetime.now() < co_datetime:
+                        raise HTTPException(status_code=400, detail="Chỉ có thể đổi thành No-show khi đã đến/qua thời gian check-out của đơn phòng này.")
+
+            booking.status = new_status
         except KeyError:
             raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {payload.status}")
+    if payload.is_prepaid is not None:
+        booking.is_prepaid = payload.is_prepaid
 
     # Cập nhật raw_data cho các trường lưu trong JSON
     raw = dict(booking.raw_data or {})
@@ -277,7 +312,8 @@ def update_booking(
         branch_name=branch_name,
         status=booking.status.value if hasattr(booking.status, 'value') else str(booking.status),
         special_requests=_extract_special_requests(booking.raw_data),
-        created_at=booking.created_at
+        created_at=booking.created_at,
+        is_prepaid=booking.is_prepaid
     )
 
 

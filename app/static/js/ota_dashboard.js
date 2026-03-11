@@ -374,7 +374,7 @@ function renderTable() {
         const statusBadge = renderStatus(b.status);
         const roomType = b.room_type || '—';
         const branchName = b.branch_name || 'Chưa map';
-        const paymentLabel = renderPaymentLabel(b.status);
+        const paymentLabel = renderPaymentLabel(b);
         const specialReq = b.special_requests || null;
         const stayCell = renderStayCell(b, checkIn, checkOut, nights);
 
@@ -597,7 +597,7 @@ function openEditModal() {
     document.getElementById('em-check-out').value = booking.check_out || '';
     document.getElementById('em-check-in-time').value = booking.check_in_time || '';
     document.getElementById('em-check-out-time').value = booking.check_out_time || '';
-    document.getElementById('em-total-price').value = booking.total_price || 0;
+    document.getElementById('em-total-price').value = booking.total_price ? booking.total_price.toLocaleString('vi-VN') : '';
     document.getElementById('em-currency').value = booking.currency || 'VND';
     document.getElementById('em-status').value = (booking.status || 'CONFIRMED').toUpperCase();
     document.getElementById('em-checkin-code').value = booking.checkin_code || '';
@@ -618,6 +618,13 @@ async function saveBookingEdit() {
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
 
+    const statusValue = document.getElementById('em-status').value || null;
+    // Sẽ không gửi is_prepaid lên nữa để backend tự giữ nguyên giá trị cũ,
+    // hoặc giữ y nguyên từ biến booking hiện tại đang parse.
+    const eid = document.getElementById('bm-booking-id')?.textContent?.trim();
+    const currBooking = allBookings.find(x => x.external_id === eid);
+    let is_prepaid_val = currBooking ? currBooking.is_prepaid : null;
+
     const payload = {
         guest_name: document.getElementById('em-guest-name').value.trim() || null,
         guest_phone: document.getElementById('em-guest-phone').value.trim() || null,
@@ -627,11 +634,12 @@ async function saveBookingEdit() {
         check_out: document.getElementById('em-check-out').value || null,
         check_in_time: document.getElementById('em-check-in-time').value || null,
         check_out_time: document.getElementById('em-check-out-time').value || null,
-        total_price: parseFloat(document.getElementById('em-total-price').value) || null,
+        total_price: parseFloat(document.getElementById('em-total-price').value.replace(/\./g, '').replace(/,/g, '')) || null,
         currency: document.getElementById('em-currency').value || null,
-        status: document.getElementById('em-status').value || null,
+        status: statusValue,
         checkin_code: document.getElementById('em-checkin-code').value.trim() || null,
         special_requests: document.getElementById('em-special-requests').value.trim() || null,
+        is_prepaid: is_prepaid_val,
     };
 
     try {
@@ -652,8 +660,11 @@ async function saveBookingEdit() {
         const idx = allBookings.findIndex(x => x.id === updated.id);
         if (idx !== -1) allBookings[idx] = updated;
 
-        // Áp dụng lại filter
+        // Áp dụng lại filter (cập nhật bảng)
         applyFilters();
+
+        // Tải lại các stats card (để cập nhật lại doanh thu tức thời)
+        loadStats();
 
         bootstrap.Modal.getInstance(document.getElementById('bookingEditModal'))?.hide();
         showToast('✅ Đã cập nhật phiếu đặt phòng thành công!', 'success');
@@ -665,7 +676,16 @@ async function saveBookingEdit() {
     }
 }
 
-
+// Format input giá tiền
+document.addEventListener('DOMContentLoaded', () => {
+    const priceInput = document.getElementById('em-total-price');
+    if (priceInput) {
+        priceInput.addEventListener('input', function () {
+            let val = this.value.replace(/\D/g, ''); // chỉ lấy số
+            this.value = val ? parseInt(val, 10).toLocaleString('vi-VN') : '';
+        });
+    }
+});
 
 function exportExcel(event) {
     event.preventDefault();
@@ -813,14 +833,20 @@ function renderStayCell(b, checkIn, checkOut, nights) {
         <div class="stay-nights">${nights}</div>`;
 }
 
-function renderPaymentLabel(status) {
-    const s = (status || '').toUpperCase();
+function renderPaymentLabel(booking) {
+    const s = (booking.status || '').toUpperCase();
     if (s === 'SUCCESS' || s === 'CONFIRMED' || s === 'ACTIVE') {
         return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán</div>`;
     } else if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
         return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">— Đã hủy</div>`;
     } else if (s === 'PENDING' || s === 'PROCESSING') {
         return `<div style="font-size:11px; color:#f59e0b; margin-top:3px; font-weight:500;">⏳ Chưa xác nhận</div>`;
+    } else if (s === 'NO_SHOW') {
+        if (booking.is_prepaid) {
+            return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán</div>`;
+        } else {
+            return `<div style="font-size:11px; color:#ef4444; margin-top:3px; font-weight:500;">✘ Chưa thanh toán</div>`;
+        }
     }
     return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">Chưa rõ</div>`;
 }
