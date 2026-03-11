@@ -8,9 +8,11 @@ from typing import Optional, List, Dict
 # Dùng khi fuzzy match không nhận ra được (tên thương hiệu khác hẳn tên hệ thống)
 HOTEL_ALIASES: Dict[str, str] = {
     # Go2Joy thường dùng tên thương hiệu riêng
+    # Mappings cho chi nhánh Bin Bin Hotel 10 (Mimosa)
     "bin bin mimosa":       "Bin Bin Hotel 10",
     "mimosa":               "Bin Bin Hotel 10",
     "binbin mimosa":        "Bin Bin Hotel 10",
+    "bin bin mimosa hotel - near tan son nhat airport": "Bin Bin Hotel 10",
 }
 
 class HotelMapper:
