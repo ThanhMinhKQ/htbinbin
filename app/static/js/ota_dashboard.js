@@ -384,34 +384,35 @@ function renderTable() {
                 <a class="order-id" href="javascript:void(0)" onclick="event.stopPropagation();showBookingDetail(${b.id})">
                     ${escapeHtml(b.external_id)}
                 </a>
-                <div class="order-date">${createdDate}</div>
+                <div class="order-date" style="margin-top:4px;">${createdDate}</div>
             </td>
             <td>
-                <div class="room-name">${escapeHtml(roomType)}</div>
-                <div class="order-date" style="color:#aaa; margin-top:2px;">${escapeHtml(branchName)}</div>
-                ${(b.num_rooms || 1) > 1
-                ? `<div style="margin-top:3px;"><span style="background:#fff3e0; color:#e8390e; font-size:11px; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #ffd8b0;">${b.num_rooms} phòng</span></div>`
-                : ''}
+                <div class="ota-source">${escapeHtml(b.booking_source || '—')}</div>
+                <div class="ota-id" style="margin-top:2px; font-size:11px; color:#94a3b8;">ID: ${b.id}</div>
             </td>
             <td>
                 <div class="guest-name">${escapeHtml(b.guest_name)}</div>
                 <div class="guest-count">${numGuests > 1 ? formatGuestText(b) : (numGuests + ' người lớn')}</div>
-            </td>
-            <td>${statusBadge}</td>
-            <td style="max-width:180px;">
-                ${specialReq
-                ? `<span style="font-size:12.5px; color:#374151; line-height:1.4;">${escapeHtml(specialReq)}</span>`
-                : `<span style="color:#bbb; font-size:12px;">—</span>`
-            }
+                ${b.guest_phone ? `<div style="font-size:11.5px; color:#64748b; margin-top:4px;"><i class="bi bi-telephone"></i> ${escapeHtml(b.guest_phone)}</div>` : ''}
             </td>
             <td>
-                <div class="ota-source">${escapeHtml(b.booking_source || '—')}</div>
-                <div class="ota-id">ID: ${b.id}</div>
+                <div class="order-date" style="color:#64748b; font-weight:600; margin-bottom:4px;">${escapeHtml(branchName)}</div>
+                <div class="room-name">${escapeHtml(roomType)}</div>
+                ${(b.num_rooms || 1) > 1
+                ? `<div style="margin-top:5px;"><span style="background:#fff3e0; color:#e8390e; font-size:11px; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #ffd8b0;">${b.num_rooms} phòng</span></div>`
+                : ''}
             </td>
             <td>${stayCell}</td>
+            <td>${statusBadge}</td>
             <td>
                 <span class="total-price">${totalPrice}</span>
-                ${paymentLabel}
+                <div style="margin-top:4px;">${paymentLabel}</div>
+            </td>
+            <td style="max-width:200px; padding-right:12px;">
+                ${specialReq
+                ? `<div style="font-size:12.5px; color:#374151; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;" title="${escapeHtml(specialReq)}">${escapeHtml(specialReq)}</div>`
+                : `<span style="color:#bbb; font-size:12px;">—</span>`
+            }
             </td>
         </tr>`;
     }).join('');
@@ -691,22 +692,25 @@ function exportExcel(event) {
     event.preventDefault();
 
     // Export filteredBookings as CSV (Excel-compatible)
-    const headers = ['Mã đơn', 'Phòng', 'Khách hàng', 'Số khách', 'Trạng thái',
-        'OTA', 'Chi nhánh', 'Check-in', 'Check-out', 'Số đêm', 'Tổng tiền', 'Ngày tạo'];
+    const headers = ['Nguồn OTA', 'Mã đơn', 'Ngày tạo', 'Khách hàng', 'Số khách', 'SĐT', 'Chi nhánh', 'Loại phòng', 'Số lượng phòng', 'Check-in', 'Check-out', 'Số đêm', 'Trạng thái', 'Tổng tiền', 'Tình trạng thanh toán', 'Yêu cầu đặc biệt'];
 
     const rows = filteredBookings.map(b => [
-        b.external_id,
-        b.room_type || '',
-        b.guest_name,
-        b.num_guests,
-        b.status,
-        b.booking_source,
+        b.booking_source || '',
+        b.external_id || '',
+        b.created_at ? new Date(b.created_at).toLocaleString('vi-VN') : '',
+        b.guest_name || '',
+        b.num_guests || '',
+        b.guest_phone || '',
         b.branch_name || '',
+        b.room_type || '',
+        b.num_rooms || 1,
         b.check_in || '',
         b.check_out || '',
         calcNightsNum(b.check_in, b.check_out),
+        b.status || '',
         b.total_price ? (b.total_price + ' ' + (b.currency || 'VND')) : '',
-        b.created_at ? new Date(b.created_at).toLocaleString('vi-VN') : ''
+        b.is_prepaid ? 'Đã thanh toán (OTA)' : (b.is_prepaid === false ? 'Khách trả h/sạn' : 'Chưa rõ'),
+        b.special_requests || ''
     ]);
 
     const csvContent = '\uFEFF' + [headers, ...rows]

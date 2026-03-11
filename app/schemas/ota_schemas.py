@@ -43,6 +43,7 @@ class BookingResponse(BaseModel):
     status: str
     special_requests: Optional[str] = None
     created_at: datetime
+    is_prepaid: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -66,6 +67,7 @@ class BookingUpdateRequest(BaseModel):
     status: Optional[str] = None
     checkin_code: Optional[str] = None
     special_requests: Optional[str] = None
+    is_prepaid: Optional[bool] = None
 
 class LogResponse(BaseModel):
     id: int
