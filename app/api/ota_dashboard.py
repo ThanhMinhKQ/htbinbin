@@ -13,7 +13,7 @@ from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatu
 from app.services.ota_agent.ota_service import ota_dashboard_service
 from app.services.ota_agent.gmail_service import gmail_service
 from app.schemas.ota_schemas import (
-    OTAStats, BookingResponse, LogResponse, OTADistribution,
+    OTAStats, BookingResponse, BookingUpdateRequest, LogResponse, OTADistribution,
     FailedEmailResponse, EmailDetailResponse, TimelineStats, HealthStatus
 )
 from typing import List, Optional, Any, Dict
@@ -183,6 +183,102 @@ def get_bookings(
         )
         for booking, branch_name in results
     ]
+
+
+@router.put("/bookings/{booking_id}", response_model=BookingResponse)
+def update_booking(
+    booking_id: int,
+    payload: BookingUpdateRequest,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Admin-only: Cập nhật thông tin booking bị AI trích xuất sai/thiếu."""
+    # Kiểm tra quyền admin
+    user = request.session.get("user", {})
+    user_role = (user.get("role") or "").lower()
+    ADMIN_ROLES = {"admin", "quanly", "manager", "boss"}
+    if user_role not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Chỉ admin mới có thể chỉnh sửa phiếu đặt phòng.")
+
+    # Lấy booking
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy phiếu đặt phòng #{booking_id}.")
+
+    # Cập nhật các trường trong DB
+    if payload.guest_name is not None:
+        booking.guest_name = payload.guest_name
+    if payload.guest_phone is not None:
+        booking.guest_phone = payload.guest_phone
+    if payload.room_type is not None:
+        booking.room_type = payload.room_type
+    if payload.num_guests is not None:
+        booking.num_guests = payload.num_guests
+    if payload.num_adults is not None:
+        booking.num_adults = payload.num_adults
+    if payload.num_children is not None:
+        booking.num_children = payload.num_children
+    if payload.total_price is not None:
+        booking.total_price = payload.total_price
+    if payload.currency is not None:
+        booking.currency = payload.currency
+    if payload.checkin_code is not None:
+        booking.checkin_code = payload.checkin_code
+    if payload.check_in is not None:
+        from datetime import date
+        booking.check_in = date.fromisoformat(payload.check_in)
+    if payload.check_out is not None:
+        from datetime import date
+        booking.check_out = date.fromisoformat(payload.check_out)
+    if payload.status is not None:
+        try:
+            booking.status = BookingStatus[payload.status.upper()]
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {payload.status}")
+
+    # Cập nhật raw_data cho các trường lưu trong JSON
+    raw = dict(booking.raw_data or {})
+    if payload.check_in_time is not None:
+        raw['check_in_time'] = payload.check_in_time
+    if payload.check_out_time is not None:
+        raw['check_out_time'] = payload.check_out_time
+    if payload.num_rooms is not None:
+        raw['num_rooms'] = payload.num_rooms
+    if payload.special_requests is not None:
+        raw['special_requests'] = payload.special_requests
+    booking.raw_data = raw
+    booking.updated_at = datetime.now()
+
+    db.commit()
+    db.refresh(booking)
+
+    # Lấy branch_name
+    branch = db.query(Branch).filter(Branch.id == booking.branch_id).first()
+    branch_name = branch.name if branch else None
+
+    return BookingResponse(
+        id=booking.id,
+        external_id=booking.external_id,
+        booking_source=booking.booking_source,
+        guest_name=booking.guest_name,
+        guest_phone=booking.guest_phone,
+        checkin_code=booking.checkin_code,
+        check_in=str(booking.check_in) if booking.check_in else None,
+        check_in_time=(booking.raw_data or {}).get('check_in_time') or None,
+        check_out=str(booking.check_out) if booking.check_out else None,
+        check_out_time=(booking.raw_data or {}).get('check_out_time') or None,
+        room_type=booking.room_type,
+        num_rooms=int((booking.raw_data or {}).get('num_rooms') or 1),
+        num_guests=booking.num_guests,
+        num_adults=booking.num_adults,
+        num_children=booking.num_children,
+        total_price=float(booking.total_price),
+        currency=booking.currency,
+        branch_name=branch_name,
+        status=booking.status.value if hasattr(booking.status, 'value') else str(booking.status),
+        special_requests=_extract_special_requests(booking.raw_data),
+        created_at=booking.created_at
+    )
 
 
 @router.get("/logs", response_model=List[LogResponse])

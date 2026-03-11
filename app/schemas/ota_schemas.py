@@ -48,6 +48,25 @@ class BookingResponse(BaseModel):
         from_attributes = True
 
 
+class BookingUpdateRequest(BaseModel):
+    """Schema cho admin cập nhật thông tin booking bị AI trích xuất sai/thiếu."""
+    guest_name: Optional[str] = None
+    guest_phone: Optional[str] = None
+    room_type: Optional[str] = None
+    num_rooms: Optional[int] = None
+    num_guests: Optional[int] = None
+    num_adults: Optional[int] = None
+    num_children: Optional[int] = None
+    check_in: Optional[str] = None        # YYYY-MM-DD
+    check_out: Optional[str] = None       # YYYY-MM-DD
+    check_in_time: Optional[str] = None   # HH:MM
+    check_out_time: Optional[str] = None  # HH:MM
+    total_price: Optional[float] = None
+    currency: Optional[str] = None
+    status: Optional[str] = None
+    checkin_code: Optional[str] = None
+    special_requests: Optional[str] = None
+
 class LogResponse(BaseModel):
     id: int
     email_subject: str

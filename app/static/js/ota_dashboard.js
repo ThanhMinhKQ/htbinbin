@@ -529,13 +529,105 @@ function showBookingDetail(bookingId) {
             <i class="bi bi-clock me-1"></i>Ngày tạo: ${formatDateTime(b.created_at)}
         </div>`;
 
+    // Hiện nút Chỉnh sửa nếu là admin
+    const adminActions = document.getElementById('bm-admin-actions');
+    if (adminActions) {
+        adminActions.style.display = window.OTA_CONFIG?.isAdmin ? 'block' : 'none';
+    }
+
     const modal = new bootstrap.Modal(document.getElementById('bookingDetailModal'));
     modal.show();
 }
 
+// ── Edit Booking Modal (Admin only) ────────────────────────────────────────
+function openEditModal() {
+    const b = allBookings.find(x => x.id === _currentBookingId || x.external_id === _currentBookingId);
+    // _currentBookingId có thể là external_id hoặc id sau khi sửa, lấy chắc chắn hơn từ header
+    const eid = document.getElementById('bm-booking-id')?.textContent?.trim();
+    const booking = allBookings.find(x => x.external_id === eid);
+    if (!booking) return;
+
+    // Điền sẵn dữ liệu hiện tại vào form
+    document.getElementById('em-booking-id').value = booking.id;
+    document.getElementById('em-title').textContent = `#${booking.external_id} — ${booking.guest_name}`;
+    document.getElementById('em-guest-name').value = booking.guest_name || '';
+    document.getElementById('em-guest-phone').value = booking.guest_phone || '';
+    document.getElementById('em-room-type').value = booking.room_type || '';
+    document.getElementById('em-num-rooms').value = booking.num_rooms || 1;
+    document.getElementById('em-check-in').value = booking.check_in || '';
+    document.getElementById('em-check-out').value = booking.check_out || '';
+    document.getElementById('em-check-in-time').value = booking.check_in_time || '';
+    document.getElementById('em-check-out-time').value = booking.check_out_time || '';
+    document.getElementById('em-total-price').value = booking.total_price || 0;
+    document.getElementById('em-currency').value = booking.currency || 'VND';
+    document.getElementById('em-status').value = (booking.status || 'CONFIRMED').toUpperCase();
+    document.getElementById('em-checkin-code').value = booking.checkin_code || '';
+    document.getElementById('em-special-requests').value = booking.special_requests || '';
+
+    // Đóng modal chi tiết, mở modal edit
+    bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'))?.hide();
+    setTimeout(() => {
+        new bootstrap.Modal(document.getElementById('bookingEditModal')).show();
+    }, 300);
+}
+
+async function saveBookingEdit() {
+    const bookingId = document.getElementById('em-booking-id').value;
+    if (!bookingId) return;
+
+    const btn = document.getElementById('em-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
+
+    const payload = {
+        guest_name: document.getElementById('em-guest-name').value.trim() || null,
+        guest_phone: document.getElementById('em-guest-phone').value.trim() || null,
+        room_type: document.getElementById('em-room-type').value.trim() || null,
+        num_rooms: parseInt(document.getElementById('em-num-rooms').value) || null,
+        check_in: document.getElementById('em-check-in').value || null,
+        check_out: document.getElementById('em-check-out').value || null,
+        check_in_time: document.getElementById('em-check-in-time').value || null,
+        check_out_time: document.getElementById('em-check-out-time').value || null,
+        total_price: parseFloat(document.getElementById('em-total-price').value) || null,
+        currency: document.getElementById('em-currency').value || null,
+        status: document.getElementById('em-status').value || null,
+        checkin_code: document.getElementById('em-checkin-code').value.trim() || null,
+        special_requests: document.getElementById('em-special-requests').value.trim() || null,
+    };
+
+    try {
+        const res = await fetch(`/api/ota/bookings/${bookingId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Lỗi khi lưu thay đổi');
+        }
+
+        const updated = await res.json();
+
+        // Cập nhật lại object trong allBookings
+        const idx = allBookings.findIndex(x => x.id === updated.id);
+        if (idx !== -1) allBookings[idx] = updated;
+
+        // Áp dụng lại filter
+        applyFilters();
+
+        bootstrap.Modal.getInstance(document.getElementById('bookingEditModal'))?.hide();
+        showToast('✅ Đã cập nhật phiếu đặt phòng thành công!', 'success');
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Lưu thay đổi';
+    }
+}
 
 
-// ── Export Excel ───────────────────────────────────────────────────────────
+
 function exportExcel(event) {
     event.preventDefault();
 
