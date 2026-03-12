@@ -1,25 +1,26 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, Response
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session, joinedload # Thêm joinedload
+from fastapi import APIRouter, Request, Depends, HTTPException, Response  # type: ignore
+from fastapi.responses import StreamingResponse  # type: ignore
+from sqlalchemy.orm import Session, joinedload # Thêm joinedload  # type: ignore
 import io
-import openpyxl
-from openpyxl.utils import get_column_letter
+import openpyxl  # type: ignore
+from openpyxl.utils import get_column_letter  # type: ignore
 # --- THÊM CÁC IMPORT NÀY TỪ CALENDAR.PY ---
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side  # type: ignore
 from collections import defaultdict
 import calendar
 from datetime import datetime, date, timedelta
 # ------------------------------------------
 from urllib.parse import quote
 
-from ..db.session import get_db
-from ..db.models import Task, User, AttendanceRecord, Branch, ServiceRecord
-from ..core.utils import VN_TZ, format_datetime_display
-from ..core.config import logger
+from app.db.session import get_db  # type: ignore
+from app.db.models import Task, User, AttendanceRecord, Branch, ServiceRecord  # type: ignore
+from app.core.utils import VN_TZ, format_datetime_display  # type: ignore
+from app.core.config import logger  # type: ignore
+from typing import Optional
 
 # Import các hàm query cũ (giữ nguyên)
-from .tasks import _get_filtered_tasks_query
-from .results import _get_filtered_records_query
+from app.api.tasks import _get_filtered_tasks_query  # type: ignore
+from app.api.results import _get_filtered_records_query  # type: ignore
 
 router = APIRouter()
 
@@ -40,7 +41,7 @@ def _auto_adjust_worksheet_columns(worksheet):
                     max_length = len(str(cell.value))
             except:
                 pass
-        adjusted_width = (max_length + 2)
+        adjusted_width = (max_length + 2)  # type: ignore
         worksheet.column_dimensions[column_letter].width = adjusted_width
 
 @router.get("/api/tasks/export-excel", tags=["Export"])
@@ -172,8 +173,8 @@ async def export_attendance_to_excel(request: Request, db: Session = Depends(get
 def export_attendance_calendar_excel(
     request: Request,
     db: Session = Depends(get_db),
-    month: int = None,
-    year: int = None,
+    month: Optional[int] = None,
+    year: Optional[int] = None,
 ):
     """
     Xuất Excel: 
@@ -312,17 +313,17 @@ def export_attendance_calendar_excel(
                 total_val = 0.0
 
                 for d in range(1, num_days + 1):
-                    day_data = data_source[emp_code].get(d, {})
+                    day_data = data_source[emp_code].get(d, {})  # type: ignore
                     val = day_data.get(row1_key, 0)
                     row_data.append(val if val > 0 else "")
                     total_val += val
                 
                 row_data.append(total_val if total_val > 0 else "")
-                ws.append(row_data)
+                ws.append(row_data)  # type: ignore
 
-                ws_row = ws[current_row]
+                ws_row = ws[current_row]  # type: ignore
                 for col_idx in range(1, len(headers) + 1):
-                    cell = ws_row[col_idx - 1]
+                    cell = ws_row[col_idx - 1]  # type: ignore
                     cell.border = thin_border
                     cell.alignment = center_align
                     if col_idx > 2 and col_idx <= num_days + 2:
@@ -330,7 +331,7 @@ def export_attendance_calendar_excel(
                 
                 # Căn lề trái cho tên
                 ws.cell(row=current_row, column=2).alignment = left_align
-                current_row += 1
+                current_row += 1  # type: ignore
             
             else:
                 # --- CHẾ ĐỘ 2 DÒNG (SHEET CHẤM CÔNG) ---
@@ -340,7 +341,7 @@ def export_attendance_calendar_excel(
                 total_row2 = 0.0
 
                 for d in range(1, num_days + 1):
-                    day_data = data_source[emp_code].get(d, {})
+                    day_data = data_source[emp_code].get(d, {})  # type: ignore
                     val1 = day_data.get(row1_key, 0)
                     val2 = day_data.get(row2_key, 0)
                     row1_data.append(val1 if val1 > 0 else "")
@@ -350,12 +351,12 @@ def export_attendance_calendar_excel(
                 row1_data.append(total_row1 if total_row1 > 0 else "")
                 row2_data.append(total_row2 if total_row2 > 0 else "")
 
-                ws.append(row1_data)
-                ws.append(row2_data)
+                ws.append(row1_data)  # type: ignore
+                ws.append(row2_data)  # type: ignore
 
                 # Style cơ bản
-                ws_row1 = ws[current_row]
-                ws_row2 = ws[current_row + 1]
+                ws_row1 = ws[current_row]  # type: ignore
+                ws_row2 = ws[current_row + 1]  # type: ignore
 
                 for col_idx in range(1, len(headers) + 1):
                     cell1 = ws_row1[col_idx - 1]
@@ -369,16 +370,16 @@ def export_attendance_calendar_excel(
                         cell2.fill = row2_fill
 
                 # Merge STT
-                ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row + 1, end_column=1)
-                ws.cell(row=current_row, column=1).alignment = center_align
+                ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row + 1, end_column=1)  # type: ignore
+                ws.cell(row=current_row, column=1).alignment = center_align  # type: ignore
 
                 # --- [SỬA] CĂN LỀ TRÁI CHO TÊN VÀ TĂNG CA ---
                 # Dòng 1: Tên nhân viên
-                name_cell = ws.cell(row=current_row, column=2)
+                name_cell = ws.cell(row=current_row, column=2)  # type: ignore
                 name_cell.alignment = left_align # <--- Căn trái
                 
                 # Dòng 2: Chữ "Tăng ca"
-                label_cell = ws.cell(row=current_row + 1, column=2)
+                label_cell = ws.cell(row=current_row + 1, column=2)  # type: ignore
                 label_cell.alignment = left_align # <--- Căn trái
                 # ---------------------------------------------
 
@@ -386,12 +387,12 @@ def export_attendance_calendar_excel(
             
             stt += 1
 
-        ws.column_dimensions['A'].width = 5
-        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['A'].width = 5  # type: ignore
+        ws.column_dimensions['B'].width = 30  # type: ignore
         for d in range(1, num_days + 1):
-            ws.column_dimensions[get_column_letter(d + 2)].width = 5
-        ws.column_dimensions[get_column_letter(num_days + 3)].width = 10
-        ws.freeze_panes = "C2"
+            ws.column_dimensions[get_column_letter(d + 2)].width = 5  # type: ignore
+        ws.column_dimensions[get_column_letter(num_days + 3)].width = 10  # type: ignore
+        ws.freeze_panes = "C2"  # type: ignore
 
     # === 6. VẼ SHEET ===
     ws1 = wb.active

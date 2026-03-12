@@ -1,7 +1,7 @@
-from thefuzz import process, fuzz
-from sqlalchemy.orm import Session
-from app.db.models import Branch
-from app.core.config import logger
+from thefuzz import process, fuzz  # type: ignore
+from sqlalchemy.orm import Session  # type: ignore
+from app.db.models import Branch  # type: ignore
+from app.core.config import logger  # type: ignore
 from typing import Optional, List, Dict
 
 # Alias cứng: tên trên email OTA → tên chi nhánh trong DB

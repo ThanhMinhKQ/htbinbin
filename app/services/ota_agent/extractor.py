@@ -1,6 +1,6 @@
-from google import genai
-from bs4 import BeautifulSoup
-from app.core.config import settings, logger
+from google import genai  # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
+from app.core.config import settings, logger  # type: ignore
 import json
 import re
 import time
@@ -100,7 +100,7 @@ class OTAExtractor:
         
         # Limit length to avoid unexpected huge emails, though Flash handles 1M.
         # 50k chars is usually enough for an email.
-        cleaned_body = cleaned_body[:50000]
+        cleaned_body = str(cleaned_body)[:50000]  # type: ignore
 
         prompt = f"""
         You are an expert Hotel Booking Data Extractor for a Vietnamese hotel chain.
@@ -143,6 +143,7 @@ class OTAExtractor:
            - Go2Joy: use "Tiền phòng" (room price), NOT "Số tiền thanh toán" (final payment). E.g. "Tiền phòng: 600.000" and "Số tiền thanh toán: 560.000" → total_price = 600000.
            - Agoda: use "Net rate (incl. taxes & fees)" / "Giá thực tế (bao gồm thuế & phí)", NOT "Reference sell rate" / "Giá bán tham khảo". E.g. Net rate = 550,000 and Reference sell rate = 687,500 → total_price = 550000.
            - Expedia: use "Amount to Charge Expedia Group", NOT "Total Booking Amount". E.g. Amount to Charge = 603,789 and Total Booking Amount = 726,158 → total_price = 603789.
+           - Airbnb: EXTREMELY IMPORTANT: ALWAYS use the value labeled "Bạn kiếm được" (host payout) located at the bottom of the "Khoản chi trả cho chủ nhà" section. NEVER use "Tổng (VND)" and NEVER use "Phí phòng". Example: "Bạn kiếm được đ2.088.729" → total_price = 2088729.
            - Mytour: use "Tổng tiền trả khách sạn" (total amount paid to hotel).
            - Other OTAs: use the main booking total shown in the confirmation.
         6. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
@@ -210,4 +211,6 @@ class OTAExtractor:
                         
                 logger.error(f"[OTA Extractor] Gemini Processing Error: {e}")
                 return {"error": str(e), "status": "FAILED"}
+
+        return {"error": "Max retries exceeded", "status": "FAILED"}
 

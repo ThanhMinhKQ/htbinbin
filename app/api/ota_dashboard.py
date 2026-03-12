@@ -3,19 +3,19 @@ OTA Dashboard API Endpoints
 """
 
 import asyncio
-from fastapi import APIRouter, Depends, Query, Request, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from sqlalchemy.orm import Session
-from sqlalchemy import func, case, or_, and_
-from app.db.session import get_db
-from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatus, Branch
-from app.services.ota_agent.ota_service import ota_dashboard_service
-from app.services.ota_agent.gmail_service import gmail_service
-from app.schemas.ota_schemas import (
-    OTAStats, BookingResponse, BookingUpdateRequest, LogResponse, OTADistribution,
-    FailedEmailResponse, EmailDetailResponse, TimelineStats, HealthStatus
-)
+from fastapi import APIRouter, Depends, Query, Request, HTTPException, BackgroundTasks  # type: ignore
+from fastapi.responses import HTMLResponse  # type: ignore
+from fastapi.templating import Jinja2Templates  # type: ignore
+from sqlalchemy.orm import Session  # type: ignore
+from sqlalchemy import func, case, or_, and_  # type: ignore
+from app.db.session import get_db  # type: ignore
+from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatus, Branch  # type: ignore
+from app.services.ota_agent.ota_service import ota_dashboard_service  # type: ignore
+from app.services.ota_agent.gmail_service import gmail_service  # type: ignore
+from app.schemas.ota_schemas import (  # type: ignore
+    OTAStats, BookingResponse, BookingUpdateRequest, LogResponse, OTADistribution,  # type: ignore
+    FailedEmailResponse, EmailDetailResponse, TimelineStats, HealthStatus  # type: ignore
+)  # type: ignore
 from typing import List, Optional, Any, Dict
 from datetime import datetime, timedelta
 import os
@@ -65,7 +65,7 @@ def get_ota_stats(
     db: Session = Depends(get_db)
 ):
     """Get booking statistics, optionally filtered by branch"""
-    from sqlalchemy import func
+    from sqlalchemy import func  # type: ignore
 
     # Base query — join Branch nếu cần filter
     booking_q = db.query(Booking)
@@ -513,7 +513,7 @@ def export_logs(
     db: Session = Depends(get_db)
 ):
     """Export logs to CSV or JSON"""
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse  # type: ignore
     import csv
     import io
     
@@ -592,7 +592,7 @@ def export_failed_emails(
     db: Session = Depends(get_db)
 ):
     """Export failed emails to CSV or JSON"""
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse  # type: ignore
     import csv
     import io
     
@@ -668,7 +668,7 @@ async def gmail_pubsub_webhook(
     Được gọi ngay khi Gmail inbox có email mới.
     LUÔN trả về 200 OK để Google không retry.
     """
-    from app.core.config import settings, logger
+    from app.core.config import settings, logger  # type: ignore
 
     # ── Kiểm tra OTA_ENABLED flag ────────────────────────────────────────────
     # Để tạm dừng OTA: set OTA_ENABLED=false trên Render → restart service
@@ -713,7 +713,7 @@ async def gmail_pubsub_webhook(
     except json.JSONDecodeError:
         return {"status": "error", "reason": "invalid_json"}
     except Exception as e:
-        from app.core.config import logger
+        from app.core.config import logger  # type: ignore
         logger.error(f"[Webhook] Lỗi xử lý Pub/Sub message: {e}")
         # KHÔNG raise exception - luôn trả 200 để Google không retry
         return {"status": "error", "message": str(e)}
@@ -727,10 +727,10 @@ async def _process_gmail_push(history_id: str):
     FIX: Mỗi email được cấp 1 DB session riêng để tránh giữ connection
     trong suốt thời gian time.sleep() của Gemini rate limiter.
     """
-    from app.core.config import logger
-    from app.services.ota_agent.integration import ota_agent
-    from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP
-    from app.services.ota_agent.mapper import HotelMapper
+    from app.core.config import logger  # type: ignore
+    from app.services.ota_agent.integration import ota_agent  # type: ignore
+    from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP  # type: ignore
+    from app.services.ota_agent.mapper import HotelMapper  # type: ignore
 
     logger.info(f"[Gmail Push] ⏳ Bắt đầu xử lý historyId={history_id}")
 
@@ -747,7 +747,8 @@ async def _process_gmail_push(history_id: str):
         # FIX: Mỗi email = 1 session riêng → trả connection về pool ngay sau khi xong
         # (không giữ connection trong time.sleep của Gemini retry)
         processed = 0
-        for email in emails:
+        emails_list: list = emails if isinstance(emails, list) else list(emails or [])
+        for email in emails_list:
             db = TaskSessionLocal()
             try:
                 mapper = HotelMapper(db)
@@ -763,7 +764,7 @@ async def _process_gmail_push(history_id: str):
         logger.info(f"[Gmail Push] ✅ Xử lý xong {processed}/{len(emails)} email")
 
     except Exception as e:
-        from app.core.config import logger
+        from app.core.config import logger  # type: ignore
         logger.error(f"[Gmail Push] Lỗi ngầm: {e}")
         import traceback
         logger.error(traceback.format_exc())
@@ -778,7 +779,7 @@ async def manual_scan_today(
     Quét thủ công các email OTA trong ngày chỉ định (mặc định: hôm nay).
     Dùng khi webhook bị miss hoặc muốn kiểm tra lại.
     """
-    from app.core.config import logger
+    from app.core.config import logger  # type: ignore
     from datetime import datetime, timezone, timedelta
 
     # Parse ngày cần quét
@@ -802,10 +803,10 @@ async def _scan_emails_for_date(target_date):
     target_date: datetime UTC (giờ 00:00:00 của ngày cần quét)
     """
     import asyncio
-    from app.core.config import logger
-    from app.services.ota_agent.integration import ota_agent
-    from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP
-    from app.services.ota_agent.mapper import HotelMapper
+    from app.core.config import logger  # type: ignore
+    from app.services.ota_agent.integration import ota_agent  # type: ignore
+    from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP  # type: ignore
+    from app.services.ota_agent.mapper import HotelMapper  # type: ignore
     from datetime import timedelta
 
     date_str = target_date.strftime("%d/%m/%Y")
@@ -898,7 +899,7 @@ def trigger_gmail_watch():
     Gọi endpoint này sau khi setup Google Cloud.
     Watch tự động gia hạn mỗi ngày lúc 06:00 qua cronjob.
     """
-    from app.core.config import settings
+    from app.core.config import settings  # type: ignore
 
     result = gmail_service.watch_inbox()
 
@@ -959,7 +960,7 @@ async def gmail_oauth_callback(
     OAuth2 callback URL (tuỳ chọn - dùng khi setup qua web browser).
     Cách đơn giản hơn: chạy scripts/gmail_auth.py trực tiếp.
     """
-    from app.core.config import settings
+    from app.core.config import settings  # type: ignore
 
     if error:
         return HTMLResponse(
@@ -978,7 +979,7 @@ async def gmail_oauth_callback(
         )
 
     try:
-        from google_auth_oauthlib.flow import Flow
+        from google_auth_oauthlib.flow import Flow  # type: ignore
 
         flow = Flow.from_client_config(
             {
@@ -1016,6 +1017,6 @@ async def gmail_oauth_callback(
         """)
 
     except Exception as e:
-        from app.core.config import logger
+        from app.core.config import logger  # type: ignore
         logger.error(f"[OAuth Callback] Lỗi: {e}")
         return HTMLResponse(f"<h1>❌ Lỗi</h1><p>{str(e)}</p>", status_code=500)
