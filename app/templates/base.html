@@ -592,6 +592,14 @@
 
     <!-- Global OTA Notifier: ch\u1ea1y tr\u00ean m\u1ecdi trang, poll 60s \u0111\u1ec3 detect booking m\u1edbi -->
     <script>
+        // Config user role & branch từ server (để filter đúng chi nhánh)
+        window.GLOBAL_USER_CONFIG = {
+            userRole: '{{ (user.role or "") | lower }}',
+            currentBranch: '{{ request.session.get("active_branch") or user.get("last_active_branch") or "" }}',
+            isAdmin: ['admin', 'quanly', 'manager', 'boss'].includes('{{ (user.role or "") | lower }}')
+        };
+    </script>
+    <script>
         (function () {
             const badge = document.getElementById('ota-nav-badge');
             const isOtaPage = window.location.pathname.includes('/api/ota/dashboard');
@@ -645,13 +653,19 @@
                 document.title = count > 0 ? `(${count}) ${base}` : base;
             }
 
-            // -- Poll nh\u1eb9 (ch\u1ec9 ch\u1ea1y khi KHÔNG \u1edf trang OTA, v\u00ec trang OTA t\u1ef1 lo) --
+            // -- Poll nh\u1eb9 (ch\u1ec9 ch\u1ea1y khi KH\u00d4NG \u1edf trang OTA, v\u00ec trang OTA t\u1ef1 lo) --
             async function globalCheckOTA() {
                 if (isOtaPage) return;              // OTA t\u1ef1 poll 15s, kh\u1ecfi tr\u00f9ng
                 if (document.hidden) return;        // ti\u1ebft ki\u1ec7m t\u00e0i nguy\u00ean khi tab \u1ea9n
 
                 try {
-                    const res = await fetch('/api/ota/stats', { credentials: 'same-origin' });
+                    const gc = window.GLOBAL_USER_CONFIG || {};
+                    let url = '/api/ota/stats';
+                    // Letan: ch\u1ec9 \u0111\u1ebfm booking c\u1ee7a chi nh\u00e1nh m\u00ecnh → tr\u00e1nh badge n\u1ed5 do chi nh\u00e1nh kh\u00e1c
+                    if (!gc.isAdmin && gc.currentBranch) {
+                        url += `?branch_name=${encodeURIComponent(gc.currentBranch)}`;
+                    }
+                    const res = await fetch(url, { credentials: 'same-origin' });
                     if (!res.ok) return;
                     const d = await res.json();
                     const newTotal = d.total_bookings ?? 0;
