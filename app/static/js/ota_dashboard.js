@@ -1010,3 +1010,75 @@ function showToast(message, type = 'success') {
     const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
     toast.show();
 }
+
+// ── Capture Modal as Image ──────────────────────────────────────────────────
+async function captureBookingDetail() {
+    const eid = document.getElementById('bm-booking-id')?.textContent?.trim() || 'unknown';
+    const modalContent = document.querySelector('#bookingDetailModal .modal-content');
+    if (!modalContent) return;
+
+    try {
+        // Tạm ẩn các element không mong muốn khi chụp bằng html2canvas
+        const footer = modalContent.querySelector('.modal-footer');
+        const closeBtn = modalContent.querySelector('.btn-close');
+        // Tìm nút chụp ảnh bằng selector chuẩn xác hơn
+        const captureBtn = modalContent.querySelector('button[onclick="captureBookingDetail()"]');
+        
+        if (footer) footer.style.display = 'none';
+        if (closeBtn) closeBtn.style.display = 'none';
+        if (captureBtn) captureBtn.style.display = 'none';
+
+        // Gọi html2canvas
+        const canvas = await html2canvas(modalContent, {
+            scale: 2, // Tăng nét
+            backgroundColor: document.body.classList.contains('dark') ? '#0f172a' : '#ffffff',
+            useCORS: true
+        });
+
+        // Khôi phục lại hiển thị ban đầu
+        if (footer) footer.style.display = '';
+        if (closeBtn) closeBtn.style.display = '';
+        if (captureBtn) captureBtn.style.display = '';
+
+        // Tạo file ảnh và ném vào Clipboard
+        canvas.toBlob(async (blob) => {
+            if (!blob) throw new Error("Cannot create blob");
+            try {
+                const item = new ClipboardItem({ "image/png": blob });
+                await navigator.clipboard.write([item]);
+
+                // Hiệu ứng "Đã chép" cho nút
+                if (captureBtn) {
+                    const originalHTML = captureBtn.innerHTML;
+                    const originalBg = captureBtn.style.backgroundColor || captureBtn.style.background;
+                    captureBtn.innerHTML = '<i class="bi bi-check2"></i> <span style="font-size:12px; font-weight:500;">Đã chép</span>';
+                    captureBtn.style.background = 'rgba(34,197,94,0.35)'; // Màu xanh lá nhẹ
+                    setTimeout(() => {
+                        captureBtn.innerHTML = originalHTML;
+                        captureBtn.style.background = originalBg;
+                    }, 2000);
+                }
+
+                showToast('Đã lưu ảnh phiếu phòng vào bộ nhớ tạm! Bạn có thể dán (Ctrl+V) vào Zalo ngay.', 'success');
+            } catch (err) {
+                console.error("Clipboard error:", err);
+                showToast('Lỗi khi lưu. Trình duyệt chưa hỗ trợ sao chép ảnh!', 'error');
+            }
+        }, 'image/png');
+
+    } catch (err) {
+        console.error('Error capturing booking:', err);
+        showToast('Không thể chụp ảnh, vui lòng thử lại', 'error');
+        // Phục hồi lỡ xảy ra lỗi
+        const modalContent = document.querySelector('#bookingDetailModal .modal-content');
+        if (modalContent) {
+            const footer = modalContent.querySelector('.modal-footer');
+            const closeBtn = modalContent.querySelector('.btn-close');
+            const captureBtn = modalContent.querySelector('button[onclick="captureBookingDetail()"]');
+            if (footer) footer.style.display = '';
+            if (closeBtn) closeBtn.style.display = '';
+            if (captureBtn) captureBtn.style.display = '';
+        }
+    }
+}
+

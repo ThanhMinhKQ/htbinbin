@@ -644,6 +644,7 @@
         }
     }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 {% endblock %}
 
 {% block page_title %}Quản lý đặt phòng OTA{% endblock %}
@@ -804,6 +805,10 @@
             <!-- Header gradient -->
             <div id="bm-header"
                 style="background:linear-gradient(135deg,#1a73e8 0%,#6366f1 100%); padding:24px 28px 20px; position:relative;">
+                <button type="button" class="btn btn-sm" onclick="captureBookingDetail()" title="Sao chép ảnh đơn phòng"
+                    style="position:absolute;top:16px;right:60px; color:#fff; background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:4px 10px; display:flex; align-items:center; gap:6px; transition:all .2s;">
+                    <i class="bi bi-camera"></i> <span style="font-size:12px; font-weight:500;">Sao chép ảnh</span>
+                </button>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
                     style="position:absolute;top:16px;right:20px;opacity:.8;"></button>
                 <div style="display:flex; align-items:center; gap:12px;">
