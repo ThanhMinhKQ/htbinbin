@@ -1,0 +1,649 @@
+{% extends "base.html" %}
+{% block title %}PMS - Thiết lập Phòng{% endblock %}
+{% block page_title %}Thiết lập Phòng Khách Sạn{% endblock %}
+
+{% block head %}
+<style>
+/* ── Layout ── */
+#setup-page { padding: 16px 20px; background: #f5f6fa; min-height: calc(100vh - 60px); }
+
+/* ── Branch Strip ── */
+#branch-bar { display:flex; flex-wrap:wrap; gap:8px; padding:14px 18px; }
+.b-pill {
+  padding: 5px 16px; border-radius: 99px; border: 1.5px solid #d1d5db;
+  font-size: 13px; font-weight: 500; color: #374151; cursor: pointer;
+  background: #fff; transition: all .14s; user-select: none;
+}
+.b-pill:hover { border-color: #2563eb; color: #2563eb; }
+.b-pill.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+
+/* ── Card ── */
+.s-card {
+  background: #fff; border-radius: 10px; margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07); overflow: hidden; border: 1px solid #e5e7eb;
+}
+.s-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 18px; border-bottom: 1px solid #f1f3f5;
+}
+.s-card-title { font-size: 14px; font-weight: 700; color: #111827; display:flex; align-items:center; gap:7px; }
+.s-card-title svg { width:18px; height:18px; stroke:#2563eb; }
+.s-card-sub { font-size: 12px; color: #9ca3af; font-weight: 400; margin-left: 4px; }
+
+/* ── Tabs ── */
+.s-tabs { display:flex; gap:2px; padding: 0 18px; border-bottom: 1.5px solid #e5e7eb; margin-bottom: 16px; }
+.s-tab {
+  padding: 10px 20px; border-radius: 6px 6px 0 0; font-size: 13.5px;
+  font-weight: 600; cursor:pointer; border:none;background:transparent;
+  color: #6b7280; transition:all .14s; display:flex; align-items:center; gap:6px;
+}
+.s-tab svg { width:15px; height:15px; }
+.s-tab:hover { color: #1f2937; background: #f9fafb; }
+.s-tab.active { color: #2563eb; border-bottom: 2.5px solid #2563eb; margin-bottom: -1.5px; background:#fff; }
+.tab-pane { display:none; } .tab-pane.active { display:block; }
+
+/* ── Type Cards Grid ── */
+.type-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); 
+  gap: 16px; 
+  padding: 20px; 
+}
+.type-card-item {
+  border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+  cursor:pointer; position:relative; transition: all .2s ease; background:#fff;
+  display: flex; flex-direction: column;
+}
+.type-card-item:hover { 
+  border-color:#3b82f6; 
+  box-shadow: 0 8px 24px rgba(59,130,246,.12), 0 2px 8px rgba(0,0,0,.04); 
+  transform: translateY(-2px);
+}
+.tc-name { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+.tc-cap  { font-size: 12.5px; color: #6b7280; display:flex; align-items:center; gap:4px; }
+.tc-cap svg { width:13px; height:13px; }
+.tc-prices {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 14px; flex-grow: 1;
+}
+.tc-prices .p-row { display:flex; justify-content:space-between; font-size:13px; margin-bottom: 8px; align-items:center; }
+.tc-prices .p-row:last-child { margin-bottom: 0; }
+.tc-prices .p-label { color: #4b5563; font-weight: 500; }
+.tc-prices .p-val   { font-weight:700; color:#1f2937; }
+.tc-edit-btn {
+  width:32px; height:32px; border-radius:8px; border:none;
+  background:#f1f5f9; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition: all .2s; margin-left: 10px;
+}
+.tc-edit-btn:hover { background:#dbeafe; transform: scale(1.05); }
+.tc-edit-btn svg { width:15px; height:15px; stroke:#374151; }
+.tc-add-btn {
+  border-radius:12px; border: 2px dashed #cbd5e1; background: #f8fafc;
+  cursor:pointer; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:8px; color:#64748b; font-size:14px; font-weight:600;
+  transition: all .2s ease; min-height: 180px;
+}
+.tc-add-btn:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+.tc-add-btn svg { width:28px; height:28px; }
+
+/* ── Table ── */
+.s-table { font-size:13px; width:100%; border-collapse:collapse; text-align:left; }
+.s-table thead th {
+  background: #f9fafb; font-size:11.5px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; color:#6b7280; padding:10px 14px;
+  border-bottom:1px solid #e5e7eb;
+}
+.s-table tbody td { padding: 10px 14px; vertical-align: middle; border-bottom:1px solid #f1f3f5; }
+.s-table tbody tr:hover { background: #f9fafb; }
+.rtype-badge { border-radius:6px; padding:3px 10px; font-size:11.5px; font-weight:600; display:inline-block; }
+.rtype-badge.blue { background:#dbeafe; color:#1d4ed8; }
+.rtype-badge.green { background:#dcfce7; color:#15803d; }
+.rtype-badge.gray  { background:#f1f3f5; color:#6b7280; }
+
+/* ── Action buttons in table ── */
+.tbl-btn {
+  width:30px; height:30px; border-radius:6px; border:none; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; transition:opacity .14s; margin-right:4px;
+}
+.tbl-btn:hover { opacity:.75; }
+.tbl-btn svg { width:14px; height:14px; }
+.tbl-btn.edit { background:#dbeafe; } .tbl-btn.edit svg { stroke:#1d4ed8; }
+.tbl-btn.del  { background:#fee2e2; } .tbl-btn.del  svg { stroke:#dc2626; }
+.tbl-btn.tog  { background:#fef3c7; } .tbl-btn.tog  svg { stroke:#d97706; }
+
+/* ── Empty state ── */
+.s-empty { text-align:center; padding:36px 20px; color:#9ca3af; }
+.s-empty svg { width:48px; height:48px; stroke:#e5e7eb; display:block; margin:0 auto 10px; }
+.s-empty p { margin:0; font-size:13.5px; }
+
+/* ── Vanilla Modal ── */
+.v-modal {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.4); backdrop-filter:blur(2px);
+  align-items:center; justify-content:center; padding:16px;
+  opacity:0; transition:opacity .2s;
+}
+.v-modal.show { display:flex; opacity:1; }
+.v-dialog {
+  background:#fff; width:100%; max-width:540px; border-radius:16px;
+  box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
+  transform:scale(.97); transition:transform .2s;
+  display:flex; flex-direction:column; max-height:calc(100vh - 32px);
+}
+.v-modal.show .v-dialog { transform:scale(1); }
+.v-header { padding:24px 24px 16px; display:flex; gap:16px; align-items:center; }
+.v-title { font-size:18px; font-weight:700; color:#111827; margin:0; }
+.v-close { background:none; border:none; color:#9ca3af; cursor:pointer; padding:6px; border-radius:8px; margin-left:auto; }
+.v-close:hover { background:#f3f4f6; color:#111827; }
+.v-close svg { width:20px; height:20px; }
+.v-body { padding:0 24px 24px; overflow-y:auto; flex:1; }
+.v-footer { padding:16px 24px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:12px; border-radius:0 0 16px 16px; background:#f9fafb; }
+
+/* ── Form Styles ── */
+.f-grp { margin-bottom:16px; display:flex; flex-direction:column; }
+.f-grp label { font-size:13.5px; font-weight:600; color:#374151; margin-bottom:6px; }
+.f-req { color:#ef4444; }
+.f-ctrl { 
+  width:100%; border:1px solid #d1d5db; border-radius:8px; padding:9px 12px; font-size:14px;
+  transition:border-color .15s, box-shadow .15s; outline:none; background:#fff; color:#111827;
+}
+.f-ctrl:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+.f-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+.f-grid-full { grid-column: 1 / -1; }
+.v-btn { padding:9px 20px; border-radius:99px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all .15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.v-btn.sm { padding:6px 14px; font-size:13px; }
+.v-btn.light { background:#f3f4f6; color:#374151; }
+.v-btn.light:hover { background:#e5e7eb; }
+.v-btn.primary { background:#2563eb; color:#fff; }
+.v-btn.primary:hover { background:#1d4ed8; }
+.v-btn.success { background:#16a34a; color:#fff; }
+.v-btn.success:hover { background:#15803d; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="setup-page">
+
+  <!-- Branch selector -->
+  <div class="s-card mb-4">
+    <div class="s-card-head" style="margin-bottom:0; display:flex; justify-content:space-between; align-items:center;">
+      <span class="s-card-title" style="display:flex; align-items:center;">
+        <svg style="margin-right:8px;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Chọn chi nhánh cấu hình
+      </span>
+      <select id="branch-select" class="v-input" style="width: auto; min-width: 250px; font-weight: 500;">
+        <option value="">-- Vui lòng chọn chi nhánh --</option>
+        {% for b in branches %}
+        <option value="{{ b.id }}" data-bname="{{ b.name }}">{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div id="main-content" style="display:none;">
+    <!-- Tabs -->
+    <div class="s-tabs">
+      <button class="s-tab active" data-tab="types" onclick="showTab('types',this)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Hạng phòng &amp; Giá
+      </button>
+      <button class="s-tab" data-tab="rooms" onclick="showTab('rooms',this)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+        Danh sách phòng
+      </button>
+    </div>
+
+    <!-- Tab: Types -->
+    <div class="tab-pane active" id="tab-types">
+      <div class="s-card">
+        <div class="s-card-head">
+          <span class="s-card-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Hạng phòng
+            <span class="s-card-sub" id="types-count"></span>
+          </span>
+        </div>
+        <div class="type-grid" id="types-grid">
+          <div class="s-empty" style="width:100%;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg><p>Chọn chi nhánh để xem hạng phòng</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Rooms -->
+    <div class="tab-pane" id="tab-rooms">
+      <div class="s-card">
+        <div class="s-card-head">
+          <span class="s-card-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+            Danh sách phòng
+            <span class="s-card-sub" id="rooms-count"></span>
+          </span>
+          <button class="v-btn primary sm" onclick="openAddRoom()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm phòng
+          </button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="s-table">
+            <thead>
+              <tr>
+                <th style="padding-left:24px;">Số phòng</th>
+                <th>Tầng</th>
+                <th>Hạng phòng</th>
+                <th>Giá / đêm</th>
+                <th>Giá / giờ đầu</th>
+                <th>Giá các giờ sau</th>
+                <th>Ghi chú</th>
+                <th>Trạng thái</th>
+                <th style="width:90px;"></th>
+              </tr>
+            </thead>
+            <tbody id="rooms-tbody">
+              <tr><td colspan="8"><div class="s-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+                <p>Chọn chi nhánh và thêm phòng</p>
+              </div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Room Type ═══ -->
+<div class="v-modal" id="typeModal">
+  <div class="v-dialog">
+    <div class="v-header">
+      <div style="width:42px;height:42px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      </div>
+      <h5 class="v-title" id="tm-title">Thêm hạng phòng</h5>
+      <button class="v-close" onclick="closeModal('typeModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="v-body">
+      <input type="hidden" id="tm-id">
+      <div class="f-grid">
+        <div class="f-grp f-grid-full">
+          <label>Tên hạng phòng <span class="f-req">*</span></label>
+          <input type="text" class="f-ctrl" id="tm-name" placeholder="Standard, Deluxe, Suite…">
+        </div>
+        <div class="f-grp">
+          <label>Giá / đêm (VND)</label>
+          <input type="number" class="f-ctrl" id="tm-night" value="0" min="0" step="10000">
+        </div>
+        <div class="f-grp">
+          <label>Giá / giờ đầu (VND)</label>
+          <input type="number" class="f-ctrl" id="tm-hour" value="0" min="0" step="5000">
+        </div>
+        <div class="f-grp">
+          <label>Giá / các giờ sau (VND)</label>
+          <input type="number" class="f-ctrl" id="tm-next-hour" value="0" min="0" step="5000">
+        </div>
+        <div class="f-grp">
+          <label>Số giờ đầu tối thiểu (giờ)</label>
+          <input type="number" class="f-ctrl" id="tm-minhours" value="1" min="1" max="24">
+        </div>
+        <div class="f-grp f-grid-full" style="display:flex; gap:16px;">
+          <div style="flex:1;">
+            <label>Giờ ưu đãi ban đêm (Từ)</label>
+            <input type="time" class="f-ctrl" id="tm-promo-start">
+          </div>
+          <div style="flex:1;">
+            <label>Đến giờ</label>
+            <input type="time" class="f-ctrl" id="tm-promo-end">
+          </div>
+          <div style="flex:1;">
+            <label>% Giảm giá ưu đãi</label>
+            <input type="number" class="f-ctrl" id="tm-promo-pct" value="0" min="0" max="100">
+          </div>
+        </div>
+        <div class="f-grp">
+          <label>Sức chứa tối đa</label>
+          <input type="number" class="f-ctrl" id="tm-guests" value="2" min="1" max="20">
+        </div>
+        <input type="hidden" id="tm-sort" value="0">
+        <div class="f-grp f-grid-full" style="margin-bottom:0;">
+          <label>Mô tả ngắn</label>
+          <input type="text" class="f-ctrl" id="tm-desc" placeholder="Ban công, view biển…">
+        </div>
+      </div>
+    </div>
+    <div class="v-footer">
+      <button class="v-btn light" onclick="closeModal('typeModal')">Huỷ</button>
+      <button class="v-btn success" onclick="saveType()">Lưu hạng phòng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Room ═══ -->
+<div class="v-modal" id="roomModal">
+  <div class="v-dialog">
+    <div class="v-header">
+      <div style="width:42px;height:42px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+      </div>
+      <h5 class="v-title" id="rm-title">Thêm phòng</h5>
+      <button class="v-close" onclick="closeModal('roomModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="v-body">
+      <input type="hidden" id="rm-id">
+      <div class="f-grid">
+        <div class="f-grp">
+          <label>Số phòng <span class="f-req">*</span></label>
+          <input type="text" class="f-ctrl" id="rm-number" placeholder="101, A01…">
+        </div>
+        <div class="f-grp">
+          <label>Tầng <span class="f-req">*</span></label>
+          <input type="number" class="f-ctrl" id="rm-floor" value="1" min="B2" max="50">
+        </div>
+        <div class="f-grp f-grid-full">
+          <label>Hạng phòng</label>
+          <select class="f-ctrl" id="rm-type">
+            <option value="">— Không phân loại —</option>
+          </select>
+        </div>
+        <input type="hidden" id="rm-sort" value="0">
+        <div class="f-grp f-grid-full" style="margin-bottom:0;">
+          <label>Ghi chú phòng</label>
+          <input type="text" class="f-ctrl" id="rm-notes" placeholder="Ban công, hướng biển…">
+        </div>
+      </div>
+    </div>
+    <div class="v-footer">
+      <button class="v-btn light" onclick="closeModal('roomModal')">Huỷ</button>
+      <button class="v-btn primary" onclick="saveRoom()">Lưu phòng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="s-toast" style="position:fixed;bottom:20px;right:24px;z-index:9999;padding:12px 24px;
+  border-radius:9px;color:#fff;font-weight:600;font-size:14px;box-shadow:0 10px 25px rgba(0,0,0,.15);
+  opacity:0;pointer-events:none;transition:opacity .25s; max-width:340px;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+'use strict';
+
+const S = { bid: null, bname: '', types: [], rooms: [] };
+
+const SVGI = {
+    edit: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+    del:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+    toggle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3"/></svg>`,
+    user: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    plus: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+    bed:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>`,
+};
+
+function fmt(n){ return new Intl.NumberFormat('vi-VN').format(n||0)+'đ'; }
+function toast(msg, ok=true) {
+    const el=document.getElementById('s-toast');
+    el.textContent=msg; el.style.background=ok?'#16a34a':'#dc2626'; el.style.opacity='1';
+    clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',3500);
+}
+
+// ── Modal Toggle ───────────────────────────────────────────────────────
+function openModal(id) {
+    const el = document.getElementById(id);
+    el.style.display='flex';
+    setTimeout(()=>el.classList.add('show'), 10);
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('show');
+    setTimeout(()=>el.style.display='none', 200);
+}
+// Close on backdrop click
+document.querySelectorAll('.v-modal').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+
+// ── Branch Selector ────────────────────────────────────────────────────
+document.getElementById('branch-select').addEventListener('change', function(e) {
+    const sel = e.target;
+    if (!sel.value) {
+        document.getElementById('main-content').style.display = 'none';
+        return;
+    }
+    S.bid = Number(sel.value);
+    S.bname = sel.options[sel.selectedIndex].dataset.bname;
+    document.getElementById('main-content').style.display = 'block';
+    loadAll();
+});
+
+function showTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.s-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.add('active');
+    btn.classList.add('active');
+}
+
+async function loadAll() { await Promise.all([loadTypes(), loadRooms()]); }
+
+// ── Room Types ─────────────────────────────────────────────────────────
+async function loadTypes() {
+    const r = await fetch(`/api/pms/admin/room-types?branch_id=${S.bid}`, {credentials:'same-origin'});
+    if (!r.ok) { toast('Lỗi tải hạng phòng', false); return; }
+    S.types = await r.json();
+    document.getElementById('types-count').textContent = `(${S.types.length})`;
+    const grid = document.getElementById('types-grid');
+
+    if (!S.types.length) {
+        grid.innerHTML = `<div class="s-empty" style="width:100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <p>Chưa có hạng phòng nào.</p>
+        </div>
+        <button class="tc-add-btn" onclick="openAddType()">
+            <span style="width:24px;height:24px;display:block;">${SVGI.plus}</span>
+            Thêm hạng phòng đầu tiên
+        </button>`;
+        return;
+    }
+
+    grid.innerHTML = S.types.map(t => `
+        <div class="type-card-item" onclick="editType(${t.id})">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                <div>
+                    <div class="tc-name">${t.name}</div>
+                    <div class="tc-cap">
+                        <span style="width:14px;height:14px;display:inline-block;margin-right:2px;vertical-align:middle;">${SVGI.user}</span>
+                        Tối đa ${t.max_guests} khách &nbsp;&bull;&nbsp; Tối thiểu ${t.min_hours}h
+                    </div>
+                </div>
+                <button class="tc-edit-btn" onclick="event.stopPropagation(); editType(${t.id})">${SVGI.edit}</button>
+            </div>
+            
+            <div class="tc-prices">
+                <div class="p-row"><span class="p-label" style="font-size:14px;">Giá / đêm</span><span class="p-val" style="font-size: 16px;">${fmt(t.price_per_night)}</span></div>
+                ${t.promo_discount_percent > 0 ? `<div class="p-row"><span class="p-label" style="color:#16a34a; font-size:11.5px; background:#dcfce7; padding:2px 6px; border-radius:4px;">Giảm đêm (${t.promo_start_time ? t.promo_start_time.substring(0,5) : ''} - ${t.promo_end_time ? t.promo_end_time.substring(0,5) : ''})</span><span class="p-val" style="color:#16a34a;">-${t.promo_discount_percent}%</span></div>` : ''}
+                <div style="height: 1px; background: #e2e8f0; margin: 10px 0;"></div>
+                <div class="p-row"><span class="p-label" style="font-size:12px;">Giá / giờ đầu</span><span class="p-val" style="font-size:13.5px; color:#334155;">${fmt(t.price_per_hour)}</span></div>
+                <div class="p-row"><span class="p-label" style="font-size:12px;">Giá các giờ sau</span><span class="p-val" style="font-size:13.5px; color:#334155;">${fmt(t.price_next_hour)}</span></div>
+            </div>
+            ${t.description ? `<div class="mt-3" style="font-size:12.5px;color:#64748b;line-height:1.4;background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #f1f5f9;">${t.description}</div>` : ''}
+        </div>`).join('') + `
+        <button class="tc-add-btn" onclick="openAddType()">
+            <span style="width:24px;height:24px;display:block;">${SVGI.plus}</span>
+            Thêm hạng phòng
+        </button>`;
+}
+
+function openAddType() {
+    document.getElementById('tm-id').value='';
+    document.getElementById('tm-title').textContent='Thêm hạng phòng mới';
+    document.getElementById('tm-name').value='';
+    document.getElementById('tm-desc').value='';
+    document.getElementById('tm-night').value='0';
+    document.getElementById('tm-hour').value='0';
+    document.getElementById('tm-next-hour').value='0';
+    document.getElementById('tm-promo-start').value='';
+    document.getElementById('tm-promo-end').value='';
+    document.getElementById('tm-promo-pct').value='0';
+    document.getElementById('tm-guests').value='2';
+    document.getElementById('tm-minhours').value='1';
+    document.getElementById('tm-sort').value = S.types.length; // Auto sort_order
+    openModal('typeModal');
+}
+
+function editType(id) {
+    const t = S.types.find(x => x.id === id); if (!t) return;
+    document.getElementById('tm-id').value = t.id;
+    document.getElementById('tm-title').textContent = `Sửa hạng: ${t.name}`;
+    document.getElementById('tm-name').value = t.name||'';
+    document.getElementById('tm-night').value = t.price_per_night||0;
+    document.getElementById('tm-hour').value  = t.price_per_hour||0;
+    document.getElementById('tm-next-hour').value  = t.price_next_hour||0;
+    document.getElementById('tm-promo-start').value = t.promo_start_time ? t.promo_start_time.substring(0,5) : '';
+    document.getElementById('tm-promo-end').value = t.promo_end_time ? t.promo_end_time.substring(0,5) : '';
+    document.getElementById('tm-promo-pct').value = t.promo_discount_percent||0;
+    document.getElementById('tm-guests').value= t.max_guests||2;
+    document.getElementById('tm-minhours').value = t.min_hours||1;
+    document.getElementById('tm-sort').value  = t.sort_order||0;
+    document.getElementById('tm-desc').value  = t.description||'';
+    openModal('typeModal');
+}
+
+async function saveType() {
+    const id   = document.getElementById('tm-id').value;
+    const name = document.getElementById('tm-name').value.trim();
+    if (!name) { toast('Nhập tên hạng phòng', false); return; }
+
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('price_per_night', document.getElementById('tm-night').value||0);
+    fd.append('price_per_hour',  document.getElementById('tm-hour').value||0);
+    fd.append('price_next_hour', document.getElementById('tm-next-hour').value||0);
+    fd.append('promo_start_time', document.getElementById('tm-promo-start').value||'');
+    fd.append('promo_end_time',   document.getElementById('tm-promo-end').value||'');
+    fd.append('promo_discount_percent', document.getElementById('tm-promo-pct').value||0);
+    fd.append('max_guests',      document.getElementById('tm-guests').value||2);
+    fd.append('min_hours',       document.getElementById('tm-minhours').value||1);
+    fd.append('sort_order',      document.getElementById('tm-sort').value||0);
+    fd.append('description',     document.getElementById('tm-desc').value||'');
+    if (!id) fd.append('branch_id', S.bid);
+
+    const url = id ? `/api/pms/admin/room-types/${id}` : '/api/pms/admin/room-types';
+    const r = await fetch(url, { method: id ? 'PUT' : 'POST', body: fd, credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) {
+        closeModal('typeModal');
+        toast(d.message || 'Đã lưu'); await loadTypes();
+    } else { toast(d.detail || 'Lỗi', false); }
+}
+
+// ── Rooms ──────────────────────────────────────────────────────────────
+async function loadRooms() {
+    const r = await fetch(`/api/pms/admin/rooms?branch_id=${S.bid}`, {credentials:'same-origin'});
+    if (!r.ok) { toast('Lỗi tải danh sách phòng', false); return; }
+    S.rooms = await r.json();
+    document.getElementById('rooms-count').textContent = `(${S.rooms.length})`;
+    const tbody = document.getElementById('rooms-tbody');
+
+    if (!S.rooms.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="s-empty">${SVGI.bed}<p>Chưa có phòng nào</p></div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = S.rooms.map(rm => `
+        <tr>
+            <td style="padding-left:24px;font-weight:700;">${rm.room_number}</td>
+            <td style="white-space:nowrap;">Tầng ${rm.floor}</td>
+            <td><span class="rtype-badge blue">${rm.room_type_name||'—'}</span></td>
+            <td>${rm.price_per_night ? fmt(rm.price_per_night) : '—'}</td>
+            <td>${rm.price_per_hour  ? fmt(rm.price_per_hour)  : '—'}</td>
+            <td>${rm.price_next_hour  ? fmt(rm.price_next_hour)  : '—'}</td>
+            <td style="color:#6b7280;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${rm.notes||'—'}</td>
+            <td><span class="rtype-badge ${rm.is_active?'green':'gray'}">${rm.is_active?'Hoạt động':'Tắt'}</span></td>
+            <td>
+                <button class="tbl-btn edit" onclick="editRoom(${rm.id})" title="Sửa">${SVGI.edit}</button>
+                <button class="tbl-btn tog" onclick="toggleRoom(${rm.id}, ${!rm.is_active})" title="${rm.is_active ? 'Vô hiệu hoá' : 'Kích hoạt'}">${SVGI.toggle}</button>
+                <button class="tbl-btn del" onclick="delRoom(${rm.id})" title="Xoá vĩnh viễn">${SVGI.del}</button>
+            </td>
+        </tr>`).join('');
+}
+
+function populateTypeSelect(selId) {
+    const sel = document.getElementById('rm-type');
+    sel.innerHTML = '<option value="">— Không phân loại —</option>' +
+        S.types.map(t => `<option value="${t.id}"${t.id==selId?' selected':''}>${t.name}</option>`).join('');
+}
+
+function openAddRoom() {
+    if (!S.types.length) {
+        toast('Hãy thêm hạng phòng trước!', false);
+        showTab('types', document.querySelector('.s-tab[data-tab="types"]'));
+        return;
+    }
+    document.getElementById('rm-id').value='';
+    document.getElementById('rm-title').textContent='Thêm phòng mới';
+    document.getElementById('rm-number').value='';
+    document.getElementById('rm-floor').value='1';
+    document.getElementById('rm-notes').value='';
+    document.getElementById('rm-sort').value = S.rooms.length; // Auto sort_order
+    populateTypeSelect(null);
+    openModal('roomModal');
+}
+
+function editRoom(id) {
+    const rm = S.rooms.find(x => x.id === id); if (!rm) return;
+    document.getElementById('rm-id').value    = rm.id;
+    document.getElementById('rm-title').textContent = `Sửa phòng ${rm.room_number}`;
+    document.getElementById('rm-number').value = rm.room_number;
+    document.getElementById('rm-floor').value  = rm.floor;
+    document.getElementById('rm-notes').value  = rm.notes||'';
+    document.getElementById('rm-sort').value   = rm.sort_order||0;
+    populateTypeSelect(rm.room_type_id);
+    openModal('roomModal');
+}
+
+async function saveRoom() {
+    const id  = document.getElementById('rm-id').value;
+    const num = document.getElementById('rm-number').value.trim();
+    if (!num) { toast('Nhập số phòng', false); return; }
+
+    const fd = new FormData();
+    fd.append('room_number', num);
+    fd.append('floor',       document.getElementById('rm-floor').value||1);
+    fd.append('notes',       document.getElementById('rm-notes').value||'');
+    fd.append('sort_order',  document.getElementById('rm-sort').value||0);
+    const tid = document.getElementById('rm-type').value;
+    if (tid) fd.append('room_type_id', tid);
+    if (!id) fd.append('branch_id', S.bid);
+
+    const url = id ? `/api/pms/admin/rooms/${id}` : '/api/pms/admin/rooms';
+    const r = await fetch(url, { method: id ? 'PUT' : 'POST', body: fd, credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) {
+        closeModal('roomModal');
+        toast(d.message||'Đã lưu'); await loadRooms();
+    } else { toast(d.detail||'Lỗi', false); }
+}
+
+async function toggleRoom(id, activate) {
+    const rm = S.rooms.find(x => x.id === id);
+    const roomNum = rm ? rm.room_number : id;
+    const label = activate ? 'kích hoạt' : 'vô hiệu hoá';
+    if (!confirm(`${activate ? 'Kích hoạt' : 'Vô hiệu hoá'} phòng ${roomNum}?`)) return;
+    const fd = new FormData();
+    fd.append('is_active', activate);
+    const r = await fetch(`/api/pms/admin/rooms/${id}`, { method: 'PUT', body: fd, credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) { toast(`Đã ${label} phòng ${roomNum}`); await loadRooms(); }
+    else { toast(d.detail||'Lỗi', false); }
+}
+
+async function delRoom(id) {
+    const rm = S.rooms.find(x => x.id === id);
+    const roomNum = rm ? rm.room_number : id;
+    if (!confirm(`Xoá vĩnh viễn phòng ${roomNum}? Hành động này không thể hoàn tác!`)) return;
+    const r = await fetch(`/api/pms/admin/rooms/${id}`, { method: 'DELETE', credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) { toast(d.message); await loadRooms(); }
+    else { toast(d.detail||'Lỗi', false); }
+}
+</script>
+{% endblock %}

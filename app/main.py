@@ -22,7 +22,7 @@ from .api import (
     users, attendance, tasks, lost_and_found, 
     choose_function, utils, calendar, qr_checkin, 
     results, export, service, shift_report, inventory,
-    ota_dashboard, hr_management
+    ota_dashboard, hr_management, pms
 )
 
 from .core.config import settings, logger
@@ -223,6 +223,9 @@ app.include_router(ota_dashboard.router, tags=["OTA Dashboard"])
 
 # HR Management (Admin only)
 app.include_router(hr_management.router, tags=["HR Management"])
+
+# PMS - Property Management System
+app.include_router(pms.router, tags=["PMS"])
 
 
 # --- ROOT ENDPOINT ---

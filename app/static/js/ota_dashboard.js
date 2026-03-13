@@ -601,6 +601,14 @@ function openEditModal() {
     document.getElementById('em-total-price').value = booking.total_price ? booking.total_price.toLocaleString('vi-VN') : '';
     document.getElementById('em-currency').value = booking.currency || 'VND';
     document.getElementById('em-status').value = (booking.status || 'CONFIRMED').toUpperCase();
+    
+    const isPrepaidSelect = document.getElementById('em-is-prepaid');
+    if (isPrepaidSelect) {
+        if (booking.is_prepaid === true) isPrepaidSelect.value = 'true';
+        else if (booking.is_prepaid === false) isPrepaidSelect.value = 'false';
+        else isPrepaidSelect.value = 'null';
+    }
+
     document.getElementById('em-checkin-code').value = booking.checkin_code || '';
     document.getElementById('em-special-requests').value = booking.special_requests || '';
 
@@ -620,11 +628,19 @@ async function saveBookingEdit() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
 
     const statusValue = document.getElementById('em-status').value || null;
-    // Sẽ không gửi is_prepaid lên nữa để backend tự giữ nguyên giá trị cũ,
-    // hoặc giữ y nguyên từ biến booking hiện tại đang parse.
-    const eid = document.getElementById('bm-booking-id')?.textContent?.trim();
-    const currBooking = allBookings.find(x => x.external_id === eid);
-    let is_prepaid_val = currBooking ? currBooking.is_prepaid : null;
+    
+    // Parse is_prepaid from the edit dropdown
+    const isPrepaidSelect = document.getElementById('em-is-prepaid');
+    let is_prepaid_val = null;
+    if (isPrepaidSelect) {
+        if (isPrepaidSelect.value === 'true') is_prepaid_val = true;
+        else if (isPrepaidSelect.value === 'false') is_prepaid_val = false;
+    } else {
+        // Fallback for missing dropdown
+        const eid = document.getElementById('bm-booking-id')?.textContent?.trim();
+        const currBooking = allBookings.find(x => x.external_id === eid);
+        is_prepaid_val = currBooking ? currBooking.is_prepaid : null;
+    }
 
     const payload = {
         guest_name: document.getElementById('em-guest-name').value.trim() || null,
@@ -843,21 +859,12 @@ function renderStayCell(b, checkIn, checkOut, nights) {
 }
 
 function renderPaymentLabel(booking) {
-    const s = (booking.status || '').toUpperCase();
-    if (s === 'SUCCESS' || s === 'CONFIRMED' || s === 'ACTIVE') {
-        return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán</div>`;
-    } else if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
-        return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">— Đã hủy</div>`;
-    } else if (s === 'PENDING' || s === 'PROCESSING') {
-        return `<div style="font-size:11px; color:#f59e0b; margin-top:3px; font-weight:500;">⏳ Chưa xác nhận</div>`;
-    } else if (s === 'NO_SHOW') {
-        if (booking.is_prepaid) {
-            return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán</div>`;
-        } else {
-            return `<div style="font-size:11px; color:#ef4444; margin-top:3px; font-weight:500;">✘ Chưa thanh toán</div>`;
-        }
+    if (booking.is_prepaid === true) {
+        return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán (OTA)</div>`;
+    } else if (booking.is_prepaid === false) {
+        return `<div style="font-size:11px; color:#ef4444; margin-top:3px; font-weight:500;">✘ Chưa thanh toán</div>`;
     }
-    return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">Chưa rõ</div>`;
+    return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">Chưa rõ TT</div>`;
 }
 
 function renderStatus(status) {

@@ -655,6 +655,8 @@ class OTAParsingLog(Base):
     booking = relationship("Booking", foreign_keys=[booking_id])
 
 
+
+
 class AppConfig(Base):
     """Lưu cấu hình key-value của ứng dụng (persist qua server restart)."""
     __tablename__ = "app_config"
@@ -662,4 +664,106 @@ class AppConfig(Base):
     key = Column(String(100), primary_key=True)
     value = Column(Text, nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+# ====================================================================
+# 9. PMS - PROPERTY MANAGEMENT SYSTEM (Quản lý bán phòng)
+# ====================================================================
+
+class HotelRoomType(Base):
+    """Loại phòng & bảng giá (Admin cấu hình)"""
+    __tablename__ = "hotel_room_types"
+
+    id              = Column(Integer, primary_key=True)
+    branch_id       = Column(Integer, ForeignKey("branches.id", ondelete="CASCADE"), nullable=False, index=True)
+    name            = Column(String(100), nullable=False)          # VD: "Standard", "VIP", "Suite"
+    description     = Column(Text, nullable=True)
+    price_per_night = Column(NUMERIC(15, 2), default=0, nullable=False)  # Giá qua đêm
+    price_per_hour  = Column(NUMERIC(15, 2), default=0, nullable=False)  # Giá thuê giờ
+    price_next_hour = Column(NUMERIC(15, 2), default=0, nullable=False)  # Giá mỗi giờ tiếp theo
+    promo_start_time = Column(Time, nullable=True)                       # Giờ bắt đầu giá ưu đãi
+    promo_end_time = Column(Time, nullable=True)                         # Giờ kết thúc giá ưu đãi
+    promo_discount_percent = Column(Float, default=0, nullable=False)    # % giảm giá ưu đãi ban đêm
+    min_hours       = Column(Integer, default=1)                   # Tối thiểu bao nhiêu giờ
+    max_guests      = Column(Integer, default=2)
+    is_active       = Column(Boolean, default=True)
+    sort_order      = Column(Integer, default=0)
+    created_at      = Column(DateTime(timezone=True), server_default=func.now())
+
+    branch = relationship("Branch")
+    rooms  = relationship("HotelRoom", back_populates="room_type_obj")
+
+
+class HotelRoom(Base):
+    """Phòng khách sạn (Admin cấu hình)"""
+    __tablename__ = "hotel_rooms"
+
+    id             = Column(Integer, primary_key=True)
+    branch_id      = Column(Integer, ForeignKey("branches.id", ondelete="CASCADE"), nullable=False, index=True)
+    room_type_id   = Column(Integer, ForeignKey("hotel_room_types.id", ondelete="SET NULL"), nullable=True)
+    floor          = Column(Integer, nullable=False, index=True)    # Tầng
+    room_number    = Column(String(20), nullable=False)             # Số phòng e.g. "101"
+    notes          = Column(Text, nullable=True)
+    is_active      = Column(Boolean, default=True)
+    sort_order     = Column(Integer, default=0)
+    created_at     = Column(DateTime(timezone=True), server_default=func.now())
+
+    branch        = relationship("Branch")
+    room_type_obj = relationship("HotelRoomType", back_populates="rooms")
+    stays         = relationship("HotelStay", back_populates="room", order_by="HotelStay.check_in_at.desc()")
+
+    __table_args__ = (
+        Index("uq_hotel_room_branch_number", "branch_id", "room_number", unique=True),
+    )
+
+
+class HotelStayStatus(str, enum.Enum):
+    ACTIVE      = "ACTIVE"         # Đang lưu trú
+    CHECKED_OUT = "CHECKED_OUT"    # Đã trả phòng
+    CANCELLED   = "CANCELLED"      # Huỷ
+
+
+class HotelStay(Base):
+    """Lượt lưu trú (một lần check-in/check-out)"""
+    __tablename__ = "hotel_stays"
+
+    id           = Column(BIGINT, primary_key=True)
+    room_id      = Column(Integer, ForeignKey("hotel_rooms.id", ondelete="RESTRICT"), nullable=False, index=True)
+    branch_id    = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True)
+    stay_type    = Column(String(10), default="night", nullable=False)  # "night" | "hour"
+    check_in_at  = Column(DateTime(timezone=True), nullable=False, index=True)
+    check_out_at = Column(DateTime(timezone=True), nullable=True)       # Null khi đang ở
+    status       = Column(
+        SQLAlchemyEnum(HotelStayStatus, name="hotelstaystatus", native_enum=True),
+        default=HotelStayStatus.ACTIVE, nullable=False, index=True
+    )
+    total_price  = Column(NUMERIC(15, 2), default=0)
+    deposit      = Column(NUMERIC(15, 2), default=0)
+    notes        = Column(Text, nullable=True)
+    created_by   = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at   = Column(DateTime(timezone=True), server_default=func.now())
+
+    room       = relationship("HotelRoom", back_populates="stays")
+    branch     = relationship("Branch")
+    creator    = relationship("User", foreign_keys=[created_by])
+    guests     = relationship("HotelGuest", back_populates="stay", cascade="all, delete-orphan",
+                              order_by="HotelGuest.is_primary.desc()")
+
+
+class HotelGuest(Base):
+    """Thông tin khách lưu trú trong 1 lượt ở"""
+    __tablename__ = "hotel_guests"
+
+    id          = Column(BIGINT, primary_key=True)
+    stay_id     = Column(BIGINT, ForeignKey("hotel_stays.id", ondelete="CASCADE"), nullable=False, index=True)
+    full_name   = Column(String(255), nullable=False)
+    cccd        = Column(String(20), nullable=True)
+    birth_date  = Column(Date, nullable=True)
+    gender      = Column(String(10), nullable=True)      # "Nam" / "Nữ" / "Khác"
+    phone       = Column(String(20), nullable=True)
+    is_primary  = Column(Boolean, default=False)          # Khách đặt phòng chính
+    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+
+    stay = relationship("HotelStay", back_populates="guests")
+
 

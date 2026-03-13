@@ -155,7 +155,7 @@ class OTAExtractor:
            - @airbnb.com → "Airbnb"
            - noreply@mytour.vn / @mytour.vn → "Mytour"
            - Email subject contains "[Khách sạn Bin Bin]" or sender is binbinhotel.ota@gmail.com → "Website"
-        8. For "Website" bookings: external_id is the order number after "#" in subject (e.g. subject "[Khách sạn Bin Bin] Đơn hàng mới #1987" → external_id = "WEB-1987").
+        8. For "Website" bookings: external_id is the order number after "#" in subject (e.g. subject "[Khách sạn Bin Bin] Đơn hàng mới #1987" → external_id = "WEB-1987"). Website bookings are almost always unpaid ("Chưa thanh toán"), so you MUST default "is_prepaid": false for Website bookings unless there is explicit textual proof that they have already paid online.
         9. checkin_code: A short numeric/alphanumeric PIN to access the room or building. May appear as "PIN", "Access code", "Check-in code", "Mã check-in". Leave null if not present.
         10. Return ONLY the JSON object. No markdown formatting, no explanation.
         
