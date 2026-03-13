@@ -52,9 +52,12 @@ window.onload = () => {
     loadBookings();
     startSmartPolling();
 
-    // Lấy badge value ban đầu
-    const prev = parseInt(localStorage.getItem('otaNewCount') || '0', 10);
-    updateTabTitle(prev);
+    // User đang xem OTA Dashboard → clear badge và reset title
+    localStorage.setItem('otaNewCount', '0');
+    updateTabTitle(0);
+    // Nếu badge vẫn còn trong cùng tab (ít xảy ra)
+    const navBadge = document.getElementById('ota-nav-badge');
+    if (navBadge) navBadge.style.display = 'none';
 };
 
 // ── Smart Polling (15s) ────────────────────────────────────────────────────
@@ -103,13 +106,6 @@ async function checkForNewBookings() {
 
             // Hiện notification banner
             showNewBookingBanner(delta);
-            
-            // Cập nhật nav badge trực tiếp
-            const navBadge = document.getElementById('ota-nav-badge');
-            if (navBadge) {
-                navBadge.textContent = (prev + delta) > 99 ? '99+' : (prev + delta);
-                navBadge.style.display = 'inline-block';
-            }
 
             // Cập nhật stats cards và bảng ngay lập tức (silent)
             updateStatsFromData(d);
