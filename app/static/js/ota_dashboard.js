@@ -284,6 +284,15 @@ async function loadBookings(showLoader = true) {
             const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
             return tb - ta;
         });
+
+        // Đảm bảo các đơn đã huỷ không hiển thị là đã thanh toán
+        allBookings.forEach(b => {
+            const s = (b.status || '').toUpperCase();
+            if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
+                b.is_prepaid = false;
+            }
+        });
+
         applyFilters();
     } catch (e) {
         console.error('Error loading bookings:', e);
@@ -370,7 +379,11 @@ function renderTable() {
         const checkOut = b.check_out ? formatDate(b.check_out) : '—';
         const nights = calcNights(b.check_in, b.check_out);
         const numGuests = b.num_guests || 0;
-        const totalPrice = b.total_price ? b.total_price.toLocaleString('vi-VN') + ' ' + (b.currency || 'VND') : '—';
+        let totalPrice = b.total_price ? b.total_price.toLocaleString('vi-VN') + ' ' + (b.currency || 'VND') : '—';
+        const s = (b.status || '').toUpperCase();
+        if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
+            totalPrice = `<del style="color:#94a3b8;">${totalPrice}</del>`;
+        }
         const statusBadge = renderStatus(b.status);
         const roomType = b.room_type || '—';
         const branchName = b.branch_name || 'Chưa map';
