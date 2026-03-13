@@ -16,6 +16,9 @@ HOTEL_ALIASES: Dict[str, str] = {
     "bin bin hotel 10 - mimosa airport (near tan son nhat airport)": "Bin Bin Hotel 10",
     "bin bin hotel 10 - mimosa near tan son nhat airport": "Bin Bin Hotel 10",
     "(B10)": "Bin Bin Hotel 10",
+
+    # Mappings cho chi nhánh Bin Bin Hotel 8
+    "bin bin hotel 8 - near sunrise city district 7": "Bin Bin Hotel 8",
 }
 
 class HotelMapper:
