@@ -12,6 +12,7 @@ let searchTimer = null;
 let autoRefreshInterval = null;
 let lastKnownCount = null;  // số booking lần poll trước
 let newBookingCount = 0;    // số booking mới chưa xem
+let lastCancelledCount = null; // số booking huỷ lần poll trước
 let _soundUnlocked = false; // Web Audio đã được unlock bởi user gesture
 
 // ── Sound ──────────────────────────────────────────────────────────────
@@ -81,12 +82,16 @@ async function checkForNewBookings() {
         const res = await fetch(url);
         const d = await res.json();
         const newTotal = d.total_bookings ?? 0;
+        const newCancelled = d.cancelled_count ?? 0;
 
-        if (lastKnownCount === null) {
+        if (lastKnownCount === null || lastCancelledCount === null) {
             // Lần đầu — chỉ lưu baseline, không notify
             lastKnownCount = newTotal;
+            lastCancelledCount = newCancelled;
             return;
         }
+
+        let shouldReloadTable = false;
 
         if (newTotal > lastKnownCount) {
             // Có booking mới!
@@ -106,11 +111,27 @@ async function checkForNewBookings() {
 
             // Hiện notification banner
             showNewBookingBanner(delta);
+            shouldReloadTable = true;
+        }
 
+        if (newCancelled > lastCancelledCount) {
+            // Có booking huỷ!
+            const cancelDelta = newCancelled - lastCancelledCount;
+            lastCancelledCount = newCancelled;
+            
+            // Phát âm thanh huỷ (dùng tạm Add.mp3 hoặc chuông khác nếu có, tuỳ chọn)
+            playSound('Add.mp3'); 
+
+            showCancellationBanner(cancelDelta, d.latest_cancelled_id);
+            shouldReloadTable = true;
+        }
+
+        if (shouldReloadTable) {
             // Cập nhật stats cards và bảng ngay lập tức (silent)
             updateStatsFromData(d);
             loadBookings(false);
         }
+
     } catch (e) {
         // Silently ignore polling errors
     }
@@ -157,6 +178,44 @@ function updatePageBadge() {
     }
 }
 
+function showCancellationBanner(count, latest_cancelled_id) {
+    const existing = document.getElementById('cancellationBanner');
+    if (existing) existing.remove();
+
+    const banner = document.createElement('div');
+    banner.id = 'cancellationBanner';
+    banner.style.cssText = `
+        position: fixed; top: 140px; right: 20px; z-index: 9998;
+        background: #ef4444; color: #fff; border-radius: 12px;
+        padding: 14px 20px; box-shadow: 0 4px 20px rgba(239,68,68,0.4);
+        display: flex; align-items: center; gap: 12px;
+        font-size: 14px; font-weight: 500;
+        animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1);
+        cursor: pointer;
+    `;
+    
+    // Nếu có mã đơn phòng, hiển thị mã đơn
+    const idText = latest_cancelled_id ? `[Mã đơn: ${latest_cancelled_id}]` : `${count} đơn phòng`;
+    
+    banner.innerHTML = `
+        <span style="font-size:20px;">⚠️</span>
+        <div>
+            <div style="font-weight:700; font-size:13px; color:#fff;">Phòng vừa bị huỷ!</div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.85);">${idText} vừa bị huỷ trên OTA.</div>
+        </div>
+        <button onclick="document.getElementById('cancellationBanner').remove();"
+            style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px;">✕</button>
+    `;
+
+    // Tự đóng sau 10s
+    setTimeout(() => {
+        if(document.getElementById('cancellationBanner')) {
+            document.getElementById('cancellationBanner').remove();
+        }
+    }, 10000);
+    document.body.appendChild(banner);
+}
+
 // Cập nhật stats mà không cần gọi API lần nữa (dùng data từ poll)
 function updateStatsFromData(d) {
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
@@ -171,8 +230,9 @@ function updateStatsFromData(d) {
 }
 
 // Đặt count ban đầu ngay sau load đầu tiên
-function setInitialCount(total) {
+function setInitialCount(total, cancelled) {
     if (lastKnownCount === null) lastKnownCount = total;
+    if (lastCancelledCount === null) lastCancelledCount = cancelled;
 }
 
 // ── Stats ──────────────────────────────────────────────────────────────────
@@ -208,7 +268,7 @@ async function loadStats() {
             rev > 0 ? rev.toLocaleString('vi-VN') + ' ₫' : '—';
 
         // Lưu baseline cho smart polling
-        setInitialCount(d.total_bookings ?? 0);
+        setInitialCount(d.total_bookings ?? 0, d.cancelled_count ?? 0);
     } catch (e) {
         console.error('Error loading stats:', e);
     }

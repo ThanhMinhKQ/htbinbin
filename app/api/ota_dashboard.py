@@ -102,6 +102,10 @@ def get_ota_stats(
     bookings_this_week = booking_q.filter(Booking.created_at >= week_start).count()
     bookings_this_month = booking_q.filter(Booking.created_at >= month_start).count()
 
+    # Lấy thông tin đơn bị huỷ gần nhất
+    latest_cancelled = booking_q.filter(Booking.status == BookingStatus.CANCELLED).order_by(Booking.updated_at.desc()).first()
+    latest_cancelled_id = latest_cancelled.external_id if latest_cancelled else None
+
     return OTAStats(
         total_bookings=total_bookings,
         confirmed_count=confirmed_count,
@@ -110,6 +114,7 @@ def get_ota_stats(
         bookings_this_week=bookings_this_week,
         bookings_this_month=bookings_this_month,
         total_revenue=total_revenue,
+        latest_cancelled_id=latest_cancelled_id,
     )
 
 

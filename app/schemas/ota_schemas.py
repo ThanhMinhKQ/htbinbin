@@ -16,6 +16,7 @@ class OTAStats(BaseModel):
     bookings_this_week: int
     bookings_this_month: int
     total_revenue: float       # Tổng doanh thu (VND)
+    latest_cancelled_id: Optional[str] = None # ID (external_id) của đơn huỷ gần nhất
 
     class Config:
         from_attributes = True
