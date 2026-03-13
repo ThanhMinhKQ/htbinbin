@@ -95,6 +95,11 @@ class OTAExtractor:
         """
         if not self.client: 
             return {"error": "Missing API Key", "status": "FAILED"}
+
+        # --- Bỏ qua các email kiểm tra phòng trống của Mytour ---
+        if "mytour" in sender.lower() and "xác nhận phòng trống" in subject.lower():
+            logger.info(f"[OTA Extractor] Bỏ qua email kiểm tra phòng trống Mytour: {subject}")
+            return {"action_type": "IGNORE", "status": "IGNORED"}
         
         cleaned_body = self.clean_html(html_content)
         
