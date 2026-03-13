@@ -269,6 +269,16 @@ def update_booking(
     if payload.is_prepaid is not None:
         booking.is_prepaid = payload.is_prepaid
 
+    if payload.branch_name is not None:
+        if payload.branch_name.strip() == "":
+            booking.branch_id = None
+        else:
+            branch = db.query(Branch).filter(Branch.name == payload.branch_name).first()
+            if branch:
+                booking.branch_id = branch.id
+            else:
+                raise HTTPException(status_code=400, detail=f"Không tìm thấy chi nhánh: {payload.branch_name}")
+
     # Cập nhật raw_data cho các trường lưu trong JSON
     raw = dict(booking.raw_data or {})
     if payload.check_in_time is not None:

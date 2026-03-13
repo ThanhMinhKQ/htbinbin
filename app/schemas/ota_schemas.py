@@ -68,6 +68,7 @@ class BookingUpdateRequest(BaseModel):
     checkin_code: Optional[str] = None
     special_requests: Optional[str] = None
     is_prepaid: Optional[bool] = None
+    branch_name: Optional[str] = None
 
 class LogResponse(BaseModel):
     id: int

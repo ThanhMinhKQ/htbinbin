@@ -592,6 +592,38 @@ function openEditModal() {
     document.getElementById('em-title').textContent = `#${booking.external_id} — ${booking.guest_name}`;
     document.getElementById('em-guest-name').value = booking.guest_name || '';
     document.getElementById('em-guest-phone').value = booking.guest_phone || '';
+    
+    // Populate branch options
+    const branchSelect = document.getElementById('em-branch');
+    if (branchSelect) {
+        // Clear existing options except the first "Chưa gắn chi nhánh"
+        branchSelect.innerHTML = '<option value="">-- Chưa gắn chi nhánh --</option>';
+        const config = window.OTA_CONFIG || {};
+        
+        if (config.isAdmin) {
+            // Lấy từ branchFilter
+            const filterEl = document.getElementById('branchFilter');
+            if (filterEl) {
+                Array.from(filterEl.options).forEach(opt => {
+                    if (opt.value) { // skip the empty "Tất cả" option
+                        const newOption = document.createElement('option');
+                        newOption.value = opt.value;
+                        newOption.textContent = opt.textContent;
+                        branchSelect.appendChild(newOption);
+                    }
+                });
+            }
+        } else if (config.currentBranch) {
+            // Nếu là lễ tân, chỉ cho chọn chi nhánh của họ
+            const newOption = document.createElement('option');
+            newOption.value = config.currentBranch;
+            newOption.textContent = config.currentBranch;
+            branchSelect.appendChild(newOption);
+        }
+        
+        branchSelect.value = booking.branch_name || '';
+    }
+
     document.getElementById('em-room-type').value = booking.room_type || '';
     document.getElementById('em-num-rooms').value = booking.num_rooms || 1;
     document.getElementById('em-check-in').value = booking.check_in || '';
@@ -657,6 +689,7 @@ async function saveBookingEdit() {
         checkin_code: document.getElementById('em-checkin-code').value.trim() || null,
         special_requests: document.getElementById('em-special-requests').value.trim() || null,
         is_prepaid: is_prepaid_val,
+        branch_name: document.getElementById('em-branch')?.value || null,
     };
 
     try {
