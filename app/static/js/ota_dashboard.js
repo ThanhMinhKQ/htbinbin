@@ -592,14 +592,14 @@ function openEditModal() {
     document.getElementById('em-title').textContent = `#${booking.external_id} — ${booking.guest_name}`;
     document.getElementById('em-guest-name').value = booking.guest_name || '';
     document.getElementById('em-guest-phone').value = booking.guest_phone || '';
-    
+
     // Populate branch options
     const branchSelect = document.getElementById('em-branch');
     if (branchSelect) {
         // Clear existing options except the first "Chưa gắn chi nhánh"
         branchSelect.innerHTML = '<option value="">-- Chưa gắn chi nhánh --</option>';
         const config = window.OTA_CONFIG || {};
-        
+
         if (config.isAdmin) {
             // Lấy từ branchFilter
             const filterEl = document.getElementById('branchFilter');
@@ -620,7 +620,7 @@ function openEditModal() {
             newOption.textContent = config.currentBranch;
             branchSelect.appendChild(newOption);
         }
-        
+
         branchSelect.value = booking.branch_name || '';
     }
 
@@ -633,7 +633,7 @@ function openEditModal() {
     document.getElementById('em-total-price').value = booking.total_price ? booking.total_price.toLocaleString('vi-VN') : '';
     document.getElementById('em-currency').value = booking.currency || 'VND';
     document.getElementById('em-status').value = (booking.status || 'CONFIRMED').toUpperCase();
-    
+
     const isPrepaidSelect = document.getElementById('em-is-prepaid');
     if (isPrepaidSelect) {
         if (booking.is_prepaid === true) isPrepaidSelect.value = 'true';
@@ -660,7 +660,7 @@ async function saveBookingEdit() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang lưu...';
 
     const statusValue = document.getElementById('em-status').value || null;
-    
+
     // Parse is_prepaid from the edit dropdown
     const isPrepaidSelect = document.getElementById('em-is-prepaid');
     let is_prepaid_val = null;
@@ -758,7 +758,7 @@ function exportExcel(event) {
         calcNightsNum(b.check_in, b.check_out),
         b.status || '',
         b.total_price ? (b.total_price + ' ' + (b.currency || 'VND')) : '',
-        b.is_prepaid ? 'Đã thanh toán (OTA)' : (b.is_prepaid === false ? 'Khách trả h/sạn' : 'Chưa rõ'),
+        b.is_prepaid ? 'Đã thanh toán (OTA)' : (b.is_prepaid === false ? 'Khách trả tại khách sạn' : 'Chưa rõ'),
         b.special_requests || ''
     ]);
 
