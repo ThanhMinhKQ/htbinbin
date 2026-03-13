@@ -52,12 +52,9 @@ window.onload = () => {
     loadBookings();
     startSmartPolling();
 
-    // User đang xem OTA Dashboard → clear badge và reset title
-    localStorage.setItem('otaNewCount', '0');
-    updateTabTitle(0);
-    // Nếu badge vẫn còn trong cùng tab (ít xảy ra)
-    const navBadge = document.getElementById('ota-nav-badge');
-    if (navBadge) navBadge.style.display = 'none';
+    // Lấy badge value ban đầu
+    const prev = parseInt(localStorage.getItem('otaNewCount') || '0', 10);
+    updateTabTitle(prev);
 };
 
 // ── Smart Polling (15s) ────────────────────────────────────────────────────
@@ -106,6 +103,13 @@ async function checkForNewBookings() {
 
             // Hiện notification banner
             showNewBookingBanner(delta);
+            
+            // Cập nhật nav badge trực tiếp
+            const navBadge = document.getElementById('ota-nav-badge');
+            if (navBadge) {
+                navBadge.textContent = (prev + delta) > 99 ? '99+' : (prev + delta);
+                navBadge.style.display = 'inline-block';
+            }
 
             // Cập nhật stats cards và bảng ngay lập tức (silent)
             updateStatsFromData(d);
@@ -137,7 +141,7 @@ function showNewBookingBanner(count) {
             <div style="font-weight:700; font-size:13px; color:#fff;">Đặt phòng mới!</div>
             <div style="font-size:12px; color:rgba(255,255,255,0.85);">${count} đặt phòng vừa được thêm — Đang tải...</div>
         </div>
-        <button onclick="document.getElementById('newBookingBanner').remove(); newBookingCount=0;"
+        <button onclick="document.getElementById('newBookingBanner').remove(); newBookingCount=0; localStorage.setItem('otaNewCount', '0'); const nb = document.getElementById('ota-nav-badge'); if(nb) nb.style.display='none'; updatePageBadge();"
             style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px;">✕</button>
     `;
 
