@@ -892,6 +892,11 @@ function renderStayCell(b, checkIn, checkOut, nights) {
 }
 
 function renderPaymentLabel(booking) {
+    const s = (booking.status || '').toUpperCase();
+    if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
+        return `<div style="font-size:11px; color:#94a3b8; margin-top:3px;">— Đã hủy</div>`;
+    }
+
     if (booking.is_prepaid === true) {
         return `<div style="font-size:11px; color:#22c55e; margin-top:3px; font-weight:500;">✓ Đã thanh toán (OTA)</div>`;
     } else if (booking.is_prepaid === false) {
