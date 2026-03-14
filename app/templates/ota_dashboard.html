@@ -182,7 +182,7 @@
     .date-filter-input {
         border: 1px solid #dde1ea;
         border-radius: 8px;
-        padding: 9px 10px;
+        padding: 9px 10px 9px 36px;
         font-size: 13px;
         color: #333;
         background: #fff;
@@ -754,6 +754,8 @@
                 </div>
                 <span style="color:#bbb;">—</span>
                 <div class="position-relative" style="min-width: 150px;">
+                    <i class="bi bi-calendar-event"
+                        style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;color:#9ca3af;"></i>
                     <input type="text" id="dateToFilter" placeholder="Đến ngày"
                         class="datepicker date-filter-input"
                         onchange="applyFilters()">

@@ -398,15 +398,18 @@ function applyFilters() {
         // Branch filter
         if (branchFilter && (b.branch_name || '').toLowerCase() !== branchFilter) return false;
 
-        // Date filter (theo NGÀY LƯU TRÚ: ngày check-in nằm trong khoảng được chọn)
+        // Date filter (theo NGÀY LƯU TRÚ)
         if (fromTs || toTs) {
             // Nếu thiếu check_in thì không thể lọc theo ngày lưu trú → loại khỏi kết quả
             if (!b.check_in) return false;
 
             const checkInTs = new Date(b.check_in + 'T00:00:00').getTime();
-
+            // "Từ ngày" lọc theo ngày Check-in
             if (fromTs && checkInTs < fromTs) return false;
-            if (toTs && checkInTs > toTs) return false;
+
+            // "Đến ngày" lọc theo ngày Check-out (Nếu không có check_out thì dùng check_in)
+            const checkOutTs = b.check_out ? new Date(b.check_out + 'T00:00:00').getTime() : checkInTs;
+            if (toTs && checkOutTs > (dateTo ? new Date(dateTo + 'T00:00:00').getTime() : toTs)) return false;
         }
 
         return true;
