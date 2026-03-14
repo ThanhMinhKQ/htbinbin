@@ -375,7 +375,7 @@ function applyFilters() {
     const dateFrom = document.getElementById('dateFromFilter')?.value || '';
     const dateTo = document.getElementById('dateToFilter')?.value || '';
 
-    // Parse date range (về đầu/cuối ngày)
+    // Parse date range (về đầu/cuối ngày) - theo NGÀY LƯU TRÚ, không phải ngày tạo đơn
     const fromTs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : null;
     const toTs = dateTo ? new Date(dateTo + 'T23:59:59').getTime() : null;
 
@@ -398,12 +398,26 @@ function applyFilters() {
         // Branch filter
         if (branchFilter && (b.branch_name || '').toLowerCase() !== branchFilter) return false;
 
-        // Date filter (theo ngày tạo đơn)
+        // Date filter (theo NGÀY LƯU TRÚ: khoảng check-in/check-out)
         if (fromTs || toTs) {
-            const createdTs = b.created_at ? new Date(b.created_at).getTime() : null;
-            if (!createdTs) return false;
-            if (fromTs && createdTs < fromTs) return false;
-            if (toTs && createdTs > toTs) return false;
+            // Nếu thiếu check_in/check_out thì không thể lọc theo ngày lưu trú → loại khỏi kết quả
+            if (!b.check_in && !b.check_out) return false;
+
+            // Mốc bắt đầu lưu trú: ngày check_in (00:00)
+            const stayStartTs = b.check_in
+                ? new Date(b.check_in + 'T00:00:00').getTime()
+                : null;
+
+            // Mốc kết thúc lưu trú: ngày check_out (23:59), nếu không có thì dùng check_in
+            const stayEndTs = b.check_out
+                ? new Date(b.check_out + 'T23:59:59').getTime()
+                : stayStartTs;
+
+            if (!stayStartTs || !stayEndTs) return false;
+
+            // Điều kiện giao nhau giữa [stayStartTs, stayEndTs] và [fromTs, toTs]
+            if (fromTs && stayEndTs < fromTs) return false;
+            if (toTs && stayStartTs > toTs) return false;
         }
 
         return true;
