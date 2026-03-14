@@ -129,7 +129,17 @@ class OTADashboardService:
             # Try to map hotel and create booking
             mapper = HotelMapper(db)
             hotel_name = extracted.get("hotel_name", "")
-            branch_id = mapper.get_branch_id(hotel_name)
+            booking_source = extracted.get("booking_source")
+            room_type = extracted.get("room_type") or ""
+
+            branch_id = None
+            # Website bookings: branch code is encoded in room_type, e.g. "(B2)"
+            if booking_source == "Website":
+                branch_id = mapper.get_branch_id_from_room_type(room_type)
+
+            # Fallback to hotel_name-based mapping for all sources
+            if not branch_id:
+                branch_id = mapper.get_branch_id(hotel_name)
             
             # Check if booking already exists
             existing_booking = db.query(Booking).filter(

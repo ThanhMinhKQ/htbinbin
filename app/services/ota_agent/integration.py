@@ -91,7 +91,18 @@ class OTAAgent:
 
             # 3. Map Branch
             hotel_name = data.get('hotel_name')
-            branch_id = mapper.get_branch_id(hotel_name)
+            booking_source = data.get('booking_source')
+            room_type = data.get('room_type') or ""
+
+            branch_id = None
+            # Website bookings: branch code is encoded in room_type, e.g. "(B2)"
+            if booking_source == "Website":
+                branch_id = mapper.get_branch_id_from_room_type(room_type)
+
+            # Fallback to hotel_name-based mapping for all sources
+            if not branch_id:
+                branch_id = mapper.get_branch_id(hotel_name)
+
             data['branch_id'] = branch_id
             
             if not branch_id:

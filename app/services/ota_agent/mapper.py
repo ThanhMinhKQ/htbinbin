@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session  # type: ignore
 from app.db.models import Branch  # type: ignore
 from app.core.config import logger  # type: ignore
 from typing import Optional, List, Dict
-
+import re
 # Alias cứng: tên trên email OTA → tên chi nhánh trong DB
 # Dùng khi fuzzy match không nhận ra được (tên thương hiệu khác hẳn tên hệ thống)
 HOTEL_ALIASES: Dict[str, str] = {
@@ -25,12 +25,27 @@ class HotelMapper:
     def __init__(self, db: Session):
         self.db = db
         self.branch_map = self._load_branches()
+        # Map branch_code (e.g. "B2") -> branch_id for Website bookings
+        self.branch_code_map = self._load_branch_codes()
 
     def _load_branches(self) -> Dict[str, int]:
         branches = self.db.query(Branch).all()
-        mapping = {}
+        mapping: Dict[str, int] = {}
         for b in branches:
             mapping[b.name] = b.id
+        return mapping
+
+    def _load_branch_codes(self) -> Dict[str, int]:
+        """
+        Build a mapping from branch_code (e.g. 'B2') to branch_id.
+        Safe for tests that use simple mock Branch objects without branch_code.
+        """
+        branches = self.db.query(Branch).all()
+        mapping: Dict[str, int] = {}
+        for b in branches:
+            code = getattr(b, "branch_code", None)
+            if code:
+                mapping[str(code).upper()] = b.id
         return mapping
 
     def get_branch_id(self, hotel_name: str) -> Optional[int]:
@@ -68,3 +83,29 @@ class HotelMapper:
                 logger.warning(f"[OTA Mapper] Low confidence match for '{hotel_name}'. Best: '{match_name}' ({score})")
 
         return None
+
+    def get_branch_id_from_room_type(self, room_type: str) -> Optional[int]:
+        """
+        Website bookings encode the branch in the room type name,
+        e.g. 'Superior Room (B2)' → branch_code 'B2' → Bin Bin Hotel 2.
+        """
+        if not room_type or not getattr(self, "branch_code_map", None):
+            return None
+
+        match = re.search(r"\((B\d+)\)", room_type, re.IGNORECASE)
+        if not match:
+            return None
+
+        code = match.group(1).upper()
+        branch_id = self.branch_code_map.get(code)
+        if branch_id:
+            logger.info(
+                f"[OTA Mapper] Branch code match from room_type: "
+                f"'{room_type}' -> '{code}' (id={branch_id})"
+            )
+        else:
+            logger.warning(
+                f"[OTA Mapper] Branch code '{code}' from room_type '{room_type}' "
+                f"not found in DB."
+            )
+        return branch_id
