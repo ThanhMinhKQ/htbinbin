@@ -17,7 +17,7 @@ from app.schemas.ota_schemas import (  # type: ignore
     FailedEmailResponse, EmailDetailResponse, TimelineStats, HealthStatus  # type: ignore
 )  # type: ignore
 from typing import List, Optional, Any, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import os
 import base64
 import json
@@ -58,6 +58,26 @@ def ota_dashboard_ui(request: Request):
 # ============================================================================
 # Endpoints
 # ============================================================================
+
+@router.get("/branches")
+def list_branches(db: Session = Depends(get_db)):
+    """Danh sách chi nhánh tham gia OTA: chỉ Bin Bin Hotel 1, 2, ... (loại Quản lí, v.v.), sắp xếp đúng thứ tự."""
+    import re
+    branches = (
+        db.query(Branch)
+        .filter(Branch.name.ilike("Bin Bin Hotel%"))
+        .all()
+    )
+    out = [{"id": b.id, "name": b.name, "branch_code": (b.branch_code or b.name)} for b in branches]
+
+    def sort_key(item):
+        name = item.get("name") or ""
+        m = re.search(r"(\d+)\s*$", name.strip())
+        return (0, int(m.group(1))) if m else (1, name)
+
+    out.sort(key=sort_key)
+    return out
+
 
 @router.get("/stats", response_model=OTAStats)
 def get_ota_stats(
@@ -144,7 +164,7 @@ def get_bookings(
     
     query = db.query(Booking, Branch.name.label('branch_name')).outerjoin(
         Branch, Booking.branch_id == Branch.id
-    ).order_by(Booking.created_at.desc())
+    ).order_by(func.coalesce(Booking.updated_at, Booking.created_at).desc())
     
     # Apply filters
     if ota:
@@ -154,17 +174,23 @@ def get_bookings(
         query = query.filter(Booking.branch_id == branch_id)
 
     if branch_name:
-        # Match cả tên đầy đủ (admin dropdown) lẫn branch code (lễ tân lưu trong session)
-        # VD: "Bin Bin Hotel 10" hoặc "B10" đều khớp được
-        query = query.filter(
-            or_(
-                Branch.name.ilike(branch_name),
-                Branch.branch_code.ilike(branch_name)
-            )
-        )
-    
+        # Chỉ hiển thị booking có branch_id thuộc chi nhánh này (gồm cả bản sao chỉ đọc để lại khi chuyển)
+        branch_ids = [
+            b.id for b in db.query(Branch).filter(
+                or_(Branch.name.ilike(branch_name), Branch.branch_code.ilike(branch_name))
+            ).all()
+            if b.id
+        ]
+        if branch_ids:
+            query = query.filter(Booking.branch_id.in_(branch_ids))
+        else:
+            query = query.filter(Booking.branch_id == -1)  # no match
+
     results = query.limit(limit).offset(offset).all()
-    
+
+    def _is_readonly_copy(booking):
+        return getattr(booking, "source_booking_id", None) is not None
+
     return [
         BookingResponse(
             id=booking.id,
@@ -184,13 +210,16 @@ def get_bookings(
             num_children=booking.num_children,
             total_price=float(booking.total_price),
             currency=booking.currency,
-            branch_name=branch_name,
+            branch_name=current_branch_name,
+            original_branch_name=(booking.raw_data or {}).get("original_branch_name") or None,
+            is_readonly_copy=_is_readonly_copy(booking),
             status=booking.status.value if hasattr(booking.status, 'value') else str(booking.status),
             special_requests=_extract_special_requests(booking.raw_data),
             created_at=booking.created_at,
+            updated_at=getattr(booking, "updated_at", None),
             is_prepaid=booking.is_prepaid
         )
-        for booking, branch_name in results
+        for booking, current_branch_name in results
     ]
 
 
@@ -202,12 +231,15 @@ def update_booking(
     db: Session = Depends(get_db)
 ):
     """Admin-only: Cập nhật thông tin booking bị AI trích xuất sai/thiếu."""
-    # Kiểm tra quyền admin
     user = request.session.get("user", {})
     user_role = (user.get("role") or "").lower()
     ADMIN_ROLES = {"admin", "quanly", "manager", "boss"}
-    if user_role not in ADMIN_ROLES:
-        raise HTTPException(status_code=403, detail="Chỉ admin mới có thể chỉnh sửa phiếu đặt phòng.")
+    is_admin = user_role in ADMIN_ROLES
+    is_letan = user_role == "letan"
+
+    # Chỉ admin và lễ tân mới được chỉnh sửa (với phạm vi khác nhau)
+    if not is_admin and not is_letan:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa phiếu đặt phòng này.")
 
     from datetime import datetime, date
 
@@ -215,74 +247,203 @@ def update_booking(
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail=f"Không tìm thấy phiếu đặt phòng #{booking_id}.")
+    if getattr(booking, "source_booking_id", None) is not None:
+        raise HTTPException(status_code=403, detail="Đây là bản sao chỉ xem (đã chuyển chi nhánh). Không thể chỉnh sửa.")
+
+    # Lưu lại trạng thái cũ để so sánh và ghi chú
+    from datetime import datetime, date
+    old_status = booking.status
+    old_check_in = booking.check_in
+    old_check_out = booking.check_out
+    old_branch_id = booking.branch_id
+    old_room_type = booking.room_type
+    old_num_rooms = (booking.raw_data or {}).get("num_rooms")
+    old_created_at = booking.created_at
 
     # Cập nhật các trường trong DB
-    if payload.guest_name is not None:
-        booking.guest_name = payload.guest_name
-    if payload.guest_phone is not None:
-        booking.guest_phone = payload.guest_phone
-    if payload.room_type is not None:
-        booking.room_type = payload.room_type
-    if payload.num_guests is not None:
-        booking.num_guests = payload.num_guests
-    if payload.num_adults is not None:
-        booking.num_adults = payload.num_adults
-    if payload.num_children is not None:
-        booking.num_children = payload.num_children
-    if payload.total_price is not None:
-        booking.total_price = payload.total_price
-    if payload.currency is not None:
-        booking.currency = payload.currency
-    if payload.checkin_code is not None:
-        booking.checkin_code = payload.checkin_code
-    if payload.check_in is not None:
-        booking.check_in = date.fromisoformat(payload.check_in)
-    if payload.check_out is not None:
-        booking.check_out = date.fromisoformat(payload.check_out)
-    if payload.status is not None:
-        try:
-            new_status = BookingStatus[payload.status.upper()]
-            # Nếu set trạng thái NO_SHOW, validate xem đã đến ngày/giờ check-out chưa
+    if is_admin:
+        # Admin: được phép chỉnh toàn bộ (giống logic cũ)
+        if payload.guest_name is not None:
+            booking.guest_name = payload.guest_name
+        if payload.guest_phone is not None:
+            booking.guest_phone = payload.guest_phone
+        if payload.room_type is not None:
+            booking.room_type = payload.room_type
+        if payload.num_guests is not None:
+            booking.num_guests = payload.num_guests
+        if payload.num_adults is not None:
+            booking.num_adults = payload.num_adults
+        if payload.num_children is not None:
+            booking.num_children = payload.num_children
+        if payload.total_price is not None:
+            booking.total_price = payload.total_price
+        if payload.currency is not None:
+            booking.currency = payload.currency
+        if payload.checkin_code is not None:
+            booking.checkin_code = payload.checkin_code
+        if payload.check_in is not None:
+            booking.check_in = date.fromisoformat(payload.check_in)
+        if payload.check_out is not None:
+            booking.check_out = date.fromisoformat(payload.check_out)
+        if payload.status is not None:
+            try:
+                new_status = BookingStatus[payload.status.upper()]
+
+                # Admin: vẫn kiểm soát NO_SHOW theo NGÀY (không cần đến đúng giờ)
+                if new_status == BookingStatus.NO_SHOW:
+                    co_date = payload.check_out if payload.check_out is not None else booking.check_out
+                    if co_date:
+                        if isinstance(co_date, str):
+                            co_date_obj = date.fromisoformat(co_date)
+                        else:
+                            co_date_obj = co_date
+                        from datetime import datetime as _dt
+                        today = _dt.now().date()
+                        if today < co_date_obj:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Chỉ có thể đổi thành No-show khi đã đến/qua ngày check-out của đơn phòng này."
+                            )
+
+                elif new_status == BookingStatus.COMPLETED:
+                    ci_date = payload.check_in if payload.check_in is not None else booking.check_in
+                    if ci_date:
+                        if isinstance(ci_date, str):
+                            ci_date_obj = date.fromisoformat(ci_date)
+                        else:
+                            ci_date_obj = ci_date
+                        from datetime import datetime as _dt
+                        today = _dt.now().date()
+                        if today < ci_date_obj:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Chỉ có thể chuyển sang Hoàn thành khi đã đến/qua ngày check-in của đơn phòng này."
+                            )
+
+                booking.status = new_status
+            except KeyError:
+                raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {payload.status}")
+        if payload.is_prepaid is not None:
+            booking.is_prepaid = payload.is_prepaid
+    else:
+        # Lễ tân: chỉ được chỉnh ngày/giờ, yêu cầu, chi nhánh, thanh toán (một chiều) và trạng thái cho phép
+        if payload.check_in is not None:
+            booking.check_in = date.fromisoformat(payload.check_in)
+        if payload.check_out is not None:
+            booking.check_out = date.fromisoformat(payload.check_out)
+
+        # Trạng thái: chỉ cho phép chuyển sang COMPLETED (Hoàn thành) hoặc NO_SHOW với điều kiện theo NGÀY
+        if payload.status is not None:
+            try:
+                new_status = BookingStatus[payload.status.upper()]
+            except KeyError:
+                raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {payload.status}")
+
+            from datetime import datetime as _dt
+            today = _dt.now().date()
+
             if new_status == BookingStatus.NO_SHOW:
-                # Xác định thời điểm check-out (ưu tiên check_out_time, nếu không mặc định là 12:00 của ngày check_out)
+                # Điều kiện: chỉ mở khi đến/qua NGÀY check-out (00:00)
                 co_date = payload.check_out if payload.check_out is not None else booking.check_out
-                # Do booking.check_out là date, ta cần get datetime
                 if co_date:
-                    co_time_str = payload.check_out_time if payload.check_out_time is not None else (booking.raw_data or {}).get('check_out_time')
-                    if co_time_str:
-                        try:
-                            # Cố gắng parse giờ check-out (VD: "12:00", "14:30")
-                            hr, mn = map(int, co_time_str.replace('h', ':').split(':')[:2])
-                        except Exception:
-                            hr, mn = 12, 0
-                    else:
-                        hr, mn = 12, 0
-                    
-                    # Convert co_date (date object or string iso) sang datetime
                     if isinstance(co_date, str):
                         co_date_obj = date.fromisoformat(co_date)
                     else:
                         co_date_obj = co_date
-                        
-                    co_datetime = datetime.combine(co_date_obj, datetime.min.time()).replace(hour=hr, minute=mn)
-                    if datetime.now() < co_datetime:
-                        raise HTTPException(status_code=400, detail="Chỉ có thể đổi thành No-show khi đã đến/qua thời gian check-out của đơn phòng này.")
+                    if today < co_date_obj:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Chỉ có thể đánh No-show khi đã đến/qua ngày check-out của đơn phòng này."
+                        )
+                booking.status = new_status
 
-            booking.status = new_status
-        except KeyError:
-            raise HTTPException(status_code=400, detail=f"Trạng thái không hợp lệ: {payload.status}")
-    if payload.is_prepaid is not None:
-        booking.is_prepaid = payload.is_prepaid
+            elif new_status == BookingStatus.COMPLETED:
+                # Điều kiện: chỉ mở khi đến/qua NGÀY check-in (00:00)
+                ci_date = payload.check_in if payload.check_in is not None else booking.check_in
+                if ci_date:
+                    if isinstance(ci_date, str):
+                        ci_date_obj = date.fromisoformat(ci_date)
+                    else:
+                        ci_date_obj = ci_date
+                    if today < ci_date_obj:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Chỉ có thể chuyển sang Hoàn thành khi đã đến/qua ngày check-in của đơn phòng này."
+                        )
+                booking.status = new_status
+            else:
+                # Các trạng thái khác lễ tân không được phép đổi trực tiếp
+                raise HTTPException(status_code=403, detail="Lễ tân chỉ được phép đánh No-show hoặc Hoàn thành.")
 
+        # Thanh toán: chỉ cho phép chuyển từ chưa thanh toán sang đã thanh toán, không cho đảo chiều
+        if payload.is_prepaid is not None:
+            current = booking.is_prepaid
+            # Nếu đang chưa thanh toán (False hoặc None) → cho phép set True
+            if (current is False or current is None) and payload.is_prepaid is True:
+                booking.is_prepaid = True
+            # Không cho phép giảm từ True về False
+            elif current is True and payload.is_prepaid is False:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Không thể chuyển từ đã thanh toán sang chưa thanh toán."
+                )
+            # Các trường hợp còn lại: giữ nguyên, bỏ qua thay đổi
+
+    # Xử lý branch_name: chuyển chi nhánh → tạo bản sao chỉ đọc tại chi nhánh cũ, bản gốc chuyển sang chi nhánh mới
+    old_branch_name = None
+    if old_branch_id:
+        old_branch = db.query(Branch).filter(Branch.id == old_branch_id).first()
+        old_branch_name = old_branch.name if old_branch else None
+    new_branch_name_for_note = None
     if payload.branch_name is not None:
         if payload.branch_name.strip() == "":
             booking.branch_id = None
         else:
-            branch = db.query(Branch).filter(Branch.name == payload.branch_name).first()
-            if branch:
-                booking.branch_id = branch.id
-            else:
+            new_branch = db.query(Branch).filter(Branch.name == payload.branch_name).first()
+            if not new_branch:
                 raise HTTPException(status_code=400, detail=f"Không tìm thấy chi nhánh: {payload.branch_name}")
+            new_branch_id = new_branch.id
+            if old_branch_id and int(new_branch_id) != int(old_branch_id):
+                # Chuyển chi nhánh thật sự: tạo bản sao chỉ đọc tại chi nhánh cũ
+                copy_external_id = f"{booking.external_id} Copy"
+                copy_raw = dict(booking.raw_data or {})
+                transfer_note = (
+                    f"Đã chuyển sang {new_branch.name} vào {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+                )
+                existing_req = (copy_raw.get("special_requests") or copy_raw.get("special_request") or "").strip()
+                copy_raw["special_requests"] = (
+                    f"{existing_req}\n{transfer_note}".strip() if existing_req else transfer_note
+                )
+                copy_booking = Booking(
+                    booking_source=booking.booking_source,
+                    external_id=copy_external_id,
+                    guest_name=booking.guest_name,
+                    guest_phone=booking.guest_phone,
+                    checkin_code=booking.checkin_code,
+                    check_in=booking.check_in,
+                    check_out=booking.check_out,
+                    room_type=booking.room_type,
+                    num_guests=booking.num_guests,
+                    num_adults=booking.num_adults,
+                    num_children=booking.num_children,
+                    total_price=booking.total_price,
+                    currency=booking.currency or "VND",
+                    is_prepaid=booking.is_prepaid,
+                    payment_method=booking.payment_method,
+                    deposit_amount=booking.deposit_amount or 0,
+                    status=booking.status,
+                    branch_id=old_branch_id,
+                    source_booking_id=booking.id,
+                    raw_data=copy_raw,
+                )
+                db.add(copy_booking)
+                db.flush()
+            raw = dict(booking.raw_data or {})
+            if old_branch_id and 'original_branch_name' not in raw:
+                raw['original_branch_name'] = old_branch_name
+            booking.raw_data = raw
+            booking.branch_id = new_branch.id
+            new_branch_name_for_note = new_branch.name
 
     # Cập nhật raw_data cho các trường lưu trong JSON
     raw = dict(booking.raw_data or {})
@@ -292,8 +453,16 @@ def update_booking(
         raw['check_out_time'] = payload.check_out_time
     if payload.num_rooms is not None:
         raw['num_rooms'] = payload.num_rooms
-    if payload.special_requests is not None:
-        raw['special_requests'] = payload.special_requests
+
+    # Cập nhật yêu cầu: khi form gửi lên (kể cả rỗng) thì ghi đè, tránh xoá trắng không lưu
+    _sent = payload.model_dump(exclude_unset=True) if hasattr(payload, "model_dump") else (payload.dict(exclude_unset=True) if hasattr(payload, "dict") else {})
+    if "special_requests" in _sent:
+        req_val = (payload.special_requests or "").strip() or None
+        # Xoá các key fallback cũ để đảm bảo yêu cầu trống thực sự được cập nhật
+        for k in ('special_request', 'guest_requests', 'guest_notes', 'notes', 'remarks', 'requests'):
+            raw.pop(k, None)
+        raw["special_requests"] = req_val  # type: ignore
+
     booking.raw_data = raw
     booking.updated_at = datetime.now()
 
@@ -304,6 +473,7 @@ def update_booking(
     branch = db.query(Branch).filter(Branch.id == booking.branch_id).first()
     branch_name = branch.name if branch else None
 
+    raw = booking.raw_data or {}
     return BookingResponse(
         id=booking.id,
         external_id=booking.external_id,
@@ -312,22 +482,45 @@ def update_booking(
         guest_phone=booking.guest_phone,
         checkin_code=booking.checkin_code,
         check_in=str(booking.check_in) if booking.check_in else None,
-        check_in_time=(booking.raw_data or {}).get('check_in_time') or None,
+        check_in_time=raw.get('check_in_time') or None,
         check_out=str(booking.check_out) if booking.check_out else None,
-        check_out_time=(booking.raw_data or {}).get('check_out_time') or None,
+        check_out_time=raw.get('check_out_time') or None,
         room_type=booking.room_type,
-        num_rooms=int((booking.raw_data or {}).get('num_rooms') or 1),
+        num_rooms=int(raw.get('num_rooms') or 1),
         num_guests=booking.num_guests,
         num_adults=booking.num_adults,
         num_children=booking.num_children,
         total_price=float(booking.total_price),
         currency=booking.currency,
         branch_name=branch_name,
+        original_branch_name=raw.get('original_branch_name') or None,
+        is_readonly_copy=getattr(booking, "source_booking_id", None) is not None,
         status=booking.status.value if hasattr(booking.status, 'value') else str(booking.status),
         special_requests=_extract_special_requests(booking.raw_data),
         created_at=booking.created_at,
+        updated_at=getattr(booking, "updated_at", None),
         is_prepaid=booking.is_prepaid
     )
+
+
+@router.delete("/bookings/{booking_id}")
+def delete_booking(
+    booking_id: int,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """Xoá phiếu đặt phòng (chỉ admin)."""
+    user = request.session.get("user", {})
+    role = (user.get("role") or "").lower()
+    if role not in ("admin", "quanly", "manager", "boss"):
+        raise HTTPException(status_code=403, detail="Chỉ admin mới được xoá phiếu đặt phòng.")
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phiếu đặt phòng.")
+    # Admin được phép xoá cả bản sao
+    db.delete(booking)
+    db.commit()
+    return {"ok": True, "id": booking_id}
 
 
 @router.get("/logs", response_model=List[LogResponse])

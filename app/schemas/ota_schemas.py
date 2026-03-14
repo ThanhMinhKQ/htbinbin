@@ -41,9 +41,12 @@ class BookingResponse(BaseModel):
     total_price: float
     currency: str
     branch_name: Optional[str]
+    original_branch_name: Optional[str] = None  # Chi nhánh gốc (khi đã chuyển chi nhánh)
+    is_readonly_copy: bool = False  # True = bản sao chỉ xem tại chi nhánh cũ, không thao tác được
     status: str
     special_requests: Optional[str] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
     is_prepaid: Optional[bool] = None
 
     class Config:

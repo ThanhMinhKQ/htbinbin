@@ -118,9 +118,9 @@ async function checkForNewBookings() {
             // Có booking huỷ!
             const cancelDelta = newCancelled - lastCancelledCount;
             lastCancelledCount = newCancelled;
-            
+
             // Phát âm thanh huỷ (dùng tạm Add.mp3 hoặc chuông khác nếu có, tuỳ chọn)
-            playSound('Add.mp3'); 
+            playSound('Add.mp3');
 
             showCancellationBanner(cancelDelta, d.latest_cancelled_id);
             shouldReloadTable = true;
@@ -193,10 +193,10 @@ function showCancellationBanner(count, latest_cancelled_id) {
         animation: slideInRight 0.3s cubic-bezier(0.16,1,0.3,1);
         cursor: pointer;
     `;
-    
+
     // Nếu có mã đơn phòng, hiển thị mã đơn
     const idText = latest_cancelled_id ? `[Mã đơn: ${latest_cancelled_id}]` : `${count} đơn phòng`;
-    
+
     banner.innerHTML = `
         <span style="font-size:20px;">⚠️</span>
         <div>
@@ -209,7 +209,7 @@ function showCancellationBanner(count, latest_cancelled_id) {
 
     // Tự đóng sau 10s
     setTimeout(() => {
-        if(document.getElementById('cancellationBanner')) {
+        if (document.getElementById('cancellationBanner')) {
             document.getElementById('cancellationBanner').remove();
         }
     }, 10000);
@@ -338,10 +338,10 @@ async function loadBookings(showLoader = true) {
     try {
         const res = await fetch(url);
         const data = await res.json();
-        // Sort mới nhất lên đầu (dự phòng server đã sort sẵn)
+        // Sort theo thời gian cập nhật (mới nhất lên đầu); nếu chưa cập nhật thì dùng created_at
         allBookings = (Array.isArray(data) ? data : []).sort((a, b) => {
-            const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+            const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
+            const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
             return tb - ta;
         });
 
@@ -395,8 +395,8 @@ function applyFilters() {
         // Status filter
         if (statusFilter && b.status.toLowerCase() !== statusFilter) return false;
 
-        // Branch filter
-        if (branchFilter && (b.branch_name || '').toLowerCase() !== branchFilter) return false;
+        // Branch filter (API đã trả về theo branch_id, chỉ cần khớp tên)
+        if (branchFilter && (b.branch_name || '').toLowerCase().trim() !== branchFilter) return false;
 
         // Date filter (theo NGÀY LƯU TRÚ)
         if (fromTs || toTs) {
@@ -420,12 +420,26 @@ function applyFilters() {
     renderPagination();
 }
 
-function clearDateFilter() {
+function clearAllFilters() {
     const fromEl = document.getElementById('dateFromFilter');
     const toEl = document.getElementById('dateToFilter');
-    if (fromEl) fromEl.value = '';
-    if (toEl) toEl.value = '';
-    applyFilters();
+    if (fromEl) {
+        fromEl.value = '';
+        if (fromEl._flatpickr) fromEl._flatpickr.clear();
+    }
+    if (toEl) {
+        toEl.value = '';
+        if (toEl._flatpickr) toEl._flatpickr.clear();
+    }
+    const searchEl = document.getElementById('searchInput');
+    if (searchEl) searchEl.value = '';
+    const statusEl = document.getElementById('statusFilter');
+    if (statusEl) statusEl.value = '';
+    const otaEl = document.getElementById('otaFilter');
+    if (otaEl) otaEl.value = '';
+    const branchEl = document.getElementById('branchFilter');
+    if (branchEl) branchEl.value = '';
+    loadBookings(false);
 }
 
 // ── Render Table ───────────────────────────────────────────────────────────
@@ -457,13 +471,19 @@ function renderTable() {
         const specialReq = b.special_requests || null;
         const stayCell = renderStayCell(b, checkIn, checkOut, nights);
 
+        const isReadonlyCopy = !!b.is_readonly_copy;
+        const rowClass = isReadonlyCopy ? 'row-readonly-copy' : '';
+        const rowTitle = isReadonlyCopy ? 'Bản sao đã chuyển chi nhánh — chỉ xem' : '';
+
         return `
-        <tr onclick="showBookingDetail(${b.id})" style="cursor:pointer;">
+        <tr onclick="showBookingDetail(${b.id})" style="cursor:pointer;" class="${rowClass}" title="${rowTitle}">
             <td>
+                ${isReadonlyCopy ? '<span class="badge bg-secondary me-1" style="font-size:10px;">Bản sao</span>' : ''}
                 <a class="order-id" href="javascript:void(0)" onclick="event.stopPropagation();showBookingDetail(${b.id})">
                     ${escapeHtml(b.external_id)}
                 </a>
-                <div class="order-date" style="margin-top:4px;">${createdDate}</div>
+                <div class="order-date" style="margin-top:4px;">Tạo: ${createdDate.replace('\n', ' ')}</div>
+                ${b.updated_at && b.updated_at !== b.created_at ? `<div class="order-date" style="margin-top:2px; color:#10b981; font-weight:500;" title="Thao tác gần nhất">Sửa: ${formatDateTime(b.updated_at).replace('\n', ' ')}</div>` : ''}
             </td>
             <td>
                 <div class="ota-source">${escapeHtml(b.booking_source || '—')}</div>
@@ -556,6 +576,7 @@ function goPage(page) {
 
 // ── Booking Detail Modal ───────────────────────────────────────────────────
 let _currentBookingId = null;
+let _currentBooking = null;
 
 function copyBookingId() {
     const id = document.getElementById('bm-booking-id')?.textContent?.trim();
@@ -590,6 +611,7 @@ function showBookingDetail(bookingId) {
     const b = allBookings.find(x => x.id === bookingId);
     if (!b) return;
     _currentBookingId = b.external_id;
+    _currentBooking = b;
 
     // ── Cập nhật header modal ──
     document.getElementById('bm-guest-name').textContent = b.guest_name || '—';
@@ -645,16 +667,82 @@ function showBookingDetail(bookingId) {
             <div style="font-size:13.5px; color:#78350f; line-height:1.5;">${escapeHtml(b.special_requests)}</div>
         </div>` : ''}
         <div style="margin-top:10px; font-size:11.5px; color:#94a3b8; text-align:right;">
-            <i class="bi bi-clock me-1"></i>Ngày tạo: ${formatDateTime(b.created_at)}
+            <div style="margin-bottom:4px;"><i class="bi bi-clock me-1"></i>Ngày tạo: ${formatDateTime(b.created_at).replace('\n', ' ')}</div>
+            ${b.updated_at && b.updated_at !== b.created_at ? `<div><i class="bi bi-pencil-square me-1"></i>Cập nhật: ${formatDateTime(b.updated_at).replace('\n', ' ')}</div>` : ''}
         </div>`;
 
-    // Hiện nút Chỉnh sửa nếu là admin
+    const isReadonlyCopy = !!b.is_readonly_copy;
+
+    const canEdit = window.OTA_CONFIG?.isAdmin === true;
+    const role = (window.OTA_CONFIG?.userRole || '').toLowerCase();
+    
+    // Bản sao chỉ xem: Ẩn toàn bộ với lễ tân. Với admin thì ẩn nút sửa, hiện nút xoá.
+    const footerActions = document.getElementById('bm-footer-actions');
+    if (footerActions) {
+        footerActions.style.display = (isReadonlyCopy && !canEdit) ? 'none' : 'flex';
+    }
     const adminActions = document.getElementById('bm-admin-actions');
     if (adminActions) {
-        adminActions.style.display = window.OTA_CONFIG?.isAdmin ? 'block' : 'none';
+        adminActions.style.display = canEdit ? 'flex' : 'none';
+        const editBtn = adminActions.querySelector('.btn-detail-edit');
+        if (editBtn) {
+            editBtn.style.display = isReadonlyCopy ? 'none' : 'inline-flex';
+        }
+    }
+    const letanActions = document.getElementById('bm-letan-actions');
+    if (letanActions) {
+        const showLetan = (role === 'letan' || canEdit) && !isReadonlyCopy;
+        letanActions.style.display = showLetan ? 'flex' : 'none';
+
+        if (showLetan) {
+            const status = (b.status || '').toUpperCase();
+            const btnComplete = letanActions.querySelector('button[onclick="markBookingCompleted()"]');
+            const btnNoShow = letanActions.querySelector('button[onclick="markBookingNoShow()"]');
+
+            const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
+            const ciDate = b.check_in || '';
+            const coDate = b.check_out || ciDate;
+            
+            const disableComplete = status === 'COMPLETED' || (ciDate && todayStr < ciDate);
+            const disableNoShow = status === 'NO_SHOW' || (coDate && todayStr < coDate);
+
+            const setDisabled = (btn, disabled, reason) => {
+                if (!btn) return;
+                btn.disabled = disabled;
+                if (disabled) {
+                    btn.style.opacity = '0.5';
+                    btn.style.cursor = 'not-allowed';
+                    btn.style.boxShadow = 'none';
+                    if (reason && status !== 'COMPLETED' && status !== 'NO_SHOW') {
+                        btn.title = reason;
+                    } else {
+                        btn.title = '';
+                    }
+                } else {
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btn.title = '';
+                }
+            };
+            setDisabled(btnComplete, disableComplete, (ciDate && todayStr < ciDate) ? 'Chưa đến ngày Check-in' : '');
+            setDisabled(btnNoShow, disableNoShow, (coDate && todayStr < coDate) ? 'Chưa đến ngày Check-out' : '');
+        }
     }
 
-    const modal = new bootstrap.Modal(document.getElementById('bookingDetailModal'));
+    // Bản sao: giữ lại nút chụp phiếu và copy mã (chỉ ẩn các nút thao tác)
+
+    // Hiện banner "Bản sao chỉ xem" trong body nếu là bản sao
+    const bannerEl = document.getElementById('bm-readonly-copy-banner');
+    if (bannerEl) {
+        bannerEl.style.display = isReadonlyCopy ? 'flex' : 'none';
+    }
+
+    const modalEl = document.getElementById('bookingDetailModal');
+    if (!modalEl) return;
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
     modal.show();
 }
 
@@ -711,7 +799,30 @@ function openEditModal() {
     document.getElementById('em-check-out-time').value = booking.check_out_time || '';
     document.getElementById('em-total-price').value = booking.total_price ? booking.total_price.toLocaleString('vi-VN') : '';
     document.getElementById('em-currency').value = booking.currency || 'VND';
-    document.getElementById('em-status').value = (booking.status || 'CONFIRMED').toUpperCase();
+
+    // Dropdown trạng thái thông minh: luôn có "Giữ nguyên (hiện tại)", các trạng thái khác không trùng
+    const STATUS_OPTIONS = [
+        { value: 'CONFIRMED', label: 'Thành công' },
+        { value: 'COMPLETED', label: 'Hoàn thành' },
+        { value: 'CANCELLED', label: 'Đã huỷ' },
+        { value: 'NO_SHOW', label: 'No-show' }
+    ];
+    const currentStatus = (booking.status || 'CONFIRMED').toUpperCase();
+    const statusSelect = document.getElementById('em-status');
+    statusSelect.innerHTML = '';
+    const currentOption = STATUS_OPTIONS.find(o => o.value === currentStatus);
+    const currentLabel = currentOption ? currentOption.label : currentStatus;
+    const keepOpt = document.createElement('option');
+    keepOpt.value = currentStatus;
+    keepOpt.textContent = 'Giữ nguyên (' + currentLabel + ')';
+    keepOpt.selected = true;
+    statusSelect.appendChild(keepOpt);
+    STATUS_OPTIONS.filter(o => o.value !== currentStatus).forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.value;
+        opt.textContent = o.label;
+        statusSelect.appendChild(opt);
+    });
 
     const isPrepaidSelect = document.getElementById('em-is-prepaid');
     if (isPrepaidSelect) {
@@ -722,6 +833,8 @@ function openEditModal() {
 
     document.getElementById('em-checkin-code').value = booking.checkin_code || '';
     document.getElementById('em-special-requests').value = booking.special_requests || '';
+
+    // Modal chỉ dành cho admin, không cần xử lý riêng cho lễ tân nữa
 
     // Đóng modal chi tiết, mở modal edit
     bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'))?.hide();
@@ -785,23 +898,266 @@ async function saveBookingEdit() {
 
         const updated = await res.json();
 
-        // Cập nhật lại object trong allBookings
         const idx = allBookings.findIndex(x => x.id === updated.id);
         if (idx !== -1) allBookings[idx] = updated;
-
-        // Áp dụng lại filter (cập nhật bảng)
+        allBookings.sort((a, b) => {
+            const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
+            const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
+            return tb - ta;
+        });
         applyFilters();
 
         // Tải lại các stats card (để cập nhật lại doanh thu tức thời)
         loadStats();
 
-        bootstrap.Modal.getInstance(document.getElementById('bookingEditModal'))?.hide();
+        // Đóng modal edit + modal chi tiết (nếu đang mở) để tránh kẹt backdrop
+        const editModalEl = document.getElementById('bookingEditModal');
+        const editModal = editModalEl ? bootstrap.Modal.getInstance(editModalEl) : null;
+        if (editModal) editModal.hide();
+        const detailModalEl = document.getElementById('bookingDetailModal');
+        const detailModal = detailModalEl ? bootstrap.Modal.getInstance(detailModalEl) : null;
+        if (detailModal) detailModal.hide();
+
         showToast('✅ Đã cập nhật phiếu đặt phòng thành công!', 'success');
     } catch (err) {
         showToast('❌ ' + err.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="bi bi-check2 me-1"></i>Lưu thay đổi';
+    }
+}
+
+// ── Xoá phiếu (chỉ admin) ───────────────────────────────────────────────────
+async function deleteBookingHard() {
+    if (!_currentBooking || !_currentBooking.id) return;
+    if (!confirm('Bạn có chắc muốn xoá phiếu đặt phòng này? Hành động không thể hoàn tác.')) return;
+
+    const bookingId = _currentBooking.id;
+    try {
+        const res = await fetch(`/api/ota/bookings/${bookingId}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Không thể xoá phiếu.');
+        }
+        const idx = allBookings.findIndex(x => x.id === bookingId);
+        if (idx !== -1) allBookings.splice(idx, 1);
+        applyFilters();
+        loadStats();
+        bootstrap.Modal.getInstance(document.getElementById('bookingDetailModal'))?.hide();
+        showToast('✅ Đã xoá phiếu đặt phòng.', 'success');
+        _currentBooking = null;
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    }
+}
+
+// ── Quick actions for lễ tân ───────────────────────────────────────────────
+async function _updateBookingFromLetan(payload, successMessage) {
+    if (!_currentBooking || !_currentBooking.id) return;
+
+    const bookingId = _currentBooking.id;
+    let btn = null;
+    try {
+        if (payload.status === 'COMPLETED') {
+            btn = document.querySelector('#bm-letan-actions button[onclick="markBookingCompleted()"]');
+        } else if (payload.status === 'NO_SHOW') {
+            btn = document.querySelector('#bm-letan-actions button[onclick="markBookingNoShow()"]');
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.setAttribute('data-original-html', originalHtml);
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang xử lý...';
+        }
+
+        const res = await fetch(`/api/ota/bookings/${bookingId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Lỗi khi cập nhật trạng thái');
+        }
+
+        const updated = await res.json();
+
+        const idx = allBookings.findIndex(x => x.id === updated.id);
+        if (idx !== -1) {
+            allBookings[idx] = updated;
+            _currentBooking = updated;
+        }
+        allBookings.sort((a, b) => {
+            const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
+            const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
+            return tb - ta;
+        });
+        applyFilters();
+        loadStats();
+
+        // Đóng modal chi tiết sau khi cập nhật để tránh lỗi backdrop
+        const modalEl = document.getElementById('bookingDetailModal');
+        const modal = modalEl ? bootstrap.Modal.getInstance(modalEl) : null;
+        if (modal) {
+            modal.hide();
+        }
+
+        showToast(successMessage, 'success');
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            const originalHtml = btn.getAttribute('data-original-html');
+            if (originalHtml) btn.innerHTML = originalHtml;
+        }
+    }
+}
+
+async function markBookingCompleted() {
+    if (!_currentBooking) return;
+    if (!confirm('Xác nhận đánh Hoàn thành đơn phòng này?\nHệ thống sẽ mặc định đánh dấu là đã thanh toán.')) {
+        return;
+    }
+    const payload = {
+        status: 'COMPLETED',
+        is_prepaid: true
+    };
+    await _updateBookingFromLetan(payload, '✅ Đã đánh Hoàn thành đơn phòng!');
+}
+
+async function markBookingNoShow() {
+    if (!_currentBooking) return;
+    if (!confirm('Xác nhận đánh No-show cho đơn phòng này?')) {
+        return;
+    }
+    const payload = {
+        status: 'NO_SHOW'
+    };
+    await _updateBookingFromLetan(payload, '✅ Đã đánh No-show đơn phòng!');
+}
+
+async function openBranchTransferPopup() {
+    if (!_currentBooking) return;
+
+    const select = document.getElementById('bt-branch-select');
+    const noteEl = document.getElementById('bt-note');
+    if (!select || !noteEl) return;
+
+    const currentBranchName = (_currentBooking.branch_name || '').trim();
+    let branchNames = [];
+
+    // Cả admin và lễ tân đều dùng API branches (chỉ Bin Bin Hotel 1, 2, ... đã sắp xếp)
+    try {
+        const res = await fetch('/api/ota/branches');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+            branchNames = data
+                .map(b => b.name || b.branch_code || '')
+                .filter(name => !!name && name !== currentBranchName);
+        }
+    } catch (e) {
+        console.error('Error loading branches for transfer:', e);
+        showToast('Không tải được danh sách chi nhánh', 'error');
+    }
+
+    select.innerHTML = '';
+    if (branchNames.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = 'Không có chi nhánh khác để chuyển';
+        select.appendChild(opt);
+        select.disabled = true;
+    } else {
+        select.disabled = false;
+        const placeholderOpt = document.createElement('option');
+        placeholderOpt.value = '';
+        placeholderOpt.textContent = 'Chọn chi nhánh cần chuyển đến';
+        placeholderOpt.disabled = true;
+        placeholderOpt.selected = true;
+        select.appendChild(placeholderOpt);
+        branchNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+        select.value = '';
+    }
+
+    if (_currentBooking.special_requests) {
+        noteEl.value = _currentBooking.special_requests;
+    } else {
+        noteEl.value = '';
+    }
+
+    const modalEl = document.getElementById('branchTransferModal');
+    if (!modalEl) return;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function submitBranchTransfer() {
+    if (!_currentBooking) return;
+    const select = document.getElementById('bt-branch-select');
+    const noteEl = document.getElementById('bt-note');
+    const btn = document.getElementById('bt-submit-btn');
+    if (!select || !noteEl || !btn) return;
+
+    const branchName = select.disabled ? null : (select.value || null);
+    const note = (noteEl.value || '').trim();
+
+    if (!branchName) {
+        alert('Vui lòng chọn chi nhánh mới để chuyển.');
+        return;
+    }
+
+    btn.disabled = true;
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang chuyển...';
+
+    const payload = {
+        branch_name: branchName,
+        // Không ghi đè yêu cầu cũ, chỉ gửi note riêng nếu có
+        special_requests: note || null
+    };
+
+    try {
+        const res = await fetch(`/api/ota/bookings/${_currentBooking.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Lỗi khi chuyển chi nhánh');
+        }
+
+        const updated = await res.json();
+        const idx = allBookings.findIndex(x => x.id === updated.id);
+        if (idx !== -1) {
+            allBookings[idx] = updated;
+            _currentBooking = updated;
+        }
+
+        applyFilters();
+        loadStats();
+
+        // Đóng cả popup chuyển chi nhánh và modal chi tiết để tránh kẹt backdrop
+        const transferModalEl = document.getElementById('branchTransferModal');
+        const detailModalEl = document.getElementById('bookingDetailModal');
+        const transferModal = transferModalEl ? bootstrap.Modal.getInstance(transferModalEl) : null;
+        const detailModal = detailModalEl ? bootstrap.Modal.getInstance(detailModalEl) : null;
+        if (transferModal) transferModal.hide();
+        if (detailModal) detailModal.hide();
+        showToast('✅ Đã chuyển chi nhánh cho đơn phòng!', 'success');
+    } catch (err) {
+        showToast('❌ ' + err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
     }
 }
 
@@ -825,7 +1181,7 @@ function exportExcel(event) {
     const rows = filteredBookings.map(b => [
         b.booking_source || '',
         b.external_id || '',
-        b.created_at ? new Date(b.created_at).toLocaleString('vi-VN') : '',
+        b.created_at ? (parseVNDate(b.created_at) || new Date(b.created_at)).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : '',
         b.guest_name || '',
         b.num_guests || '',
         b.guest_phone || '',
@@ -909,10 +1265,19 @@ async function scanTodayEmails() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+function parseVNDate(dateStr) {
+    if (!dateStr) return null;
+    let str = String(dateStr);
+    if (str.endsWith('Z')) str = str.slice(0, -1);
+    else if (str.endsWith('+00:00')) str = str.slice(0, -6);
+    if (str.length === 19) str += '+07:00';
+    return new Date(str);
+}
+
 function formatDate(dateStr) {
     if (!dateStr) return '—';
     try {
-        const d = new Date(dateStr);
+        const d = parseVNDate(dateStr) || new Date(dateStr);
         return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
     } catch { return dateStr; }
 }
@@ -920,9 +1285,10 @@ function formatDate(dateStr) {
 function formatDateTime(dateStr) {
     if (!dateStr) return '—';
     try {
-        const d = new Date(dateStr);
-        return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-            + '\n' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const d = parseVNDate(dateStr) || new Date(dateStr);
+        const opts = { timeZone: 'Asia/Ho_Chi_Minh' };
+        return d.toLocaleDateString('vi-VN', { ...opts, day: '2-digit', month: '2-digit', year: 'numeric' })
+            + '\n' + d.toLocaleTimeString('vi-VN', { ...opts, hour: '2-digit', minute: '2-digit', second: '2-digit' });
     } catch { return dateStr; }
 }
 
@@ -988,6 +1354,8 @@ function renderStatus(status) {
     const s = (status || '').toUpperCase();
     if (s === 'SUCCESS' || s === 'CONFIRMED' || s === 'ACTIVE') {
         return `<span class="status-badge success"><i class="bi bi-check-circle-fill"></i> Thành công</span>`;
+    } else if (s === 'COMPLETED') {
+        return `<span class="status-badge success"><i class="bi bi-check2-circle"></i> Hoàn thành</span>`;
     } else if (s === 'CANCELLED' || s === 'CANCELED' || s === 'FAILED') {
         return `<span class="status-badge cancelled"><i class="bi bi-x-circle-fill"></i> Đã huỷ</span>`;
     } else if (s === 'NO_SHOW') {
@@ -1029,7 +1397,7 @@ async function captureBookingDetail() {
         const closeBtn = modalContent.querySelector('.btn-close');
         // Tìm nút chụp ảnh bằng selector chuẩn xác hơn
         const captureBtn = modalContent.querySelector('button[onclick="captureBookingDetail()"]');
-        
+
         if (footer) footer.style.display = 'none';
         if (closeBtn) closeBtn.style.display = 'none';
         if (captureBtn) captureBtn.style.display = 'none';
@@ -1087,4 +1455,3 @@ async function captureBookingDetail() {
         }
     }
 }
-
