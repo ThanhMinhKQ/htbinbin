@@ -113,7 +113,9 @@ def get_ota_stats(
     total_revenue = float(revenue_row or 0)
 
     # Thống kê theo thời gian
-    now = datetime.now()
+    from datetime import timezone
+    vn_tz = timezone(timedelta(hours=7))
+    now = datetime.now(vn_tz)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
@@ -297,8 +299,8 @@ def update_booking(
                             co_date_obj = date.fromisoformat(co_date)
                         else:
                             co_date_obj = co_date
-                        from datetime import datetime as _dt
-                        today = _dt.now().date()
+                        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+                        today = _dt.now(_tz(_td(hours=7))).date()
                         if today < co_date_obj:
                             raise HTTPException(
                                 status_code=400,
@@ -312,8 +314,8 @@ def update_booking(
                             ci_date_obj = date.fromisoformat(ci_date)
                         else:
                             ci_date_obj = ci_date
-                        from datetime import datetime as _dt
-                        today = _dt.now().date()
+                        from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+                        today = _dt.now(_tz(_td(hours=7))).date()
                         if today < ci_date_obj:
                             raise HTTPException(
                                 status_code=400,
@@ -997,7 +999,9 @@ async def manual_scan_today(
         except ValueError:
             raise HTTPException(status_code=400, detail="scan_date phải đúng định dạng YYYY-MM-DD")
     else:
-        target_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        from datetime import timezone, timedelta
+        vn_tz = timezone(timedelta(hours=7))
+        target_date = datetime.now(vn_tz).replace(hour=0, minute=0, second=0, microsecond=0)
 
     date_str = target_date.strftime("%d/%m/%Y")
     logger.info(f"[Manual Scan] 🔍 Bắt đầu quét email ngày {date_str}...")
