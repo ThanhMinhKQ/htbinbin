@@ -338,12 +338,8 @@ async function loadBookings(showLoader = true) {
     try {
         const res = await fetch(url);
         const data = await res.json();
-        // Sort theo thời gian cập nhật (mới nhất lên đầu); nếu chưa cập nhật thì dùng created_at
-        allBookings = (Array.isArray(data) ? data : []).sort((a, b) => {
-            const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
-            const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
-            return tb - ta;
-        });
+        // Cập nhật: Sort ưu tiên (Thành công -> Đã huỷ -> Hoàn thành -> No-show -> thời gian)
+        allBookings = sortBookings(Array.isArray(data) ? data : []);
 
         // Đảm bảo các đơn đã huỷ không hiển thị là đã thanh toán
         allBookings.forEach(b => {
@@ -703,8 +699,9 @@ function showBookingDetail(bookingId) {
             const ciDate = b.check_in || '';
             const coDate = b.check_out || ciDate;
             
-            const disableComplete = status === 'COMPLETED' || (ciDate && todayStr < ciDate);
-            const disableNoShow = status === 'NO_SHOW' || (coDate && todayStr < coDate);
+            const isCancelled = status === 'CANCELLED' || status === 'CANCELED' || status === 'FAILED';
+            const disableComplete = isCancelled || status === 'COMPLETED' || (ciDate && todayStr < ciDate);
+            const disableNoShow = isCancelled || status === 'NO_SHOW' || (coDate && todayStr < coDate);
 
             const setDisabled = (btn, disabled, reason) => {
                 if (!btn) return;
@@ -724,8 +721,8 @@ function showBookingDetail(bookingId) {
                     btn.title = '';
                 }
             };
-            setDisabled(btnComplete, disableComplete, (ciDate && todayStr < ciDate) ? 'Chưa đến ngày Check-in' : '');
-            setDisabled(btnNoShow, disableNoShow, (coDate && todayStr < coDate) ? 'Chưa đến ngày Check-out' : '');
+            setDisabled(btnComplete, disableComplete, isCancelled ? 'Đơn đã hủy' : ((ciDate && todayStr < ciDate) ? 'Chưa đến ngày Check-in' : ''));
+            setDisabled(btnNoShow, disableNoShow, isCancelled ? 'Đơn đã hủy' : ((coDate && todayStr < coDate) ? 'Chưa đến ngày Check-out' : ''));
         }
     }
 
@@ -900,11 +897,7 @@ async function saveBookingEdit() {
 
         const idx = allBookings.findIndex(x => x.id === updated.id);
         if (idx !== -1) allBookings[idx] = updated;
-        allBookings.sort((a, b) => {
-            const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
-            const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
-            return tb - ta;
-        });
+        sortBookings(allBookings);
         applyFilters();
 
         // Tải lại các stats card (để cập nhật lại doanh thu tức thời)
@@ -989,11 +982,7 @@ async function _updateBookingFromLetan(payload, successMessage) {
             allBookings[idx] = updated;
             _currentBooking = updated;
         }
-        allBookings.sort((a, b) => {
-            const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
-            const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
-            return tb - ta;
-        });
+        sortBookings(allBookings);
         applyFilters();
         loadStats();
 
@@ -1265,6 +1254,31 @@ async function scanTodayEmails() {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+function sortBookings(bookings) {
+    const statusWeight = {
+        'CONFIRMED': 1, 'SUCCESS': 1, 'ACTIVE': 1,
+        'CANCELLED': 2, 'CANCELED': 2, 'FAILED': 2,
+        'COMPLETED': 3,
+        'NO_SHOW': 4
+    };
+    
+    return bookings.sort((a, b) => {
+        const sa = (a.status || '').toUpperCase();
+        const sb = (b.status || '').toUpperCase();
+        const wa = statusWeight[sa] || 5;
+        const wb = statusWeight[sb] || 5;
+        
+        if (wa !== wb) {
+            return wa - wb; // Xếp theo thứ tự trọng số
+        }
+        
+        // Nếu cùng thứ tự ưu tiên thì xếp theo thời gian mới nhất (updated_at hoặc created_at)
+        const ta = (a.updated_at || a.created_at) ? (parseVNDate(a.updated_at || a.created_at)?.getTime() || 0) : 0;
+        const tb = (b.updated_at || b.created_at) ? (parseVNDate(b.updated_at || b.created_at)?.getTime() || 0) : 0;
+        return tb - ta;
+    });
+}
+
 function parseVNDate(dateStr) {
     if (!dateStr) return null;
     let str = String(dateStr);
