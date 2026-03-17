@@ -357,7 +357,7 @@
                 </a>
                 {% endif %}
 
-                {% if not request.state.is_prod %}
+                {# {% if not request.state.is_prod %}
                 <a href="/api/ota/dashboard" id="ota-nav-link"
                     class="{{ nav_link_base }} {% if active_page == 'ota-dashboard' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}"
                     style="position:relative;">
@@ -372,9 +372,9 @@
                         border-radius:9999px; min-width:17px; height:17px; line-height:17px;
                         text-align:center; padding:0 4px; box-shadow:0 1px 4px rgba(0,0,0,0.2);">0</span>
                 </a>
-                {% endif %}
+                {% endif %} #}
 
-                {% if not request.state.is_prod %}
+                {# {% if not request.state.is_prod %}
                 {% set _pms_here = (request.url.path == '/pms') or (request.url.path.startswith('/pms/setup')) or
                 (request.url.path == '/pms/booking') %}
                 <div class="pms-sidebar-group w-full">
@@ -435,7 +435,7 @@
                         if (!open && sub) sub.style.maxHeight = '0';
                     })();
                 </script>
-                {% endif %}
+                {% endif %} #}
 
                 {% if user and user.role|lower in ['admin', 'manager', 'quanly'] %}
 
