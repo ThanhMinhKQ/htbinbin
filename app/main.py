@@ -22,7 +22,15 @@ from .api import (
     users, attendance, tasks, lost_and_found, 
     choose_function, utils, calendar, qr_checkin, 
     results, export, service, shift_report, inventory,
-    ota_dashboard, hr_management, pms
+    ota_dashboard, hr_management
+)
+from .api.pms import (
+    pages_router as pms_pages,
+    rooms_router as pms_rooms,
+    checkin_router as pms_checkin,
+    checkout_router as pms_checkout,
+    stays_router as pms_stays,
+    admin_router as pms_admin,
 )
 
 from .core.config import settings, logger
@@ -78,6 +86,12 @@ async def ensure_active_branch_in_session(request: Request, call_next):
         finally:
             db.close()
     
+    response = await call_next(request)
+    return response
+
+@app.middleware("http")
+async def add_env_to_state(request: Request, call_next):
+    request.state.is_prod = settings.ENVIRONMENT.lower() == "production"
     response = await call_next(request)
     return response
 
@@ -225,7 +239,12 @@ app.include_router(ota_dashboard.router, tags=["OTA Dashboard"])
 app.include_router(hr_management.router, tags=["HR Management"])
 
 # PMS - Property Management System
-app.include_router(pms.router, tags=["PMS"])
+app.include_router(pms_pages, tags=["PMS"])
+app.include_router(pms_rooms, tags=["PMS"])
+app.include_router(pms_checkin, tags=["PMS"])
+app.include_router(pms_checkout, tags=["PMS"])
+app.include_router(pms_stays, tags=["PMS"])
+app.include_router(pms_admin, tags=["PMS Admin"])
 
 
 # --- ROOT ENDPOINT ---

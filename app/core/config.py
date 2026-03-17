@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "a_very_secret_key_please_change_me_in_env_file"
     DATABASE_URL: PostgresDsn
     LOG_LEVEL: str = "INFO"
+    ENVIRONMENT: str = "development" # 'development' or 'production'
 
     # OTA Agent Config (IMAP legacy)
     IMAP_SERVER: str = "imap.gmail.com"

@@ -103,10 +103,11 @@ def get_ota_stats(
     # Đã huỷ
     cancelled_count = booking_q.filter(Booking.status == BookingStatus.CANCELLED).count()
 
-    # Doanh thu ước tính (tổng total_price của CONFIRMED + NO_SHOW đã thanh toán)
+    # Doanh thu ước tính (tổng total_price của CONFIRMED + COMPLETED + NO_SHOW đã thanh toán)
     revenue_row = booking_q.filter(
         or_(
             Booking.status == BookingStatus.CONFIRMED,
+            Booking.status == BookingStatus.COMPLETED,
             and_(Booking.status == BookingStatus.NO_SHOW, Booking.is_prepaid == True)
         )
     ).with_entities(func.coalesce(func.sum(Booking.total_price), 0)).scalar()
@@ -117,10 +118,12 @@ def get_ota_stats(
     vn_tz = timezone(timedelta(hours=7))
     now = datetime.now(vn_tz)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_date = now.date()  # Ngày hôm nay dạng date object
     week_start = today_start - timedelta(days=today_start.weekday())
     month_start = today_start.replace(day=1)
 
-    bookings_today = booking_q.filter(Booking.created_at >= today_start).count()
+    # Đơn trong ngày: đếm theo ngày CHECK-IN (đơn sẽ nhận phòng hôm nay)
+    bookings_today = booking_q.filter(Booking.check_in == today_date).count()
     bookings_this_week = booking_q.filter(Booking.created_at >= week_start).count()
     bookings_this_month = booking_q.filter(Booking.created_at >= month_start).count()
 

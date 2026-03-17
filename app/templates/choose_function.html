@@ -123,6 +123,7 @@
         </a>
         {% endif %}
 
+        {% if not request.state.is_prod %}
         <!-- OTA Dashboard - tất cả roles -->
         <a href="/api/ota/dashboard"
             class="group block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 text-center transition-all duration-300 hover:border-blue-400 dark:hover:border-blue-500">
@@ -137,6 +138,7 @@
             <h3 class="font-semibold text-lg text-slate-800 dark:text-white">OTA Dashboard</h3>
             <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">Theo dõi đặt phòng từ các kênh OTA.</p>
         </a>
+        {% endif %}
 
         {% if user and user.role|lower in ['admin', 'manager', 'quanly', 'boss'] %}
         <a href="/inventory/manager"

@@ -357,6 +357,7 @@
                 </a>
                 {% endif %}
 
+                {% if not request.state.is_prod %}
                 <a href="/api/ota/dashboard" id="ota-nav-link"
                     class="{{ nav_link_base }} {% if active_page == 'ota-dashboard' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}"
                     style="position:relative;">
@@ -371,15 +372,70 @@
                         border-radius:9999px; min-width:17px; height:17px; line-height:17px;
                         text-align:center; padding:0 4px; box-shadow:0 1px 4px rgba(0,0,0,0.2);">0</span>
                 </a>
+                {% endif %}
 
-                <a href="/pms"
-                    class="{{ nav_link_base }} {% if active_page == 'pms' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    <span class="ml-3 nav-text">PMS Phòng</span>
-                </a>
+                {% if not request.state.is_prod %}
+                {% set _pms_here = (request.url.path == '/pms') or (request.url.path.startswith('/pms/setup')) or
+                (request.url.path == '/pms/booking') %}
+                <div class="pms-sidebar-group w-full">
+                    <button type="button" id="pms-nav-toggle"
+                        class="{{ nav_link_base }} w-full text-left flex items-center justify-between {% if _pms_here %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
+                        <span class="flex items-center min-w-0">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                            </svg>
+                            <span class="ml-3 nav-text truncate">PMS Phòng</span>
+                        </span>
+                        <svg id="pms-chevron" class="w-4 h-4 flex-shrink-0 nav-text transition-transform duration-200"
+                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div id="pms-subnav"
+                        class="overflow-hidden transition-all duration-200 {% if not _pms_here %}max-h-0{% else %}max-h-48{% endif %}">
+                        <div class="pl-2 py-1 space-y-0.5 border-l-2 border-slate-200 dark:border-slate-600 ml-4 my-1">
+                            <a href="/pms"
+                                class="block rounded-lg py-2 px-3 text-sm {% if request.url.path == '/pms' %}{{ nav_link_active }}{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
+                                Sơ đồ phòng
+                            </a>
+                            <a href="/pms/booking"
+                                class="block rounded-lg py-2 px-3 text-sm {% if request.url.path == '/pms/booking' %}{{ nav_link_active }}{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
+                                Quản lý đặt phòng
+                            </a>
+                            {% if user and user.role|lower in ['admin', 'boss', 'giamdoc', 'superadmin', 'manager',
+                            'quanly'] %}
+                            <a href="/pms/setup?tab=types"
+                                class="block rounded-lg py-2 px-3 text-sm {% if request.url.path.startswith('/pms/setup') and (request.query_params.get('tab') or 'types') == 'types' %}{{ nav_link_active }}{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
+                                Thiết lập loại phòng
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <script>
+                    (function () {
+                        var open = "{{ 'true' if _pms_here else 'false' }}" === "true";
+                        var sub = document.getElementById('pms-subnav');
+                        var chev = document.getElementById('pms-chevron');
+                        var btn = document.getElementById('pms-nav-toggle');
+                        function setOpen(v) {
+                            open = v;
+                            if (sub) { subMax(); }
+                            if (chev) { chev.style.transform = open ? 'rotate(180deg)' : ''; }
+                        }
+                        function subMax() {
+                            if (!sub) return;
+                            sub.style.maxHeight = open ? '200px' : '0';
+                        }
+                        if (btn) btn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            setOpen(!open);
+                        });
+                        if (!open && sub) sub.style.maxHeight = '0';
+                    })();
+                </script>
+                {% endif %}
 
                 {% if user and user.role|lower in ['admin', 'manager', 'quanly'] %}
 

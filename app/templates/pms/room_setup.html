@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}PMS - Thiết lập Phòng{% endblock %}
-{% block page_title %}Thiết lập Phòng Khách Sạn{% endblock %}
+{% block title %}PMS - Thiết lập{% endblock %}
+{% block page_title %}{% if pms_setup_tab == 'rooms' %}Thiết lập Sơ đồ Lưu trú{% else %}Thiết lập Loại Phòng{% endif %}{% endblock %}
 
 {% block head %}
 <style>
@@ -16,6 +16,28 @@
 }
 .b-pill:hover { border-color: #2563eb; color: #2563eb; }
 .b-pill.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+
+/* ── Branch Summary Card ── */
+.branch-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.bs-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px; padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+.bs-card .bs-icon {
+  width: 40px; height: 40px; border-radius: 10px; display: flex;
+  align-items: center; justify-content: center; margin-bottom: 10px;
+}
+.bs-card.rooms .bs-icon { background: #dbeafe; }
+.bs-card.rooms .bs-icon svg { stroke: #1d4ed8; }
+.bs-card.types .bs-icon { background: #dcfce7; }
+.bs-card.types .bs-icon svg { stroke: #15803d; }
+.bs-card .bs-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.bs-card .bs-value { font-size: 26px; font-weight: 800; color: #1e293b; margin-top: 4px; }
+.bs-card .bs-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
 
 /* ── Card ── */
 .s-card {
@@ -177,6 +199,44 @@
         <option value="{{ b.id }}" data-bname="{{ b.name }}">{{ b.name }}</option>
         {% endfor %}
       </select>
+    </div>
+  </div>
+
+  <!-- Branch Summary (hidden initially) -->
+  <div id="branch-summary" style="display:none;">
+    <div class="branch-summary">
+      <div class="bs-card rooms">
+        <div class="bs-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+        </div>
+        <div class="bs-label">Tổng phòng</div>
+        <div class="bs-value" id="bs-total-rooms">0</div>
+        <div class="bs-sub">phòng</div>
+      </div>
+      <div class="bs-card types">
+        <div class="bs-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>
+        </div>
+        <div class="bs-label">Hạng phòng</div>
+        <div class="bs-value" id="bs-total-types">0</div>
+        <div class="bs-sub">loại</div>
+      </div>
+      <div class="bs-card" style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);">
+        <div class="bs-icon" style="background: #bbf7d0;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="bs-label" style="color:#15803d;">Phòng hoạt động</div>
+        <div class="bs-value" style="color:#15803d;" id="bs-active-rooms">0</div>
+        <div class="bs-sub">phòng</div>
+      </div>
+      <div class="bs-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+        <div class="bs-icon" style="background: #fde68a;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="bs-label" style="color:#d97706;">Giá TB</div>
+        <div class="bs-value" style="color:#d97706;" id="bs-avg-price">0</div>
+        <div class="bs-sub">VNĐ/đêm</div>
+      </div>
     </div>
   </div>
 
@@ -408,13 +468,29 @@ document.getElementById('branch-select').addEventListener('change', function(e) 
     const sel = e.target;
     if (!sel.value) {
         document.getElementById('main-content').style.display = 'none';
+        document.getElementById('branch-summary').style.display = 'none';
         return;
     }
     S.bid = Number(sel.value);
     S.bname = sel.options[sel.selectedIndex].dataset.bname;
     document.getElementById('main-content').style.display = 'block';
+    document.getElementById('branch-summary').style.display = 'block';
     loadAll();
 });
+
+function updateBranchSummary() {
+    // Update summary cards
+    document.getElementById('bs-total-rooms').textContent = S.rooms.length;
+    document.getElementById('bs-total-types').textContent = S.types.length;
+    document.getElementById('bs-active-rooms').textContent = S.rooms.filter(r => r.is_active).length;
+    
+    // Calculate average price
+    if (S.types.length > 0) {
+        const totalPrice = S.types.reduce((sum, t) => sum + (t.price_per_night || 0), 0);
+        const avg = Math.round(totalPrice / S.types.length);
+        document.getElementById('bs-avg-price').textContent = new Intl.NumberFormat('vi-VN').format(avg);
+    }
+}
 
 function showTab(name, btn) {
     document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
@@ -423,7 +499,10 @@ function showTab(name, btn) {
     btn.classList.add('active');
 }
 
-async function loadAll() { await Promise.all([loadTypes(), loadRooms()]); }
+async function loadAll() { 
+    await Promise.all([loadTypes(), loadRooms()]);
+    updateBranchSummary();
+}
 
 // ── Room Types ─────────────────────────────────────────────────────────
 async function loadTypes() {
@@ -645,5 +724,15 @@ async function delRoom(id) {
     if (r.ok) { toast(d.message); await loadRooms(); }
     else { toast(d.detail||'Lỗi', false); }
 }
+
+// ── Init Tab from URL ─────────────────────────────────────────────────
+(function(){
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'rooms') {
+        const btn = document.querySelector('.s-tab[data-tab="rooms"]');
+        if (btn) showTab('rooms', btn);
+    }
+})();
 </script>
 {% endblock %}

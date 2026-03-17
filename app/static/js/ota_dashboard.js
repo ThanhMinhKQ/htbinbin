@@ -287,19 +287,23 @@ async function loadBranches() {
     if (!config.isAdmin) return;
 
     try {
-        const res = await fetch('/api/ota/bookings?limit=100');
-        const bookings = await res.json();
-        const branchSet = new Map();
-        bookings.forEach(b => {
-            if (b.branch_name) branchSet.set(b.branch_name, b.branch_name);
-        });
+        // Gọi API /api/ota/branches để lấy danh sách chi nhánh đã sắp xếp đúng thứ tự
+        const res = await fetch('/api/ota/branches');
+        const branches = await res.json();
 
         const sel = document.getElementById('branchFilter');
         if (!sel) return;
-        branchSet.forEach((name) => {
+
+        // Xóa các option cũ (trừ option đầu tiên "Tất cả")
+        while (sel.options.length > 1) {
+            sel.remove(1);
+        }
+
+        // Thêm các chi nhánh đã sắp xếp đúng thứ tự (Bin Bin Hotel 1, 2, 3,...)
+        branches.forEach(branch => {
             const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
+            opt.value = branch.name;
+            opt.textContent = branch.name;
             sel.appendChild(opt);
         });
     } catch (e) {

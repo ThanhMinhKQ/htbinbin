@@ -742,7 +742,15 @@ class HotelStay(Base):
     )
     total_price  = Column(NUMERIC(15, 2), default=0)
     deposit      = Column(NUMERIC(15, 2), default=0)
+    discount     = Column(NUMERIC(15, 2), default=0)
+    extra_charge = Column(NUMERIC(15, 2), default=0)
     notes        = Column(Text, nullable=True)
+    
+    # Invoicing info
+    require_invoice = Column(Boolean, default=False)
+    tax_code        = Column(String(50), nullable=True)
+    tax_contact     = Column(String(255), nullable=True)
+
     created_by   = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -760,10 +768,24 @@ class HotelGuest(Base):
     id          = Column(BIGINT, primary_key=True)
     stay_id     = Column(BIGINT, ForeignKey("hotel_stays.id", ondelete="CASCADE"), nullable=False, index=True)
     full_name   = Column(String(255), nullable=False)
-    cccd        = Column(String(20), nullable=True)
+    cccd        = Column(String(20), nullable=True, index=True)  # Số giấy tờ - có index để tìm kiếm nhanh
     birth_date  = Column(Date, nullable=True)
     gender      = Column(String(10), nullable=True)      # "Nam" / "Nữ" / "Khác"
     phone       = Column(String(20), nullable=True)
+    
+    # Address info
+    address      = Column(Text, nullable=True)
+    address_type = Column(String(10), nullable=True) # "new" | "old"
+    city         = Column(String(100), nullable=True)
+    district     = Column(String(100), nullable=True)
+    ward         = Column(String(100), nullable=True)
+    
+    # Other info
+    vehicle      = Column(String(255), nullable=True)
+    id_expire    = Column(Date, nullable=True)
+    notes        = Column(Text, nullable=True)
+    tax_code    = Column(String(50), nullable=True)      # Mã số thuế (bắt buộc khi xuất hoá đơn)
+    invoice_contact = Column(String(255), nullable=True)  # Liên hệ gửi hoá đơn (bắt buộc khi xuất hoá đơn)
     is_primary  = Column(Boolean, default=False)          # Khách đặt phòng chính
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
 
