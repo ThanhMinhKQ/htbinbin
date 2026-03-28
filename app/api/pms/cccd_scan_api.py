@@ -264,7 +264,7 @@ def parse_cccd_qr(raw: str) -> dict:
 
 # ─────────────────────────── API endpoint ──────────────────────────────────────
 
-@router.post("/api/pms/scan/cccd", tags=["PMS"])
+@router.get("/api/pms/scan/cccd", tags=["PMS"])
 async def api_scan_cccd(
     request: Request,
     raw: str = Query(..., description="Chuỗi QR quét được"),
