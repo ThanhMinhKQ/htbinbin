@@ -4,149 +4,320 @@
 <div class="v-modal" id="scanModal">
   <div class="sm-dialog" id="sm-dialog">
     <style>
-      /* ── Scan Modal CSS ─────────────────────────────────────────── */
+      /* ══════════════════════════════════════════════════════════════
+         SCAN MODAL — Premium 2026 Redesign
+         Single-view: guide + scanner in one. Result overlay on success.
+         Performance: GPU-only animations, minimal repaints.
+      ══════════════════════════════════════════════════════════════ */
+
       .sm-dialog {
-        background: #fff;
+        background: #f8f9fc;
         width: 100%;
-        max-width: 440px;
-        border-radius: 20px;
-        box-shadow: 0 24px 40px rgba(0, 0, 0, 0.18);
+        max-width: 460px;
+        border-radius: 22px;
+        box-shadow:
+          0 32px 64px -16px rgba(15, 23, 42, 0.2),
+          0 0 0 1px rgba(255,255,255,0.6) inset;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-        transform: scale(0.94);
-        transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        max-height: 90vh;
+        font-family: inherit;
+        transform: scale(0.95) translateY(8px);
+        opacity: 0;
+        transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    opacity 0.2s ease;
+        will-change: transform, opacity;
       }
 
-      html.dark .sm-dialog,
-      .dark .sm-dialog {
-        background: #0f172a;
+      .v-modal.show .sm-dialog {
+        transform: scale(1) translateY(0);
+        opacity: 1;
       }
 
-      .v-modal.show #sm-dialog {
-        transform: scale(1);
+      html.dark .sm-dialog {
+        background: #0d1117;
+        box-shadow:
+          0 32px 64px -16px rgba(0, 0, 0, 0.5),
+          0 0 0 1px rgba(255,255,255,0.04) inset;
       }
 
-      /* Header */
+      /* ── HEADER ── */
       .sm-header {
-        padding: 24px 24px 20px;
         display: flex;
-        align-items: flex-start;
-        gap: 14px;
-        border-bottom: 1px solid #f1f5f9;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 22px 14px;
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 55%, #60a5fa 100%);
         position: relative;
+        overflow: hidden;
+        flex-shrink: 0;
       }
 
-      html.dark .sm-header {
-        border-color: #1e293b;
+      .sm-header::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse at 15% 50%, rgba(255,255,255,0.12) 0%, transparent 55%),
+          radial-gradient(ellipse at 85% 20%, rgba(255,255,255,0.06) 0%, transparent 45%);
+        pointer-events: none;
+      }
+
+      .sm-header-blob {
+        position: absolute;
+        right: -25px;
+        top: -25px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 50%;
+        pointer-events: none;
       }
 
       .sm-icon-wrap {
-        width: 48px;
-        height: 48px;
+        width: 42px;
+        height: 42px;
         border-radius: 14px;
+        background: rgba(255,255,255,0.18);
+        backdrop-filter: blur(6px);
+        border: 1px solid rgba(255,255,255,0.22);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        position: relative;
+        z-index: 2;
+        transition: background 0.3s, border-color 0.3s;
       }
 
-      .sm-header-text { flex: 1; }
+      .sm-header-text {
+        flex: 1;
+        position: relative;
+        z-index: 2;
+      }
+
       .sm-title {
-        font-size: 17px;
+        font-size: 16px;
         font-weight: 800;
-        color: #0f172a;
-        margin: 0 0 4px;
+        color: #fff;
+        margin: 0 0 2px;
         letter-spacing: -0.02em;
       }
-      html.dark .sm-title { color: #f1f5f9; }
 
       .sm-sub {
-        font-size: 12.5px;
-        color: #64748b;
+        font-size: 12px;
+        color: rgba(255,255,255,0.7);
+        font-weight: 500;
         margin: 0;
-        line-height: 1.4;
       }
-      html.dark .sm-sub { color: #94a3b8; }
 
       .sm-close {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        background: none;
-        border: none;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.14);
+        border: 1px solid rgba(255,255,255,0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
-        color: #94a3b8;
-        padding: 6px;
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s;
+        color: rgba(255,255,255,0.8);
+        transition: all 0.18s ease;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 2;
       }
-      .sm-close:hover { background: #f1f5f9; color: #374151; }
-      html.dark .sm-close:hover { background: #1e293b; color: #f1f5f9; }
 
-      /* Body */
+      .sm-close:hover {
+        background: rgba(255,255,255,0.25);
+        color: #fff;
+        transform: rotate(90deg) scale(1.06);
+      }
+
+      /* ── BODY ── */
       .sm-body {
-        padding: 20px 24px 24px;
+        flex: 1;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
       }
 
-      /* ── GUIDE STATE ────────────────────────────────────────────── */
-      .sm-guide-icon {
-        width: 64px;
-        height: 64px;
-        margin: 0 auto 4px;
-        background: linear-gradient(135deg, #eff6ff, #dbeafe);
-        border-radius: 20px;
+      .sm-body::-webkit-scrollbar { width: 4px; }
+      .sm-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+      /* ═══════════════════════════════════
+         SCAN STATE — Guide + Waiting merged
+      ═══════════════════════════════════ */
+      .sm-scan-view {
         display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+      }
+
+      .sm-scan-view.hidden { display: none; }
+
+      /* Scanner viewport */
+      .sm-viewport {
+        position: relative;
+        margin: 18px 22px 0;
+        height: 120px;
+        border-radius: 16px;
+        border: 2px dashed #bfdbfe;
+        background: linear-gradient(135deg, #eff6ff, #f0f4ff);
+        display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        color: #3b82f6;
-        animation: smPulse 2.4s ease-in-out infinite;
+        gap: 8px;
+        overflow: hidden;
+        transition: border-color 0.3s, background 0.3s;
       }
 
-      html.dark .sm-guide-icon {
-        background: linear-gradient(135deg, #1e3a5f, #1e40af);
-        color: #60a5fa;
+      .sm-viewport.active {
+        border-color: #3b82f6;
+        border-style: solid;
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
       }
 
-      @keyframes smPulse {
-        0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.2); }
-        50% { transform: scale(1.06); box-shadow: 0 0 0 12px rgba(59, 130, 246, 0); }
+      html.dark .sm-viewport {
+        background: linear-gradient(135deg, #0f172a, #1e293b);
+        border-color: #334155;
       }
 
-      .sm-guide-steps {
+      html.dark .sm-viewport.active {
+        border-color: #3b82f6;
+        background: linear-gradient(135deg, #0c1a33, #172554);
+      }
+
+      /* Corners */
+      .sm-corner {
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-color: #3b82f6;
+        border-style: solid;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+
+      .sm-viewport.active .sm-corner { opacity: 1; }
+
+      .sm-corner-tl { top: 5px; left: 5px; border-width: 2.5px 0 0 2.5px; border-radius: 4px 0 0 0; }
+      .sm-corner-tr { top: 5px; right: 5px; border-width: 2.5px 2.5px 0 0; border-radius: 0 4px 0 0; }
+      .sm-corner-bl { bottom: 5px; left: 5px; border-width: 0 0 2.5px 2.5px; border-radius: 0 0 0 4px; }
+      .sm-corner-br { bottom: 5px; right: 5px; border-width: 0 2.5px 2.5px 0; border-radius: 0 0 4px 0; }
+
+      /* Scan line */
+      .sm-scan-line {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #3b82f6 30%, #3b82f6 70%, transparent);
+        border-radius: 2px;
+        top: 50%;
+        opacity: 0;
+        transition: opacity 0.3s;
+        will-change: transform;
+      }
+
+      .sm-viewport.active .sm-scan-line {
+        opacity: 0.8;
+        animation: smScanLine 2.2s ease-in-out infinite;
+      }
+
+      @keyframes smScanLine {
+        0%   { transform: translateY(-45px); opacity: 0; }
+        12%  { opacity: 0.9; }
+        88%  { opacity: 0.9; }
+        100% { transform: translateY(45px); opacity: 0; }
+      }
+
+      /* Viewport icon + text */
+      .sm-vp-icon {
+        color: #93b4f4;
+        z-index: 1;
+        transition: color 0.3s;
+      }
+
+      .sm-viewport.active .sm-vp-icon { color: #3b82f6; }
+
+      .sm-vp-text {
+        font-size: 13px;
+        font-weight: 700;
+        color: #93b4f4;
+        z-index: 1;
+        transition: color 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      .sm-viewport.active .sm-vp-text { color: #2563eb; }
+
+      html.dark .sm-vp-icon { color: #475569; }
+      html.dark .sm-viewport.active .sm-vp-icon { color: #60a5fa; }
+      html.dark .sm-vp-text { color: #475569; }
+      html.dark .sm-viewport.active .sm-vp-text { color: #93c5fd; }
+
+      /* Bounce dots in waiting mode */
+      .sm-dots {
+        display: none;
+        gap: 3px;
+      }
+
+      .sm-viewport.active .sm-dots { display: inline-flex; }
+
+      .sm-dots span {
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: smDotB 1.2s ease-in-out infinite;
+      }
+      .sm-dots span:nth-child(2) { animation-delay: 0.15s; }
+      .sm-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+      @keyframes smDotB {
+        0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+        40% { transform: translateY(-3px); opacity: 1; }
+      }
+
+      /* Guide steps */
+      .sm-steps {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
+        padding: 14px 22px 0;
       }
 
       .sm-step {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 10px 14px;
-        background: #f8fafc;
+        gap: 10px;
+        padding: 9px 12px;
+        background: #fff;
         border-radius: 10px;
         border: 1px solid #f1f5f9;
+        transition: background 0.2s, border-color 0.2s;
       }
 
       html.dark .sm-step {
-        background: #1e293b;
-        border-color: #334155;
+        background: #161b27;
+        border-color: #1e2a3a;
       }
 
       .sm-step-num {
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
-        background: #e0e7ff;
-        color: #4f46e5;
-        font-size: 11px;
+        background: #dbeafe;
+        color: #2563eb;
+        font-size: 10.5px;
         font-weight: 800;
         display: flex;
         align-items: center;
@@ -155,319 +326,361 @@
       }
 
       html.dark .sm-step-num {
-        background: #312e81;
-        color: #a5b4fc;
+        background: #1e3a5f;
+        color: #60a5fa;
       }
 
       .sm-step-text {
-        font-size: 13px;
+        font-size: 12.5px;
         color: #475569;
-        line-height: 1.4;
+        line-height: 1.35;
       }
 
       html.dark .sm-step-text { color: #94a3b8; }
+      .sm-step-text strong { color: #1e293b; font-weight: 700; }
+      html.dark .sm-step-text strong { color: #e2e8f0; }
 
-      .sm-step-text strong { color: #1e293b; }
-      html.dark .sm-step-text strong { color: #f1f5f9; }
-
-      /* ── WAITING STATE ──────────────────────────────────────────── */
-      .sm-waiting-body { display: none; flex-direction: column; align-items: center; gap: 16px; }
-
-      .sm-scanner-viewport {
-        width: 100%;
-        height: 160px;
-        border-radius: 14px;
-        border: 2px dashed #cbd5e1;
+      /* Scan footer */
+      .sm-scan-footer {
+        padding: 14px 22px 18px;
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
         gap: 10px;
-        position: relative;
-        overflow: hidden;
-        background: #f8fafc;
       }
 
-      html.dark .sm-scanner-viewport {
-        background: #0f172a;
-        border-color: #334155;
+      /* ═══════════════════════════════════
+         RESULT STATE
+      ═══════════════════════════════════ */
+      .sm-result-view {
+        display: none;
+        flex-direction: column;
+        gap: 0;
       }
 
-      .sm-scan-line {
-        position: absolute;
-        left: 8px;
-        right: 8px;
-        height: 2px;
-        background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent);
-        border-radius: 2px;
-        animation: smScanLine 2s ease-in-out infinite;
-        top: 50%;
-        opacity: 0.9;
+      .sm-result-view.show { display: flex; }
+
+      /* Result header strip */
+      .sm-result-strip {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 22px;
+        background: linear-gradient(135deg, #dcfce7, #d1fae5);
+        border-bottom: 1px solid #a7f3d0;
       }
 
-      @keyframes smScanLine {
-        0% { transform: translateY(-60px); opacity: 0; }
-        15% { opacity: 1; }
-        85% { opacity: 1; }
-        100% { transform: translateY(60px); opacity: 0; }
+      .sm-result-strip.error {
+        background: linear-gradient(135deg, #fee2e2, #fecaca);
+        border-color: #fca5a5;
       }
 
-      .sm-corner-tl,
-      .sm-corner-tr,
-      .sm-corner-bl,
-      .sm-corner-br {
-        position: absolute;
-        width: 20px;
-        height: 20px;
-        border-color: #3b82f6;
-        border-style: solid;
+      html.dark .sm-result-strip {
+        background: linear-gradient(135deg, #052e16, #064e3b);
+        border-color: #065f46;
       }
 
-      .sm-corner-tl { top: 6px; left: 6px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-      .sm-corner-tr { top: 6px; right: 6px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-      .sm-corner-bl { bottom: 6px; left: 6px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-      .sm-corner-br { bottom: 6px; right: 6px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-
-      .sm-waiting-text {
-        font-size: 14px;
-        font-weight: 600;
-        color: #3b82f6;
-        text-align: center;
-        margin: 0;
-        z-index: 1;
+      html.dark .sm-result-strip.error {
+        background: linear-gradient(135deg, #450a0a, #7f1d1d);
+        border-color: #991b1b;
       }
 
-      .sm-waiting-dots {
-        display: inline-flex;
-        gap: 4px;
-        margin-left: 6px;
-      }
-
-      .sm-waiting-dots span {
-        width: 5px;
-        height: 5px;
+      .sm-result-icon {
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
-        background: #3b82f6;
-        animation: smDotBounce 1.4s ease-in-out infinite;
-      }
-
-      .sm-waiting-dots span:nth-child(2) { animation-delay: 0.2s; }
-      .sm-waiting-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-      @keyframes smDotBounce {
-        0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-        40% { transform: translateY(-5px); opacity: 1; }
-      }
-
-      /* Test / manual paste input */
-      .sm-test-input {
-        flex: 1;
-        border: 1px solid #cbd5e1;
-        border-radius: 8px;
-        padding: 8px 12px;
-        font-size: 12px;
-        font-family: monospace;
-        background: #fff;
-        color: #1e293b;
-        outline: none;
-        min-width: 0;
-      }
-
-      .sm-test-input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-      }
-
-      html.dark .sm-test-input {
-        background: #1e293b;
-        border-color: #334155;
-        color: #f1f5f9;
-      }
-
-      .sm-test-submit {
-        width: 38px;
-        height: 38px;
-        border-radius: 8px;
-        background: #2563eb;
-        color: #fff;
-        border: none;
-        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        transition: background 0.15s;
-      }
-
-      .sm-test-submit:hover { background: #1d4ed8; }
-      .sm-test-submit:active { background: #1e40af; }
-
-      .sm-live-preview {
-        width: 100%;
-        font-size: 11px;
-        color: #94a3b8;
-        background: #f1f5f9;
-        border-radius: 6px;
-        padding: 6px 10px;
-        font-family: monospace;
-        word-break: break-all;
-        min-height: 18px;
-        max-height: 48px;
-        overflow: hidden;
-        text-align: center;
-      }
-
-      html.dark .sm-live-preview {
-        background: #1e293b;
-        color: #475569;
-      }
-
-      /* ── RESULT STATE ──────────────────────────────────────────── */
-      .sm-result-body { display: none; flex-direction: column; gap: 14px; }
-
-      .sm-result-header {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 0;
-      }
-
-      .sm-result-icon {
-        width: 52px;
-        height: 52px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
       }
 
       .sm-result-icon.ok {
-        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+        background: rgba(22, 163, 74, 0.15);
         color: #16a34a;
       }
 
       .sm-result-icon.err {
-        background: linear-gradient(135deg, #fee2e2, #fecaca);
+        background: rgba(220, 38, 38, 0.15);
         color: #dc2626;
       }
 
-      html.dark .sm-result-icon.ok {
-        background: linear-gradient(135deg, #14532d, #166534);
-        color: #4ade80;
-      }
+      html.dark .sm-result-icon.ok { background: rgba(22, 163, 74, 0.2); color: #4ade80; }
+      html.dark .sm-result-icon.err { background: rgba(220, 38, 38, 0.2); color: #f87171; }
 
-      html.dark .sm-result-icon.err {
-        background: linear-gradient(135deg, #7f1d1d, #991b1b);
-        color: #f87171;
+      .sm-result-text {
+        flex: 1;
       }
 
       .sm-result-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 800;
         color: #0f172a;
+        margin: 0 0 1px;
+      }
+
+      .sm-result-sub {
+        font-size: 11.5px;
+        color: #475569;
         margin: 0;
-        text-align: center;
+        font-weight: 500;
       }
 
       html.dark .sm-result-title { color: #f1f5f9; }
+      html.dark .sm-result-sub { color: #94a3b8; }
 
-      .sm-result-sub {
-        font-size: 12px;
-        color: #64748b;
-        margin: 0;
-        text-align: center;
-      }
-
-      /* Card preview */
-      .sm-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 14px 16px;
+      /* ── Data Card ── */
+      .sm-data {
+        padding: 16px 22px;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 14px;
       }
 
-      html.dark .sm-card {
-        background: #1e293b;
-        border-color: #334155;
-      }
-
-      .sm-card-row {
+      /* Profile row */
+      .sm-profile {
         display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        font-size: 13px;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e8eaf0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       }
 
-      .sm-card-label {
-        color: #94a3b8;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        min-width: 70px;
+      html.dark .sm-profile {
+        background: #161b27;
+        border-color: #1e2a3a;
+      }
+
+      .sm-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         flex-shrink: 0;
-        padding-top: 1px;
       }
 
-      .sm-card-value {
-        color: #1e293b;
-        font-weight: 600;
+      .sm-avatar.male {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+        color: #2563eb;
+      }
+
+      .sm-avatar.female {
+        background: linear-gradient(135deg, #fce7f3, #fbcfe8);
+        color: #db2777;
+      }
+
+      html.dark .sm-avatar.male { background: linear-gradient(135deg, #1e3a5f, #1e40af); color: #60a5fa; }
+      html.dark .sm-avatar.female { background: linear-gradient(135deg, #4a1942, #831843); color: #f472b6; }
+
+      .sm-profile-info {
         flex: 1;
-        word-break: break-word;
+        min-width: 0;
       }
 
-      html.dark .sm-card-label { color: #475569; }
-      html.dark .sm-card-value { color: #f1f5f9; }
-
-      .sm-card-value.name {
-        font-size: 15px;
-        font-weight: 800;
+      .sm-profile-name {
+        font-size: 16px;
+        font-weight: 900;
         color: #0f172a;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.02em;
+        margin: 0 0 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      html.dark .sm-card-value.name { color: #f8fafc; }
+      html.dark .sm-profile-name { color: #f1f5f9; }
 
-      .sm-card-badge-row {
+      .sm-profile-meta {
         display: flex;
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
       }
 
-      /* Buttons */
-      .sm-btn-primary {
-        width: 100%;
-        padding: 13px 20px;
-        background: #2563eb;
-        color: #fff;
-        border: none;
-        border-radius: 12px;
-        font-size: 14px;
-        font-weight: 700;
-        cursor: pointer;
-        display: flex;
+      .sm-profile-chip {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 100px;
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        gap: 8px;
-        transition: all 0.15s;
-        letter-spacing: -0.01em;
+        gap: 3px;
+        white-space: nowrap;
       }
 
-      .sm-btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35); }
-      .sm-btn-primary:active { transform: translateY(0); box-shadow: none; }
+      .sm-chip-gender {
+        background: #eff6ff;
+        color: #2563eb;
+      }
 
-      .sm-btn-secondary {
-        width: 100%;
-        padding: 10px 20px;
-        background: #f1f5f9;
-        color: #475569;
-        border: none;
-        border-radius: 10px;
+      .sm-chip-gender.female {
+        background: #fdf2f8;
+        color: #db2777;
+      }
+
+      .sm-chip-age {
+        background: #f5f3ff;
+        color: #7c3aed;
+      }
+
+      .sm-chip-type {
+        background: #f0fdf4;
+        color: #16a34a;
+      }
+
+      html.dark .sm-chip-gender { background: rgba(37,99,235,0.12); color: #60a5fa; }
+      html.dark .sm-chip-gender.female { background: rgba(219,39,119,0.12); color: #f472b6; }
+      html.dark .sm-chip-age { background: rgba(124,58,237,0.12); color: #a78bfa; }
+      html.dark .sm-chip-type { background: rgba(22,163,74,0.12); color: #4ade80; }
+
+      /* Info grid */
+      .sm-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .sm-info-cell {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #f1f3f8;
+        padding: 10px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        transition: background 0.2s;
+      }
+
+      .sm-info-cell.full-width {
+        grid-column: 1 / -1;
+      }
+
+      html.dark .sm-info-cell {
+        background: #161b27;
+        border-color: #1e2a3a;
+      }
+
+      .sm-info-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+      }
+
+      html.dark .sm-info-label { color: #64748b; }
+
+      .sm-info-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: #1e293b;
+        word-break: break-word;
+      }
+
+      html.dark .sm-info-value { color: #e2e8f0; }
+
+      .sm-info-value.mono {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        letter-spacing: 0.04em;
+      }
+
+      /* Address section */
+      .sm-addr-section {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .sm-addr-title {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        padding: 0 2px;
+      }
+
+      html.dark .sm-addr-title { color: #94a3b8; }
+
+      .sm-addr-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      /* Expiry badge */
+      .sm-expiry-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 9px;
+        border-radius: 100px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .sm-expiry-badge.valid { background: #dcfce7; color: #16a34a; }
+      .sm-expiry-badge.expiring { background: #fef3c7; color: #d97706; }
+      .sm-expiry-badge.expired { background: #fee2e2; color: #dc2626; }
+      .sm-expiry-badge.permanent { background: #e0f2fe; color: #0369a1; }
+      .sm-expiry-badge.unknown { background: #f1f5f9; color: #64748b; }
+
+      html.dark .sm-expiry-badge.valid { background: rgba(22,163,74,0.15); color: #4ade80; }
+      html.dark .sm-expiry-badge.expiring { background: rgba(217,119,6,0.15); color: #fbbf24; }
+      html.dark .sm-expiry-badge.expired { background: rgba(220,38,38,0.15); color: #f87171; }
+      html.dark .sm-expiry-badge.permanent { background: rgba(3,105,161,0.15); color: #38bdf8; }
+      html.dark .sm-expiry-badge.unknown { background: rgba(100,116,139,0.1); color: #64748b; }
+
+      /* Error card */
+      .sm-error-card {
+        padding: 16px;
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #fee2e2;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        text-align: center;
+      }
+
+      html.dark .sm-error-card {
+        background: #161b27;
+        border-color: #7f1d1d;
+      }
+
+      .sm-error-msg {
+        font-size: 13px;
+        font-weight: 600;
+        color: #dc2626;
+      }
+
+      html.dark .sm-error-msg { color: #f87171; }
+
+      .sm-error-raw {
+        font-size: 10.5px;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        color: #94a3b8;
+        word-break: break-all;
+        max-height: 60px;
+        overflow-y: auto;
+        line-height: 1.4;
+      }
+
+      /* ── BUTTONS ── */
+      .sm-actions {
+        padding: 14px 22px 18px;
+        display: flex;
+        gap: 10px;
+      }
+
+      .sm-btn {
+        flex: 1;
+        padding: 10px 16px;
+        border-radius: 12px;
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
@@ -475,181 +688,174 @@
         align-items: center;
         justify-content: center;
         gap: 6px;
-        transition: all 0.15s;
+        transition: all 0.18s ease;
+        border: none;
       }
 
-      .sm-btn-secondary:hover { background: #e2e8f0; color: #1e293b; }
-
-      html.dark .sm-btn-secondary { background: #1e293b; color: #94a3b8; }
-      html.dark .sm-btn-secondary:hover { background: #334155; color: #f1f5f9; }
-
-      .sm-btn-row {
-        display: flex;
-        gap: 10px;
+      .sm-btn-ghost {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #e5e7ef;
       }
 
-      .sm-btn-row .sm-btn-secondary { flex: 1; }
-      .sm-btn-row .sm-btn-primary { flex: 2; }
-
-      /* ── State visibility ─────────────────────────────────────── */
-      .sm-guide-body { display: flex; flex-direction: column; gap: 16px; }
-      .sm-guide-body.hidden { display: none; }
-      .sm-waiting-body.show { display: flex; }
-      .sm-result-body.show { display: flex; }
-
-      /* Spinner */
-      .sm-spinner {
-        width: 36px;
-        height: 36px;
-        border: 3px solid #e2e8f0;
-        border-top-color: #3b82f6;
-        border-radius: 50%;
-        animation: smSpin 0.8s linear infinite;
+      .sm-btn-ghost:hover {
+        background: #e2e8f0;
+        color: #1e293b;
       }
 
-      html.dark .sm-spinner {
+      html.dark .sm-btn-ghost {
+        background: #1e2a3a;
         border-color: #334155;
-        border-top-color: #60a5fa;
+        color: #94a3b8;
+      }
+      html.dark .sm-btn-ghost:hover { background: #263347; color: #e2e8f0; }
+
+      .sm-btn-primary {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        color: #fff;
+        flex: 2;
+        font-weight: 700;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        position: relative;
+        overflow: hidden;
       }
 
-      @keyframes smSpin {
-        to { transform: rotate(360deg); }
+      .sm-btn-primary::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+        opacity: 0;
+        transition: opacity 0.2s;
       }
 
-      /* Responsive */
+      .sm-btn-primary:hover::before { opacity: 1; }
+      .sm-btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
+      }
+      .sm-btn-primary:active { transform: translateY(0); }
+
+      .sm-btn-confirm {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+      }
+
+      .sm-btn-confirm:hover {
+        box-shadow: 0 6px 16px rgba(22, 163, 74, 0.4);
+      }
+
+      /* ── Responsive ── */
       @media (max-width: 480px) {
-        .sm-dialog { border-radius: 16px 16px 0 0; max-width: 100%; margin-top: auto; }
-        .v-modal { align-items: flex-end; padding: 0; }
+        .sm-dialog { border-radius: 20px 20px 0 0; max-width: 100%; max-height: 95vh; }
+        .sm-header { padding: 14px 18px 12px; }
+        .sm-viewport { margin: 14px 18px 0; height: 100px; }
+        .sm-steps { padding: 12px 18px 0; }
+        .sm-data { padding: 12px 18px; }
+        .sm-actions { padding: 12px 18px 16px; }
+        .sm-info-grid { grid-template-columns: 1fr; }
+        .sm-addr-grid { grid-template-columns: 1fr; }
       }
     </style>
 
-    <!-- HEADER -->
-    <div class="sm-header">
-      <div class="sm-icon-wrap" id="sm-icon-wrap" style="background: linear-gradient(135deg, #eff6ff, #dbeafe); color: #3b82f6;">
-        <svg id="sm-icon-svg" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-          <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-          <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-          <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+    <!-- ── Header ── -->
+    <div class="sm-header" id="sm-header">
+      <div class="sm-header-blob"></div>
+      <div class="sm-icon-wrap" id="sm-icon-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" id="sm-icon-svg">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
           <line x1="7" y1="12" x2="17" y2="12"/>
         </svg>
       </div>
       <div class="sm-header-text">
         <h5 class="sm-title" id="sm-title">Quét CCCD / Căn cước</h5>
-        <p class="sm-sub" id="sm-sub">Đọc mã QR từ thẻ CCCD gắn chip hoặc giấy tờ</p>
+        <p class="sm-sub" id="sm-sub">Đưa mã QR vào máy quét để đọc thông tin</p>
       </div>
       <button class="sm-close" onclick="scanModalClose()" title="Đóng">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
     </div>
 
-    <!-- BODY -->
+    <!-- ── Body ── -->
     <div class="sm-body">
 
-      <!-- GUIDE STATE -->
-      <div class="sm-guide-body" id="sm-guide-body">
-        <div class="sm-guide-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-            <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-            <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-            <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+      <!-- ══ SCAN VIEW (guide + scanner merged) ══ -->
+      <div class="sm-scan-view" id="sm-scan-view">
+
+        <!-- Scanner viewport -->
+        <div class="sm-viewport" id="sm-viewport">
+          <div class="sm-corner sm-corner-tl"></div>
+          <div class="sm-corner sm-corner-tr"></div>
+          <div class="sm-corner sm-corner-bl"></div>
+          <div class="sm-corner sm-corner-br"></div>
+          <div class="sm-scan-line"></div>
+          <svg class="sm-vp-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
             <line x1="7" y1="12" x2="17" y2="12"/>
           </svg>
+          <div class="sm-vp-text" id="sm-vp-text">
+            Sẵn sàng quét
+            <span class="sm-dots"><span></span><span></span><span></span></span>
+          </div>
         </div>
 
-        <div class="sm-guide-steps">
+        <!-- Guide steps -->
+        <div class="sm-steps">
           <div class="sm-step">
             <div class="sm-step-num">1</div>
-            <div class="sm-step-text">Đưa mã <strong>QR phía sau thẻ CCCD</strong> vào vùng quét của máy đọc mã</div>
+            <div class="sm-step-text">Đưa <strong>mã QR phía sau CCCD</strong> vào vùng quét của máy đọc</div>
           </div>
           <div class="sm-step">
             <div class="sm-step-num">2</div>
-            <div class="sm-step-text">Máy quét sẽ tự động nhận diện — <strong>dữ liệu quét xong sẽ điền ngay vào form</strong></div>
-          </div>
-          <div class="sm-step">
-            <div class="sm-step-num">3</div>
-            <div class="sm-step-text">Kiểm tra thông tin và <strong>bấm "Xác nhận"</strong> để điền vào phiếu nhận phòng</div>
+            <div class="sm-step-text">Thông tin sẽ <strong>tự động hiển thị</strong> sau khi quét thành công</div>
           </div>
         </div>
 
-        <div class="sm-btn-row" style="margin-top: 4px;">
-          <button class="sm-btn-secondary" onclick="scanModalClose()">Hủy</button>
-          <button class="sm-btn-primary" id="sm-start-btn" onclick="scanModalStart()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        <!-- Scan buttons -->
+        <div class="sm-scan-footer">
+          <button class="sm-btn sm-btn-ghost" onclick="scanModalClose()">Huỷ</button>
+          <button class="sm-btn sm-btn-primary" id="sm-start-btn" onclick="scanModalStart()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+            </svg>
             Bắt đầu quét
           </button>
         </div>
       </div>
 
-      <!-- WAITING STATE -->
-      <div class="sm-waiting-body" id="sm-waiting-body">
-        <div class="sm-scanner-viewport">
-          <div class="sm-corner-tl"></div>
-          <div class="sm-corner-tr"></div>
-          <div class="sm-corner-bl"></div>
-          <div class="sm-corner-br"></div>
-          <div class="sm-scan-line"></div>
-          <p class="sm-waiting-text">
-            Đang chờ quét
-            <span class="sm-waiting-dots"><span></span><span></span><span></span></span>
-          </p>
-        </div>
-
-        <!-- Manual paste / test input -->
-        <div style="width:100%; display:flex; flex-direction:column; gap:8px; align-items:center;">
-          <p style="margin:0; font-size:11.5px; color:#94a3b8; font-weight:600; text-transform:uppercase; letter-spacing:0.04em;">
-            Hoặc dán chuỗi QR để thử nghiệm
-          </p>
-          <div style="width:100%; display:flex; gap:8px;">
-            <input
-              type="text"
-              id="sm-test-input"
-              class="sm-test-input"
-              placeholder="Dán chuỗi QR CCCD vào đây..."
-              autocomplete="off"
-              spellcheck="false"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();scanModalTestInput();}"
-            />
-            <button
-              class="sm-test-submit"
-              onclick="scanModalTestInput()"
-              title="Parse chuỗi này"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
+      <!-- ══ RESULT VIEW ══ -->
+      <div class="sm-result-view" id="sm-result-view">
+        <!-- Result strip -->
+        <div class="sm-result-strip" id="sm-result-strip">
+          <div class="sm-result-icon" id="sm-result-icon-el"></div>
+          <div class="sm-result-text">
+            <div class="sm-result-title" id="sm-result-title">Quét thành công!</div>
+            <p class="sm-result-sub" id="sm-result-sub">Thông tin đã nhận diện từ CCCD</p>
           </div>
         </div>
 
-        <div class="sm-live-preview" id="sm-live-preview"></div>
-        <p style="margin:0; font-size:12px; color:#94a3b8; text-align:center;">
-          Máy quét ở chế độ <strong style="color:#64748b;">keyboard</strong> — dữ liệu sẽ tự nhận khi quét xong
-        </p>
-        <button class="sm-btn-secondary" onclick="scanModalBack()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-          Quay lại hướng dẫn
-        </button>
-      </div>
-
-      <!-- RESULT STATE -->
-      <div class="sm-result-body" id="sm-result-body">
-        <div class="sm-result-header">
-          <div class="sm-result-icon" id="sm-result-icon">
-            {# injected by JS #}
-          </div>
-          <h5 class="sm-result-title" id="sm-result-title"></h5>
-          <p class="sm-result-sub" id="sm-result-sub"></p>
+        <!-- Data display -->
+        <div class="sm-data" id="sm-data-container">
+          <!-- Injected by JS -->
         </div>
 
-        <div class="sm-card" id="sm-card">
-          {# injected by JS #}
-        </div>
-
-        <div class="sm-btn-row">
-          <button class="sm-btn-secondary" onclick="scanModalBack()">Quét lại</button>
-          <button class="sm-btn-primary" id="sm-confirm-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Xác nhận &amp; điền form
+        <!-- Result buttons -->
+        <div class="sm-actions">
+          <button class="sm-btn sm-btn-ghost" onclick="scanModalReset()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            </svg>
+            Quét lại
+          </button>
+          <button class="sm-btn sm-btn-primary sm-btn-confirm" id="sm-confirm-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Xác nhận & điền form
           </button>
         </div>
       </div>
@@ -659,52 +865,54 @@
 </div>
 
 <script>
-/* ── Scan Modal Controller ─────────────────────────────────────────────────── */
-/* State machine: guide → waiting → result(ok|err) → guide/close               */
+/* ══════════════════════════════════════════════════════════════
+   SCAN MODAL CONTROLLER — Redesigned 2026
+   States: scan (merged guide+wait) → result (ok | err)
+══════════════════════════════════════════════════════════════ */
 
-let _smOnSuccess = null;   // callback(parsedData)
-let _smBuffer = "";
+let _smOnSuccess  = null;
+let _smBuffer     = '';
 let _smFlushTimer = null;
 let _smTimeoutTimer = null;
-const _SM_MIN_LEN = 10;
+let _smAutoStartTimer = null;
+
+const _SM_MIN_LEN    = 10;
 const _SM_TIMEOUT_MS = 45000;
 
+// ── Open ─────────────────────────────────────────────────────────
 function openScanModal(onSuccess) {
     _smOnSuccess = onSuccess || null;
-    _smReset();
+    _smCleanup();
+    _smBuffer = '';
 
-    // Update header
-    const iconWrap = document.getElementById('sm-icon-wrap');
-    const iconSvg = document.getElementById('sm-icon-svg');
-    if (iconWrap) {
-        iconWrap.style.background = 'linear-gradient(135deg, #eff6ff, #dbeafe)';
-        iconWrap.style.color = '#3b82f6';
-    }
-    if (iconSvg) {
-        iconSvg.innerHTML = '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/>';
-    }
+    // Reset to scan view
+    _smSetView('scan');
+    _smSetViewportActive(false);
+    _smUpdateVpText('Sẵn sàng quét');
 
-    document.getElementById('sm-title').textContent = 'Quét CCCD / Căn cước';
-    document.getElementById('sm-sub').textContent = 'Đọc mã QR từ thẻ CCCD gắn chip hoặc giấy tờ';
+    // Reset header to blue
+    _smSetHeaderTheme('blue');
 
-    _smShowState('guide');
+    // Reset confirm btn
+    const btn = document.getElementById('sm-confirm-btn');
+    if (btn) { btn.style.display = ''; btn.onclick = null; }
 
+    // Open
     const modal = document.getElementById('scanModal');
     if (modal) {
         modal.classList.add('show');
         modal.removeAttribute('aria-hidden');
     }
 
-    // Auto-start scanning after 800ms delay (smooth UX)
+    // Auto-start after short delay
     clearTimeout(_smAutoStartTimer);
     _smAutoStartTimer = setTimeout(() => {
-        const btn = document.getElementById('sm-start-btn');
-        if (btn) btn.click();
-    }, 800);
+        const startBtn = document.getElementById('sm-start-btn');
+        if (startBtn) startBtn.click();
+    }, 600);
 }
 
-let _smAutoStartTimer = null;
-
+// ── Close ────────────────────────────────────────────────────────
 function scanModalClose() {
     _smCleanup();
     const modal = document.getElementById('scanModal');
@@ -712,67 +920,57 @@ function scanModalClose() {
     _smOnSuccess = null;
 }
 
-function scanModalBack() {
+// ── Reset (scan again) ────────────────────────────────────────────
+function scanModalReset() {
     _smCleanup();
-    _smShowState('guide');
+    _smBuffer = '';
+    _smSetView('scan');
+    _smSetViewportActive(false);
+    _smUpdateVpText('Sẵn sàng quét');
+    _smSetHeaderTheme('blue');
+
+    const btn = document.getElementById('sm-confirm-btn');
+    if (btn) { btn.style.display = ''; btn.onclick = null; }
+
+    // Auto-start
+    clearTimeout(_smAutoStartTimer);
+    _smAutoStartTimer = setTimeout(() => {
+        const startBtn = document.getElementById('sm-start-btn');
+        if (startBtn) startBtn.click();
+    }, 400);
 }
 
+// ── Start scanning ───────────────────────────────────────────────
 function scanModalStart() {
-    _smBuffer = "";
-    _smShowState('waiting');
+    _smBuffer = '';
+    _smSetViewportActive(true);
+    _smUpdateVpText('Đang chờ quét');
 
-    // Start timeout: auto-close after 45s
+    // Update button
+    const startBtn = document.getElementById('sm-start-btn');
+    if (startBtn) {
+        startBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="6" y="6" width="12" height="12" rx="2"/>
+          </svg>
+          Đang quét...`;
+        startBtn.onclick = () => { _smCleanup(); scanModalReset(); };
+    }
+
+    // Timeout
     clearTimeout(_smTimeoutTimer);
     _smTimeoutTimer = setTimeout(() => {
-        _smShowResult({
-            is_valid: false,
-            error: "Hết thời gian chờ (45s). Vui lòng quét lại.",
-        });
+        _smShowResult({ is_valid: false, error: 'Hết thời gian chờ (45s). Vui lòng thử lại.' });
     }, _SM_TIMEOUT_MS);
 
-    // Attach keyboard listener to window (capture all keys)
-    clearListeners();
+    // Keyboard listener
+    _smClearListeners();
     window.addEventListener('keydown', _smKeyHandler, { capture: true });
 }
 
-function scanModalTestInput() {
-    const input = document.getElementById('sm-test-input');
-    if (!input) return;
-    const raw = input.value.trim();
-    if (!raw || raw.length < 10) {
-        pmsToast('Chuỗi QR quá ngắn. Vui lòng dán chuỗi đầy đủ.', false);
-        return;
-    }
-    clearTimeout(_smTimeoutTimer);
-    clearListeners();
-    input.value = '';
-    _smShowResult(pmsParseScanCCCD(raw));
-}
-
-function _smShowState(state) {
-    const guide = document.getElementById('sm-guide-body');
-    const waiting = document.getElementById('sm-waiting-body');
-    const result = document.getElementById('sm-result-body');
-
-    if (!guide || !waiting || !result) return;
-
-    guide.classList.toggle('hidden', state !== 'guide');
-    waiting.classList.toggle('show', state === 'waiting');
-    result.classList.toggle('show', state === 'result');
-
-    // Auto-focus test input when entering waiting state
-    if (state === 'waiting') {
-        setTimeout(() => {
-            const testInput = document.getElementById('sm-test-input');
-            if (testInput) { testInput.value = ''; testInput.focus(); }
-        }, 120);
-    }
-}
-
+// ── Key handler ──────────────────────────────────────────────────
 function _smKeyHandler(e) {
-    // Don't capture inside real input fields (only in waiting state)
-    const tag = e.target.tagName;
-    const isFormInput = (tag === 'INPUT' || tag === 'TEXTAREA') && !e.target.closest('#scanModal');
+    const isFormInput = (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') && !e.target.closest('#scanModal');
 
     if (e.key === 'Escape') {
         e.preventDefault();
@@ -786,43 +984,32 @@ function _smKeyHandler(e) {
         return;
     }
 
-    // Collect printable characters
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // Only accumulate if not typing in a form field outside the scan modal
         if (!isFormInput || document.activeElement === document.body) {
             clearTimeout(_smFlushTimer);
             _smBuffer += e.key;
-            _smFlushTimer = setTimeout(() => { _smBuffer = ""; _updateLivePreview(""); }, 600);
-            _updateLivePreview(_smBuffer);
+            _smFlushTimer = setTimeout(() => { _smBuffer = ''; }, 600);
         }
     }
 }
 
+// ── Flush buffer ─────────────────────────────────────────────────
 function _smFlush() {
     clearTimeout(_smFlushTimer);
     clearTimeout(_smTimeoutTimer);
 
     if (_smBuffer.length >= _SM_MIN_LEN) {
         const raw = _smBuffer;
-        _smBuffer = "";
+        _smBuffer = '';
         _processScan(raw);
-    } else {
-        // Short input: treat as direct paste attempt
-        const input = document.activeElement;
-        if (input && (input.tagName === 'INPUT' || input.tagName === 'TEXTAREA')) {
-            const val = input.value.trim();
-            if (val.length >= _SM_MIN_LEN) {
-                _processScan(val);
-                input.value = "";
-            }
-        }
     }
 }
 
+// ── Process scan ─────────────────────────────────────────────────
 function _processScan(raw) {
     _smCleanup();
 
-    // Try server-side parse first (fuzzy province matching + more robust)
+    // Try server-side parse first
     pmsApi('/api/pms/scan/cccd?raw=' + encodeURIComponent(raw))
         .then(r => {
             if (r.success && r.data) {
@@ -837,35 +1024,31 @@ function _processScan(raw) {
             try {
                 parsed = pmsParseScanCCCD(raw);
             } catch (err) {
-                parsed = { is_valid: false, error: "Lỗi parse: " + (err.message || "Unknown"), raw_cleaned: raw };
+                parsed = { is_valid: false, error: 'Lỗi parse: ' + (err.message || 'Unknown'), raw_cleaned: raw };
             }
             _smShowResult(parsed);
         });
 }
 
-/**
- * Convert backend API response to the same shape as pmsParseScanCCCD output.
- * Backend uses: id_number, old_id, dob, expiry_date
- * Local uses:  id_number, old_id, dob,  expiry_date  (same!)
- */
+// ── Backend → local shape ────────────────────────────────────────
 function _backendToLocal(data) {
     return {
         is_valid:      data.is_valid,
         error:         data.error || '',
         raw_cleaned:   data.raw_cleaned || '',
         card_type:     data.card_type || '',
-        id_number:    data.id_number || '',
-        old_id:       data.old_id || '',
-        cccd:         data.id_number || data.old_id || '',
-        name:         data.name || '',
-        dob:          data.dob || '',
-        gender:       data.gender || '',
+        id_number:     data.id_number || '',
+        old_id:        data.old_id || '',
+        cccd:          data.id_number || data.old_id || '',
+        name:          data.name || '',
+        dob:           data.dob || '',
+        gender:        data.gender || '',
         address: {
-            raw:      data.address?.raw || '',
-            detail:   data.address?.detail || '',
-            ward:     data.address?.ward || '',
-            district: data.address?.district || '',
-            province: data.address?.province || '',
+            raw:       data.address?.raw || '',
+            detail:    data.address?.detail || '',
+            ward:      data.address?.ward || '',
+            district:  data.address?.district || '',
+            province:  data.address?.province || '',
         },
         issue_date:    data.issue_date || '',
         expiry_date:   data.expiry_date || '',
@@ -874,127 +1057,224 @@ function _backendToLocal(data) {
     };
 }
 
+// ── Show result ──────────────────────────────────────────────────
 function _smShowResult(parsed) {
-    _smShowState('result');
+    _smSetView('result');
 
-    const iconWrap = document.getElementById('sm-icon-wrap');
-    const iconSvg = document.getElementById('sm-icon-svg');
-    const resultIcon = document.getElementById('sm-result-icon');
-    const title = document.getElementById('sm-result-title');
-    const sub = document.getElementById('sm-result-sub');
-    const card = document.getElementById('sm-card');
+    const strip     = document.getElementById('sm-result-strip');
+    const iconEl    = document.getElementById('sm-result-icon-el');
+    const titleEl   = document.getElementById('sm-result-title');
+    const subEl     = document.getElementById('sm-result-sub');
+    const dataEl    = document.getElementById('sm-data-container');
     const confirmBtn = document.getElementById('sm-confirm-btn');
 
     if (parsed.is_valid) {
-        // Success
-        if (iconWrap) { iconWrap.style.background = 'linear-gradient(135deg, #dcfce7, #bbf7d0)'; iconWrap.style.color = '#16a34a'; }
-        if (resultIcon) { resultIcon.className = 'sm-result-icon ok'; resultIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'; }
-        if (title) title.textContent = 'Quét thành công!';
-        if (sub) sub.textContent = 'Thông tin đã được nhận diện từ CCCD';
+        // ── SUCCESS ──
+        _smSetHeaderTheme('green');
+        strip.classList.remove('error');
+        iconEl.className = 'sm-result-icon ok';
+        iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
+        titleEl.textContent = 'Quét thành công!';
+        subEl.textContent = 'Thông tin đã được nhận diện từ thẻ';
 
-        if (card) {
-            const status   = pmsExpiryStatus(parsed.expiry_date);
-            const badge    = pmsExpiryBadgeHtml(status, parsed.expiry_date);
-            const idValue  = parsed.id_number || parsed.old_id || parsed.cccd || '—';
-            const idLabel  = parsed.card_type === 'CMND' ? 'CMND' : (parsed.card_type === 'CAN_CUOC_MOI' ? 'Căn cước mới' : 'CCCD');
-            const addrRaw  = typeof parsed.address === 'object' ? (parsed.address?.raw || '') : (parsed.address || '');  // backward compat: old parser returned string
-            const addrProv = typeof parsed.address === 'object' ? (parsed.address?.province || '') : '';
-            const addrDist = typeof parsed.address === 'object' ? (parsed.address?.district || '') : '';
-            const addrWard = typeof parsed.address === 'object' ? (parsed.address?.ward || '') : '';
-            card.innerHTML = `
-              <div class="sm-card-row">
-                <div class="sm-card-label">Tên</div>
-                <div class="sm-card-value name">${pmsEscapeHtml(parsed.name)}</div>
-              </div>
-              <div class="sm-card-row">
-                <div class="sm-card-label">${pmsEscapeHtml(idLabel)}</div>
-                <div class="sm-card-value">${pmsEscapeHtml(idValue)}</div>
-              </div>
-              <div class="sm-card-row">
-                <div class="sm-card-label">Ngày sinh</div>
-                <div class="sm-card-value">${pmsEscapeHtml(parsed.dob)}</div>
-              </div>
-              <div class="sm-card-row">
-                <div class="sm-card-label">Giới tính</div>
-                <div class="sm-card-value">${pmsEscapeHtml(parsed.gender)}</div>
-              </div>
-              <div class="sm-card-row">
-                <div class="sm-card-label">Hạn CCCD</div>
-                <div class="sm-card-badge-row">${badge}</div>
-              </div>
-              ${addrRaw ? `
-              <div class="sm-card-row">
-                <div class="sm-card-label">Địa chỉ</div>
-                <div class="sm-card-value" style="font-size:12px; color:#64748b; line-height:1.5;">
-                  ${pmsEscapeHtml(addrRaw)}<br/>
-                  ${addrWard ? pmsEscapeHtml(addrWard) + ', ' : ''}${addrDist ? pmsEscapeHtml(addrDist) + ', ' : ''}${addrProv ? pmsEscapeHtml(addrProv) : ''}
-                </div>
-              </div>` : ''}
-            `;
+        // Card type labels
+        const typeLabels = { CAN_CUOC_MOI: 'Căn cước mới', CCCD_CU: 'CCCD', CMND: 'CMND' };
+        const typeLabel = typeLabels[parsed.card_type] || 'CCCD';
+        const idLabel   = parsed.card_type === 'CMND' ? 'CMND' : (parsed.card_type === 'CAN_CUOC_MOI' ? 'Căn cước' : 'CCCD');
+        const idValue   = parsed.id_number || parsed.old_id || parsed.cccd || '—';
+        const isFemale  = (parsed.gender || '').toLowerCase() === 'nữ';
+
+        // Expiry
+        const expiryStatus = parsed.expiry_status || pmsExpiryStatus(parsed.expiry_date);
+        const expiryText   = parsed.expiry_date || '—';
+
+        // Address
+        const addr = typeof parsed.address === 'object' ? parsed.address : { raw: parsed.address || '', detail: '', ward: '', district: '', province: '' };
+        const isNew = parsed.card_type === 'CAN_CUOC_MOI';
+
+        let addrHtml = '';
+        if (addr.province || addr.ward || addr.district || addr.detail) {
+            if (isNew) {
+                // Căn cước mới: Tỉnh/TP + Xã/Phường (3 cấp)
+                addrHtml = `
+                  <div class="sm-addr-section">
+                    <div class="sm-addr-title">📍 Địa chỉ thường trú</div>
+                    <div class="sm-addr-grid">
+                      <div class="sm-info-cell">
+                        <div class="sm-info-label">Tỉnh / Thành phố</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.province) || '—'}</div>
+                      </div>
+                      <div class="sm-info-cell">
+                        <div class="sm-info-label">Xã / Phường</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.ward) || '—'}</div>
+                      </div>
+                      ${addr.detail ? `
+                      <div class="sm-info-cell full-width">
+                        <div class="sm-info-label">Địa chỉ chi tiết</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.detail)}</div>
+                      </div>` : ''}
+                    </div>
+                  </div>`;
+            } else {
+                // CCCD cũ / CMND: Tỉnh/TP + Quận/Huyện + Xã/Phường (4 cấp)
+                addrHtml = `
+                  <div class="sm-addr-section">
+                    <div class="sm-addr-title">📍 Địa chỉ thường trú</div>
+                    <div class="sm-addr-grid">
+                      <div class="sm-info-cell">
+                        <div class="sm-info-label">Tỉnh / Thành phố</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.province) || '—'}</div>
+                      </div>
+                      <div class="sm-info-cell">
+                        <div class="sm-info-label">Quận / Huyện</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.district) || '—'}</div>
+                      </div>
+                      <div class="sm-info-cell">
+                        <div class="sm-info-label">Xã / Phường</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.ward) || '—'}</div>
+                      </div>
+                      ${addr.detail ? `
+                      <div class="sm-info-cell">
+                        <div class="sm-info-label">Địa chỉ chi tiết</div>
+                        <div class="sm-info-value">${pmsEscapeHtml(addr.detail)}</div>
+                      </div>` : ''}
+                    </div>
+                  </div>`;
+            }
         }
 
+        dataEl.innerHTML = `
+          <!-- Profile card -->
+          <div class="sm-profile">
+            <div class="sm-avatar ${isFemale ? 'female' : 'male'}">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div class="sm-profile-info">
+              <div class="sm-profile-name">${pmsEscapeHtml(parsed.name)}</div>
+              <div class="sm-profile-meta">
+                <span class="sm-profile-chip sm-chip-gender ${isFemale ? 'female' : ''}">${pmsEscapeHtml(parsed.gender || '—')}</span>
+                ${parsed.age ? `<span class="sm-profile-chip sm-chip-age">${parsed.age} tuổi</span>` : ''}
+                <span class="sm-profile-chip sm-chip-type">${typeLabel}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Info grid -->
+          <div class="sm-info-grid">
+            <div class="sm-info-cell">
+              <div class="sm-info-label">Số ${idLabel}</div>
+              <div class="sm-info-value mono">${pmsEscapeHtml(idValue)}</div>
+            </div>
+            <div class="sm-info-cell">
+              <div class="sm-info-label">Ngày sinh</div>
+              <div class="sm-info-value">${pmsEscapeHtml(parsed.dob)}</div>
+            </div>
+            ${parsed.old_id && parsed.id_number ? `
+            <div class="sm-info-cell">
+              <div class="sm-info-label">Số CMND cũ</div>
+              <div class="sm-info-value mono">${pmsEscapeHtml(parsed.old_id)}</div>
+            </div>` : ''}
+            <div class="sm-info-cell">
+              <div class="sm-info-label">Hạn CCCD</div>
+              <div class="sm-info-value">
+                <span class="sm-expiry-badge ${expiryStatus}">${pmsEscapeHtml(expiryText)}</span>
+              </div>
+            </div>
+          </div>
+
+          ${addrHtml}
+        `;
+
         if (confirmBtn) {
+            confirmBtn.style.display = '';
             confirmBtn.onclick = () => {
                 if (_smOnSuccess) _smOnSuccess(parsed);
                 scanModalClose();
             };
         }
+
     } else {
-        // Error
-        if (iconWrap) { iconWrap.style.background = 'linear-gradient(135deg, #fee2e2, #fecaca)'; iconWrap.style.color = '#dc2626'; }
-        if (resultIcon) { resultIcon.className = 'sm-result-icon err'; resultIcon.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'; }
-        if (title) title.textContent = 'Không nhận diện được';
-        if (sub) sub.textContent = parsed.error || 'Dữ liệu quét không hợp lệ. Thử lại hoặc nhập tay.';
+        // ── ERROR ──
+        _smSetHeaderTheme('red');
+        strip.classList.add('error');
+        iconEl.className = 'sm-result-icon err';
+        iconEl.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        titleEl.textContent = 'Không nhận diện được';
+        subEl.textContent = 'Dữ liệu quét không hợp lệ';
 
-        if (card) {
-            card.innerHTML = `
-              <div class="sm-card-row" style="justify-content:center;">
-                <div style="font-size:13px; color:#dc2626; text-align:center; padding:4px 0;">
-                  ${pmsEscapeHtml(parsed.error || 'Không đọc được dữ liệu CCCD')}
-                </div>
-              </div>
-              <div class="sm-card-row">
-                <div class="sm-card-label">Raw</div>
-                <div class="sm-card-value" style="font-size:11px; font-family:monospace; color:#94a3b8; word-break:break-all;">${pmsEscapeHtml(parsed.raw_cleaned || '—')}</div>
-              </div>
-            `;
-        }
+        dataEl.innerHTML = `
+          <div class="sm-error-card">
+            <div class="sm-error-msg">${pmsEscapeHtml(parsed.error || 'Không đọc được dữ liệu CCCD')}</div>
+            ${parsed.raw_cleaned ? `<div class="sm-error-raw">${pmsEscapeHtml(parsed.raw_cleaned)}</div>` : ''}
+          </div>
+        `;
 
-        if (confirmBtn) {
-            confirmBtn.style.display = 'none';
-        }
+        if (confirmBtn) confirmBtn.style.display = 'none';
     }
 }
 
-function _updateLivePreview(text) {
-    const el = document.getElementById('sm-live-preview');
-    if (!el) return;
-    el.textContent = text ? `▶ ${text.slice(-60)}` : '';
+// ── View switching ───────────────────────────────────────────────
+function _smSetView(view) {
+    const scanView   = document.getElementById('sm-scan-view');
+    const resultView = document.getElementById('sm-result-view');
+
+    if (scanView)   scanView.classList.toggle('hidden', view !== 'scan');
+    if (resultView) resultView.classList.toggle('show', view === 'result');
 }
 
-function _smReset() {
-    _smBuffer = "";
+function _smSetViewportActive(active) {
+    const vp = document.getElementById('sm-viewport');
+    if (vp) vp.classList.toggle('active', active);
+}
+
+function _smUpdateVpText(text) {
+    const el = document.getElementById('sm-vp-text');
+    if (!el) return;
+    const dots = '<span class="sm-dots"><span></span><span></span><span></span></span>';
+    el.innerHTML = text + ' ' + dots;
+}
+
+function _smSetHeaderTheme(theme) {
+    const header = document.getElementById('sm-header');
+    if (!header) return;
+
+    const themes = {
+        blue:  'linear-gradient(135deg, #2563eb 0%, #3b82f6 55%, #60a5fa 100%)',
+        green: 'linear-gradient(135deg, #16a34a 0%, #22c55e 55%, #4ade80 100%)',
+        red:   'linear-gradient(135deg, #dc2626 0%, #ef4444 55%, #f87171 100%)',
+    };
+
+    const darkThemes = {
+        blue:  'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%)',
+        green: 'linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%)',
+        red:   'linear-gradient(135deg, #7f1d1d 0%, #991b1b 55%, #b91c1c 100%)',
+    };
+
+    const isDark = document.documentElement.classList.contains('dark');
+    header.style.background = isDark ? (darkThemes[theme] || darkThemes.blue) : (themes[theme] || themes.blue);
+}
+
+// ── Cleanup ──────────────────────────────────────────────────────
+function _smCleanup() {
+    _smClearListeners();
     clearTimeout(_smFlushTimer);
     clearTimeout(_smTimeoutTimer);
-    _smCleanup();
-
-    // Reset confirm button
-    const btn = document.getElementById('sm-confirm-btn');
-    if (btn) { btn.style.display = ''; btn.onclick = null; }
+    clearTimeout(_smAutoStartTimer);
 }
 
-function _smCleanup() {
-    clearListeners();
-    clearTimeout(_smTimeoutTimer);
-}
-
-function clearListeners() {
+function _smClearListeners() {
     window.removeEventListener('keydown', _smKeyHandler, { capture: true });
 }
 
-window.openScanModal = openScanModal;
-window.scanModalClose = scanModalClose;
-window.scanModalBack = scanModalBack;
-window.scanModalStart = scanModalStart;
-window.scanModalTestInput = scanModalTestInput;
+// ── Exports ──────────────────────────────────────────────────────
+window.openScanModal    = openScanModal;
+window.scanModalClose   = scanModalClose;
+window.scanModalReset   = scanModalReset;
+window.scanModalStart   = scanModalStart;
+// Legacy aliases
+window.scanModalBack    = scanModalReset;
+
 </script>

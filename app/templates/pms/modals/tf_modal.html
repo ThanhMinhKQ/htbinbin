@@ -2,153 +2,259 @@
 <div class="v-modal" id="tfModal">
   <div class="v-dialog" id="tf-dialog">
     <style>
-      /* ── TF Modal Layout ── */
+      /* ══════════════════════════════════════════
+         TF MODAL — Premium 2026 Redesign
+      ══════════════════════════════════════════ */
+
       #tf-dialog {
-        background-color: #f8fafc;
-        max-width: 560px;
-        width: 95%;
-        border-radius: 16px;
+        background: #f6f7fb;
+        max-width: 680px;
+        width: 96%;
+        border-radius: 24px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(139, 92, 246, 0.12);
+        box-shadow:
+          0 32px 64px -16px rgba(15, 23, 42, 0.18),
+          0 0 0 1px rgba(255,255,255,0.7) inset;
         max-height: 88vh;
+        font-family: inherit;
+        animation: tfDialogIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
       }
 
-      /* ── Header ── */
+      @keyframes tfDialogIn {
+        from { opacity: 0; transform: scale(0.94) translateY(12px); }
+        to   { opacity: 1; transform: scale(1) translateY(0); }
+      }
+
+      /* ── HEADER ── */
       .tf-header {
         display: flex;
         align-items: center;
-        gap: 16px;
-        padding: 20px 24px;
-        background: #fff;
-        border-bottom: 1px solid #f1f5f9;
+        gap: 14px;
+        padding: 22px 26px 18px;
+        background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #8b5cf6 100%);
+        position: relative;
+        overflow: hidden;
+        flex-shrink: 0;
       }
 
-      .tf-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        background: #ede9fe;
+      .tf-header::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse at 20% 50%, rgba(255,255,255,0.12) 0%, transparent 60%),
+          radial-gradient(ellipse at 80% 20%, rgba(255,255,255,0.08) 0%, transparent 50%);
+        pointer-events: none;
+      }
+
+      .tf-header-blob {
+        position: absolute;
+        right: -30px;
+        top: -30px;
+        width: 120px;
+        height: 120px;
+        background: rgba(255,255,255,0.06);
+        border-radius: 50%;
+        pointer-events: none;
+      }
+
+      .tf-icon-wrap {
+        width: 48px;
+        height: 48px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.18);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.25);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        position: relative;
+        z-index: 2;
       }
 
-      .tf-header-info {
+      .tf-header-text {
         flex: 1;
+        position: relative;
+        z-index: 2;
       }
 
       .tf-title {
         font-size: 17px;
         font-weight: 800;
-        color: #1e293b;
-        margin: 0 0 2px;
-        letter-spacing: -0.01em;
+        color: #fff;
+        margin: 0 0 3px;
+        letter-spacing: -0.02em;
       }
 
       .tf-sub {
         font-size: 12.5px;
-        color: #64748b;
+        color: rgba(255,255,255,0.72);
+        font-weight: 500;
       }
 
       .tf-close {
-        width: 32px;
-        height: 32px;
+        width: 34px;
+        height: 34px;
         border-radius: 50%;
-        background: #f1f5f9;
-        border: none;
+        background: rgba(255,255,255,0.15);
+        border: 1px solid rgba(255,255,255,0.2);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        color: #64748b;
-        transition: all 0.2s;
+        color: rgba(255,255,255,0.85);
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
         flex-shrink: 0;
+        position: relative;
+        z-index: 2;
       }
 
       .tf-close:hover {
-        background: #fee2e2;
-        color: #ef4444;
-        transform: rotate(90deg);
+        background: rgba(255,255,255,0.28);
+        color: #fff;
+        transform: rotate(90deg) scale(1.08);
       }
 
-      .tf-close svg {
-        width: 16px;
-        height: 16px;
-      }
-
-      /* ── Body ── */
-      .tf-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px 24px;
+      /* ── TRANSFER FLOW BAR ── */
+      .tf-flow {
         display: flex;
-        flex-direction: column;
-        gap: 16px;
-      }
-
-      /* Current room info */
-      .tf-current {
-        background: #fef9c3;
-        border: 1px solid #fef08a;
-        border-radius: 12px;
-        padding: 12px 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .tf-current-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: #fde047;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: stretch;
+        gap: 0;
+        padding: 18px 26px;
+        background: #fff;
+        border-bottom: 1px solid #eef0f6;
         flex-shrink: 0;
       }
 
-      .tf-current-icon svg {
-        width: 18px;
-        height: 18px;
-        stroke: #854d0e;
-      }
-
-      .tf-current-text {
+      .tf-flow-box {
         flex: 1;
+        border-radius: 16px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        position: relative;
+        transition: all 0.3s ease;
       }
 
-      .tf-current-label {
-        font-size: 11px;
-        color: #854d0e;
+      .tf-flow-box.from-box {
+        background: linear-gradient(135deg, #fff5f5, #fee2e2);
+        border: 1.5px solid #fca5a5;
+      }
+
+      .tf-flow-box.to-box {
+        background: linear-gradient(135deg, #fafafa, #f3f0ff);
+        border: 1.5px dashed #c4b5fd;
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+
+      .tf-flow-box.to-box.selected {
+        background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+        border: 1.5px solid #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+        transform: translateY(-2px);
+      }
+
+      .tf-flow-label {
+        font-size: 10.5px;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.06em;
       }
 
-      .tf-current-num {
-        font-size: 16px;
-        font-weight: 800;
+      .from-box .tf-flow-label { color: #ef4444; }
+      .to-box .tf-flow-label { color: #94a3b8; }
+      .to-box.selected .tf-flow-label { color: #7c3aed; }
+
+      .tf-flow-room {
+        font-size: 22px;
+        font-weight: 900;
         color: #1e293b;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.04em;
+        line-height: 1.1;
       }
 
-      .tf-current-badge {
-        background: #fef08a;
-        color: #854d0e;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 100px;
+      .tf-flow-room-placeholder {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #c4b5fd;
+      }
+
+      .tf-flow-room-placeholder svg {
+        flex-shrink: 0;
+        animation: tfPulse 2s ease-in-out infinite;
+      }
+
+      @keyframes tfPulse {
+        0%, 100% { opacity: 0.5; }
+        50%       { opacity: 1; }
+      }
+
+      .tf-flow-type {
+        font-size: 11.5px;
+        color: #64748b;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* Arrow connector */
+      .tf-flow-arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 12px;
+        flex-shrink: 0;
+      }
+
+      .tf-flow-arrow-inner {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #7c3aed;
+        box-shadow: 0 2px 8px rgba(124, 58, 237, 0.18);
+        animation: tfArrowPop 0.4s 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+
+      @keyframes tfArrowPop {
+        from { transform: scale(0.5); opacity: 0; }
+        to   { transform: scale(1); opacity: 1; }
+      }
+
+      /* ── BODY ── */
+      .tf-body {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        background: #f6f7fb;
       }
 
       /* Search */
+      .tf-search-bar {
+        padding: 14px 26px 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        background: #f6f7fb;
+        flex-shrink: 0;
+      }
+
       .tf-search-wrap {
         position: relative;
+        flex: 1;
       }
 
       .tf-search-icon {
@@ -157,615 +263,646 @@
         top: 50%;
         transform: translateY(-50%);
         pointer-events: none;
-        color: #94a3b8;
-      }
-
-      .tf-search-icon svg {
-        width: 16px;
-        height: 16px;
+        color: #a0aec0;
+        transition: color 0.2s;
       }
 
       .tf-search {
         width: 100%;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        padding: 11px 14px 11px 40px;
-        font-size: 14px;
+        border: 2px solid #e5e7ef;
+        border-radius: 14px;
+        padding: 10px 14px 10px 40px;
+        font-size: 13.5px;
+        font-weight: 500;
         background: #fff;
         color: #1e293b;
         outline: none;
-        transition: border-color 0.2s, box-shadow 0.2s;
+        transition: all 0.2s;
         box-sizing: border-box;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
       }
 
       .tf-search:focus {
-        border-color: #7c3aed;
-        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.14), 0 1px 4px rgba(0,0,0,0.04);
       }
 
-      /* Room list */
+      .tf-search:focus ~ .tf-search-icon,
+      .tf-search-wrap:focus-within .tf-search-icon {
+        color: #8b5cf6;
+      }
+
+      /* Filter chips */
+      .tf-chips {
+        padding: 0 26px 12px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+
+      .tf-chip {
+        padding: 5px 13px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        border: 1.5px solid #e5e7ef;
+        background: #fff;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.18s;
+        user-select: none;
+      }
+
+      .tf-chip:hover {
+        border-color: #c4b5fd;
+        color: #7c3aed;
+        background: #faf5ff;
+      }
+
+      .tf-chip.active {
+        background: #7c3aed;
+        border-color: #7c3aed;
+        color: #fff;
+        box-shadow: 0 3px 8px rgba(124, 58, 237, 0.25);
+      }
+
+      /* Count badge */
+      .tf-count {
+        font-size: 12px;
+        color: #94a3b8;
+        font-weight: 600;
+        flex-shrink: 0;
+        align-self: center;
+        white-space: nowrap;
+      }
+
+      /* Room Grid */
+      .tf-room-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 4px 26px 20px;
+        scrollbar-width: thin;
+        scrollbar-color: #cbd5e1 transparent;
+      }
+
+      .tf-room-scroll::-webkit-scrollbar { width: 4px; }
+      .tf-room-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      .tf-room-scroll::-webkit-scrollbar-track { background: transparent; }
+
       .tf-room-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+        gap: 10px;
+      }
+
+      /* ── Room Card ── */
+      .tf-room-card {
+        background: #fff;
+        border: 1.5px solid #e8eaf0;
+        border-radius: 16px;
+        padding: 14px 14px 12px;
+        cursor: pointer;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-height: 300px;
-        overflow-y: auto;
+        gap: 5px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        animation: tfCardIn 0.3s ease both;
       }
 
-      .tf-room-list::-webkit-scrollbar {
-        width: 4px;
+      @keyframes tfCardIn {
+        from { opacity: 0; transform: translateY(6px) scale(0.97); }
+        to   { opacity: 1; transform: translateY(0) scale(1); }
       }
 
-      .tf-room-list::-webkit-scrollbar-thumb {
-        background: #e2e8f0;
-        border-radius: 10px;
+      .tf-room-card::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(139,92,246,0) 0%, rgba(139,92,246,0.04) 100%);
+        opacity: 0;
+        transition: opacity 0.2s;
+        pointer-events: none;
       }
 
-      /* Loading state */
-      .tf-room-loading {
+      .tf-room-card:hover {
+        border-color: #c4b5fd;
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px -4px rgba(124, 58, 237, 0.14);
+      }
+
+      .tf-room-card:hover::before { opacity: 1; }
+
+      .tf-room-card.selected {
+        border-color: #7c3aed;
+        background: linear-gradient(135deg, #faf5ff, #f5f3ff);
+        box-shadow: 0 0 0 2.5px #7c3aed, 0 8px 20px -4px rgba(124, 58, 237, 0.2);
+        transform: translateY(-3px);
+      }
+
+      .tf-rc-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .tf-rc-num {
+        font-size: 19px;
+        font-weight: 900;
+        color: #0f172a;
+        letter-spacing: -0.03em;
+        line-height: 1;
+      }
+
+      .tf-room-card.selected .tf-rc-num { color: #6d28d9; }
+
+      .tf-rc-badge {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #f1f5f9;
+        border: 1.5px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: transparent;
+        transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        flex-shrink: 0;
+      }
+
+      .tf-room-card.selected .tf-rc-badge {
+        background: #7c3aed;
+        border-color: #7c3aed;
+        color: #fff;
+        transform: scale(1.15);
+      }
+
+      .tf-rc-type {
+        font-size: 11.5px;
+        color: #94a3b8;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        letter-spacing: 0.01em;
+      }
+
+      .tf-rc-divider {
+        height: 1px;
+        background: #f1f3f8;
+        margin: 2px 0;
+      }
+
+      .tf-rc-price {
+        font-size: 13.5px;
+        font-weight: 800;
+        color: #10b981;
+        letter-spacing: -0.01em;
+        display: flex;
+        align-items: baseline;
+        gap: 2px;
+      }
+
+      .tf-rc-price small {
+        font-size: 10px;
+        font-weight: 600;
+        color: #6ee7b7;
+      }
+
+      /* ── Loader ── */
+      .tf-loader {
+        grid-column: 1 / -1;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 12px;
-        padding: 40px 20px;
-        color: #94a3b8;
-        font-size: 13px;
+        padding: 50px 20px;
+        gap: 14px;
+      }
+
+      .tf-spinner-wrap {
+        position: relative;
+        width: 40px;
+        height: 40px;
       }
 
       .tf-spinner {
-        width: 28px;
-        height: 28px;
-        border: 3px solid #e2e8f0;
+        width: 40px;
+        height: 40px;
+        border: 3px solid #ede9fe;
         border-top-color: #7c3aed;
         border-radius: 50%;
-        animation: tfSpin 0.8s linear infinite;
+        animation: tfSpin 0.75s linear infinite;
       }
 
-      @keyframes tfSpin {
-        to { transform: rotate(360deg); }
+      .tf-spinner-dot {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
-      /* Empty state */
-      .tf-empty {
+      .tf-spinner-dot::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #8b5cf6;
+        animation: tfSpinDot 0.75s ease-in-out infinite;
+      }
+
+      @keyframes tfSpinDot {
+        0%, 100% { transform: scale(0.7); opacity: 0.5; }
+        50%       { transform: scale(1.1); opacity: 1; }
+      }
+
+      .tf-loader-text {
+        font-size: 13px;
+        font-weight: 600;
+        color: #a78bfa;
+      }
+
+      @keyframes tfSpin { to { transform: rotate(360deg); } }
+
+      /* ── Empty State ── */
+      .tf-empty-state {
+        grid-column: 1 / -1;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        padding: 50px 20px;
         gap: 12px;
-        padding: 48px 20px;
+      }
+
+      .tf-empty-icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 20px;
+        background: linear-gradient(135deg, #ede9fe, #f5f3ff);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #c4b5fd;
+      }
+
+      .tf-empty-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #475569;
+      }
+
+      .tf-empty-desc {
+        font-size: 12.5px;
+        font-weight: 500;
         color: #94a3b8;
         text-align: center;
       }
 
-      .tf-empty svg {
-        opacity: 0.4;
-      }
-
-      .tf-empty p {
-        margin: 0;
-        font-size: 13px;
-      }
-
-      /* Room item */
-      .tf-room-item {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 12px 16px;
-        background: #fff;
-        border: 1px solid #e2e8f0;
-        border-radius: 12px;
-        cursor: pointer;
-        transition: all 0.2s;
-        position: relative;
-      }
-
-      .tf-room-item:hover {
-        border-color: #7c3aed;
-        background: #faf5ff;
-        transform: translateX(2px);
-      }
-
-      .tf-room-item.selected {
-        border-color: #7c3aed;
-        background: #f5f3ff;
-        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
-      }
-
-      .tf-room-item.selected::after {
-        content: '';
-        position: absolute;
-        right: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #7c3aed;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .tf-room-item.selected .tf-check-icon {
-        display: flex;
-      }
-
-      .tf-room-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
-        background: #f1f5f9;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-
-      .tf-room-icon svg {
-        width: 18px;
-        height: 18px;
-        stroke: #64748b;
-      }
-
-      .tf-room-info {
-        flex: 1;
-      }
-
-      .tf-room-num {
-        font-size: 15px;
-        font-weight: 800;
-        color: #1e293b;
-        letter-spacing: -0.01em;
-      }
-
-      .tf-room-type {
-        font-size: 11px;
-        color: #64748b;
-        margin-top: 1px;
-      }
-
-      .tf-room-price {
-        font-size: 14px;
-        font-weight: 700;
-        color: #16a34a;
-        letter-spacing: -0.01em;
-        text-align: right;
-      }
-
-      .tf-room-price small {
-        font-size: 10px;
-        font-weight: 600;
-        margin-left: 1px;
-      }
-
-      .tf-check-icon {
-        display: none;
-        position: absolute;
-        right: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #7c3aed;
-        align-items: center;
-        justify-content: center;
-      }
-
-      .tf-check-icon svg {
-        width: 12px;
-        height: 12px;
-        stroke: #fff;
-        stroke-width: 3;
-      }
-
-      /* Selected preview */
-      .tf-selected-preview {
-        background: #f5f3ff;
-        border: 1px solid #ddd6fe;
-        border-radius: 12px;
-        padding: 14px 16px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        display: none;
-      }
-
-      .tf-selected-preview.show {
-        display: flex;
-      }
-
-      .tf-selected-icon {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: #7c3aed;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-      }
-
-      .tf-selected-icon svg {
-        width: 18px;
-        height: 18px;
-        stroke: #fff;
-      }
-
-      .tf-selected-text {
-        flex: 1;
-      }
-
-      .tf-selected-label {
-        font-size: 11px;
-        color: #7c3aed;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
-      .tf-selected-num {
-        font-size: 15px;
-        font-weight: 800;
-        color: #1e293b;
-        letter-spacing: -0.01em;
-      }
-
-      .tf-selected-badge {
-        background: #7c3aed;
-        color: #fff;
-        font-size: 10px;
-        font-weight: 700;
-        padding: 3px 8px;
-        border-radius: 100px;
-      }
-
-      /* Footer */
+      /* ── FOOTER ── */
       .tf-footer {
-        padding: 16px 24px;
+        padding: 14px 26px;
         background: #fff;
-        border-top: 1px solid #f1f5f9;
+        border-top: 1px solid #eef0f6;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 12px;
+        flex-shrink: 0;
       }
 
-      .tf-selected-info {
-        font-size: 13px;
-        color: #64748b;
-        flex: 1;
+      .tf-footer-info {
+        font-size: 12px;
+        color: #94a3b8;
         font-weight: 500;
       }
 
-      .tf-footer-btns {
+      .tf-footer-info span {
+        font-weight: 700;
+        color: #7c3aed;
+      }
+
+      .tf-footer-actions {
         display: flex;
         gap: 10px;
+        align-items: center;
       }
 
       .tf-btn-cancel {
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-size: 13px;
+        padding: 10px 18px;
+        border-radius: 12px;
+        font-size: 13.5px;
         font-weight: 600;
-        border: 1px solid #e2e8f0;
+        border: 1.5px solid #e5e7ef;
         background: #fff;
         color: #475569;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.18s;
       }
 
       .tf-btn-cancel:hover {
-        background: #f1f5f9;
+        background: #f8fafc;
         border-color: #cbd5e1;
+        color: #1e293b;
       }
 
       .tf-btn-confirm {
-        padding: 10px 24px;
-        border-radius: 10px;
-        font-size: 13px;
+        padding: 10px 22px;
+        border-radius: 12px;
+        font-size: 13.5px;
         font-weight: 700;
         border: none;
-        background: #7c3aed;
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
         color: #fff;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 7px;
+        box-shadow: 0 4px 14px rgba(109, 40, 217, 0.3);
+        position: relative;
+        overflow: hidden;
       }
 
+      .tf-btn-confirm::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      .tf-btn-confirm:hover:not(:disabled)::before { opacity: 1; }
+
       .tf-btn-confirm:hover:not(:disabled) {
-        background: #6d28d9;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(109, 40, 217, 0.38);
+      }
+
+      .tf-btn-confirm:active:not(:disabled) {
+        transform: translateY(0);
       }
 
       .tf-btn-confirm:disabled {
-        background: #c4b5fd;
+        background: linear-gradient(135deg, #c4b5fd, #ddd6fe);
+        box-shadow: none;
         cursor: not-allowed;
         transform: none;
-        box-shadow: none;
+        color: rgba(255,255,255,0.7);
       }
 
-      .tf-btn-confirm svg {
-        width: 14px;
-        height: 14px;
-      }
-
-      /* ── Dark Mode ── */
+      /* ═══════════════════════════════
+         DARK MODE
+      ═══════════════════════════════ */
       html.dark #tf-dialog {
-        background-color: #0f172a;
-        border-color: #1e293b;
+        background: #0d1117;
+        border-color: rgba(139,92,246,0.15);
+        box-shadow: 0 32px 64px -16px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset;
       }
 
       html.dark .tf-header {
-        background: #1e293b;
-        border-color: #334155;
+        background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 50%, #6d28d9 100%);
       }
 
-      html.dark .tf-title {
-        color: #f1f5f9;
+      html.dark .tf-flow {
+        background: #161b27;
+        border-color: #1e2a3a;
       }
 
-      html.dark .tf-sub {
-        color: #94a3b8;
+      html.dark .tf-flow-box.from-box {
+        background: linear-gradient(135deg, rgba(239,68,68,0.08), rgba(239,68,68,0.12));
+        border-color: rgba(239,68,68,0.3);
       }
 
-      html.dark .tf-close {
-        background: #334155;
-        color: #94a3b8;
+      html.dark .tf-flow-box.to-box {
+        background: linear-gradient(135deg, rgba(30,41,59,0.5), rgba(109,40,217,0.05));
+        border-color: rgba(139,92,246,0.25);
       }
 
-      html.dark .tf-close:hover {
-        background: #7f1d1d;
-        color: #fca5a5;
+      html.dark .tf-flow-box.to-box.selected {
+        background: linear-gradient(135deg, rgba(109,40,217,0.12), rgba(139,92,246,0.08));
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
       }
 
-      html.dark .tf-body {
-        background: #0f172a;
+      html.dark .tf-flow-room { color: #f1f5f9; }
+
+      html.dark .tf-flow-arrow-inner {
+        background: linear-gradient(135deg, #2d1b69, #3b1d8a);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       }
 
-      /* Current room */
-      html.dark .tf-current {
-        background: rgba(253, 224, 71, 0.1);
-        border-color: rgba(253, 224, 71, 0.2);
-      }
+      html.dark .tf-body { background: #0d1117; }
 
-      html.dark .tf-current-icon {
-        background: rgba(253, 224, 71, 0.2);
-      }
+      html.dark .tf-search-bar { background: #0d1117; }
 
-      html.dark .tf-current-label {
-        color: #fbbf24;
-      }
-
-      html.dark .tf-current-num {
-        color: #f1f5f9;
-      }
-
-      html.dark .tf-current-badge {
-        background: rgba(253, 224, 71, 0.2);
-        color: #fbbf24;
-      }
-
-      /* Search */
       html.dark .tf-search {
-        background: #1e293b;
-        border-color: #334155;
+        background: #161b27;
+        border-color: #1e2a3a;
         color: #f1f5f9;
+        box-shadow: none;
       }
 
       html.dark .tf-search:focus {
-        border-color: #a78bfa;
-        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.15);
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
       }
 
-      html.dark .tf-search::placeholder {
-        color: #64748b;
-      }
-
-      /* Room list */
-      html.dark .tf-room-loading {
-        color: #475569;
-      }
-
-      html.dark .tf-spinner {
-        border-color: #334155;
-        border-top-color: #a78bfa;
-      }
-
-      html.dark .tf-empty {
-        color: #475569;
-      }
-
-      html.dark .tf-room-item {
-        background: #1e293b;
-        border-color: #334155;
-      }
-
-      html.dark .tf-room-item:hover {
-        border-color: #a78bfa;
-        background: rgba(167, 139, 250, 0.08);
-      }
-
-      html.dark .tf-room-item.selected {
-        border-color: #a78bfa;
-        background: rgba(167, 139, 250, 0.1);
-        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
-      }
-
-      html.dark .tf-room-item.selected .tf-check-icon {
-        background: #a78bfa;
-      }
-
-      html.dark .tf-room-icon {
-        background: #334155;
-      }
-
-      html.dark .tf-room-icon svg {
-        stroke: #94a3b8;
-      }
-
-      html.dark .tf-room-num {
-        color: #f1f5f9;
-      }
-
-      html.dark .tf-room-type {
-        color: #64748b;
-      }
-
-      html.dark .tf-room-price {
-        color: #4ade80;
-      }
-
-      /* Selected preview */
-      html.dark .tf-selected-preview {
-        background: rgba(167, 139, 250, 0.1);
-        border-color: rgba(167, 139, 250, 0.2);
-      }
-
-      html.dark .tf-selected-label {
-        color: #a78bfa;
-      }
-
-      html.dark .tf-selected-num {
-        color: #f1f5f9;
-      }
-
-      html.dark .tf-selected-badge {
-        background: #7c3aed;
-        color: #fff;
-      }
-
-      /* Footer */
-      html.dark .tf-footer {
-        background: #1e293b;
-        border-color: #334155;
-      }
-
-      html.dark .tf-selected-info {
+      html.dark .tf-chip {
+        background: #161b27;
+        border-color: #1e2a3a;
         color: #94a3b8;
       }
 
+      html.dark .tf-chip:hover {
+        border-color: #7c3aed;
+        color: #c4b5fd;
+        background: rgba(109,40,217,0.12);
+      }
+
+      html.dark .tf-chip.active {
+        background: #7c3aed;
+        border-color: #7c3aed;
+        color: #fff;
+      }
+
+      html.dark .tf-room-card {
+        background: #161b27;
+        border-color: #1e2a3a;
+        box-shadow: none;
+      }
+
+      html.dark .tf-room-card:hover {
+        border-color: #7c3aed;
+        box-shadow: 0 8px 20px -4px rgba(0,0,0,0.3);
+      }
+
+      html.dark .tf-room-card.selected {
+        background: linear-gradient(135deg, rgba(109,40,217,0.15), rgba(139,92,246,0.08));
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 2.5px #8b5cf6, 0 8px 20px -4px rgba(0,0,0,0.3);
+      }
+
+      html.dark .tf-rc-num { color: #e2e8f0; }
+      html.dark .tf-room-card.selected .tf-rc-num { color: #c4b5fd; }
+
+      html.dark .tf-rc-badge {
+        background: #1e2a3a;
+        border-color: #334155;
+      }
+
+      html.dark .tf-rc-divider { background: #1e2a3a; }
+
+      html.dark .tf-footer {
+        background: #161b27;
+        border-color: #1e2a3a;
+      }
+
+      html.dark .tf-footer-info { color: #64748b; }
+
       html.dark .tf-btn-cancel {
-        background: #334155;
-        border-color: #475569;
-        color: #cbd5e1;
+        background: #1e2a3a;
+        border-color: #334155;
+        color: #94a3b8;
       }
 
       html.dark .tf-btn-cancel:hover {
-        background: #475569;
-        border-color: #64748b;
-      }
-
-      html.dark .tf-btn-confirm {
-        background: #7c3aed;
-      }
-
-      html.dark .tf-btn-confirm:hover:not(:disabled) {
-        background: #a78bfa;
-        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+        background: #263347;
+        color: #e2e8f0;
       }
 
       html.dark .tf-btn-confirm:disabled {
-        background: #4c1d95;
+        background: linear-gradient(135deg, #3b1d8a, #4c1d95);
+        color: rgba(196,181,253,0.5);
       }
 
-      /* Responsive */
-      @media (max-width: 600px) {
-        #tf-dialog {
-          max-width: 100%;
-          border-radius: 0;
-          max-height: 100vh;
-        }
+      html.dark .tf-empty-icon {
+        background: linear-gradient(135deg, rgba(109,40,217,0.15), rgba(139,92,246,0.08));
+      }
 
-        .tf-header {
-          padding: 16px 20px;
-        }
+      html.dark .tf-spinner { border-color: #1e2a3a; border-top-color: #8b5cf6; }
 
-        .tf-body {
-          padding: 16px 20px;
-        }
+      html.dark .tf-loader-text { color: #7c3aed; }
 
-        .tf-footer {
-          padding: 14px 20px;
-        }
-
-        .tf-room-item {
-          padding: 10px 12px;
-        }
+      /* ── Responsive ── */
+      @media (max-width: 580px) {
+        #tf-dialog { width: 100%; border-radius: 20px 20px 0 0; max-height: 92vh; }
+        .tf-header { padding: 18px 20px 14px; }
+        .tf-flow { padding: 14px 18px; }
+        .tf-flow-room { font-size: 18px; }
+        .tf-search-bar { padding: 12px 18px 8px; }
+        .tf-chips { padding: 0 18px 10px; }
+        .tf-room-scroll { padding: 4px 18px 16px; }
+        .tf-room-list { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .tf-footer { padding: 12px 18px; }
       }
     </style>
 
-    <!-- Header -->
+    <!-- ── Header ── -->
     <div class="tf-header">
-      <div class="tf-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+      <div class="tf-header-blob"></div>
+      <div class="tf-icon-wrap">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+          <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
         </svg>
       </div>
-      <div class="tf-header-info">
-        <div class="tf-title">Đổi phòng</div>
-        <div class="tf-sub" id="tf-info">Đang tải...</div>
+      <div class="tf-header-text">
+        <div class="tf-title">Chuyển phòng</div>
+        <div class="tf-sub" id="tf-info">Chọn phòng trống để di chuyển khách</div>
       </div>
-      <button class="tf-close" onclick="closeModal('tfModal')">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      <button class="tf-close" onclick="closeModal('tfModal')" title="Đóng">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
     </div>
 
-    <!-- Body -->
+    <!-- ── Transfer Flow ── -->
+    <div class="tf-flow">
+      <!-- FROM -->
+      <div class="tf-flow-box from-box">
+        <div class="tf-flow-label">Phòng hiện tại</div>
+        <div class="tf-flow-room" id="tf-current-room">—</div>
+        <div class="tf-flow-type" id="tf-current-type">Đang chọn...</div>
+      </div>
+
+      <!-- Arrow -->
+      <div class="tf-flow-arrow">
+        <div class="tf-flow-arrow-inner">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- TO -->
+      <div class="tf-flow-box to-box" id="tf-target-box">
+        <div class="tf-flow-label">Phòng mới</div>
+        <div class="tf-flow-room" id="tf-target-room">
+          <div class="tf-flow-room-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+            </svg>
+            Chưa chọn
+          </div>
+        </div>
+        <div class="tf-flow-type" id="tf-target-type"></div>
+      </div>
+    </div>
+
+    <!-- ── Body ── -->
     <div class="tf-body">
-      <!-- Current room indicator -->
-      <div class="tf-current">
-        <div class="tf-current-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+
+      <!-- Search + Count -->
+      <div class="tf-search-bar">
+        <div class="tf-search-wrap">
+          <svg class="tf-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input type="text" class="tf-search" id="tf-search"
+            placeholder="Tìm số phòng, loại phòng..."
+            oninput="pmsTfFilterRooms(this.value)">
         </div>
-        <div class="tf-current-text">
-          <div class="tf-current-label">Phòng hiện tại</div>
-          <div class="tf-current-num" id="tf-current-room">—</div>
-        </div>
-        <div class="tf-current-badge">Đang ở</div>
+        <div class="tf-count" id="tf-room-count"></div>
       </div>
 
-      <!-- Selected preview -->
-      <div class="tf-selected-preview" id="tf-selected-preview">
-        <div class="tf-selected-icon">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-        </div>
-        <div class="tf-selected-text">
-          <div class="tf-selected-label">Phòng mới</div>
-          <div class="tf-selected-num" id="tf-selected-room">—</div>
-        </div>
-        <div class="tf-selected-badge">Đã chọn</div>
+      <!-- Filter chips -->
+      <div class="tf-chips" id="tf-chips">
+        <!-- dynamically populated -->
       </div>
 
-      <!-- Search -->
-      <div class="tf-search-wrap">
-        <svg class="tf-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" class="tf-search" id="tf-search" placeholder="Tìm phòng..." oninput="pmsTfFilterRooms(this.value)">
-      </div>
-
-      <!-- Room list -->
-      <div class="tf-room-list" id="tf-room-list">
-        <!-- Loading state -->
-        <div class="tf-room-loading">
-          <div class="tf-spinner"></div>
-          <span>Đang tải phòng trống...</span>
+      <!-- Room Grid -->
+      <div class="tf-room-scroll">
+        <div class="tf-room-list" id="tf-room-list">
+          <div class="tf-loader">
+            <div class="tf-spinner-wrap">
+              <div class="tf-spinner"></div>
+              <div class="tf-spinner-dot"></div>
+            </div>
+            <span class="tf-loader-text">Đang tải danh sách phòng...</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Footer -->
+    <!-- ── Footer ── -->
     <div class="tf-footer">
-      <div class="tf-selected-info" id="tf-selected-info">Chưa chọn phòng</div>
-      <div class="tf-footer-btns">
-        <button class="tf-btn-cancel" onclick="closeModal('tfModal')">Huỷ</button>
+      <div class="tf-footer-info" id="tf-footer-hint">
+        Chọn một phòng trống để tiếp tục
+      </div>
+      <div class="tf-footer-actions">
+        <button class="tf-btn-cancel" onclick="closeModal('tfModal')">Huỷ bỏ</button>
         <button class="tf-btn-confirm" id="tf-submit-btn" onclick="submitTF()" disabled>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Xác nhận đổi phòng
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Xác nhận chuyển
         </button>
       </div>
     </div>
