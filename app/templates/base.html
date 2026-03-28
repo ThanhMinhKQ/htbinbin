@@ -180,6 +180,341 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* ── PMS Center Modal ── */
+        .pms-center-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0);
+            backdrop-filter: blur(0px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .pms-center-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+        }
+
+        .pms-center-modal {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 
+                0 0 0 1px rgba(0, 0, 0, 0.05),
+                0 20px 50px -10px rgba(0, 0, 0, 0.25),
+                0 25px 60px -15px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            max-width: 480px;
+            margin: 16px;
+            overflow: hidden;
+            transform: scale(0.95) translateY(20px);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .pms-center-overlay.open .pms-center-modal {
+            transform: scale(1) translateY(0);
+        }
+
+        .dark .pms-center-modal {
+            background: #1e293b;
+            box-shadow: 
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Header */
+        .pms-center-header {
+            padding: 28px 28px 24px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .pms-center-header::before {
+            content: '';
+            position: absolute;
+            top: -100px;
+            right: -100px;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .pms-center-header::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            left: -50px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .pms-center-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 8px 20px -4px rgba(59, 130, 246, 0.4);
+            position: relative;
+            z-index: 1;
+        }
+
+        .pms-center-logo svg {
+            width: 28px;
+            height: 28px;
+            stroke: white;
+        }
+
+        .pms-center-title-group {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .pms-center-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: white;
+            margin: 0;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #fff, #e2e8f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .pms-center-subtitle {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 4px 0 0;
+            font-weight: 500;
+        }
+
+        .pms-center-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            position: relative;
+            z-index: 1;
+            flex-shrink: 0;
+        }
+
+        .pms-center-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotate(90deg);
+        }
+
+        .pms-center-close svg {
+            width: 18px;
+            height: 18px;
+            stroke: white;
+            stroke-width: 2.5;
+        }
+
+        /* Menu Grid */
+        .pms-center-grid {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .pms-center-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            background: #f8fafc;
+            border-radius: 16px;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        .dark .pms-center-card {
+            background: #0f172a;
+        }
+
+        .pms-center-card:hover {
+            background: white;
+            border-color: #e2e8f0;
+            transform: translateX(8px);
+            box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.12);
+        }
+
+        .dark .pms-center-card:hover {
+            background: #1e293b;
+            border-color: #334155;
+            box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
+        }
+
+        .pms-center-card.active {
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            border-color: #3b82f6;
+        }
+
+        .dark .pms-center-card.active {
+            background: linear-gradient(135deg, #1e3a8a, #1e40af);
+            border-color: #3b82f6;
+        }
+
+        .pms-card-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15);
+            transition: transform 0.25s ease;
+        }
+
+        .pms-center-card:hover .pms-card-icon {
+            transform: scale(1.08) rotate(-3deg);
+        }
+
+        .pms-card-icon svg {
+            width: 24px;
+            height: 24px;
+            stroke: white;
+        }
+
+        .pms-card-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .pms-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            transition: color 0.2s ease;
+        }
+
+        .dark .pms-card-title {
+            color: #f1f5f9;
+        }
+
+        .pms-center-card:hover .pms-card-title,
+        .pms-center-card.active .pms-card-title {
+            color: #3b82f6;
+        }
+
+        .pms-card-desc {
+            font-size: 12px;
+            color: #64748b;
+            margin: 4px 0 0;
+            font-weight: 500;
+        }
+
+        .dark .pms-card-desc {
+            color: #94a3b8;
+        }
+
+        .pms-card-arrow {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.25s ease;
+            opacity: 0;
+            transform: translateX(-8px);
+        }
+
+        .dark .pms-card-arrow {
+            background: #334155;
+        }
+
+        .pms-center-card:hover .pms-card-arrow {
+            opacity: 1;
+            transform: translateX(0);
+            background: #3b82f6;
+        }
+
+        .pms-card-arrow svg {
+            width: 16px;
+            height: 16px;
+            stroke: #64748b;
+        }
+
+        .dark .pms-card-arrow svg {
+            stroke: #94a3b8;
+        }
+
+        .pms-center-card:hover .pms-card-arrow svg {
+            stroke: white;
+        }
+
+        /* Footer */
+        .pms-center-footer {
+            padding: 16px 24px 20px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .dark .pms-center-footer {
+            background: #0f172a;
+            border-color: #1e293b;
+        }
+
+        .pms-footer-hint {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
+        .pms-footer-hint svg {
+            width: 14px;
+            height: 14px;
+            stroke: #94a3b8;
+        }
+
+        /* Active indicator for PMS nav button when popup is open */
+        .pms-nav-btn.active {
+            font-weight: 600;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+
+        .dark .pms-nav-btn.active {
+            color: #93c5fd;
+            background: #1e3a8a;
+        }
     </style>
     <script>
         tailwind.config = {
@@ -220,6 +555,8 @@
 <body class="bg-slate-200/70 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased preload" x-data="{ 
           sidebarOpen: false, 
           sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === 'true',
+          pmsPopupOpen: false,
+          pmsPopupVisible: false,
           toggleSidebar() {
               this.sidebarCollapsed = !this.sidebarCollapsed;
               localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed);
@@ -230,6 +567,10 @@
               } else {
                   document.documentElement.classList.remove('sidebar-closed');
               }
+          },
+          closePmsPopup() {
+              this.pmsPopupOpen = false;
+              this.pmsPopupVisible = false;
           }
       }" x-init="
           setTimeout(() => document.body.classList.remove('preload'), 100);
@@ -357,7 +698,7 @@
                 </a>
                 {% endif %}
 
-                {# {% if not request.state.is_prod %}
+                {% if not request.state.is_prod %}
                 <a href="/api/ota/dashboard" id="ota-nav-link"
                     class="{{ nav_link_base }} {% if active_page == 'ota-dashboard' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}"
                     style="position:relative;">
@@ -372,70 +713,22 @@
                         border-radius:9999px; min-width:17px; height:17px; line-height:17px;
                         text-align:center; padding:0 4px; box-shadow:0 1px 4px rgba(0,0,0,0.2);">0</span>
                 </a>
-                {% endif %} #}
+                {% endif %}
 
-                {# {% if not request.state.is_prod %}
+                {% if not request.state.is_prod %}
                 {% set _pms_here = (request.url.path == '/pms') or (request.url.path.startswith('/pms/setup')) or
                 (request.url.path == '/pms/booking') %}
-                <div class="pms-sidebar-group w-full">
-                    <button type="button" id="pms-nav-toggle"
-                        class="{{ nav_link_base }} w-full text-left flex items-center justify-between {% if _pms_here %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
-                        <span class="flex items-center min-w-0">
-                            <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                            </svg>
-                            <span class="ml-3 nav-text truncate">PMS Phòng</span>
-                        </span>
-                        <svg id="pms-chevron" class="w-4 h-4 flex-shrink-0 nav-text transition-transform duration-200"
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-                    <div id="pms-subnav"
-                        class="overflow-hidden transition-all duration-200 {% if not _pms_here %}max-h-0{% else %}max-h-48{% endif %}">
-                        <div class="pl-2 py-1 space-y-0.5 border-l-2 border-slate-200 dark:border-slate-600 ml-4 my-1">
-                            <a href="/pms"
-                                class="block rounded-lg py-2 px-3 text-sm {% if request.url.path == '/pms' %}{{ nav_link_active }}{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
-                                Sơ đồ phòng
-                            </a>
-                            <a href="/pms/booking"
-                                class="block rounded-lg py-2 px-3 text-sm {% if request.url.path == '/pms/booking' %}{{ nav_link_active }}{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
-                                Quản lý đặt phòng
-                            </a>
-                            {% if user and user.role|lower in ['admin', 'boss', 'giamdoc', 'superadmin', 'manager',
-                            'quanly'] %}
-                            <a href="/pms/setup?tab=types"
-                                class="block rounded-lg py-2 px-3 text-sm {% if request.url.path.startswith('/pms/setup') and (request.query_params.get('tab') or 'types') == 'types' %}{{ nav_link_active }}{% else %}text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800{% endif %}">
-                                Thiết lập loại phòng
-                            </a>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                <script>
-                    (function () {
-                        var open = "{{ 'true' if _pms_here else 'false' }}" === "true";
-                        var sub = document.getElementById('pms-subnav');
-                        var chev = document.getElementById('pms-chevron');
-                        var btn = document.getElementById('pms-nav-toggle');
-                        function setOpen(v) {
-                            open = v;
-                            if (sub) { subMax(); }
-                            if (chev) { chev.style.transform = open ? 'rotate(180deg)' : ''; }
-                        }
-                        function subMax() {
-                            if (!sub) return;
-                            sub.style.maxHeight = open ? '200px' : '0';
-                        }
-                        if (btn) btn.addEventListener('click', function (e) {
-                            e.preventDefault();
-                            setOpen(!open);
-                        });
-                        if (!open && sub) sub.style.maxHeight = '0';
-                    })();
-                </script>
-                {% endif %} #}
+                <button type="button" id="pms-nav-toggle"
+                    class="{{ nav_link_base }} w-full text-left pms-nav-btn {% if _pms_here %}active{% endif %}"
+                    @click.stop="pmsPopupOpen = true; pmsPopupVisible = true"
+                    :class="{ 'active': pmsPopupOpen || {{ 'true' if _pms_here else 'false' }} }">
+                    <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15.75 5.25a3 3 0 0 1 3 3m3-3a12 12 0 0 1-6.3 10.607 3 3 0 1 1 0-4.414A12 12 0 0 1 4.5 2.436 3 3 0 0 1 7.5 5.25"/>
+                        <path d="M12 18v-5.25m0 0a3 3 0 1 1 6 0 3 3 0 0 1-6 0"/>
+                    </svg>
+                    <span class="ml-3 nav-text">PMS Phòng</span>
+                </button>
+                {% endif %}
 
                 {% if user and user.role|lower in ['admin', 'manager', 'quanly'] %}
 
@@ -621,11 +914,119 @@
             </header>
 
             <main
-                class="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:!bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm pb-[calc(1.5rem+var(--safe-bottom))] page-enter-active mx-2 mb-2">
+                class="flex-1 overflow-y-auto overflow-x-hidden bg-white dark:!bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm pb-[calc(1.5rem+var(--safe-bottom))] page-enter-active mx-2 mb-2 p-4 sm:p-6">
                 {% block content %}
                 <p class="p-4">Welcome to the dashboard.</p>
                 {% endblock %}
             </main>
+        </div>
+    </div>
+
+    <!-- PMS Popup Modal - Modern Center Design -->
+    <div x-show="pmsPopupVisible" x-cloak
+        :class="{ 'open': pmsPopupOpen }"
+        class="pms-center-overlay"
+        @click.self="closePmsPopup()"
+        @keydown.escape.window="closePmsPopup()">
+        <div class="pms-center-modal">
+            <!-- Header with Gradient -->
+            <div class="pms-center-header">
+                <div class="pms-center-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15.75 5.25a3 3 0 0 1 3 3m3-3a12 12 0 0 1-6.3 10.607 3 3 0 1 1 0-4.414A12 12 0 0 1 4.5 2.436 3 3 0 0 1 7.5 5.25"/>
+                        <path d="M12 18v-5.25m0 0a3 3 0 1 1 6 0 3 3 0 0 1-6 0"/>
+                    </svg>
+                </div>
+                <div class="pms-center-title-group">
+                    <h2 class="pms-center-title">PMS Hotel</h2>
+                    <p class="pms-center-subtitle">Quản lý Phòng Khách Sạn</p>
+                </div>
+                <button type="button" class="pms-center-close" @click="closePmsPopup()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Menu Grid -->
+            <div class="pms-center-grid">
+                <!-- Sơ đồ Phòng -->
+                <a href="/pms" class="pms-center-card {% if request.url.path == '/pms' %}active{% endif %}"
+                    @click="closePmsPopup()">
+                    <div class="pms-card-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="9" rx="1"/>
+                            <rect x="14" y="3" width="7" height="5" rx="1"/>
+                            <rect x="14" y="12" width="7" height="9" rx="1"/>
+                            <rect x="3" y="16" width="7" height="5" rx="1"/>
+                        </svg>
+                    </div>
+                    <div class="pms-card-content">
+                        <h3 class="pms-card-title">Sơ đồ Phòng</h3>
+                        <p class="pms-card-desc">Xem & quản lý trạng thái phòng</p>
+                    </div>
+                    <div class="pms-card-arrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </a>
+
+                <!-- Quản lý Đặt phòng -->
+                <a href="/pms/booking" class="pms-center-card {% if request.url.path == '/pms/booking' %}active{% endif %}"
+                    @click="closePmsPopup()">
+                    <div class="pms-card-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/>
+                            <path d="M16 2v4M8 2v4M3 10h18"/>
+                            <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>
+                        </svg>
+                    </div>
+                    <div class="pms-card-content">
+                        <h3 class="pms-card-title">Quản lý Đặt phòng</h3>
+                        <p class="pms-card-desc">Danh sách & theo dõi booking</p>
+                    </div>
+                    <div class="pms-card-arrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </a>
+
+                {% if user and user.role|lower in ['admin', 'boss', 'giamdoc', 'superadmin', 'manager', 'quanly'] %}
+                <!-- Thiết lập Loại phòng -->
+                <a href="/pms/setup?tab=types" class="pms-center-card {% if request.url.path.startswith('/pms/setup') %}active{% endif %}"
+                    @click="closePmsPopup()">
+                    <div class="pms-card-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                    </div>
+                    <div class="pms-card-content">
+                        <h3 class="pms-card-title">Thiết lập Loại phòng</h3>
+                        <p class="pms-card-desc">Cấu hình & phân loại phòng</p>
+                    </div>
+                    <div class="pms-card-arrow">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </a>
+                {% endif %}
+            </div>
+
+            <!-- Footer -->
+            <div class="pms-center-footer">
+                <span class="pms-footer-hint">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <circle cx="12" cy="17" r=".5"/>
+                    </svg>
+                    Nhấn ESC hoặc click bên ngoài để đóng
+                </span>
+            </div>
         </div>
     </div>
 

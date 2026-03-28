@@ -335,10 +335,10 @@ async def shift_report_page(
         if session_branch:
             active_branch = session_branch
         else:
-            # 2. Nếu không có, query DB để lấy `last_active_branch`
+            # 2. Nếu không có, query DB để lấy `last_active_branch_id`
             user_from_db = db.query(User).filter(User.id == user_data.get("id")).first()
-            if user_from_db and user_from_db.last_active_branch:
-                active_branch = user_from_db.last_active_branch # <-- Đây là B10
+            if user_from_db and user_from_db.last_active_branch_id and user_from_db.last_active_branch:
+                active_branch = user_from_db.last_active_branch.branch_code
             else:
                 # 3. Nếu vẫn không có, dùng chi nhánh chính (mặc định)
                 active_branch = user_data.get("branch", "")

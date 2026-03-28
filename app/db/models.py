@@ -2,7 +2,8 @@
 import enum
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time,
-    Enum as SQLAlchemyEnum, ForeignKey, BIGINT, NUMERIC, Index, func
+    Enum as SQLAlchemyEnum, ForeignKey, BIGINT, NUMERIC, Index, func,
+    CheckConstraint
 )
 from datetime import date as date_type
 from sqlalchemy.orm import relationship
@@ -98,7 +99,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     phone_number = Column(String(20))
     email = Column(String(255))
-    last_active_branch = Column(String, nullable=True)
+    last_active_branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True)
 
     # Thông tin cá nhân bổ sung
     cccd = Column(String(20), nullable=True)           # Số CCCD/CMND
@@ -108,7 +109,8 @@ class User(Base):
 
     # --- Relationships ---
     department = relationship("Department")
-    main_branch = relationship("Branch")
+    main_branch = relationship("Branch", foreign_keys=[main_branch_id])
+    last_active_branch = relationship("Branch", foreign_keys=[last_active_branch_id])
     
     # 1. Attendance
     attendance_logs = relationship("AttendanceLog", back_populates="user", cascade="all, delete-orphan")
@@ -174,9 +176,9 @@ class Task(Base):
     
     room_number = Column(String(50))
     description = Column(Text, nullable=False)
-    department = Column(String(100))
+    department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     status = Column(String(50), default='Đang chờ', index=True)
-    
+
     due_date = Column(DateTime(timezone=True))
     completed_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -184,9 +186,15 @@ class Task(Base):
     notes = Column(Text)
 
     branch = relationship("Branch")
+    department = relationship("Department")  # Thêm relationship
     author = relationship("User", foreign_keys=[author_id], back_populates="created_tasks")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
     deleter = relationship("User", foreign_keys=[deleter_id], back_populates="deleted_tasks")
+
+    __table_args__ = (
+        Index("ix_tasks_deleted", "deleted_at",
+              postgresql_where=(deleted_at != None)),
+    )
 
 class AttendanceLog(Base):
     """Log thô (lúc quẹt thẻ/check-in)."""
@@ -306,7 +314,7 @@ class ShiftReportTransaction(Base):
     recorder_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=False, index=True)
     
     transaction_type = Column(SQLAlchemyEnum(TransactionType, name="transactiontype", native_enum=True), nullable=False, index=True)
-    amount = Column(BIGINT, nullable=False, index=True)
+    amount = Column(NUMERIC(15, 2), nullable=False, index=True)  # Tiền VND, có decimal
     room_number = Column(String(50), nullable=True, index=True)
     transaction_info = Column(String(255), nullable=True)
     status = Column(SQLAlchemyEnum(ShiftReportStatus, name="shiftreportstatus", native_enum=True), default=ShiftReportStatus.PENDING, index=True)
@@ -342,10 +350,10 @@ class ShiftCloseLog(Base):
     closer = relationship("User", back_populates="shift_close_logs")
 
     closed_datetime = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
-    pms_revenue = Column(BIGINT, nullable=False, default=0)
-    closed_online_revenue = Column(BIGINT, nullable=False, default=0)
-    closed_branch_revenue = Column(BIGINT, nullable=False, default=0)
+
+    pms_revenue = Column(NUMERIC(15, 2), nullable=False, default=0)
+    closed_online_revenue = Column(NUMERIC(15, 2), nullable=False, default=0)
+    closed_branch_revenue = Column(NUMERIC(15, 2), nullable=False, default=0)
     
     closed_transaction_ids = Column(JSONB, nullable=True)
 
@@ -402,15 +410,21 @@ class Warehouse(Base):
 class InventoryLevel(Base):
     """Tồn kho hiện tại (Snapshot)"""
     __tablename__ = "inventory_levels"
-    
+
     warehouse_id = Column(Integer, ForeignKey("warehouses.id"), primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"), primary_key=True)
-    
+
     quantity = Column(NUMERIC(12, 2), default=0, nullable=False) # Luôn lưu theo Base Unit
-    min_stock = Column(Integer, default=10) 
-    
+    min_stock = Column(Integer, default=10)
+
     product = relationship("Product")
     warehouse = relationship("Warehouse")
+
+    # Index cho query theo product_id (ngoài PK)
+    __table_args__ = (
+        Index("ix_inventory_product", "product_id"),
+        CheckConstraint("quantity >= 0", name="check_inventory_non_negative"),
+    )
 
     @property
     def display_quantity(self):
@@ -437,33 +451,42 @@ class StockMovement(Base):
     ref_ticket_type = Column(String(50))
     
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    actor_id = Column(BIGINT, ForeignKey("users.id"))
+    actor_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), index=True)
 
     product = relationship("Product")
     warehouse = relationship("Warehouse")
     actor = relationship("User")
+
+    # Composite index cho reference lookup
+    __table_args__ = (
+        Index("ix_stock_ref", "ref_ticket_type", "ref_ticket_id"),
+    )
 
 # 7.3 Flows (Nhập hàng & Điều chuyển)
 
 # A. Nhập hàng từ NCC
 class InventoryReceipt(Base):
     __tablename__ = "inventory_receipts"
-    
+
     id = Column(BIGINT, primary_key=True)
     code = Column(String(50), unique=True, nullable=False)
     warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
     supplier_name = Column(String(255))
-    
+
     creator_id = Column(BIGINT, ForeignKey("users.id"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     total_amount = Column(NUMERIC(15, 2), default=0)
     notes = Column(Text)
+    version = Column(Integer, default=1, nullable=False)  # Optimistic locking
 
     items = relationship("InventoryReceiptItem", back_populates="receipt", cascade="all, delete-orphan")
-    # [FIX] Add cascade delete for images to prevent NotNullViolation on delete
     images = relationship("ImportImage", back_populates="receipt", cascade="all, delete-orphan")
     creator = relationship("User", foreign_keys=[creator_id])
+
+    __table_args__ = (
+        Index("ix_inventory_receipts_version", "version"),
+    )
 
 class InventoryReceiptItem(Base):
     __tablename__ = "inventory_receipt_items"
@@ -500,12 +523,13 @@ class InventoryTransfer(Base):
     related_transfer_id = Column(BIGINT, ForeignKey("inventory_transfers.id"), nullable=True, index=True)
 
     status = Column(SQLAlchemyEnum(TicketStatus, native_enum=True), default=TicketStatus.PENDING, index=True)
-    
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     approved_at = Column(DateTime(timezone=True))
-    
+
     notes = Column(Text)
     approver_notes = Column(Text)
+    version = Column(Integer, default=1, nullable=False)  # Optimistic locking
 
     items = relationship("InventoryTransferItem", back_populates="transfer", cascade="all, delete-orphan")
     images = relationship("TransferImage", back_populates="transfer", cascade="all, delete-orphan")
@@ -513,9 +537,13 @@ class InventoryTransfer(Base):
     approver_user = relationship("User", foreign_keys=[approver_id])
     source_warehouse = relationship("Warehouse", foreign_keys=[source_warehouse_id])
     dest_warehouse = relationship("Warehouse", foreign_keys=[dest_warehouse_id])
-    
+
     # Relationship for accessing the parent ticket or children compensation tickets
     related_transfer = relationship("InventoryTransfer", remote_side=[id], backref="compensation_transfers")
+
+    __table_args__ = (
+        Index("ix_inventory_transfers_version", "version"),
+    )
 
 class InventoryTransferItem(Base):
     __tablename__ = "inventory_transfer_items"
@@ -597,7 +625,7 @@ class Booking(Base):
 
     id = Column(BIGINT, primary_key=True)
     booking_source = Column(String(50), nullable=False, index=True) # Booking.com, Agoda
-    external_id = Column(String(50), unique=True, nullable=False, index=True) # Mã đặt phòng OTA
+    external_id = Column(String(50), nullable=False, index=True) # Mã đặt phòng OTA
 
     guest_name = Column(String(255), nullable=False, index=True)
     check_in = Column(Date, nullable=False, index=True)
@@ -622,14 +650,31 @@ class Booking(Base):
     branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True, index=True)
     # Bản sao chỉ đọc để lại tại chi nhánh cũ khi chuyển đơn sang chi nhánh khác (view only, không đồng bộ)
     source_booking_id = Column(BIGINT, ForeignKey("bookings.id", ondelete="SET NULL"), nullable=True, index=True)
-
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="SET NULL"), index=True)
+    
     raw_data = Column(JSONB) # Full JSON extracted from AI
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    version = Column(Integer, default=1, nullable=False)  # Optimistic locking
+
+    # Composite indexes + constraints
+    __table_args__ = (
+        Index("ix_booking_guest_checkin", "guest_id", "check_in"),
+        Index("ix_booking_dates", "check_in", "check_out"),
+        Index("uq_booking_source_external", "booking_source", "external_id", unique=True,
+              postgresql_where=(external_id != None)),
+        Index("ix_bookings_version", "version"),
+        CheckConstraint("check_out > check_in", name="check_booking_dates"),
+    )
 
     branch = relationship("Branch")
+    guest = relationship("Guest", back_populates="bookings")
     source_booking = relationship("Booking", remote_side="Booking.id", foreign_keys=[source_booking_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    updater = relationship("User", foreign_keys=[updated_by])
 
 class OTAParsingLog(Base):
     """Log lịch sử đọc mail & parse của AI"""
@@ -717,6 +762,7 @@ class HotelRoom(Base):
 
     __table_args__ = (
         Index("uq_hotel_room_branch_number", "branch_id", "room_number", unique=True),
+        Index("ix_room_branch_floor", "branch_id", "floor"),
     )
 
 
@@ -724,6 +770,12 @@ class HotelStayStatus(str, enum.Enum):
     ACTIVE      = "ACTIVE"         # Đang lưu trú
     CHECKED_OUT = "CHECKED_OUT"    # Đã trả phòng
     CANCELLED   = "CANCELLED"      # Huỷ
+
+class StayType(str, enum.Enum):
+    NIGHT = "NIGHT"    # Qua đêm
+    HOUR = "HOUR"      # Theo giờ
+    DAY_USE = "DAY_USE"  # Day use
+    WEEKLY = "WEEKLY"  # Theo tuần
 
 
 class HotelStay(Base):
@@ -733,7 +785,7 @@ class HotelStay(Base):
     id           = Column(BIGINT, primary_key=True)
     room_id      = Column(Integer, ForeignKey("hotel_rooms.id", ondelete="RESTRICT"), nullable=False, index=True)
     branch_id    = Column(Integer, ForeignKey("branches.id", ondelete="RESTRICT"), nullable=False, index=True)
-    stay_type    = Column(String(10), default="night", nullable=False)  # "night" | "hour"
+    stay_type    = Column(SQLAlchemyEnum(StayType, name="staytype", native_enum=True), default=StayType.NIGHT, nullable=False)
     check_in_at  = Column(DateTime(timezone=True), nullable=False, index=True)
     check_out_at = Column(DateTime(timezone=True), nullable=True)       # Null khi đang ở
     status       = Column(
@@ -742,10 +794,15 @@ class HotelStay(Base):
     )
     total_price  = Column(NUMERIC(15, 2), default=0)
     deposit      = Column(NUMERIC(15, 2), default=0)
+    deposit_type = Column(String(50), nullable=True) # Chi nhánh, Công ty, OTA, UNC, Quẹt thẻ
+    deposit_meta = Column(JSONB, nullable=True)     # Lưu beneficiary, oa channel, invoice code...
     discount     = Column(NUMERIC(15, 2), default=0)
     extra_charge = Column(NUMERIC(15, 2), default=0)
     notes        = Column(Text, nullable=True)
-    
+
+    # Vehicle info - gắn với lượt lưu trú, không phải khách
+    vehicle      = Column(String(100), nullable=True)  # Biển số xe (Đà Nẵng: 43A-123.45)
+
     # Invoicing info
     require_invoice = Column(Boolean, default=False)
     tax_code        = Column(String(50), nullable=True)
@@ -753,6 +810,15 @@ class HotelStay(Base):
 
     created_by   = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at   = Column(DateTime(timezone=True), nullable=True)  # Soft delete
+    version      = Column(Integer, default=1, nullable=False)  # Optimistic locking
+
+    # Composite indexes for common queries
+    __table_args__ = (
+        Index("ix_stay_room_status", "room_id", "status"),
+        Index("ix_stay_branch_status", "branch_id", "status"),
+        Index("ix_hotel_stays_version", "version"),
+    )
 
     room       = relationship("HotelRoom", back_populates="stays")
     branch     = relationship("Branch")
@@ -773,22 +839,191 @@ class HotelGuest(Base):
     gender      = Column(String(10), nullable=True)      # "Nam" / "Nữ" / "Khác"
     phone       = Column(String(20), nullable=True)
     
-    # Address info
-    address      = Column(Text, nullable=True)
-    address_type = Column(String(10), nullable=True) # "new" | "old"
-    city         = Column(String(100), nullable=True)
-    district     = Column(String(100), nullable=True)
-    ward         = Column(String(100), nullable=True)
+    # Address info — luôn lưu địa bàn MỚI (sau 1/7/2025)
+    address       = Column(Text, nullable=True)
+    address_type  = Column(String(10), nullable=True) # "new" | "old"
+    city          = Column(String(100), nullable=True)   # Tỉnh/TP mới (display name)
+    district      = Column(String(100), nullable=True)   # Quận/Huyện mới (sau chuyển đổi)
+    ward          = Column(String(100), nullable=True)   # Phường/Xã mới (sau chuyển đổi)
+    # Lưu địa bàn CŨ để tham khảo (chỉ khi người dùng chọn địa bàn cũ lúc checkin)
+    old_city      = Column(String(100), nullable=True)   # Tỉnh/TP cũ
+    old_district  = Column(String(100), nullable=True)   # Quận/Huyện cũ
+    old_ward      = Column(String(100), nullable=True)   # Phường/Xã cũ
     
     # Other info
-    vehicle      = Column(String(255), nullable=True)
     id_expire    = Column(Date, nullable=True)
+    id_type      = Column(String(20), nullable=True)    # cccd, cmnd, passport, visa, gplx
     notes        = Column(Text, nullable=True)
     tax_code    = Column(String(50), nullable=True)      # Mã số thuế (bắt buộc khi xuất hoá đơn)
     invoice_contact = Column(String(255), nullable=True)  # Liên hệ gửi hoá đơn (bắt buộc khi xuất hoá đơn)
+    nationality  = Column(String(100), nullable=True)     # Quốc tịch (VD: "VNM - Việt Nam") - cũng có trong Guest
+    guest_id     = Column(BIGINT, ForeignKey("guests.id", ondelete="SET NULL"), index=True)
     is_primary  = Column(Boolean, default=False)          # Khách đặt phòng chính
+    check_in_at  = Column(DateTime(timezone=True), nullable=True)
+    check_out_at = Column(DateTime(timezone=True), nullable=True)
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     stay = relationship("HotelStay", back_populates="guests")
+    guest = relationship("Guest", back_populates="hotel_guests")
+    creator = relationship("User")
+
+    # Composite indexes for guest queries
+    __table_args__ = (
+        Index("ix_hotel_guests_guest_stay", "guest_id", "stay_id"),
+        Index("ix_hotel_guests_cccd_active", "cccd",
+              postgresql_where=(cccd != None)),
+    )
 
 
+# ====================================================================
+# 10. GUEST MODULE (CRM CORE - PMS 2026)
+# ====================================================================
+
+class Guest(Base):
+    """Master Guest - Thông tin khách hàng độc lập với lượt lưu trú"""
+    __tablename__ = "guests"
+
+    id = Column(BIGINT, primary_key=True)
+    full_name = Column(String(255), nullable=False)
+    normalized_name = Column(String(255))  # Tên không dấu, lowercase để search
+    phone = Column(String(20), index=True)
+    email = Column(String(255), index=True)
+    cccd = Column(String(20), index=True)  # CCCD/Passport
+    date_of_birth = Column(Date)
+    gender = Column(String(10))  # Nam / Nữ / Khác
+    nationality = Column(String(100))
+    default_address = Column(Text)
+    first_seen_at = Column(DateTime(timezone=True))
+    last_seen_at = Column(DateTime(timezone=True))
+    total_stays = Column(Integer, default=0)
+    total_spent = Column(NUMERIC(15, 2), default=0)
+    is_blacklisted = Column(Boolean, default=False)
+    tags = Column(JSONB, server_default='[]', default=[])  # ['VIP', 'OTA', 'CORP']
+    deleted_at = Column(DateTime(timezone=True), nullable=True)  # Soft delete
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    # Unique constraint: cccd không trùng (partial - chỉ khi có giá trị)
+    __table_args__ = (
+        Index("uq_guest_cccd_not_null", "cccd", unique=True,
+              postgresql_where=(cccd != None)),
+        Index("ix_guests_deleted", "deleted_at",
+              postgresql_where=(deleted_at != None)),
+    )
+
+    # Relationships
+    identities = relationship("GuestIdentity", back_populates="guest", cascade="all, delete-orphan")
+    profile = relationship("GuestProfile", back_populates="guest", uselist=False, cascade="all, delete-orphan")
+    preferences = relationship("GuestPreference", back_populates="guest", cascade="all, delete-orphan")
+    interactions = relationship("GuestInteraction", back_populates="guest", cascade="all, delete-orphan")
+    activities = relationship("GuestActivity", back_populates="guest", cascade="all, delete-orphan")
+    hotel_guests = relationship("HotelGuest", back_populates="guest")
+    bookings = relationship("Booking", back_populates="guest")
+    creator = relationship("User", foreign_keys=[created_by])
+    updater = relationship("User", foreign_keys=[updated_by])
+
+
+class GuestIdentity(Base):
+    """Định danh khách (phone/email/cccd) - Chống trùng lặp"""
+    __tablename__ = "guest_identities"
+
+    id = Column(BIGINT, primary_key=True)
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="CASCADE"), nullable=False, index=True)
+    identity_type = Column(String(50), nullable=False)  # phone / email / cccd
+    identity_value = Column(String(255), nullable=False)
+    normalized_value = Column(String(255), index=True)  # Chuẩn hóa: lowercase email, số điện thoại không +84
+    is_primary = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Unique constraint: identity_type + normalized_value
+    __table_args__ = (
+        Index("uq_guest_identity_type_norm", "identity_type", "normalized_value", unique=True),
+    )
+
+    guest = relationship("Guest", back_populates="identities")
+
+
+class GuestProfile(Base):
+    """Dữ liệu tổng hợp về khách (Aggregate)"""
+    __tablename__ = "guest_profiles"
+
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="CASCADE"), primary_key=True)
+    avg_stay_duration = Column(Float, default=0)  # Số đêm TB
+    favorite_room_type = Column(String(100))  # Loại phòng hay ở nhất
+    last_room_number = Column(String(20))  # Phòng gần nhất
+    preferred_payment = Column(String(50))  # Thanh toán ưa thích
+    risk_score = Column(Float, default=0)  # Điểm rủi ro
+    lifetime_value = Column(NUMERIC(15, 2), default=0)  # Giá trị trọn đời
+    last_review_score = Column(Float)  # Điểm review gần nhất
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    guest = relationship("Guest", back_populates="profile")
+
+
+class GuestPreference(Base):
+    """Sở thích khách (hút thuốc, giường, tầng...)"""
+    __tablename__ = "guest_preferences"
+
+    id = Column(BIGINT, primary_key=True)
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="CASCADE"), nullable=False, index=True)
+    preference_type = Column(String(50), nullable=False)  # smoking / bed / floor / pillow / breakfast
+    preference_value = Column(String(255))  # non-smoking / king-bed / high-floor
+    source = Column(String(20), default="manual")  # manual / AI / booking
+    confidence_score = Column(Float, default=1.0)  # 0-1
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        Index("uq_guest_preference_type", "guest_id", "preference_type", unique=True),
+    )
+
+    guest = relationship("Guest", back_populates="preferences")
+
+
+class GuestInteraction(Base):
+    """Tương tác với khách (gọi điện, chat, email, khiếu nại, khen ngợi)"""
+    __tablename__ = "guest_interactions"
+
+    id = Column(BIGINT, primary_key=True)
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="CASCADE"), nullable=False, index=True)
+    interaction_type = Column(String(50), nullable=False)  # call / chat / email / complaint / compliment
+    content = Column(Text)
+    staff_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    guest = relationship("Guest", back_populates="interactions")
+    staff = relationship("User")
+
+
+class GuestActivity(Base):
+    """Hoạt động của khách (Timeline)"""
+    __tablename__ = "guest_activities"
+
+    id = Column(BIGINT, primary_key=True)
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="CASCADE"), nullable=False, index=True)
+    activity_type = Column(String(50), nullable=False)  # CHECK_IN, CHECK_OUT, PAYMENT_RECEIVED...
+    activity_group = Column(String(50))  # stay, booking, payment, service, experience, system
+    title = Column(String(255))  # Tiêu đề hiển thị
+    description = Column(Text)  # Mô tả chi tiết
+    stay_id = Column(BIGINT, ForeignKey("hotel_stays.id", ondelete="SET NULL"), index=True)
+    booking_id = Column(BIGINT, ForeignKey("bookings.id", ondelete="SET NULL"), index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"))
+    amount = Column(NUMERIC(15, 2))  # Số tiền (nếu liên quan)
+    currency = Column(String(10), default="VND")
+    actor_type = Column(String(20))  # system / user / guest
+    actor_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), index=True)  # user_id nếu có
+    source = Column(String(50))  # pms / ota / api / ai
+    extra_data = Column(JSONB)  # Dữ liệu mở rộng
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    # Composite index for timeline queries
+    __table_args__ = (
+        Index("ix_guest_activities_guest_created", "guest_id", "created_at"),
+    )
+
+    guest = relationship("Guest", back_populates="activities")
+    stay = relationship("HotelStay")
+    booking = relationship("Booking")
+    branch = relationship("Branch")

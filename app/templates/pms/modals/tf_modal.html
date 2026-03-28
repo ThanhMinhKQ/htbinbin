@@ -1,0 +1,773 @@
+<!-- ═══ MODAL TRANSFER ROOM ═══ -->
+<div class="v-modal" id="tfModal">
+  <div class="v-dialog" id="tf-dialog">
+    <style>
+      /* ── TF Modal Layout ── */
+      #tf-dialog {
+        background-color: #f8fafc;
+        max-width: 560px;
+        width: 95%;
+        border-radius: 16px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
+        max-height: 88vh;
+      }
+
+      /* ── Header ── */
+      .tf-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 24px;
+        background: #fff;
+        border-bottom: 1px solid #f1f5f9;
+      }
+
+      .tf-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #ede9fe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .tf-header-info {
+        flex: 1;
+      }
+
+      .tf-title {
+        font-size: 17px;
+        font-weight: 800;
+        color: #1e293b;
+        margin: 0 0 2px;
+        letter-spacing: -0.01em;
+      }
+
+      .tf-sub {
+        font-size: 12.5px;
+        color: #64748b;
+      }
+
+      .tf-close {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: #f1f5f9;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #64748b;
+        transition: all 0.2s;
+        flex-shrink: 0;
+      }
+
+      .tf-close:hover {
+        background: #fee2e2;
+        color: #ef4444;
+        transform: rotate(90deg);
+      }
+
+      .tf-close svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* ── Body ── */
+      .tf-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Current room info */
+      .tf-current {
+        background: #fef9c3;
+        border: 1px solid #fef08a;
+        border-radius: 12px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .tf-current-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: #fde047;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .tf-current-icon svg {
+        width: 18px;
+        height: 18px;
+        stroke: #854d0e;
+      }
+
+      .tf-current-text {
+        flex: 1;
+      }
+
+      .tf-current-label {
+        font-size: 11px;
+        color: #854d0e;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .tf-current-num {
+        font-size: 16px;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: -0.01em;
+      }
+
+      .tf-current-badge {
+        background: #fef08a;
+        color: #854d0e;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 100px;
+      }
+
+      /* Search */
+      .tf-search-wrap {
+        position: relative;
+      }
+
+      .tf-search-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: #94a3b8;
+      }
+
+      .tf-search-icon svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .tf-search {
+        width: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 11px 14px 11px 40px;
+        font-size: 14px;
+        background: #fff;
+        color: #1e293b;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        box-sizing: border-box;
+      }
+
+      .tf-search:focus {
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+      }
+
+      /* Room list */
+      .tf-room-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .tf-room-list::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .tf-room-list::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+      }
+
+      /* Loading state */
+      .tf-room-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 40px 20px;
+        color: #94a3b8;
+        font-size: 13px;
+      }
+
+      .tf-spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid #e2e8f0;
+        border-top-color: #7c3aed;
+        border-radius: 50%;
+        animation: tfSpin 0.8s linear infinite;
+      }
+
+      @keyframes tfSpin {
+        to { transform: rotate(360deg); }
+      }
+
+      /* Empty state */
+      .tf-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        padding: 48px 20px;
+        color: #94a3b8;
+        text-align: center;
+      }
+
+      .tf-empty svg {
+        opacity: 0.4;
+      }
+
+      .tf-empty p {
+        margin: 0;
+        font-size: 13px;
+      }
+
+      /* Room item */
+      .tf-room-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+      }
+
+      .tf-room-item:hover {
+        border-color: #7c3aed;
+        background: #faf5ff;
+        transform: translateX(2px);
+      }
+
+      .tf-room-item.selected {
+        border-color: #7c3aed;
+        background: #f5f3ff;
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.1);
+      }
+
+      .tf-room-item.selected::after {
+        content: '';
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #7c3aed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tf-room-item.selected .tf-check-icon {
+        display: flex;
+      }
+
+      .tf-room-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: #f1f5f9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .tf-room-icon svg {
+        width: 18px;
+        height: 18px;
+        stroke: #64748b;
+      }
+
+      .tf-room-info {
+        flex: 1;
+      }
+
+      .tf-room-num {
+        font-size: 15px;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: -0.01em;
+      }
+
+      .tf-room-type {
+        font-size: 11px;
+        color: #64748b;
+        margin-top: 1px;
+      }
+
+      .tf-room-price {
+        font-size: 14px;
+        font-weight: 700;
+        color: #16a34a;
+        letter-spacing: -0.01em;
+        text-align: right;
+      }
+
+      .tf-room-price small {
+        font-size: 10px;
+        font-weight: 600;
+        margin-left: 1px;
+      }
+
+      .tf-check-icon {
+        display: none;
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #7c3aed;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .tf-check-icon svg {
+        width: 12px;
+        height: 12px;
+        stroke: #fff;
+        stroke-width: 3;
+      }
+
+      /* Selected preview */
+      .tf-selected-preview {
+        background: #f5f3ff;
+        border: 1px solid #ddd6fe;
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        display: none;
+      }
+
+      .tf-selected-preview.show {
+        display: flex;
+      }
+
+      .tf-selected-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: #7c3aed;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .tf-selected-icon svg {
+        width: 18px;
+        height: 18px;
+        stroke: #fff;
+      }
+
+      .tf-selected-text {
+        flex: 1;
+      }
+
+      .tf-selected-label {
+        font-size: 11px;
+        color: #7c3aed;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .tf-selected-num {
+        font-size: 15px;
+        font-weight: 800;
+        color: #1e293b;
+        letter-spacing: -0.01em;
+      }
+
+      .tf-selected-badge {
+        background: #7c3aed;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 100px;
+      }
+
+      /* Footer */
+      .tf-footer {
+        padding: 16px 24px;
+        background: #fff;
+        border-top: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .tf-selected-info {
+        font-size: 13px;
+        color: #64748b;
+        flex: 1;
+        font-weight: 500;
+      }
+
+      .tf-footer-btns {
+        display: flex;
+        gap: 10px;
+      }
+
+      .tf-btn-cancel {
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        color: #475569;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .tf-btn-cancel:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+      }
+
+      .tf-btn-confirm {
+        padding: 10px 24px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        background: #7c3aed;
+        color: #fff;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .tf-btn-confirm:hover:not(:disabled) {
+        background: #6d28d9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+      }
+
+      .tf-btn-confirm:disabled {
+        background: #c4b5fd;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .tf-btn-confirm svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* ── Dark Mode ── */
+      html.dark #tf-dialog {
+        background-color: #0f172a;
+        border-color: #1e293b;
+      }
+
+      html.dark .tf-header {
+        background: #1e293b;
+        border-color: #334155;
+      }
+
+      html.dark .tf-title {
+        color: #f1f5f9;
+      }
+
+      html.dark .tf-sub {
+        color: #94a3b8;
+      }
+
+      html.dark .tf-close {
+        background: #334155;
+        color: #94a3b8;
+      }
+
+      html.dark .tf-close:hover {
+        background: #7f1d1d;
+        color: #fca5a5;
+      }
+
+      html.dark .tf-body {
+        background: #0f172a;
+      }
+
+      /* Current room */
+      html.dark .tf-current {
+        background: rgba(253, 224, 71, 0.1);
+        border-color: rgba(253, 224, 71, 0.2);
+      }
+
+      html.dark .tf-current-icon {
+        background: rgba(253, 224, 71, 0.2);
+      }
+
+      html.dark .tf-current-label {
+        color: #fbbf24;
+      }
+
+      html.dark .tf-current-num {
+        color: #f1f5f9;
+      }
+
+      html.dark .tf-current-badge {
+        background: rgba(253, 224, 71, 0.2);
+        color: #fbbf24;
+      }
+
+      /* Search */
+      html.dark .tf-search {
+        background: #1e293b;
+        border-color: #334155;
+        color: #f1f5f9;
+      }
+
+      html.dark .tf-search:focus {
+        border-color: #a78bfa;
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.15);
+      }
+
+      html.dark .tf-search::placeholder {
+        color: #64748b;
+      }
+
+      /* Room list */
+      html.dark .tf-room-loading {
+        color: #475569;
+      }
+
+      html.dark .tf-spinner {
+        border-color: #334155;
+        border-top-color: #a78bfa;
+      }
+
+      html.dark .tf-empty {
+        color: #475569;
+      }
+
+      html.dark .tf-room-item {
+        background: #1e293b;
+        border-color: #334155;
+      }
+
+      html.dark .tf-room-item:hover {
+        border-color: #a78bfa;
+        background: rgba(167, 139, 250, 0.08);
+      }
+
+      html.dark .tf-room-item.selected {
+        border-color: #a78bfa;
+        background: rgba(167, 139, 250, 0.1);
+        box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.1);
+      }
+
+      html.dark .tf-room-item.selected .tf-check-icon {
+        background: #a78bfa;
+      }
+
+      html.dark .tf-room-icon {
+        background: #334155;
+      }
+
+      html.dark .tf-room-icon svg {
+        stroke: #94a3b8;
+      }
+
+      html.dark .tf-room-num {
+        color: #f1f5f9;
+      }
+
+      html.dark .tf-room-type {
+        color: #64748b;
+      }
+
+      html.dark .tf-room-price {
+        color: #4ade80;
+      }
+
+      /* Selected preview */
+      html.dark .tf-selected-preview {
+        background: rgba(167, 139, 250, 0.1);
+        border-color: rgba(167, 139, 250, 0.2);
+      }
+
+      html.dark .tf-selected-label {
+        color: #a78bfa;
+      }
+
+      html.dark .tf-selected-num {
+        color: #f1f5f9;
+      }
+
+      html.dark .tf-selected-badge {
+        background: #7c3aed;
+        color: #fff;
+      }
+
+      /* Footer */
+      html.dark .tf-footer {
+        background: #1e293b;
+        border-color: #334155;
+      }
+
+      html.dark .tf-selected-info {
+        color: #94a3b8;
+      }
+
+      html.dark .tf-btn-cancel {
+        background: #334155;
+        border-color: #475569;
+        color: #cbd5e1;
+      }
+
+      html.dark .tf-btn-cancel:hover {
+        background: #475569;
+        border-color: #64748b;
+      }
+
+      html.dark .tf-btn-confirm {
+        background: #7c3aed;
+      }
+
+      html.dark .tf-btn-confirm:hover:not(:disabled) {
+        background: #a78bfa;
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.3);
+      }
+
+      html.dark .tf-btn-confirm:disabled {
+        background: #4c1d95;
+      }
+
+      /* Responsive */
+      @media (max-width: 600px) {
+        #tf-dialog {
+          max-width: 100%;
+          border-radius: 0;
+          max-height: 100vh;
+        }
+
+        .tf-header {
+          padding: 16px 20px;
+        }
+
+        .tf-body {
+          padding: 16px 20px;
+        }
+
+        .tf-footer {
+          padding: 14px 20px;
+        }
+
+        .tf-room-item {
+          padding: 10px 12px;
+        }
+      }
+    </style>
+
+    <!-- Header -->
+    <div class="tf-header">
+      <div class="tf-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+      </div>
+      <div class="tf-header-info">
+        <div class="tf-title">Đổi phòng</div>
+        <div class="tf-sub" id="tf-info">Đang tải...</div>
+      </div>
+      <button class="tf-close" onclick="closeModal('tfModal')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="tf-body">
+      <!-- Current room indicator -->
+      <div class="tf-current">
+        <div class="tf-current-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div class="tf-current-text">
+          <div class="tf-current-label">Phòng hiện tại</div>
+          <div class="tf-current-num" id="tf-current-room">—</div>
+        </div>
+        <div class="tf-current-badge">Đang ở</div>
+      </div>
+
+      <!-- Selected preview -->
+      <div class="tf-selected-preview" id="tf-selected-preview">
+        <div class="tf-selected-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="tf-selected-text">
+          <div class="tf-selected-label">Phòng mới</div>
+          <div class="tf-selected-num" id="tf-selected-room">—</div>
+        </div>
+        <div class="tf-selected-badge">Đã chọn</div>
+      </div>
+
+      <!-- Search -->
+      <div class="tf-search-wrap">
+        <svg class="tf-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" class="tf-search" id="tf-search" placeholder="Tìm phòng..." oninput="pmsTfFilterRooms(this.value)">
+      </div>
+
+      <!-- Room list -->
+      <div class="tf-room-list" id="tf-room-list">
+        <!-- Loading state -->
+        <div class="tf-room-loading">
+          <div class="tf-spinner"></div>
+          <span>Đang tải phòng trống...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="tf-footer">
+      <div class="tf-selected-info" id="tf-selected-info">Chưa chọn phòng</div>
+      <div class="tf-footer-btns">
+        <button class="tf-btn-cancel" onclick="closeModal('tfModal')">Huỷ</button>
+        <button class="tf-btn-confirm" id="tf-submit-btn" onclick="submitTF()" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Xác nhận đổi phòng
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

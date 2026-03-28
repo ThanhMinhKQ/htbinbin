@@ -83,7 +83,7 @@ def home(
     # Logic xác định chi nhánh hoạt động (giữ nguyên)
     active_branch = (
         request.session.get("active_branch")
-        or (user_from_db.last_active_branch if user_from_db else None)
+        or (user_from_db.last_active_branch_id and user_from_db.last_active_branch.branch_code if user_from_db else None)
         or user_data.get("branch")
     )
 

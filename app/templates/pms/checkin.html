@@ -1,7 +1,5 @@
-<!-- ═══ MODAL CHECK-IN (Full-screen, excluding sidebar) ═══ -->
-<div class="v-modal v-modal-fullscreen" id="ciModal">
-  <div class="v-dialog v-dialog-fullscreen"
-    style="background-color: #f8fafc; max-width: 1400px; margin: 20px auto; border-radius: 12px; height: calc(100vh - 40px); overflow: hidden; display: flex; flex-direction: column;">
+<div class="v-modal" id="ciModal">
+  <div class="v-dialog" id="ci-dialog">
     <div class="v-header" style="background:#fff; border-bottom:1px solid #e2e8f0; padding:20px 24px;">
       <div
         style="width:42px;height:42px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -23,200 +21,764 @@
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg></button>
     </div>
-    <div class="v-body v-body-fullscreen"
-      style="display:flex; gap:24px; padding:24px; background:#f8fafc; align-items:flex-start;">
+    <div class="v-body" id="ci-body">
       <style>
-        .ci-guest-toolbar {
-          margin-bottom: 24px;
-          padding: 16px;
-          background: #f1f5f9;
+        /* ── Check-in Form Redesign ── */
+        .ci-section {
+          background: #fff;
           border-radius: 12px;
-          border: 1px dashed #cbd5e1;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+          overflow: hidden;
         }
+        .dark .ci-section,
+        html.dark .ci-section { background: #1e293b; border-color: #334155; }
+
+        .ci-section-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 14px 20px;
+          border-bottom: 1px solid #f1f5f9;
+          background: #fafbfc;
+        }
+        .dark .ci-section-header,
+        html.dark .ci-section-header { background: #0f172a; border-color: #1e293b; }
+
+        .ci-section-badge {
+          width: 26px;
+          height: 26px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
+          font-weight: 700;
+          color: #fff;
+          flex-shrink: 0;
+        }
+
+        .ci-section-badge.blue {
+          background: linear-gradient(135deg, #3b82f6, #2563eb);
+        }
+
+        .ci-section-badge.green {
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+        }
+
+        .ci-section-badge.amber {
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+        }
+
+        .ci-section-badge.purple {
+          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+        }
+
+        .ci-section-title {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #1e293b;
+          margin: 0;
+        }
+        .dark .ci-section-title,
+        html.dark .ci-section-title { color: #f1f5f9; }
+
+        .ci-section-body {
+          padding: 18px 20px;
+        }
+        .dark .ci-section-body,
+        html.dark .ci-section-body { background: #1e293b; }
+
+        #ci-body {
+          display: flex; gap: 24px; padding: 24px; background: #f8fafc; align-items: flex-start;
+          flex: 1; overflow: auto;
+        }
+        #ci-dialog {
+          background-color: #f8fafc; max-width: 1450px; width: 95%; max-height: 96vh; 
+          margin: 2vh auto; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        @media (max-width: 1100px) {
+          #ci-dialog { width: 98%; max-height: 98vh; margin: 1vh auto; }
+          #ci-body { flex-direction: column; padding: 15px; }
+          .ci-section { width: 100%; flex-shrink: 0; }
+        }
+        @media (max-width: 600px) {
+          #ci-body { padding: 12px !important; gap: 12px !important; }
+          .v-header { padding: 12px 18px !important; }
+          .v-title { font-size: 14px !important; }
+        }
+
+        /* Room info strip */
+        .ci-room-strip {
+          display: flex;
+          gap: 1px;
+          background: #e2e8f0;
+          border-radius: 8px;
+          overflow: hidden;
+          margin-bottom: 16px;
+        }
+        .dark .ci-room-strip,
+        html.dark .ci-room-strip { background: #334155; }
+
+        .ci-room-strip-item {
+          flex: 1;
+          background: #f8fafc;
+          padding: 10px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .dark .ci-room-strip-item,
+        html.dark .ci-room-strip-item { background: #1e293b; }
+
+        .ci-room-strip-item label {
+          font-size: 11px;
+          font-weight: 600;
+          color: #94a3b8;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+        .dark .ci-room-strip-item label,
+        html.dark .ci-room-strip-item label { color: #64748b; }
+
+        .ci-room-strip-item .strip-val {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1e293b;
+        }
+        .dark .ci-room-strip-item .strip-val,
+        html.dark .ci-room-strip-item .strip-val { color: #f1f5f9; }
+
+        /* Payment summary card */
+        .ci-pay-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 12px;
+        }
+        .dark .ci-pay-grid,
+        html.dark .ci-pay-grid { background: #1e293b; }
+
+        .ci-pay-item {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          padding: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .dark .ci-pay-item,
+        html.dark .ci-pay-item { background: #1e293b; border-color: #334155; }
+
+        .ci-pay-item label {
+          font-size: 11.5px;
+          font-weight: 600;
+          color: #64748b;
+          margin: 0;
+        }
+        .dark .ci-pay-item label,
+        html.dark .ci-pay-item label { color: #94a3b8; }
+
+        .ci-pay-item .ci-pay-val {
+          font-size: 16px;
+          font-weight: 700;
+          color: #15803d;
+        }
+        .dark .ci-pay-item .ci-pay-val,
+        html.dark .ci-pay-item .ci-pay-val { color: #4ade80; }
+
+        .ci-pay-item--deposit .ci-pay-val {
+          color: #1e293b;
+        }
+        .dark .ci-pay-item--deposit .ci-pay-val,
+        html.dark .ci-pay-item--deposit .ci-pay-val { color: #f1f5f9; }
+
+        /* Guest section improvements */
+        .ci-guest-toolbar {
+          margin-bottom: 20px;
+          padding: 14px 16px;
+          background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+          border-radius: 12px;
+          border: 1px solid #bae6fd;
+        }
+        .dark .ci-guest-toolbar,
+        html.dark .ci-guest-toolbar { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; border-color: #3b82f6 !important; }
+
         .ci-guest-toolbar .v-btn {
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
           border-radius: 10px;
           padding: 8px 16px;
           font-size: 13px;
           font-weight: 600;
         }
+
         .ci-guest-toolbar .v-btn svg {
           transition: transform 0.2s;
         }
+
         .ci-guest-toolbar .v-btn:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+
         .ci-guest-toolbar .v-btn:hover svg {
           transform: scale(1.1);
         }
+
         .ci-guest-toolbar .v-btn:active {
           transform: translateY(0) scale(0.98);
         }
+
         .ci-guest-toolbar .v-btn.primary {
           background: linear-gradient(135deg, #2563eb, #1d4ed8);
           border: none;
         }
+
         .ci-guest-toolbar .v-btn.success {
           background: linear-gradient(135deg, #16a34a, #15803d);
           border: none;
         }
+
         .ci-guest-toolbar .v-btn.outline {
           background: #fff;
           border: 1px solid #cbd5e1;
           color: #475569;
         }
+
         .ci-guest-toolbar .v-btn.outline:hover {
           background: #f8fafc;
           border-color: #94a3b8;
           color: #1e293b;
         }
+        .dark .ci-guest-toolbar .v-btn.outline,
+        html.dark .ci-guest-toolbar .v-btn.outline { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .dark .ci-guest-toolbar .v-btn.outline:hover,
+        html.dark .ci-guest-toolbar .v-btn.outline:hover { background: #334155; border-color: #475569; color: #f1f5f9; }
+
         .ci-capacity-warn {
-            margin-bottom: 16px;
-            padding: 12px 16px;
-            background: #fff1f2;
-            border-left: 4px solid #e11d48;
-            color: #9f1239;
-            border-radius: 8px;
-            font-size: 13px;
-            display: none;
+          margin-bottom: 16px;
+          padding: 12px 16px;
+          background: #fff1f2;
+          border-left: 4px solid #e11d48;
+          color: #9f1239;
+          border-radius: 8px;
+          font-size: 13px;
+          display: none;
         }
-        .ci-capacity-warn.show { display: block; }
+        .dark .ci-capacity-warn,
+        html.dark .ci-capacity-warn { background: rgba(127, 29, 29, 0.3) !important; border-left-color: #ef4444 !important; color: #fca5a5 !important; }
+
+        .ci-capacity-warn.show {
+          display: block;
+        }
+
+        .ci-guest-list-panel {
+          margin-bottom: 20px;
+          padding: 0;
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease;
+          opacity: 0;
+        }
+
+        .ci-guest-list-panel.show {
+          max-height: 200px;
+          opacity: 1;
+          overflow-y: auto;
+          background: #fff;
+          border: 1px solid #e2e8f0;
+          border-radius: 12px;
+          padding: 12px 14px;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        .dark .ci-guest-list-panel.show,
+        html.dark .ci-guest-list-panel.show { background: #1e293b; border-color: #334155; }
+
+        .ci-guest-list-panel::-webkit-scrollbar {
+          width: 4px;
+        }
+
+        .ci-guest-list-panel::-webkit-scrollbar-thumb {
+          background: #e2e8f0;
+          border-radius: 10px;
+        }
+        .dark .ci-guest-list-panel::-webkit-scrollbar-thumb,
+        html.dark .ci-guest-list-panel::-webkit-scrollbar-thumb { background: #475155; }
+
         .f-ctrl.is-invalid {
-            border-color: #ef4444 !important;
-            background-color: #fef2f2 !important;
-            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
+          border-color: #ef4444 !important;
+          background-color: #fef2f2 !important;
+          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
+        }
+        .dark .f-ctrl.is-invalid,
+        html.dark .f-ctrl.is-invalid { border-color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+
+        .f-ctrl.is-warning {
+          border-color: #eab308 !important;
+          background-color: #fefce8 !important;
+          box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.1) !important;
+        }
+        .dark .f-ctrl.is-warning,
+        html.dark .f-ctrl.is-warning { border-color: #eab308 !important; background-color: rgba(234, 179, 8, 0.1) !important; }
+
+        /* ID section styling */
+        .ci-id-section {
+          margin-top: 16px;
+          margin-bottom: 24px;
+          padding: 20px 24px;
+          background: linear-gradient(135deg, #f0f9ff, #eff6ff);
+          border-radius: 12px;
+          border: 1px solid #bfdbfe;
+        }
+        .dark .ci-id-section,
+        html.dark .ci-id-section { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; border-color: #3b82f6 !important; }
+
+        .ci-id-section .f-grid {
+          gap: 20px 24px;
+        }
+
+        .ci-id-section .f-grp {
+          margin-bottom: 0 !important;
+        }
+
+        /* Guest personal info section */
+        .ci-personal-section {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 20px 24px;
+        }
+
+        .ci-personal-section .f-grp {
+          margin-bottom: 0 !important;
+        }
+
+        .f-grid-full {
+          grid-column: 1 / -1;
+        }
+
+        /* Address subsection */
+        .ci-address-section {
+          margin-top: 24px;
+          padding: 20px 24px;
+          background: #fafbfc;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+        }
+        .dark .ci-address-section,
+        html.dark .ci-address-section { background: #0f172a !important; border-color: #334155 !important; }
+
+        .ci-address-section .ci-addr-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #64748b;
+          margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .dark .ci-address-section .ci-addr-label,
+        html.dark .ci-address-section .ci-addr-label { color: #94a3b8; }
+
+        .ci-address-section .ci-addr-label svg {
+          width: 14px;
+          height: 14px;
+          stroke: #94a3b8;
+        }
+
+        .ci-address-section .f-grid {
+          gap: 20px 24px;
+        }
+
+        .ci-address-section .f-grp {
+          margin-bottom: 0 !important;
+        }
+
+        /* Radio group dark mode */
+        .dark .ci-radio-group label,
+        html.dark .ci-radio-group label { color: #cbd5e1; }
+        .dark #ci-conversion-grp,
+        html.dark #ci-conversion-grp { background: linear-gradient(135deg, #052e16, #064e3b) !important; border-color: #059669 !important; }
+        .dark #ci-conversion-grp .f-ctrl,
+        html.dark #ci-conversion-grp .f-ctrl { background: #1e293b !important; border-color: #059669 !important; color: #86efac !important; }
+
+        /* Invoice toggle compact */
+        .ci-invoice-toggle {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 12px 16px;
+          background: #fefce8;
+          border: 1px solid #fde68a;
+          border-radius: 10px;
+        }
+        .dark .ci-invoice-toggle,
+        html.dark .ci-invoice-toggle { background: #422006; border-color: #b45309; }
+
+        .ci-invoice-toggle label {
+          font-size: 13px;
+          font-weight: 500;
+          color: #92400e;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+        }
+        .dark .ci-invoice-toggle label,
+        html.dark .ci-invoice-toggle label { color: #fde68a; }
+
+        /* Time fields highlight */
+        .ci-time-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+          margin-bottom: 16px;
+        }
+
+        .ci-time-field {
+          position: relative;
+        }
+
+        .ci-time-field label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #475569;
+          margin-bottom: 6px;
+          display: block;
+        }
+        .dark .ci-time-field label,
+        html.dark .ci-time-field label { color: #94a3b8; }
+
+        .ci-time-field .f-ctrl {
+          padding-left: 36px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+          letter-spacing: 0.3px;
+        }
+
+        .ci-time-field .ci-time-icon {
+          position: absolute;
+          left: 10px;
+          top: 50%;
+          transform: translateY(2px);
+          color: #94a3b8;
+          pointer-events: none;
+        }
+
+        .ci-time-field .f-ctrl:focus {
+          border-color: #6366f1;
+          box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
+        }
+
+        /* ── Global Dark Mode for Check-in Modal ── */
+        .dark #ciModal .v-dialog,
+        html.dark #ciModal .v-dialog { background: #0f172a !important; }
+        .dark #ciModal .v-header,
+        html.dark #ciModal .v-header { background: #0f172a !important; border-color: #1e293b !important; }
+        .dark #ciModal .v-title,
+        html.dark #ciModal .v-title { color: #f1f5f9 !important; }
+        .dark #ciModal .v-sub,
+        html.dark #ciModal .v-sub { color: #94a3b8 !important; }
+        .dark #ciModal .v-body,
+        html.dark #ciModal .v-body { background: #1e293b !important; }
+        .dark #ciModal .v-footer,
+        html.dark #ciModal .v-footer { background: #0f172a !important; border-color: #1e293b !important; }
+        .dark #ciModal .v-close,
+        html.dark #ciModal .v-close { color: #94a3b8; }
+        .dark #ciModal .v-close:hover,
+        html.dark #ciModal .v-close:hover { color: #f1f5f9; }
+
+        /* Address Warning Panel Dark Mode */
+        .dark #ci-addr-warning-panel > div,
+        html.dark #ci-addr-warning-panel > div {
+            background: linear-gradient(135deg, #422006, #451a03) !important;
+            border-color: #f59e0b !important;
+        }
+        .dark #ci-addr-warning-panel #ci-addr-warning-list,
+        html.dark #ci-addr-warning-panel #ci-addr-warning-list { color: #fcd34d !important; }
+        .dark #ci-addr-warning-panel > div > div > div:first-child,
+        html.dark #ci-addr-warning-panel > div > div > div:first-child { color: #fbbf24 !important; }
+
+        .dark .ci-room-strip,
+        html.dark .ci-room-strip { background: #1e293b; border-color: #334155; }
+        .dark .ci-room-strip-item,
+        html.dark .ci-room-strip-item { background: #0f172a; }
+        .dark .ci-room-strip-item label,
+        html.dark .ci-room-strip-item label { color: #64748b; }
+        .dark .ci-room-strip-item .strip-val,
+        html.dark .ci-room-strip-item .strip-val { color: #f1f5f9; }
+
+        .dark .ci-pay-grid,
+        html.dark .ci-pay-grid { background: #1e293b; }
+        .dark .ci-pay-item,
+        html.dark .ci-pay-item { background: #0f172a; border-color: #334155; }
+        .dark .ci-pay-item label,
+        html.dark .ci-pay-item label { color: #94a3b8; }
+        .dark .ci-pay-item .ci-pay-val,
+        html.dark .ci-pay-item .ci-pay-val { color: #86efac; }
+
+        .dark .ci-guest-toolbar,
+        html.dark .ci-guest-toolbar { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; border-color: #3b82f6 !important; }
+        .dark .ci-guest-toolbar .v-btn.outline,
+        html.dark .ci-guest-toolbar .v-btn.outline { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .dark .ci-guest-toolbar .v-btn.outline:hover,
+        html.dark .ci-guest-toolbar .v-btn.outline:hover { background: #334155; color: #f1f5f9; }
+
+        .dark .ci-capacity-warn,
+        html.dark .ci-capacity-warn { background: rgba(127, 29, 29, 0.2) !important; color: #fca5a5 !important; border-color: #ef4444 !important; }
+
+        .dark .ci-guest-list-panel,
+        html.dark .ci-guest-list-panel { background: #1e293b; border-color: #334155; }
+
+        .dark .ci-id-section,
+        html.dark .ci-id-section { background: linear-gradient(135deg, #1e3a8a, #1e40af) !important; border-color: #3b82f6 !important; }
+
+        .dark .ci-address-section,
+        html.dark .ci-address-section { background: #0f172a !important; border-color: #334155 !important; }
+        .dark .ci-address-section .ci-addr-label,
+        html.dark .ci-address-section .ci-addr-label { color: #94a3b8; }
+
+        /* F-ctrl dark mode */
+        .dark .f-ctrl,
+        html.dark .f-ctrl { background-color: #1e293b !important; border-color: #334155 !important; color: #f1f5f9 !important; }
+        .dark .f-ctrl::placeholder,
+        html.dark .f-ctrl::placeholder { color: #64748b !important; }
+        .dark .f-ctrl:focus,
+        html.dark .f-ctrl:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.2) !important; }
+        .dark .f-ctrl.is-invalid,
+        html.dark .f-ctrl.is-invalid { border-color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+        .dark .f-ctrl.is-warning,
+        html.dark .f-ctrl.is-warning { border-color: #eab308 !important; background-color: rgba(234, 179, 8, 0.1) !important; }
+
+        /* V-btn dark mode */
+        .dark .v-btn.primary,
+        html.dark .v-btn.primary { background: #3b82f6; }
+        .dark .v-btn.primary:hover,
+        html.dark .v-btn.primary:hover { background: #60a5fa; }
+        .dark .v-btn.success,
+        html.dark .v-btn.success { background: #059669; }
+        .dark .v-btn.success:hover,
+        html.dark .v-btn.success:hover { background: #10b981; }
+        .dark .v-btn.outline,
+        html.dark .v-btn.outline { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+        .dark .v-btn.outline:hover,
+        html.dark .v-btn.outline:hover { background: #334155; border-color: #475569; color: #f1f5f9; }
+
+        /* Conversion section dark */
+        .dark #ci-conversion-grp,
+        html.dark #ci-conversion-grp { background: linear-gradient(135deg, #052e16, #064e3b) !important; border-color: #059669 !important; }
+
+        /* Flatpickr dark mode overrides */
+        .dark .flatpickr-calendar,
+        html.dark .flatpickr-calendar { background: #1e293b !important; border: 1px solid #334155 !important; }
+        .dark .flatpickr-month,
+        html.dark .flatpickr-month { background: #0f172a; }
+        .dark .flatpickr-current-month,
+        html.dark .flatpickr-current-month { color: #f1f5f9; }
+        .dark .flatpickr-day,
+        html.dark .flatpickr-day { color: #e2e8f0; }
+        .dark .flatpickr-day:hover,
+        html.dark .flatpickr-day:hover { background: #334155; }
+        .dark .flatpickr-weekday,
+        html.dark .flatpickr-weekday { color: #94a3b8; }
+
+        /* Flatpickr overrides */
+        .flatpickr-calendar {
+          font-family: inherit;
+          border-radius: 10px !important;
+          box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+          border: none !important;
+        }
+        .flatpickr-day.selected {
+          background: #6366f1 !important;
+          border-color: #6366f1 !important;
+        }
+        .flatpickr-day:hover {
+          background: #e0e7ff !important;
         }
       </style>
       <input type="hidden" id="ci-room-id">
 
       <!-- COLUMN 1: Thông tin lưu trú & Thanh toán (flex:1) -->
-      <div style="flex:1; display:flex; flex-direction:column; gap:24px;">
-        <!-- Thông tin lưu trú -->
-        <div class="ci-card"
-          style="margin-bottom:0; background:#fff; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <h6 class="ci-card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            </svg>
-            Thông tin lưu trú
-          </h6>
-          <div class="ci-radio-group" style="display: none; margin-bottom:16px;">
-            <label><input type="radio" name="st" id="st-night" value="night" checked></label>
-            <label><input type="radio" name="st" id="st-hour" value="hour"></label>
+      <div style="flex:1; display:flex; flex-direction:column; gap:16px; min-width:0;">
+
+        <!-- ❶ Thông tin phòng & Thời gian -->
+        <div class="ci-section">
+          <div class="ci-section-header">
+            <div class="ci-section-badge blue">1</div>
+            <h6 class="ci-section-title">Thông tin lưu trú</h6>
           </div>
-          <div class="f-grid">
-            <div class="f-grp">
-              <label>Thời gian nhận phòng <span class="f-req">*</span></label>
-              <input type="datetime-local" class="f-ctrl" id="ci-in" onchange="pmsCalcPrice()">
-            </div>
-            <div class="f-grp">
-              <label>Thời gian trả phòng</label>
-              <input type="datetime-local" class="f-ctrl" id="ci-out" onchange="pmsCalcPrice()">
-            </div>
-            <div class="f-grp">
-              <label>Loại phòng</label>
-              <select class="f-ctrl" id="ci-room-type" disabled>
-                <option id="ci-room-type-opt">—</option>
-              </select>
-            </div>
-            <div class="f-grp">
-              <label>Phòng</label>
-              <input type="text" class="f-ctrl" id="ci-room-num" readonly>
+          <div class="ci-section-body">
+            <div class="ci-radio-group" style="display: none; margin-bottom:16px;">
+              <label><input type="radio" name="st" id="st-night" value="night" checked></label>
+              <label><input type="radio" name="st" id="st-hour" value="hour"></label>
             </div>
 
-            <div class="f-grp">
-              <label>Loại giá</label>
-              <select class="f-ctrl" id="ci-price-type">
-                <option value="default">Mặc định</option>
-                <option value="promo">Khuyến mãi</option>
-              </select>
-            </div>
-            <div class="f-grp">
-              <label>Giá phòng</label>
-              <div class="f-ctrl" style="background:#f0fdf4;color:#15803d;font-weight:700;border-color:#bbf7d0;"
-                id="ci-price">0</div>
-            </div>
-          </div>
-          <div class="f-grp" style="margin-bottom:0; margin-top:16px;">
-            <label>Ghi chú (lưu trú)</label>
-            <textarea class="f-ctrl" id="ci-notes" rows="2" style="resize:none;"
-              placeholder="Ghi chú cho lượt lưu trú" onblur="pmsCiFormatSentence(this)"></textarea>
-          </div>
-        </div>
-
-        <!-- Thông tin thanh toán (Đặt cọc) -->
-        <div class="ci-card"
-          style="margin-bottom:0; background:#fff; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <h6 class="ci-card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-            Thanh toán
-          </h6>
-          <div class="f-grp" style="margin-bottom:0;">
-            <label>Đặt cọc (VND)</label>
-            <input type="text" class="f-ctrl" id="ci-deposit" value="0" placeholder="0"
-              oninput="pmsCiFormatCurrency(this)" style="max-width:200px;">
-          </div>
-        </div>
-
-        <!-- Xuất hoá đơn section -->
-        <div class="ci-card"
-          style="margin-bottom:0; background:#fff; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <h6 class="ci-card-title">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-            Xuất hoá đơn
-          </h6>
-          <div class="f-grid">
-            <div class="f-grp f-grid-full">
-              <div class="ci-radio-group">
-                <label><input type="radio" name="ci-invoice" value="0" checked onchange="pmsCiToggleInvoice(this)">
-                  Không xuất hoá đơn</label>
-                <label><input type="radio" name="ci-invoice" value="1" onchange="pmsCiToggleInvoice(this)"> Có xuất hoá
-                  đơn</label>
+            <!-- Room info compact strip -->
+            <div class="ci-room-strip">
+              <div class="ci-room-strip-item">
+                <label>Phòng</label>
+                <input type="text" class="strip-val" id="ci-room-num" readonly
+                  style="border:none; background:transparent; padding:0; font-size:14px; font-weight:600; color:#1e293b; width:100%; outline:none;">
+              </div>
+              <div class="ci-room-strip-item">
+                <label>Loại phòng</label>
+                <select class="strip-val" id="ci-room-type" disabled
+                  style="border:none; background:transparent; padding:0; font-size:14px; font-weight:600; color:#1e293b; appearance:none; outline:none; cursor:default;">
+                  <option id="ci-room-type-opt">—</option>
+                </select>
               </div>
             </div>
-            <div class="f-grp" id="ci-grp-tax" style="display:none;">
-              <label>Mã số thuế</label>
-              <input type="text" class="f-ctrl" id="ci-tax-code" placeholder="Mã số thuế" oninput="pmsCiFormatBasicNumeric(this)">
+
+            <!-- Time fields -->
+            <div class="ci-time-grid">
+              <div class="ci-time-field">
+                <label>Nhận phòng <span class="f-req">*</span></label>
+                <input type="datetime-local" class="f-ctrl" id="ci-in" onchange="pmsCalcPrice()" style="padding-left:12px;">
+              </div>
+              <div class="ci-time-field">
+                <label>Trả phòng dự kiến</label>
+                <input type="datetime-local" class="f-ctrl" id="ci-out" onchange="pmsCalcPrice()" style="padding-left:12px;">
+              </div>
             </div>
-            <div class="f-grp" id="ci-grp-tax-contact" style="display:none;">
-              <label>Liên hệ gửi hoá đơn</label>
-              <input type="text" class="f-ctrl" id="ci-tax-contact" placeholder="Email hoặc SĐT nhận hoá đơn">
+
+            <!-- Vehicle & Notes row -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <div class="f-grp" style="margin-bottom:0;">
+                <label>Phương tiện</label>
+                <input type="text" class="f-ctrl" id="ci-vehicle" placeholder="Biển số xe, loại xe...">
+              </div>
+              <div class="f-grp" style="margin-bottom:0;">
+                <label>Ghi chú</label>
+                <input type="text" class="f-ctrl" id="ci-notes" placeholder="Ghi chú lưu trú"
+                  onblur="pmsCiFormatSentence(this)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ❷ Thanh toán -->
+        <div class="ci-section">
+          <div class="ci-section-header">
+            <div class="ci-section-badge green">2</div>
+            <h6 class="ci-section-title">Thanh toán</h6>
+          </div>
+          <div class="ci-section-body">
+            <div class="ci-pay-grid">
+              <div class="ci-pay-item">
+                <label>Loại giá</label>
+                <select class="f-ctrl" id="ci-price-type"
+                  style="border:none; padding:0; font-size:14px; font-weight:600; color:#1e293b; background:transparent;">
+                  <option value="default">Mặc định</option>
+                  <option value="promo">Khuyến mãi</option>
+                </select>
+              </div>
+              <div class="ci-pay-item">
+                <label>Giá phòng</label>
+                <div class="ci-pay-val" id="ci-price">0</div>
+              </div>
+              <div class="ci-pay-item ci-pay-item--deposit">
+                <label>Trả trước (VND)</label>
+                <input type="text" class="f-ctrl" id="ci-deposit" value="0" placeholder="0"
+                  oninput="pmsCiFormatCurrency(this)"
+                  style="border:none; padding:0; font-size:16px; font-weight:700; background:transparent; color:#1e293b;">
+              </div>
+
+              <!-- New Row for Prepayment Type -->
+              <div class="ci-pay-item">
+                <label>Phân loại trả trước</label>
+                <select class="f-ctrl" id="ci-deposit-type" onchange="pmsCiOnDepositTypeChange(this)"
+                  style="border:none; padding:0; font-size:14px; font-weight:600; color:#1e293b; background:transparent;">
+                  <option value="Chi nhánh">Chi nhánh</option>
+                  <option value="Công ty">Công ty</option>
+                  <option value="OTA">OTA</option>
+                  <option value="UNC">UNC</option>
+                  <option value="Quẹt thẻ">Quẹt thẻ</option>
+                </select>
+              </div>
+
+              <!-- Conditional Meta Field -->
+              <div class="ci-pay-item" id="ci-deposit-meta-grp" style="grid-column: span 2; display:none;">
+                <div id="ci-meta-company" style="display:none;">
+                  <label style="font-size:11.5px; font-weight:600; color:#64748b; margin-bottom:4px; display:block;">Tài khoản thụ hưởng</label>
+                  <input type="text" class="f-ctrl" id="ci-deposit-beneficiary" placeholder="Nhập số tài khoản/tên tài khoản"
+                    style="border:none; padding:0; font-size:14px; font-weight:600; color:#1e293b; background:transparent; width:100%;">
+                </div>
+                <div id="ci-meta-ota" style="display:none;">
+                  <label style="font-size:11.5px; font-weight:600; color:#64748b; margin-bottom:4px; display:block;">Kênh OTA</label>
+                  <select class="f-ctrl" id="ci-deposit-ota"
+                    style="border:none; padding:0; font-size:14px; font-weight:600; color:#1e293b; background:transparent; width:100%;">
+                    <option value="Agoda">Agoda</option>
+                    <option value="Booking">Booking</option>
+                    <option value="Ctrip">Ctrip</option>
+                    <option value="Go2Joy">Go2Joy</option>
+                    <option value="Traveloka">Traveloka</option>
+                    <option value="Expedia">Expedia</option>
+                    <option value="Mytour">Mytour</option>
+                    <option value="AirBnB">AirBnB</option>
+                  </select>
+                </div>
+                <div id="ci-meta-unc" style="display:none;">
+                  <label style="font-size:11.5px; font-weight:600; color:#64748b; margin-bottom:4px; display:block;">Mã hoá đơn (UNC)</label>
+                  <input type="text" class="f-ctrl" id="ci-deposit-invoice" placeholder="Nhập mã UNC"
+                    style="border:none; padding:0; font-size:14px; font-weight:600; color:#1e293b; background:transparent; width:100%;">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ❸ Xuất hoá đơn -->
+        <div class="ci-section">
+          <div class="ci-section-header">
+            <div class="ci-section-badge amber">3</div>
+            <h6 class="ci-section-title">Xuất hoá đơn</h6>
+          </div>
+          <div class="ci-section-body" style="padding: 14px 20px;">
+            <div class="ci-invoice-toggle" style="margin-bottom:0;">
+              <label><input type="radio" name="ci-invoice" value="0" checked onchange="pmsCiToggleInvoice(this)">
+                Không xuất</label>
+              <label><input type="radio" name="ci-invoice" value="1" onchange="pmsCiToggleInvoice(this)">
+                Có xuất hoá đơn</label>
+            </div>
+            <div id="ci-invoice-fields" style="display:none; margin-top:14px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="f-grp" id="ci-grp-tax" style="margin-bottom:0;">
+                  <label>Mã số thuế <span class="f-req">*</span></label>
+                  <input type="text" class="f-ctrl" id="ci-tax-code" placeholder="Mã số thuế"
+                    oninput="pmsCiFormatBasicNumeric(this)">
+                </div>
+                <div class="f-grp" id="ci-grp-tax-contact" style="margin-bottom:0;">
+                  <label>Liên hệ hoá đơn <span class="f-req">*</span></label>
+                  <input type="text" class="f-ctrl" id="ci-tax-contact" placeholder="Email hoặc SĐT">
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- COLUMN 2: Thông tin khách -->
-      <div class="ci-card"
-        style="flex:1.5; margin-bottom:0; background:#fff; border-radius:8px; border:1px solid #e2e8f0; box-shadow:0 1px 3px rgba(0,0,0,0.05); display:flex; flex-direction:column; max-height:100%; overflow:hidden;">
-        <h6 class="ci-card-title" style="flex-shrink:0;">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Thông tin khách
-        </h6>
+      <div class="ci-section" style="flex:1.5; display:flex; flex-direction:column; max-height:100%; overflow:hidden;">
+        <div class="ci-section-header" style="flex-shrink:0;">
+          <div class="ci-section-badge purple">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff"
+              stroke-width="2.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <h6 class="ci-section-title">Thông tin khách</h6>
+        </div>
 
-        <div style="flex:1; overflow-y:auto; padding-right:8px; padding-bottom:24px;">
+        <div style="flex:1; overflow-y:auto; padding:18px 20px 24px;">
           <div id="ci-capacity-warn" class="ci-capacity-warn"></div>
-          
+
+          <!-- Toolbar -->
           <div class="ci-guest-toolbar">
-            <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
               <button type="button" class="v-btn primary" onclick="ciAddGuest()" id="ci-add-guest-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2">
@@ -245,7 +807,7 @@
                 </svg>
                 Huỷ
               </button>
-              <button type="button" class="v-btn outline" onclick="ciRefreshGuestForm()">
+              <button type="button" class="v-btn outline" onclick="ciRefreshGuestForm()" id="ci-refresh-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" stroke-width="2">
                   <polyline points="23 4 23 10 17 10" />
@@ -279,44 +841,50 @@
             </div>
           </div>
           <div id="ci-guest-list-panel" class="ci-guest-list-panel"></div>
-          
-          <!-- Document Type & Number - moved above Name/Gender for faster entry -->
-          <div class="f-grid" style="margin-bottom:16px; padding:12px; background:#f0f9ff; border-radius:8px; border:1px solid #bae6fd;">
-            <div class="f-grp">
-              <label>Loại giấy tờ <span class="f-req">*</span></label>
-              <select class="f-ctrl" id="ci-id-type"
-                onchange="pmsCiToggleIdFields(this); pmsCiFormatID(document.getElementById('ci-cccd'));">
-                <option value="cccd">CCCD</option>
-                <option value="cmnd">CMND</option>
-                <option value="passport">Passport</option>
-                <option value="visa">Visa</option>
-                <option value="gplx">GPLX</option>
-              </select>
-            </div>
-            <div class="f-grp">
-              <label>Số giấy tờ <span class="f-req">*</span></label>
-              <div style="display:flex; gap:8px; align-items:center;">
-                <input type="text" class="f-ctrl" id="ci-cccd" placeholder="Nhập số giấy tờ" 
-                       oninput="pmsCiFormatID(this); pmsCiCheckGuestByCCCD(this)" 
-                       onblur="pmsCiValidateID(this)" 
-                       style="flex:1;">
-                <button type="button" onclick="pmsCiSearchOldGuest()" title="Tìm khách cũ"
-                        style="padding:8px 12px; background:#f1f5f9; border:1px solid #e2e8f0; border-radius:6px; cursor:pointer; color:#475569; display:flex; align-items:center; gap:4px; font-size:13px; white-space:nowrap;">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  Tìm
-                </button>
+
+          <div class="ci-id-section">
+            <div class="f-grid" id="ci-id-grid" style="grid-template-columns: 2fr 1fr 1fr; align-items: flex-end; gap: 16px 20px;">
+              <div class="f-grp">
+                <label>Số giấy tờ <span class="f-req">*</span></label>
+                <div style="display:flex; gap:8px; align-items:center;">
+                  <input type="text" class="f-ctrl" id="ci-cccd" placeholder="Nhập số giấy tờ"
+                    oninput="pmsCiFormatID(this)"
+                    style="flex:1;">
+                  <button type="button" onclick="pmsCiSearchOldGuest()" title="Tìm khách cũ"
+                    style="padding:8px 12px; background:#fff; border:1px solid #bfdbfe; border-radius:8px; cursor:pointer; color:#2563eb; display:flex; align-items:center; gap:4px; font-size:13px; white-space:nowrap; font-weight:600; transition:all .15s;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                    Tìm
+                  </button>
+                </div>
+              </div>
+              <div class="f-grp">
+                <label>Loại giấy tờ <span class="f-req">*</span></label>
+                <select class="f-ctrl" id="ci-id-type"
+                  onchange="pmsCiToggleIdFields(this); pmsCiFormatID(document.getElementById('ci-cccd'));">
+                  <option value="cccd">CCCD</option>
+                  <option value="cmnd">CMND</option>
+                  <option value="passport">Passport</option>
+                  <option value="visa">Visa</option>
+                  <option value="gplx">GPLX</option>
+                </select>
+              </div>
+              <div class="f-grp" id="ci-grp-expire">
+                <label>Ngày hết hạn <span class="f-req">*</span></label>
+                <input type="date" class="f-ctrl" id="ci-id-expire" onblur="pmsCiCheckIdExpire(this)">
               </div>
             </div>
-            <div class="f-grp" id="ci-grp-expire" style="display:none;">
-              <label>Ngày hết hạn <span class="f-req">*</span></label>
-              <input type="date" class="f-ctrl" id="ci-id-expire">
-            </div>
           </div>
-          
-          <div class="f-grid">
+
+          <!-- Personal Info -->
+          <div class="ci-personal-section">
             <div class="f-grp">
               <label>Họ và tên <span class="f-req">*</span></label>
-              <input type="text" class="f-ctrl" id="ci-name" placeholder="Họ và tên" onblur="pmsCiFormatCapitalize(this)">
+              <input type="text" class="f-ctrl" id="ci-name" placeholder="Họ và tên"
+                onblur="pmsCiFormatCapitalize(this)">
             </div>
             <div class="f-grp">
               <label>Giới tính <span class="f-req">*</span></label>
@@ -329,66 +897,111 @@
             </div>
             <div class="f-grp">
               <label>Ngày sinh <span class="f-req">*</span></label>
-              <input type="date" class="f-ctrl" id="ci-birth">
+              <input type="date" class="f-ctrl" id="ci-birth" onblur="pmsCiCheckBirth(this)">
             </div>
             <div class="f-grp">
               <label>Số điện thoại</label>
-              <input type="text" class="f-ctrl" id="ci-phone" placeholder="Số điện thoại" oninput="pmsCiFormatBasicNumeric(this)">
+              <input type="text" class="f-ctrl" id="ci-phone" placeholder="Số điện thoại"
+                oninput="pmsCiFormatBasicNumeric(this)">
             </div>
             <div class="f-grp">
               <label>Quốc tịch <span class="f-req">*</span></label>
               <input list="dl-nationality" class="f-ctrl" id="ci-nationality" placeholder="Chọn hoặc gõ Quốc tịch"
                 value="VNM - Việt Nam">
               <datalist id="dl-nationality">
-                <option value="VNM - Việt Nam"></option>
-                <option value="USA - Mỹ"></option>
-                <option value="KOR - Hàn Quốc"></option>
-                <option value="CHN - Trung Quốc"></option>
-                <option value="JPN - Nhật Bản"></option>
-                <option value="Khác"></option>
+                <!-- Populated dynamically from nationalities.js -->
               </datalist>
             </div>
-            <div class="f-grp f-grid-full">
-              <label>Ghi chú (khách)</label>
-              <input type="text" class="f-ctrl" id="ci-guest-notes" placeholder="Ghi chú" onblur="pmsCiFormatSentence(this)">
+            <div class="f-grp">
+              <label>Ghi chú</label>
+              <input type="text" class="f-ctrl" id="ci-guest-notes" placeholder="Ghi chú"
+                onblur="pmsCiFormatSentence(this)">
             </div>
-
-            <div class="f-grp f-grid-full" id="ci-grp-area">
-              <label>Loại địa bàn</label>
-              <div class="ci-radio-group">
-                <label><input type="radio" name="ci-area" value="new" checked onchange="pmsCiToggleArea(this.value)">
-                  Địa bàn mới</label>
-                <label><input type="radio" name="ci-area" value="old" onchange="pmsCiToggleArea(this.value)"> Địa bàn
-                  cũ</label>
-              </div>
-            </div>
-            <div class="f-grp" id="ci-grp-province">
-              <label id="ci-lbl-province">Tỉnh/Thành phố</label>
-              <input list="dl-province" class="f-ctrl" id="ci-province" placeholder="Chọn Lọc Tỉnh/Thành">
-              <datalist id="dl-province">
-                <option value="Hà Nội"></option>
-                <option value="TP. Hồ Chí Minh"></option>
-                <option value="Đà Nẵng"></option>
-              </datalist>
-            </div>
-            <div class="f-grp" id="ci-grp-district" style="display:none;">
-              <label id="ci-lbl-district">Quận/Huyện cũ</label>
-              <input list="dl-district" class="f-ctrl" id="ci-district" placeholder="Chọn Lọc Quận/Huyện">
-              <datalist id="dl-district"></datalist>
-            </div>
-            <div class="f-grp" id="ci-grp-ward">
-              <label id="ci-lbl-ward">Phường/Xã</label>
-              <input list="dl-ward" class="f-ctrl" id="ci-ward" placeholder="Chọn Lọc Phường/Xã">
-              <datalist id="dl-ward"></datalist>
-            </div>
-
-            <div class="f-grp f-grid-full" id="ci-grp-address">
-              <label>Địa chỉ chi tiết <span class="f-req">*</span></label>
-              <input type="text" class="f-ctrl" id="ci-address" placeholder="Số nhà, ngách, hẻm, đường" onblur="pmsCiFormatCapitalize(this)">
-            </div>
-
-
           </div>
+
+          <!-- Address Section -->
+          <div class="ci-address-section">
+            <div class="f-grid" style="grid-template-columns: repeat(2, 1fr);">
+              <div class="f-grp f-grid-full" id="ci-grp-area" style="margin-bottom:4px;">
+                <div class="ci-radio-group" style="display:flex; gap:20px; align-items:center;">
+                  <label><input type="radio" name="ci-area" value="new" checked onchange="vnSwitchMode('new');"> Địa bàn mới (2025)</label>
+                  <label><input type="radio" name="ci-area" value="old" onchange="vnSwitchMode('old');"> Địa bàn cũ</label>
+                </div>
+              </div>
+              <div class="f-grp" id="ci-grp-province">
+                <label id="ci-lbl-province">Tỉnh/Thành phố <span class="f-req">*</span></label>
+                <input list="dl-province" class="f-ctrl" id="ci-province" placeholder="Chọn Tỉnh/Thành"
+                  data-dl="dl-province"
+                  oninput="vnOnProvinceChange(this)" onchange="vnOnProvinceChange(this)"
+                  onblur="vnValidateDatalist(this)">
+                <datalist id="dl-province"></datalist>
+              </div>
+              <!-- District: only visible in OLD mode -->
+              <div class="f-grp" id="ci-grp-district" style="display:none;">
+                <label id="ci-lbl-district">Quận/Huyện <span class="f-req">*</span></label>
+                <input list="dl-district" class="f-ctrl" id="ci-district" placeholder="Chọn Quận/Huyện"
+                  data-dl="dl-district"
+                  oninput="vnOnDistrictChange(this)" onchange="vnOnDistrictChange(this)"
+                  onblur="vnValidateDatalist(this)">
+                <datalist id="dl-district"></datalist>
+              </div>
+              <div class="f-grp" id="ci-grp-ward">
+                <label id="ci-lbl-ward">Phường/Xã <span class="f-req">*</span></label>
+                <input list="dl-ward" class="f-ctrl" id="ci-ward" placeholder="Chọn Phường/Xã"
+                  data-dl="dl-ward"
+                  oninput="vnOnWardChange(this)" onchange="vnOnWardChange(this)"
+                  onblur="vnValidateDatalist(this)">
+                <datalist id="dl-ward"></datalist>
+              </div>
+              <!-- Conversion display: only visible in OLD mode -->
+              <div class="f-grp" id="ci-conversion-grp" style="display:none; grid-column: span 2;">
+                <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1px solid #86efac; border-radius:8px; padding:10px 14px;">
+                  <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; color:#15803d; font-weight:600; font-size:12px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                    Chuyển đổi sang địa bàn mới:
+                  </div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                    <div>
+                      <label style="font-size:11px; color:#64748b; margin-bottom:2px; display:block;">Tỉnh/TP (mới)</label>
+                      <input type="text" class="f-ctrl" id="ci-new-province" readonly
+                        style="background:#fff; border:1px solid #86efac; color:#15803d; font-weight:600; cursor:default;">
+                    </div>
+                    <div>
+                      <label style="font-size:11px; color:#64748b; margin-bottom:2px; display:block;">Phường/Xã (mới)</label>
+                      <input type="text" class="f-ctrl" id="ci-new-ward" readonly
+                        style="background:#fff; border:1px solid #86efac; color:#15803d; font-weight:600; cursor:default;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Address Validation Warning Panel -->
+              <div id="ci-addr-warning-panel" style="display:none; margin-bottom:12px;">
+                <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7); border:1px solid #fcd34d; border-radius:8px; padding:12px;">
+                  <div style="display:flex; align-items:flex-start; gap:8px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" style="flex-shrink:0; margin-top:2px;">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <div style="flex:1;">
+                      <div style="font-weight:600; font-size:12px; color:#92400e; margin-bottom:4px;">Cảnh báo địa chỉ</div>
+                      <div id="ci-addr-warning-list" style="font-size:11.5px; color:#a16207; line-height:1.5;"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="f-grp f-grid-full" id="ci-grp-address">
+                <label>Địa chỉ chi tiết <span class="f-req">*</span></label>
+                <input type="text" class="f-ctrl" id="ci-address" placeholder="Số nhà, ngách, hẻm, đường"
+                  onblur="pmsCiFormatCapitalize(this)">
+              </div>
+              <!-- Progressive Normalization State Badge -->
+              <div class="addr-state-badge" id="_addr_state_badge"></div>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

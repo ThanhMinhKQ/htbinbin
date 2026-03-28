@@ -93,8 +93,8 @@ def login_submit(
     
     # === CẢI TIẾN: Lấy và lưu chi nhánh hoạt động cuối cùng vào session ===
     # Ngay cả khi đã check-in, chúng ta vẫn cần biết chi nhánh hoạt động cuối cùng là gì.
-    if user.last_active_branch:
-        request.session["active_branch"] = user.last_active_branch
+    if user.last_active_branch_id and user.last_active_branch:
+        request.session["active_branch"] = user.last_active_branch.branch_code
 
     user_agent = request.headers.get("user-agent", "").lower()
     is_mobile = any(k in user_agent for k in ["mobi", "android", "iphone", "ipad"])

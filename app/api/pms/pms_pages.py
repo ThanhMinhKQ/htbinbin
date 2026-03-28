@@ -24,18 +24,24 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 @router.get("/pms", response_class=HTMLResponse, tags=["PMS"])
 async def pms_dashboard(request: Request, db: Session = Depends(get_db)):
     user = _require_login(request)
-    branch_name = _active_branch(request)
+    branch_code = _active_branch(request)
     is_admin = _is_admin(user)
     is_manager = _is_manager(user)
 
-    # Lấy thông tin branch từ DB
+    # Lấy thông tin branch từ DB (theo branch_code)
     branch = None
-    if branch_name and branch_name not in ("HỆ THỐNG", "Chưa phân bổ"):
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
+    if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
+        branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
 
     branches = []
     if is_admin:
-        branches = db.query(Branch).filter(Branch.name.like('Bin Bin Hotel%')).order_by(Branch.name).all()
+        # Sắp xếp theo thứ tự tự nhiên: B1, B2, B3... thay vì B1, B10, B11, B2...
+        branches_raw = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
+        import re
+        def natural_key(code):
+            parts = re.split(r'(\d+)', code)
+            return [(int(p) if p.isdigit() else p.lower()) for p in parts]
+        branches = sorted(branches_raw, key=lambda b: natural_key(b.branch_code))
 
     # Get stats for dashboard
     stats = _get_pms_stats(db, branch.id if branch else None)
@@ -64,7 +70,8 @@ async def pms_dashboard(request: Request, db: Session = Depends(get_db)):
         "branches": branches,
         "is_admin": is_admin,
         "is_manager": is_manager,
-        "branch_name": branch_name,
+        "branch_code": branch_code,
+        "branch_name": branch.name if branch else "",
         "stats": stats,
         "room_types": room_types,
     })
@@ -74,14 +81,14 @@ async def pms_dashboard(request: Request, db: Session = Depends(get_db)):
 async def pms_booking(request: Request, db: Session = Depends(get_db)):
     """Trang quản lý đặt phòng - tìm phòng trống."""
     user = _require_login(request)
-    branch_name = _active_branch(request)
+    branch_code = _active_branch(request)
     is_admin = _is_admin(user)
     branch = None
-    if branch_name and branch_name not in ("HỆ THỐNG", "Chưa phân bổ"):
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
+    if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
+        branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
     branches = []
     if is_admin:
-        branches = db.query(Branch).filter(Branch.name.like('Bin Bin Hotel%')).order_by(Branch.name).all()
+        branches = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
     room_types = []
     if branch:
         room_types = (
@@ -105,7 +112,8 @@ async def pms_booking(request: Request, db: Session = Depends(get_db)):
         "branch": branch,
         "branches": branches,
         "is_admin": is_admin,
-        "branch_name": branch_name,
+        "branch_code": branch_code,
+        "branch_name": branch.name if branch else "",
         "room_types": room_types,
     })
 
@@ -117,7 +125,7 @@ async def pms_setup(request: Request, db: Session = Depends(get_db)):
     if not _is_admin(user):
         raise HTTPException(status_code=403, detail="Không có quyền truy cập")
 
-    branches = db.query(Branch).filter(Branch.name.like('Bin Bin Hotel%')).order_by(Branch.name).all()
+    branches = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
     tab = (request.query_params.get("tab") or "types").strip().lower()
     if tab not in ("types", "rooms"):
         tab = "types"

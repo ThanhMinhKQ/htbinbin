@@ -31,6 +31,9 @@ from .api.pms import (
     checkout_router as pms_checkout,
     stays_router as pms_stays,
     admin_router as pms_admin,
+    vn_address_router as pms_vn_address,
+    guest_activities_router as pms_guest_activities,
+    cccd_scan_router as pms_cccd_scan,
 )
 
 from .core.config import settings, logger
@@ -245,6 +248,9 @@ app.include_router(pms_checkin, tags=["PMS"])
 app.include_router(pms_checkout, tags=["PMS"])
 app.include_router(pms_stays, tags=["PMS"])
 app.include_router(pms_admin, tags=["PMS Admin"])
+app.include_router(pms_vn_address, tags=["PMS VN Address"])
+app.include_router(pms_guest_activities, tags=["PMS Guest Activities"])
+app.include_router(pms_cccd_scan, tags=["PMS CCCD Scan"])
 
 
 # --- ROOT ENDPOINT ---

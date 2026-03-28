@@ -44,18 +44,48 @@ def _is_manager(user: dict) -> bool:
 
 
 def _active_branch(request: Request) -> str:
-    return request.session.get("active_branch") or ""
+    """Lấy active branch từ session, fallback về DB nếu cần"""
+    branch_code = request.session.get("active_branch")
+    if branch_code:
+        return branch_code
+
+    # Fallback: thử lấy từ DB user
+    user = request.session.get("user")
+    if user:
+        # Lấy user_id từ session
+        user_id = user.get("id")
+        if user_id:
+            # Import get_db tại đây để tránh circular import
+            from ...db.session import SessionLocal
+            with SessionLocal() as db:
+                u = db.query(User).filter(User.id == user_id).first()
+                if u and u.last_active_branch_id and u.last_active_branch:
+                    return u.last_active_branch.branch_code
+    return ""
+
+
+def _get_active_branch_code(request: Request, db: Session) -> str:
+    """Lấy active branch code với DB session (dùng trong API handlers)"""
+    branch_code = request.session.get("active_branch")
+    if branch_code:
+        return branch_code
+
+    user = request.session.get("user")
+    if user and user.get("id"):
+        u = db.query(User).filter(User.id == user["id"]).first()
+        if u and u.last_active_branch_id and u.last_active_branch:
+            return u.last_active_branch.branch_code
+    return ""
 
 
 def _now_vn() -> datetime:
     return datetime.now(VN_TZ)
 
 
-def _get_branch_id(branch_name: str, db: Session) -> Optional[int]:
-    """Lấy branch_id từ tên branch"""
-    if branch_name and branch_name not in ("HỆ THỐNG", "Chưa phân bổ"):
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
-        return branch.id if branch else None
+def _get_branch_by_code(branch_code: str, db: Session) -> Optional[Branch]:
+    """Lấy branch từ branch_code"""
+    if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
+        return db.query(Branch).filter(Branch.branch_code == branch_code).first()
     return None
 
 
@@ -139,25 +169,28 @@ def _room_to_dict(room: HotelRoom, active_stay: Optional[HotelStay] = None) -> d
         "stay": None,
     }
     if active_stay:
-        primary = next((g for g in active_stay.guests if g.is_primary), None)
-        all_guests = active_stay.guests
+        # Filter only guests who haven't checked out yet
+        staying_guests = [g for g in active_stay.guests if not g.check_out_at]
+        primary = next((g for g in staying_guests if g.is_primary), None)
+        all_guests = staying_guests
         d["stay"] = {
             "id": active_stay.id,
             "stay_type": active_stay.stay_type,
             "check_in_at": active_stay.check_in_at.isoformat(),
             "check_out_at": active_stay.check_out_at.isoformat() if active_stay.check_out_at else None,
-            "guest_count": len(all_guests),
-            "primary_guest": primary.full_name if primary else (all_guests[0].full_name if all_guests else "—"),
+            "guest_count": len(staying_guests),
+            "primary_guest": primary.full_name if primary else (staying_guests[0].full_name if staying_guests else "—"),
+            "vehicle": active_stay.vehicle if hasattr(active_stay, 'vehicle') else None,
             "guests": [
                 {
                     "id": g.id, "full_name": g.full_name, "cccd": g.cccd,
                     "gender": g.gender, "phone": g.phone,
                     "birth_date": g.birth_date.isoformat() if g.birth_date else None,
                     "is_primary": g.is_primary,
-                    "vehicle": g.vehicle,
                     "notes": g.notes,
+                    "check_out_at": g.check_out_at.isoformat() if g.check_out_at else None,
                 }
-                for g in all_guests
+                for g in staying_guests
             ],
         }
     return d

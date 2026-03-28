@@ -34,13 +34,13 @@ async def api_get_rooms(
     """Lấy danh sách phòng cùng trạng thái hiện tại."""
     user = _require_login(request)
     is_admin = _is_admin(user)
-    branch_name = _active_branch(request)
+    branch_code = _active_branch(request)
 
     # Xác định branch filter
     if is_admin and branch_id:
         target_branch_id = branch_id
     elif not is_admin:
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
+        branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
         target_branch_id = branch.id if branch else None
     else:
         target_branch_id = None
@@ -83,13 +83,13 @@ async def api_get_room_types(
 ):
     user = _require_login(request)
     is_admin = _is_admin(user)
-    branch_name = _active_branch(request)
+    branch_code = _active_branch(request)
 
     q = db.query(HotelRoomType).filter(HotelRoomType.is_active == True)
     if branch_id:
         q = q.filter(HotelRoomType.branch_id == branch_id)
     elif not is_admin:
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
+        branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
         if branch:
             q = q.filter(HotelRoomType.branch_id == branch.id)
 
@@ -107,6 +107,69 @@ async def api_get_room_types(
         }
         for t in types
     ])
+
+
+# ─────────────────────────── API: Available Rooms for Transfer ─────────────────────────
+
+@router.get("/api/pms/rooms/available", tags=["PMS"])
+async def api_get_available_rooms(
+    request: Request,
+    stay_id: int = Query(..., description="Stay ID to find available rooms for transfer"),
+    db: Session = Depends(get_db),
+):
+    """Lấy danh sách phòng trống khả dụng cho chuyển phòng (loại trừ phòng hiện tại + phòng đã đặt)."""
+    user = _require_login(request)
+    branch_code = _active_branch(request)
+
+    # Get current stay
+    stay = (
+        db.query(HotelStay)
+        .options(joinedload(HotelStay.room))
+        .filter(HotelStay.id == stay_id, HotelStay.status == HotelStayStatus.ACTIVE)
+        .first()
+    )
+    if not stay:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lưu trú")
+
+    current_room_id = stay.room_id
+    check_in = stay.check_in_at
+    check_out = stay.check_out_at or _now_vn()
+    branch_id = stay.branch_id
+
+    # Get occupied room IDs in the stay date range
+    occupied_ids = _get_occupied_rooms_for_dates(db, branch_id, check_in, check_out)
+
+    # Query available rooms (not current, not occupied, same branch, active)
+    q = (
+        db.query(HotelRoom)
+        .options(joinedload(HotelRoom.room_type_obj))
+        .filter(
+            HotelRoom.is_active == True,
+            HotelRoom.id != current_room_id,
+            HotelRoom.id.notin_(occupied_ids) if occupied_ids else True,
+            HotelRoom.branch_id == branch_id,
+        )
+        .order_by(HotelRoom.floor, HotelRoom.sort_order, HotelRoom.room_number)
+    )
+
+    rooms = q.all()
+    result = [
+        {
+            "id": r.id,
+            "room_number": r.room_number,
+            "floor": r.floor,
+            "type_name": r.room_type_obj.name if r.room_type_obj else "—",
+            "price_per_night": float(r.room_type_obj.price_per_night) if r.room_type_obj else 0,
+            "status": "available",
+        }
+        for r in rooms
+    ]
+
+    return JSONResponse({
+        "rooms": result,
+        "current_room_id": current_room_id,
+        "stay_id": stay_id,
+    })
 
 
 # ─────────────────────────── API: Smart Booking ─────────────────────────
@@ -129,7 +192,7 @@ async def api_search_rooms(
     """
     user = _require_login(request)
     is_admin = _is_admin(user)
-    branch_name = _active_branch(request)
+    branch_code = _active_branch(request)
 
     # Parse datetime
     try:
@@ -144,7 +207,7 @@ async def api_search_rooms(
     # Determine branch
     target_branch_id = branch_id
     if not target_branch_id and not is_admin:
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
+        branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
         if branch:
             target_branch_id = branch.id
 
@@ -251,7 +314,7 @@ async def api_availability_calendar(
     """
     user = _require_login(request)
     is_admin = _is_admin(user)
-    branch_name = _active_branch(request)
+    branch_code = _active_branch(request)
 
     try:
         start = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=VN_TZ)
@@ -260,7 +323,7 @@ async def api_availability_calendar(
 
     target_branch_id = branch_id
     if not target_branch_id and not is_admin:
-        branch = db.query(Branch).filter(Branch.name == branch_name).first()
+        branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
         if branch:
             target_branch_id = branch.id
 

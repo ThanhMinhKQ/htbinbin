@@ -1,3 +1,6 @@
+# Cursor AI
+.cursor/
+
 # Python
 __pycache__/
 *.py[cod]

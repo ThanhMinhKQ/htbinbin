@@ -1,0 +1,766 @@
+<!-- =========================================================================
+     POPUP MODALS (Surcharge, Service, Extension)
+     ========================================================================= -->
+<style>
+  /* Dark Mode for Sub Modals */
+  .dark .rd-sm-cat-item,
+  html.dark .rd-sm-cat-item { color: #94a3b8; }
+  .dark .rd-sm-cat-item:hover,
+  html.dark .rd-sm-cat-item:hover { background: #1e293b; }
+  .dark .rd-sm-cat-item.active,
+  html.dark .rd-sm-cat-item.active { background: #1e3a8a !important; color: #93c5fd !important; }
+
+  .rd-sm-cat-item {
+    padding: 12px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s ease;
+    border-left: 3px solid transparent;
+  }
+
+  .rd-sm-cat-item:hover {
+    background: #f1f5f9;
+  }
+
+  .rd-sm-cat-item.active {
+    background: #fff;
+    color: #3b82f6;
+    font-weight: 600;
+    border-left-color: #3b82f6;
+  }
+
+  .dark .rd-active-list-item,
+  html.dark .rd-active-list-item { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .dark .rd-active-list-item:hover,
+  html.dark .rd-active-list-item:hover { background: #334155; border-color: #3b82f6; }
+
+  .rd-active-list-item {
+    font-size: 11px;
+    padding: 6px 12px;
+    background: #fff;
+    border-radius: 6px;
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #f1f5f9;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .rd-active-list-item:hover {
+    border-color: #3b82f6;
+    background: #f0f7ff;
+  }
+
+  .dark .rd-active-list-item:hover,
+  html.dark .rd-active-list-item:hover { background: #334155; border-color: #3b82f6; }
+
+  .rd-sub-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.3);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+  }
+
+  .rd-sub-modal {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.2);
+    max-width: 900px;
+    width: 95%;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    animation: rdModalPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .dark .rd-sub-modal,
+  html.dark .rd-sub-modal { background: rgba(30, 41, 59, 0.98); }
+
+  @keyframes rdModalPop {
+    from {
+      transform: scale(0.9) translateY(20px);
+      opacity: 0;
+    }
+
+    to {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .rd-sm-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .dark .rd-sm-header,
+  html.dark .rd-sm-header { border-color: #334155; }
+
+  .rd-sm-title {
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+
+  .dark .rd-sm-title,
+  html.dark .rd-sm-title { color: #f1f5f9; }
+
+  .rd-sm-close {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #64748b;
+    transition: all 0.2s;
+  }
+
+  .dark .rd-sm-close,
+  html.dark .rd-sm-close { background: #334155; color: #94a3b8; }
+
+  .rd-sm-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    transform: rotate(90deg);
+  }
+
+  .dark .rd-sm-close:hover,
+  html.dark .rd-sm-close:hover { background: #7f1d1d; color: #fca5a5; }
+
+  .rd-sm-body {
+    padding: 20px;
+    display: flex;
+    gap: 24px;
+  }
+
+  .dark .rd-sm-body,
+  html.dark .rd-sm-body { background: #1e293b; }
+
+  /* Surcharge & Service Grids */
+  .rd-sm-left {
+    flex: 1.6;
+  }
+
+  .dark .rd-sm-left,
+  html.dark .rd-sm-left { background: #1e293b; }
+
+  .rd-sm-right {
+    flex: 1;
+    border-left: 1px solid #f1f5f9;
+    padding-left: 24px;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    background: #fafafa;
+    margin: -20px;
+    margin-left: 0;
+    padding: 20px;
+  }
+
+  .dark .rd-sm-right,
+  html.dark .rd-sm-right { background: #0f172a; border-color: #334155; }
+
+  .rd-sm-bill-list {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+    margin-bottom: 16px;
+    padding-right: 4px;
+  }
+
+  .dark .rd-sm-bill-list,
+  html.dark .rd-sm-bill-list { background: transparent; }
+
+  .rd-sm-bill-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: #334155;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid #f1f5f9;
+  }
+
+  .dark .rd-sm-bill-item,
+  html.dark .rd-sm-bill-item { background: #334155; border-color: #475569; color: #e2e8f0; }
+
+  .rd-sm-total-row {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 800;
+    color: #0f172a;
+    font-size: 15px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 2px solid #e2e8f0;
+  }
+
+  .dark .rd-sm-total-row,
+  html.dark .rd-sm-total-row { color: #f1f5f9; border-color: #475569; }
+
+  /* Chips */
+  .rd-sm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .rd-sm-chip {
+    padding: 6px 12px;
+    border-radius: 100px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+  }
+
+  .dark .rd-sm-chip,
+  html.dark .rd-sm-chip { background: #334155; color: #cbd5e1; }
+
+  .rd-sm-chip:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+    border-color: #cbd5e1;
+  }
+
+  .dark .rd-sm-chip:hover,
+  html.dark .rd-sm-chip:hover { background: #475569; color: #f1f5f9; border-color: #64748b; }
+
+  .rd-sm-chip.active {
+    background: #3b82f6;
+    color: #fff;
+  }
+
+  /* Premium Inputs */
+  .rd-sm-input-grp {
+    margin-bottom: 20px;
+  }
+
+  .rd-sm-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .dark .rd-sm-label,
+  html.dark .rd-sm-label { color: #94a3b8; }
+
+  .rd-sm-input {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: all 0.2s;
+    background: #fff;
+  }
+
+  .dark .rd-sm-input,
+  html.dark .rd-sm-input { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+
+  .dark .rd-sm-input::placeholder,
+  html.dark .rd-sm-input::placeholder { color: #64748b; }
+
+  .rd-sm-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+
+  .dark .rd-sm-input:focus,
+  html.dark .rd-sm-input:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2); }
+
+  /* Plus Minus Field */
+  .rd-sm-pm-field {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .dark .rd-sm-pm-field,
+  html.dark .rd-sm-pm-field { background: #1e293b; border-color: #334155; }
+
+  .rd-sm-pm-btn {
+    background: #f8fafc;
+    border: none;
+    width: 40px;
+    font-size: 18px;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .dark .rd-sm-pm-btn,
+  html.dark .rd-sm-pm-btn { background: #334155; color: #94a3b8; }
+
+  .rd-sm-pm-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+  }
+
+  .dark .rd-sm-pm-btn:hover,
+  html.dark .rd-sm-pm-btn:hover { background: #475569; color: #f1f5f9; }
+
+  .rd-sm-pm-input {
+    border: none;
+    border-left: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    width: 100%;
+    outline: none;
+  }
+
+  .dark .rd-sm-pm-input,
+  html.dark .rd-sm-pm-input { background: transparent; border-color: #334155; color: #f1f5f9; }
+
+  /* V-btn dark mode */
+  .dark .v-btn.primary,
+  html.dark .v-btn.primary { background: #3b82f6; }
+  .dark .v-btn.primary:hover,
+  html.dark .v-btn.primary:hover { background: #60a5fa; }
+  .dark .v-btn.outline,
+  html.dark .v-btn.outline { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  .dark .v-btn.outline:hover,
+  html.dark .v-btn.outline:hover { background: #334155; border-color: #475569; color: #f1f5f9; }
+
+  /* Dark mode for service modal - comprehensive */
+  html.dark #rd-sub-modal-service .rd-sub-modal {
+    background: rgba(15, 23, 42, 0.98) !important;
+    border-color: #1e293b !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-header {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-title {
+    color: #f1f5f9 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-body {
+    background: #1e293b !important;
+  }
+  /* Left panel */
+  html.dark #rd-sub-modal-service .rd-sm-left {
+    border-color: #334155 !important;
+    background: #1e293b !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-left > div:first-child {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-left > div:first-child > div:first-child {
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+  }
+  /* Category items */
+  html.dark #rd-sub-modal-service .rd-sm-cat-item {
+    color: #94a3b8 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-cat-item:hover {
+    background: #0f172a !important;
+    color: #f1f5f9 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-cat-item.active {
+    background: #1e3a8a !important;
+    color: #93c5fd !important;
+    border-left-color: #3b82f6 !important;
+  }
+  /* Search area */
+  html.dark #rd-sub-modal-service .rd-sm-left > div:last-child {
+    background: #0f172a !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-left > div:last-child > div:first-child {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-input {
+    background: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-input::placeholder {
+    color: #64748b !important;
+  }
+  /* Service list area */
+  html.dark #rd-sm-sv-list {
+    background: #0f172a !important;
+  }
+  html.dark #rd-sm-sv-list .rd-sv-row-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sm-sv-list .rd-sv-row-card:hover {
+    background: #334155 !important;
+    border-color: #475569 !important;
+  }
+  html.dark #rd-sm-sv-list .rd-sv-row-card > div:first-child {
+    color: #94a3b8 !important;
+  }
+  html.dark #rd-sm-sv-list .rd-sv-row-card > div:nth-child(2) {
+    color: #f1f5f9 !important;
+  }
+  /* Service row icon */
+  html.dark #rd-sm-sv-list .rd-sv-row-card > div:first-child > div:first-child {
+    background: #334155 !important;
+    color: #60a5fa !important;
+  }
+  html.dark #rd-sm-sv-list .rd-sv-row-card > div:nth-child(2) > span {
+    background: rgba(99, 102, 241, 0.15) !important;
+    color: #a5b4fc !important;
+  }
+  /* Service row price */
+  html.dark #rd-sm-sv-list .rd-sv-row-card > div:nth-child(3) {
+    color: #4ade80 !important;
+  }
+  /* Stepper buttons */
+  html.dark #rd-sm-sv-list .rd-stepper {
+    background: #334155 !important;
+    border-color: #475569 !important;
+  }
+  html.dark #rd-sm-sv-list .rd-stepper button {
+    background: #1e293b !important;
+    color: #94a3b8 !important;
+  }
+  html.dark #rd-sm-sv-list .rd-stepper input {
+    color: #f1f5f9 !important;
+  }
+  html.dark #rd-sm-sv-list .rd-stepper button:hover {
+    background: #475569 !important;
+    color: #f1f5f9 !important;
+  }
+  /* Add button */
+  html.dark #rd-sm-sv-list .v-btn.primary {
+    background: #3b82f6 !important;
+  }
+  /* Right panel - Hoa don tam tinh */
+  html.dark #rd-sub-modal-service .rd-sm-right {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sub-modal-service .rd-sm-right > div:first-child {
+    color: #f1f5f9 !important;
+  }
+  html.dark #rd-sm-sv-bill-list {
+    background: transparent !important;
+  }
+  html.dark .rd-sm-total-row {
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+  }
+  html.dark #rd-sub-modal-service .v-btn.primary {
+    background: #3b82f6 !important;
+    color: #fff !important;
+    border-color: #3b82f6 !important;
+  }
+  html.dark #rd-sub-modal-service .v-btn.primary:hover {
+    background: #60a5fa !important;
+  }
+  /* Empty state text */
+  html.dark #rd-sub-modal-service p,
+  html.dark #rd-sm-sv-list p {
+    color: #64748b !important;
+  }
+  /* Overlay backdrop */
+  html.dark #rd-sub-modal-service.rd-sub-modal-overlay {
+    background: rgba(15, 23, 42, 0.6) !important;
+  }
+
+  /* Empty state - service & surcharge */
+  .rd-sv-empty {
+    color: #94a3b8;
+  }
+  html.dark .rd-sv-empty {
+    color: #475569;
+  }
+  html.dark .rd-sv-empty svg {
+    stroke: #475569;
+  }
+  html.dark .rd-sv-empty p {
+    color: #475569;
+  }
+
+  /* Dark mode for extension modal */
+  .dark .rd-ext-current,
+  html.dark .rd-ext-current { background: #1e293b !important; border-color: #334155 !important; opacity: 0.7; }
+  .dark .rd-ext-preview,
+  html.dark .rd-ext-preview { background: #0f172a !important; border-color: #3b82f6 !important; }
+  .dark .rd-ext-date-input,
+  html.dark .rd-ext-date-input { background: transparent !important; border: none !important; color: #f1f5f9 !important; }
+</style>
+
+<!-- Surcharge Modal -->
+<div id="rd-sub-modal-surcharge" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 850px;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">Phát sinh mới</div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+    <div class="rd-sm-body">
+      <div class="rd-sm-left">
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+          <div style="display: flex; gap: 16px; align-items: flex-end;">
+            <div class="rd-sm-input-grp" style="flex: 1.5; margin-bottom: 0;">
+              <label class="rd-sm-label">Nội dung <span class="f-req">*</span></label>
+              <input type="text" class="rd-sm-input" id="rd-sm-sur-content" placeholder="Tên phát sinh..."
+                style="font-size: 15px; padding: 12px;">
+            </div>
+            <div class="rd-sm-input-grp" style="flex: 1; margin-bottom: 0;">
+              <label class="rd-sm-label">Số tiền (VND) <span class="f-req">*</span></label>
+              <div class="rd-sm-pm-field" style="height: 46px;">
+                <button class="rd-sm-pm-btn" onclick="rdIncr('rd-sm-sur-amount', -10000)">-</button>
+                <input type="number" class="rd-sm-pm-input" id="rd-sm-sur-amount" value="0">
+                <button class="rd-sm-pm-btn" onclick="rdIncr('rd-sm-sur-amount', 10000)">+</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="rd-sm-label">Gợi ý nhanh:</label>
+            <div class="rd-sm-chips"
+              style="display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-bottom: 4px;">
+              <div class="rd-sm-chip" onclick="rdQuickAddSur('Phụ thu quá giờ', 50000)">Phụ thu quá giờ</div>
+              <div class="rd-sm-chip" onclick="rdQuickAddSur('Vượt số người', 150000)">Vượt số người</div>
+              <div class="rd-sm-chip" onclick="rdQuickAddSur('Giặt là gấp', 30000)">Giặt là gấp</div>
+              <div class="rd-sm-chip" onclick="rdQuickAddSur('Mất chìa khoá', 200000)">Mất chìa khoá</div>
+            </div>
+          </div>
+
+          <button class="v-btn primary" onclick="pmsRdAddTempSurcharge()"
+            style="height: 48px; border-radius: 12px; font-weight: 600; width: 100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" style="margin-right:8px;">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            Thêm vào danh sách tạm kên
+          </button>
+        </div>
+      </div>
+      <div class="rd-sm-right">
+        <div
+          style="font-weight: 700; font-size: 14px; margin-bottom: 16px; color: #475569; display: flex; align-items: center; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" />
+            <path d="M7 7h10" />
+            <path d="M7 11h10" />
+            <path d="M7 15h10" />
+          </svg>
+          Bản xem trước hoá đơn
+        </div>
+        <div class="rd-sm-bill-list" id="rd-sm-sur-bill-list">
+          <div class="rd-sv-empty" style="text-align: center; padding: 40px 20px; font-size: 13px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="1" style="opacity: 0.4;">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M3 9h18" />
+              <path d="M9 21V9" />
+            </svg>
+            <p style="margin:0;">Chưa có khoản phát sinh nào được chọn</p>
+          </div>
+        </div>
+        <div class="rd-sm-total-row">
+          <span>Tổng cộng</span>
+          <span style="color: #10b981; font-size: 18px;" id="rd-sm-sur-total">0</span>
+        </div>
+        <button class="v-btn primary" onclick="pmsRdApplySurcharge()"
+          style="width: 100%; margin-top: 20px; height: 46px; border-radius: 12px;">
+          Đồng ý & Lưu
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="rd-sub-modal-service" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 1200px;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">Dịch vụ phòng</div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+    <div class="rd-sm-body">
+      <div class="rd-sm-left"
+        style="display: flex; gap: 0; border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; background: #fff;">
+        <div
+          style="width: 200px; background: #f8fafc; border-right: 1px solid #f1f5f9; display: flex; flex-direction: column;">
+          <div
+            style="padding: 16px; font-weight: 700; font-size: 13px; border-bottom: 1px solid #f1f5f9; color: #1e293b;">
+            Danh mục</div>
+          <div id="rd-sm-sv-cats" style="flex: 1; overflow-y: auto;">
+            <div class="rd-sm-cat-item active" onclick="pmsRdSwitchSvCat(this)">Đồ uống</div>
+            <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">Đồ ăn nhanh</div>
+            <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">Giặt là</div>
+            <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">Khác</div>
+          </div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column;">
+          <div style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9; background: #fff;">
+            <div style="position: relative;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2"
+                style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none;">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input type="text" class="rd-sm-input" placeholder="Tìm tên dịch vụ..." oninput="pmsRdSearchService(this)"
+                style="padding-left: 36px; border-radius: 20px; background: #f8fafc;">
+            </div>
+          </div>
+          <div id="rd-sm-sv-list"
+            style="padding: 16px; display: grid; grid-template-columns: 1fr; gap: 12px; overflow-y: auto; max-height: 400px;">
+            <!-- Service Cards will be injected here -->
+          </div>
+        </div>
+      </div>
+      <div class="rd-sm-right" style="background: #fdfdfd;">
+        <div style="font-weight: 700; font-size: 14px; margin-bottom: 16px; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" />
+            <path d="M7 7h10" />
+            <path d="M7 11h10" />
+            <path d="M7 15h10" />
+          </svg>
+          Hoá đơn tạm tính
+        </div>
+        <div class="rd-sm-bill-list" id="rd-sm-sv-bill-list">
+          <!-- Items will appear here -->
+        </div>
+        <div class="rd-sm-total-row">
+          <span>Tổng thành tiền</span>
+          <span style="color: #3b82f6; font-size: 18px;" id="rd-sm-sv-total">0</span>
+        </div>
+        <button class="v-btn primary" onclick="pmsRdApplyService()"
+          style="width: 100%; margin-top: 20px; height: 48px; border-radius: 12px; font-weight: 600;">
+          Xác nhận dịch vụ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Extension Modal UI 2025 -->
+<div id="rd-sub-modal-extension" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal"
+    style="max-width: 580px; border-radius: 24px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: none;">
+    <div class="rd-sm-header"
+      style="margin-bottom: 24px; border: none; padding: 0; display: flex; justify-content: space-between; align-items: flex-start; background: transparent;">
+      <div>
+        <div class="rd-sm-title" style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">Gia hạn
+          phòng</div>
+        <div style="font-size: 13px; color: #64748b;">Điều chỉnh thời gian lưu trú</div>
+      </div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'"
+        style="width: 32px; height: 32px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; font-size: 20px; transition: all 0.2s;">
+        &times;</div>
+    </div>
+
+    <div class="rd-sm-body" style="flex-direction: column; gap: 24px; padding: 0;">
+      <!-- Dual Preview Section -->
+      <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+        <!-- Current Checkout (Old) -->
+        <div style="background: #f1f5f9; padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; opacity: 0.8;">
+          <div
+            style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 6px;">
+            Thời gian trả phòng hiện tại</div>
+          <div id="rd-sm-ext-current"
+            style="font-size: 18px; font-weight: 700; color: #475569; letter-spacing: -0.01em; white-space: nowrap;">
+            ---</div>
+        </div>
+        <!-- New Checkout Preview -->
+        <div style="background: #f8fafc; padding: 20px; border-radius: 20px; border: 2px dashed #3b82f6;">
+          <div
+            style="font-size: 11px; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 8px;">
+            Thời gian trả phòng mới</div>
+          <div id="rd-sm-ext-preview"
+            style="font-size: 22px; font-weight: 900; color: #1e293b; letter-spacing: -0.01em; white-space: nowrap;">
+            ---</div>
+        </div>
+      </div>
+
+      <!-- Controls Container -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <label
+          style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-left: 4px;">Chọn
+          ngày & giờ trả</label>
+        <div
+          style="background: #fff; border-radius: 16px; border: 2px solid #f1f5f9; overflow: hidden; display: flex; align-items: stretch; transition: border-color 0.2s; height: 60px;">
+          <div
+            style="flex: 1.3; position: relative; border-right: 2px solid #f1f5f9; display: flex; align-items: center; padding: 0 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="#94a3b8" stroke-width="2" style="margin-right: 10px;">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <input type="date" class="rd-sm-input" id="rd-sm-ext-date" onchange="rdUpdateExtPreview()"
+              style="flex: 1; border: none; background: transparent; font-size: 14px; font-weight: 600; color: #1e293b; outline: none; cursor: pointer; padding: 0;">
+          </div>
+          <div style="flex: 1; position: relative; display: flex; align-items: center; padding: 0 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="#94a3b8" stroke-width="2" style="margin-right: 10px;">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <input type="time" class="rd-sm-input" id="rd-sm-ext-time" onchange="rdUpdateExtPreview()"
+              style="flex: 1; border: none; background: transparent; font-size: 14px; font-weight: 600; color: #1e293b; outline: none; cursor: pointer; padding: 0;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="margin-top: 8px;">
+        <button class="v-btn primary" onclick="pmsRdSaveExtension()"
+          style="width: 100%; height: 56px; border-radius: 16px; font-weight: 700; font-size: 16px; background: #2563eb; color: #fff; border: none; box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4); cursor: pointer; transition: transform 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Xác nhận gia hạn
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+  function rdIncr(id, amount) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = parseInt(el.value || 0) + amount;
+  }
+</script>

@@ -5,16 +5,18 @@ PMS Check-out API - Handle guest check-out
 from __future__ import annotations
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 
-from ...db.models import Branch, HotelRoom, HotelStay, HotelStayStatus
+from ...db.models import Branch, Guest, HotelRoom, HotelStay, HotelStayStatus, HotelGuest
 from ...db.session import get_db
 from ...core.config import logger
 from .pms_helpers import _require_login, _is_admin, _active_branch, _now_vn, _calc_price
+from .guest_activity import log_checkout
 
 router = APIRouter()
 
@@ -82,9 +84,37 @@ async def api_checkout(
         stay.discount = calc_discount
         stay.extra_charge = calc_extra
 
-        # Mark all guests as checked out if needed (Optional depending on business logic)
-        # For now we just update the stay status
-        
+        # Mark all guests as checked out
+        db.query(HotelGuest).filter(
+            HotelGuest.stay_id == stay_id,
+            HotelGuest.check_out_at == None
+        ).update({"check_out_at": now}, synchronize_session=False)
+
+        # ── Guest Activity Logging ─────────────────────────────────────────────
+        # Log checkout for primary guest
+        primary_guest = db.query(HotelGuest).filter(
+            HotelGuest.stay_id == stay_id,
+            HotelGuest.is_primary == True
+        ).first()
+        # Count total guests in this stay
+        guest_count = db.query(HotelGuest).filter(
+            HotelGuest.stay_id == stay_id
+        ).count()
+        # Update Guest total_spent
+        if primary_guest and primary_guest.guest_id:
+            guest_master = db.query(Guest).filter(Guest.id == primary_guest.guest_id).first()
+            if guest_master:
+                guest_master.total_spent = float(guest_master.total_spent or 0) + float(final_total)
+            log_checkout(
+                db, stay, primary_guest,
+                final_price=final_total,
+                discount=calc_discount,
+                extra_charge=calc_extra,
+                deposit=stay.deposit or 0,
+                actor_id=user.get("id"),
+                guest_count=guest_count,
+            )
+
         db.commit()
 
         return JSONResponse({

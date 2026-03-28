@@ -109,7 +109,13 @@ async function submitCO() {
         else if (typeof pmsCloseModal === 'function') pmsCloseModal('coModal');
         else document.getElementById('coModal').classList.remove('show');
         pmsToast(`${r.message} | ${pmsMoney(r.total_price)}`);
-        await pmsLoadRooms();
+        
+        const title = document.getElementById('co-title').textContent;
+        const roomNumMatch = title.match(/Phòng (.+)/);
+        if (roomNumMatch && typeof pmsSetRoomLoading === 'function') {
+            pmsSetRoomLoading(null, roomNumMatch[1]);
+        }
+        if (typeof pmsLoadRooms === 'function') await pmsLoadRooms(undefined, true);
     } catch (e) {
         console.error('Checkout Error:', e);
         pmsToast(e.message, false);

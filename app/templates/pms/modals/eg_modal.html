@@ -1,0 +1,554 @@
+<!-- ═══ MODAL EDIT GUEST — 3-Column horizontal layout (Locked ID fields) ═══ -->
+<div class="v-modal" id="egModal">
+  <div class="v-dialog"
+    style="max-width:1450px; width:95%; max-height:96vh; display:flex; flex-direction:column; border-radius:12px; overflow:hidden; background:#f8fafc;">
+    <style>
+      /* ── Base ── */
+      #egModal { align-items: flex-start; padding-top: 2.5rem; }
+      #egModal .v-dialog { background: #f8fafc; }
+
+      /* ── Dark Mode ── */
+      .dark #egModal .v-dialog,
+      html.dark #egModal .v-dialog { background: #0f172a; }
+      .dark .eg-body,
+      html.dark .eg-body { background: #1e293b; }
+      .dark .eg-section,
+      html.dark .eg-section { background: #1e293b; border-color: #334155; }
+      .dark .eg-section:hover,
+      html.dark .eg-section:hover { border-color: #475569; }
+      .dark .eg-section.eg-section-locked,
+      html.dark .eg-section.eg-section-locked { background: #1e293b; filter: grayscale(0.4); }
+      .dark .eg-section-lock-overlay,
+      html.dark .eg-section-lock-overlay { background: rgba(15, 23, 42, 0.7); }
+      .dark .eg-section-header,
+      html.dark .eg-section-header { background: #0f172a; border-color: #1e293b; }
+      .dark .eg-section-title,
+      html.dark .eg-section-title { color: #f1f5f9; }
+      .dark .eg-lock-icon-wrapper,
+      html.dark .eg-lock-icon-wrapper { background: #1e293b; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+      .dark .eg-lock-msg,
+      html.dark .eg-lock-msg { color: #94a3b8; }
+      .dark .eg-lock-sub-msg,
+      html.dark .eg-lock-sub-msg { color: #64748b; }
+      .dark .v-header,
+      html.dark .v-header { background: #0f172a !important; border-color: #1e293b !important; }
+      .dark .v-title,
+      html.dark .v-title { color: #f1f5f9 !important; }
+      .dark .v-sub,
+      html.dark .v-sub { color: #94a3b8 !important; }
+      .dark .v-footer,
+      html.dark .v-footer { background: #0f172a !important; border-color: #1e293b !important; }
+      .dark .v-close,
+      html.dark .v-close { color: #94a3b8; }
+      .dark .v-close:hover,
+      html.dark .v-close:hover { color: #f1f5f9; }
+
+      /* ── Body: 3-column horizontal layout ── */
+      .eg-body {
+        display: flex; flex-direction: column; gap: 12px;
+        flex: 1; min-height: 0; background: #fff; padding: 12px 20px 20px;
+        overflow: hidden;
+      }
+      .dark .eg-body,
+      html.dark .eg-body { background: #1e293b; }
+      .eg-columns-container {
+        display: flex; flex-direction: row; gap: 18px; align-items: stretch; flex: 1; min-height: 0;
+      }
+
+      /* Sections */
+      .eg-section {
+        flex: 3; display:flex; flex-direction:column;
+        background: #fff; border-radius: 12px; border: 1px solid #e2e8f0;
+        overflow: hidden; transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        position: relative;
+      }
+      .eg-section-wide { flex: 4 !important; }
+      .eg-section:hover { border-color: #cbd5e1; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+
+      /* Locked Section State (for Visa/Passport) */
+      .eg-section.eg-section-locked {
+        opacity: 0.55;
+        pointer-events: none;
+        filter: grayscale(0.6);
+        background: #f1f5f9;
+        cursor: not-allowed;
+      }
+      .eg-section-lock-overlay {
+        display: none;
+        position: absolute; top:0; left:0; right:0; bottom:0;
+        background: rgba(248, 250, 252, 0.7);
+        backdrop-filter: blur(2px);
+        z-index: 10; align-items: center; justify-content: center;
+        flex-direction: column; gap: 15px;
+        animation: eg-lock-fade 0.3s ease-out;
+        border-radius: 12px;
+      }
+      .eg-section.eg-section-locked .eg-section-lock-overlay { display: flex; }
+
+      .eg-lock-icon-wrapper {
+        width: 80px; height: 80px;
+        background: #fff; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        color: #6366f1;
+        animation: eg-lock-float 3s infinite ease-in-out;
+      }
+      .eg-lock-msg {
+        font-size: 14px; font-weight: 700; color: #475569;
+        text-align: center; max-width: 200px; line-height: 1.4;
+      }
+      .eg-lock-sub-msg {
+        font-size: 11px; color: #64748b; font-weight: 500;
+        text-align: center; max-width: 200px;
+      }
+
+      @keyframes eg-lock-fade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes eg-lock-float {
+        0%, 100% { transform: translateY(0) scale(1.05); }
+        50% { transform: translateY(-12px) scale(1); }
+      }
+
+      /* Lock badge for ID fields */
+      .eg-id-locked {
+        background: linear-gradient(135deg, #fef3c7, #fde68a) !important;
+        border: 1px solid #f59e0b !important;
+        cursor: not-allowed !important;
+        padding-right: 36px !important;
+      }
+      .eg-id-locked-wrap {
+        position: relative;
+      }
+      .eg-id-locked-wrap::after {
+        content: '';
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        background: #f59e0b;
+        border-radius: 50%;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'%3E%3Crect x='3' y='11' width='18' height='11' rx='2' ry='2'/%3E%3Cpath d='M7 11V7a5 5 0 0 1 10 0v4'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: center;
+        pointer-events: none;
+      }
+
+      .eg-section-header {
+        padding: 10px 18px;
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex; align-items: center; gap: 12px;
+        flex-shrink: 0;
+      }
+      .eg-section-badge {
+        width: 26px; height: 26px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0;
+      }
+      .eg-section-badge.blue { background: #3b82f6; }
+      .eg-section-badge.green { background: #10b981; }
+      .eg-section-badge.purple { background: #8b5cf6; }
+      .eg-section-badge.orange { background: #f59e0b; }
+      .eg-section-title { margin: 0; font-size: 13.5px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px; }
+      .eg-section-body { padding: 16px 20px; flex: 1; overflow-y: auto; }
+
+      .f-grp { margin-bottom: 15px; }
+      .f-grp label { display: block; font-size: 12.5px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+      .f-ctrl { width: 100%; padding: 8px 12px; font-size: 14px; border: 1px solid #cbd5e1; border-radius: 8px; background-color: #fff; color: #1e293b; transition: all 0.2s; }
+      .dark .f-ctrl,
+      html.dark .f-ctrl { background-color: #1e293b !important; border-color: #334155 !important; color: #f1f5f9 !important; }
+      .dark .f-ctrl::placeholder,
+      html.dark .f-ctrl::placeholder { color: #64748b !important; }
+      .f-ctrl:focus { border-color:#6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); outline: none; }
+      .dark .f-ctrl:focus,
+      html.dark .f-ctrl:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.2) !important; }
+      .f-req { color: #ef4444; margin-left: 2px; }
+
+      .f-ctrl.is-invalid {
+        border-color: #ef4444 !important;
+        background-color: #fef2f2 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
+      }
+      .dark .f-ctrl.is-invalid,
+      html.dark .f-ctrl.is-invalid { border-color: #ef4444 !important; background-color: rgba(239, 68, 68, 0.1) !important; }
+
+      .f-ctrl.is-warning {
+        border-color: #eab308 !important;
+        background-color: #fefce8 !important;
+        box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.1) !important;
+      }
+      .dark .f-ctrl.is-warning,
+      html.dark .f-ctrl.is-warning { border-color: #eab308 !important; background-color: rgba(234, 179, 8, 0.1) !important; }
+
+      .f-ctrl[readonly], .eg-input-premium[readonly] {
+        background-color: #f1f5f9 !important;
+        color: #64748b !important;
+        cursor: not-allowed !important;
+        border-color: #e2e8f0 !important;
+      }
+      .dark .f-ctrl[readonly],
+      html.dark .f-ctrl[readonly] { background-color: #0f172a !important; color: #64748b !important; border-color: #1e293b !important; }
+
+      .eg-id-locked {
+        background: linear-gradient(135deg, #fef3c7, #fde68a) !important;
+        border: 1px solid #f59e0b !important;
+        cursor: not-allowed !important;
+        padding-right: 36px !important;
+      }
+      .dark .eg-id-locked,
+      html.dark .eg-id-locked { background: linear-gradient(135deg, #78350f, #92400e) !important; border-color: #f59e0b !important; color: #fde68a !important; }
+
+      /* Internal grids to flex vertical */
+      .eg-id-grid, .f-grid-v { display: flex; flex-direction: column; gap: 4px; }
+
+      /* Info bar with shield icon */
+      .eg-info-bar {
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        border: 1px solid #fcd34d;
+        border-radius: 10px;
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4px;
+      }
+      .dark .eg-info-bar,
+      html.dark .eg-info-bar {
+        background: linear-gradient(135deg, #78350f, #451a03) !important;
+        border-color: #f59e0b !important;
+      }
+      .eg-info-bar-icon {
+        width: 36px; height: 36px;
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+      }
+      .eg-info-bar-text { font-size: 13px; color: #92400e; line-height: 1.5; }
+      .dark .eg-info-bar-text,
+      html.dark .eg-info-bar-text { color: #fde68a !important; }
+
+      .eg-footer-bar { display:flex; align-items:center; justify-content:flex-end; width:100%; }
+
+      .v-btn {
+        border-radius: 9px; font-size: 13px; font-weight: 600;
+        padding: 8px 16px; cursor: pointer; border: 1px solid transparent;
+        display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;
+      }
+      .v-btn.primary { background: #2563eb; color: #fff; }
+      .v-btn.primary:hover { background: #1d4ed8; }
+      .v-btn.outline { background: #fff; border-color: #cbd5e1; color: #475569; }
+      .v-btn.outline:hover { background: #f8fafc; border-color: #94a3b8; }
+      .v-btn.light { background: #f1f5f9; color: #475569; }
+      .v-btn.success { background: #10b981; color: #fff; }
+      .v-btn.success:hover { background: #059669; }
+
+      /* Radio group */
+      .ci-radio-group label { display: inline-flex !important; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: #475569; cursor: pointer; margin-bottom: 0 !important; }
+      .dark .ci-radio-group label,
+      html.dark .ci-radio-group label { color: #cbd5e1; }
+
+      /* V-btn dark mode */
+      .dark .v-btn.primary,
+      html.dark .v-btn.primary { background: #3b82f6; }
+      .dark .v-btn.primary:hover,
+      html.dark .v-btn.primary:hover { background: #60a5fa; }
+      .dark .v-btn.outline,
+      html.dark .v-btn.outline { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+      .dark .v-btn.outline:hover,
+      html.dark .v-btn.outline:hover { background: #334155; border-color: #475569; color: #f1f5f9; }
+      .dark .v-btn.light,
+      html.dark .v-btn.light { background: #334155; color: #cbd5e1; }
+      .dark .v-btn.light:hover,
+      html.dark .v-btn.light:hover { background: #475569; }
+      .dark .v-btn.success,
+      html.dark .v-btn.success { background: #059669; }
+      .dark .v-btn.success:hover,
+      html.dark .v-btn.success:hover { background: #10b981; }
+
+      /* Conversion Section */
+      .eg-conversion-grp {
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 1px solid #86efac;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 8px;
+      }
+      .dark .eg-conversion-grp,
+      html.dark .eg-conversion-grp {
+        background: linear-gradient(135deg, #052e16, #064e3b) !important;
+        border-color: #059669 !important;
+      }
+      .dark .eg-conversion-grp .f-ctrl,
+      html.dark .eg-conversion-grp .f-ctrl {
+        background: #1e293b !important;
+        border-color: #059669 !important;
+        color: #86efac !important;
+      }
+      .eg-conversion-header {
+        display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+        color: #15803d; font-weight: 600; font-size: 11px;
+      }
+      .dark .eg-conversion-header,
+      html.dark .eg-conversion-header { color: #4ade80; }
+
+      /* Info bar dark mode */
+      .dark .eg-info-bar,
+      html.dark .eg-info-bar {
+        background: linear-gradient(135deg, #78350f, #451a03) !important;
+        border-color: #f59e0b !important;
+      }
+      .dark .eg-info-bar-text,
+      html.dark .eg-info-bar-text { color: #fde68a !important; }
+      .dark .ci-radio-group label,
+      html.dark .ci-radio-group label { color: #cbd5e1; }
+
+      /* V-btn dark mode */
+      .dark .v-btn.primary,
+      html.dark .v-btn.primary { background: #3b82f6; }
+      .dark .v-btn.primary:hover,
+      html.dark .v-btn.primary:hover { background: #60a5fa; }
+      .dark .v-btn.outline,
+      html.dark .v-btn.outline { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+      .dark .v-btn.outline:hover,
+      html.dark .v-btn.outline:hover { background: #334155; border-color: #475569; color: #f1f5f9; }
+      .dark .v-btn.light,
+      html.dark .v-btn.light { background: #334155; color: #cbd5e1; }
+      .dark .v-btn.light:hover,
+      html.dark .v-btn.light:hover { background: #475569; }
+      .dark .v-btn.success,
+      html.dark .v-btn.success { background: #059669; }
+      .dark .v-btn.success:hover,
+      html.dark .v-btn.success:hover { background: #10b981; }
+
+      /* --- Responsive --- */
+      @media (max-width: 1150px) {
+        .eg-columns-container { flex-direction: column; overflow-y: visible; }
+        .eg-section { width: 100%; flex: none !important; }
+        .v-dialog { width: 98% !important; max-width: 100% !important; max-height: 98vh !important; }
+        .eg-body { overflow-y: auto; }
+      }
+      @media (max-width: 600px) {
+        .v-header { padding: 12px 18px !important; }
+        .eg-body { padding: 12px 12px 15px !important; }
+        .eg-section-body { padding: 12px 15px !important; }
+        .v-title { font-size: 14px !important; }
+        .f-req { display: none; }
+      }
+    </style>
+
+    <!-- Header -->
+    <div class="v-header" style="background:#fff; border-bottom:1px solid #e2e8f0; padding:20px 24px; flex-shrink:0; display:flex; align-items:center; gap:15px;">
+      <div style="width:42px;height:42px;border-radius:10px;background:#fef3c7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M18.42 15.61a2.1 2.1 0 0 1 2.97 2.97l-3.39 3.42h-3v-3l3.42 -3.39z" fill="#d97706" fill-opacity="0.2"/>
+        </svg>
+      </div>
+      <div style="flex:1; min-width:0;">
+        <h5 class="v-title" id="eg-title" style="margin:0; font-weight:700; font-size:16px;">Sửa thông tin khách</h5>
+        <div id="eg-sub" style="color:#64748b; font-size:13px; margin-top:4px;"></div>
+      </div>
+      <button class="v-close" onclick="closeModal('egModal')" style="background:none; border:none; cursor:pointer; color:#94a3b8; padding:10px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <input type="hidden" id="eg-stay-id">
+    <input type="hidden" id="eg-guest-id">
+
+    <div class="eg-body">
+      <!-- Info Bar -->
+      <div class="eg-info-bar">
+        <div class="eg-info-bar-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <div class="eg-info-bar-text">
+          <strong>Lưu ý:</strong> Số giấy tờ và Loại giấy tờ là thông tin định danh <strong>không thể thay đổi</strong>.
+        </div>
+      </div>
+
+      <div class="eg-columns-container">
+        <!-- ❶ Thông tin giấy tờ (LOCKED - no overlay, just styled inputs) -->
+        <div class="eg-section">
+          <div class="eg-section-header">
+            <div class="eg-section-badge orange">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <h6 class="eg-section-title">Thông tin giấy tờ</h6>
+          </div>
+          <div class="eg-section-body">
+            <div class="eg-id-grid">
+              <div class="f-grp">
+                <label>Loại giấy tờ <span class="f-req">*</span></label>
+                <div class="eg-id-locked-wrap">
+                  <input type="text" class="f-ctrl eg-id-locked" autocomplete="off" id="eg-id-type" readonly>
+                </div>
+              </div>
+              <div class="f-grp">
+                <label>Số giấy tờ <span class="f-req">*</span></label>
+                <div class="eg-id-locked-wrap">
+                  <input type="text" class="f-ctrl eg-id-locked" autocomplete="off" id="eg-cccd" readonly>
+                </div>
+              </div>
+              <div class="f-grp" id="eg-grp-expire" style="margin-bottom:0;">
+                <label>Ngày hết hạn</label>
+                <input type="date" class="f-ctrl" id="eg-id-expire" onblur="egCheckIdExpire(this)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ❷ Thông tin cá nhân -->
+        <div class="eg-section eg-section-wide">
+          <div class="eg-section-header">
+            <div class="eg-section-badge green">2</div>
+            <h6 class="eg-section-title">Thông tin cá nhân</h6>
+            <svg style="margin-left:auto; color:#94a3b8;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="eg-section-body">
+            <div class="f-grid-v">
+              <div class="f-grp">
+                <label>Họ và tên <span class="f-req">*</span></label>
+                <input type="text" class="f-ctrl" autocomplete="off" id="eg-name" placeholder="Họ và tên" onblur="egFormatCapitalize(this)">
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="f-grp">
+                  <label>Giới tính <span class="f-req">*</span></label>
+                  <select class="f-ctrl" id="eg-gender">
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+                <div class="f-grp">
+                  <label>Ngày sinh <span class="f-req">*</span></label>
+                  <input type="date" class="f-ctrl" id="eg-birth" onblur="egCheckBirth(this)">
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="f-grp">
+                  <label>Quốc tịch <span class="f-req">*</span></label>
+                  <input list="dl-eg-nationality" class="f-ctrl" autocomplete="off" id="eg-nationality" placeholder="Chọn hoặc gõ Quốc tịch">
+                  <datalist id="dl-eg-nationality"></datalist>
+                </div>
+                <div class="f-grp">
+                  <label>Số điện thoại</label>
+                  <input type="text" class="f-ctrl" autocomplete="off" id="eg-phone" placeholder="Số điện thoại" oninput="egFormatBasicNumeric(this)">
+                </div>
+              </div>
+
+              <div class="f-grp" style="margin-bottom:0;">
+                <label>Ghi chú</label>
+                <input type="text" class="f-ctrl" autocomplete="off" id="eg-notes" placeholder="Ghi chú" onblur="egFormatSentence(this)">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ❸ Địa chỉ thường trú (LOCKED for Visa/Passport) -->
+        <div class="eg-section" id="eg-section-address">
+          <div class="eg-section-lock-overlay">
+            <div class="eg-lock-icon-wrapper">
+              <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <div class="eg-lock-msg">
+              Địa chỉ thường trú<br>
+              <span class="eg-lock-sub-msg">Không áp dụng cho Passport/Visa</span>
+            </div>
+          </div>
+          <div class="eg-section-header">
+            <div class="eg-section-badge purple">3</div>
+            <h6 class="eg-section-title">Địa chỉ thường trú</h6>
+            <svg style="margin-left:auto; color:#94a3b8;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div class="eg-section-body">
+            <div class="f-grid-v">
+              <!-- Radio: Địa bàn cũ / mới -->
+              <div class="f-grp" style="margin-bottom:12px;">
+                <div class="ci-radio-group" style="display:flex; gap:16px; align-items:center;">
+                  <label><input type="radio" name="eg-area" value="new" checked onchange="egSwitchMode('new');"> Địa bàn mới</label>
+                  <label><input type="radio" name="eg-area" value="old" onchange="egSwitchMode('old');"> Địa bàn cũ</label>
+                </div>
+              </div>
+
+              <!-- Province -->
+              <div class="f-grp" id="eg-grp-province">
+                <label>Tỉnh/Thành phố <span class="f-req">*</span></label>
+                <input list="dl-eg-province" class="f-ctrl" autocomplete="off" id="eg-province" placeholder="Chọn Tỉnh/Thành" data-dl="dl-eg-province" oninput="egOnProvinceChange(this)" onchange="egOnProvinceChange(this)" onblur="egValidateDatalist(this)">
+                <datalist id="dl-eg-province"></datalist>
+              </div>
+
+              <!-- District (chỉ hiện khi địa bàn cũ) -->
+              <div class="f-grp" id="eg-grp-district" style="display:none;">
+                <label>Quận/Huyện <span class="f-req">*</span></label>
+                <input list="dl-eg-district" class="f-ctrl" autocomplete="off" id="eg-district" placeholder="Chọn Quận/Huyện" data-dl="dl-eg-district" onblur="egValidateDatalist(this)">
+                <datalist id="dl-eg-district"></datalist>
+              </div>
+
+              <!-- Ward -->
+              <div class="f-grp" id="eg-grp-ward">
+                <label>Phường/Xã <span class="f-req">*</span></label>
+                <input list="dl-eg-ward" class="f-ctrl" autocomplete="off" id="eg-ward" placeholder="Chọn Phường/Xã" data-dl="dl-eg-ward" onblur="egValidateDatalist(this)">
+                <datalist id="dl-eg-ward"></datalist>
+              </div>
+
+              <!-- Conversion Section (chỉ hiện khi địa bàn cũ) -->
+              <div class="f-grp" id="eg-conversion-grp" style="display:none;">
+                <div class="eg-conversion-grp">
+                  <div class="eg-conversion-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"></path><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><path d="M7 23l-4-4 4-4"></path><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+                    Chuyển đổi sang địa bàn mới:
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:6px;">
+                    <div>
+                      <label style="font-size:10px; color:#64748b; margin-bottom:2px; display:block;">Tỉnh/TP (mới)</label>
+                      <input type="text" class="f-ctrl" id="eg-new-province" readonly style="background:#fff; border:1px solid #86efac; color:#15803d; height:32px; font-size:12px;">
+                    </div>
+                    <div>
+                      <label style="font-size:10px; color:#64748b; margin-bottom:2px; display:block;">Phường/Xã (mới)</label>
+                      <input type="text" class="f-ctrl" id="eg-new-ward" readonly style="background:#fff; border:1px solid #86efac; color:#15803d; height:32px; font-size:12px;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Address -->
+              <div class="f-grp" id="eg-grp-address" style="margin-bottom:0;">
+                <label>Địa chỉ chi tiết <span class="f-req">*</span></label>
+                <input type="text" class="f-ctrl" autocomplete="off" id="eg-address" placeholder="Số nhà, ngách, hẻm, đường" onblur="egFormatCapitalize(this)">
+              </div>
+              <!-- Progressive Normalization State Badge -->
+              <div class="addr-state-badge" id="_addr_state_badge"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /eg-body -->
+
+    <!-- Footer -->
+    <div class="v-footer" style="background:#fff; border-top:1px solid #e2e8f0; padding:12px 20px; flex-shrink:0;">
+      <div class="eg-footer-bar">
+        <div style="display:flex; gap:10px;">
+          <button class="v-btn light" onclick="closeModal('egModal')">Huỷ</button>
+          <button class="v-btn success" id="eg-save-btn" onclick="egSaveGuest()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Lưu thay đổi
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
