@@ -50,3 +50,5 @@ openpyxl==3.1.5
 # ===== UTILS =====
 requests==2.32.5
 tenacity==9.1.2
+
+beautifulsoup4==4.12.3
