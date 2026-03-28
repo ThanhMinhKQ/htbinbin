@@ -1,0 +1,18 @@
+# render.yaml - Render Blueprint
+# Deploy: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: bbpms
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false  # Set in Render dashboard
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: OTA_ENABLED
+        value: "false"  # Disable OTA on first deploy, enable after testing
