@@ -33,10 +33,14 @@ APScheduler==3.10.4
 aiosmtplib==3.0.2
 
 # ===== GOOGLE =====
+google-ai-generativelanguage==0.6.15
+google-api-core==2.26.0
 google-api-python-client==2.147.0
 google-auth==2.35.0
+google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
-google-generativeai==0.8.3
+google-genai==1.47.0
+googleapis-common-protos==1.70.0
 
 # ===== IMAGE =====
 pillow==11.3.0
