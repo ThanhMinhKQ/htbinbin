@@ -792,12 +792,17 @@
           <div class="sm-corner sm-corner-bl"></div>
           <div class="sm-corner sm-corner-br"></div>
           <div class="sm-scan-line"></div>
-          <svg class="sm-vp-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Hidden input: barcode scanners REQUIRE a focused input to inject characters -->
+          <input type="text" id="sm-hidden-input"
+                 style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;border:none;outline:none;cursor:default;z-index:1;font-size:16px;"
+                 autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                 aria-label="Vùng nhận dữ liệu quét">
+          <svg class="sm-vp-icon" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="position:relative;z-index:0;pointer-events:none;">
             <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
             <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
             <line x1="7" y1="12" x2="17" y2="12"/>
           </svg>
-          <div class="sm-vp-text" id="sm-vp-text">
+          <div class="sm-vp-text" id="sm-vp-text" style="position:relative;z-index:0;pointer-events:none;">
             Sẵn sàng quét
             <span class="sm-dots"><span></span><span></span><span></span></span>
           </div>
@@ -868,20 +873,54 @@
 /* ══════════════════════════════════════════════════════════════
    SCAN MODAL CONTROLLER — Redesigned 2026
    States: scan (merged guide+wait) → result (ok | err)
+
+   Scanner capture strategy (triple-layer):
+     Layer 1: window.keydown (capture phase) → _smBuffer
+     Layer 2: hidden input 'input' event     → _smInputHandler
+     Layer 3: hidden input .value fallback   → checked on Enter/flush
 ══════════════════════════════════════════════════════════════ */
 
-let _smOnSuccess  = null;
-let _smBuffer     = '';
-let _smFlushTimer = null;
-let _smTimeoutTimer = null;
-let _smAutoStartTimer = null;
+let _smOnSuccess       = null;
+let _smBuffer          = '';
+let _smFlushTimer      = null;
+let _smTimeoutTimer    = null;
+let _smAutoStartTimer  = null;
+let _smProcessing      = false;  // prevent double-fire
 
 const _SM_MIN_LEN    = 10;
 const _SM_TIMEOUT_MS = 45000;
 
+// ── Hidden input helper ──────────────────────────────────────────
+function _smGetHiddenInput() {
+    return document.getElementById('sm-hidden-input');
+}
+
+function _smFocusInput() {
+    const hi = _smGetHiddenInput();
+    if (hi) {
+        hi.value = '';
+        hi.focus({ preventScroll: true });
+    }
+}
+
+// Keep scanner input focused — re-focus when user clicks inside modal
+function _smBlurHandler() {
+    // Only re-focus if scan view is active (not result view)
+    const scanView = document.getElementById('sm-scan-view');
+    if (scanView && !scanView.classList.contains('hidden')) {
+        setTimeout(() => {
+            const hi = _smGetHiddenInput();
+            if (hi && document.activeElement !== hi) {
+                hi.focus({ preventScroll: true });
+            }
+        }, 80);
+    }
+}
+
 // ── Open ─────────────────────────────────────────────────────────
 function openScanModal(onSuccess) {
-    _smOnSuccess = onSuccess || null;
+    _smOnSuccess  = onSuccess || null;
+    _smProcessing = false;
     _smCleanup();
     _smBuffer = '';
 
@@ -889,64 +928,101 @@ function openScanModal(onSuccess) {
     _smSetView('scan');
     _smSetViewportActive(false);
     _smUpdateVpText('Sẵn sàng quét');
-
-    // Reset header to blue
     _smSetHeaderTheme('blue');
+
+    // Reset start btn to default
+    const startBtn = document.getElementById('sm-start-btn');
+    if (startBtn) {
+        startBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+          </svg>
+          Bắt đầu quét`;
+        startBtn.onclick = scanModalStart;
+    }
 
     // Reset confirm btn
     const btn = document.getElementById('sm-confirm-btn');
     if (btn) { btn.style.display = ''; btn.onclick = null; }
 
-    // Open
+    // Clear hidden input
+    const hi = _smGetHiddenInput();
+    if (hi) hi.value = '';
+
+    // Open modal
     const modal = document.getElementById('scanModal');
     if (modal) {
         modal.classList.add('show');
         modal.removeAttribute('aria-hidden');
     }
 
-    // Auto-start after short delay
+    // IMMEDIATELY attach keyboard listener (don't wait for start btn)
+    _smClearListeners();
+    window.addEventListener('keydown', _smKeyHandler, { capture: true });
+
+    // Auto-start scanning after brief delay (visual activation)
     clearTimeout(_smAutoStartTimer);
     _smAutoStartTimer = setTimeout(() => {
-        const startBtn = document.getElementById('sm-start-btn');
-        if (startBtn) startBtn.click();
-    }, 600);
+        scanModalStart();
+    }, 350);
 }
 
 // ── Close ────────────────────────────────────────────────────────
 function scanModalClose() {
     _smCleanup();
+    _smProcessing = false;
     const modal = document.getElementById('scanModal');
     if (modal) modal.classList.remove('show');
     _smOnSuccess = null;
 }
 
-// ── Reset (scan again) ────────────────────────────────────────────
+// ── Reset (scan again) ───────────────────────────────────────────
 function scanModalReset() {
     _smCleanup();
-    _smBuffer = '';
+    _smBuffer     = '';
+    _smProcessing = false;
     _smSetView('scan');
     _smSetViewportActive(false);
     _smUpdateVpText('Sẵn sàng quét');
     _smSetHeaderTheme('blue');
 
+    // Reset start btn
+    const startBtn = document.getElementById('sm-start-btn');
+    if (startBtn) {
+        startBtn.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/>
+          </svg>
+          Bắt đầu quét`;
+        startBtn.onclick = scanModalStart;
+    }
+
     const btn = document.getElementById('sm-confirm-btn');
     if (btn) { btn.style.display = ''; btn.onclick = null; }
+
+    // Clear hidden input
+    const hi = _smGetHiddenInput();
+    if (hi) hi.value = '';
+
+    // Re-attach listener immediately
+    _smClearListeners();
+    window.addEventListener('keydown', _smKeyHandler, { capture: true });
 
     // Auto-start
     clearTimeout(_smAutoStartTimer);
     _smAutoStartTimer = setTimeout(() => {
-        const startBtn = document.getElementById('sm-start-btn');
-        if (startBtn) startBtn.click();
-    }, 400);
+        scanModalStart();
+    }, 250);
 }
 
 // ── Start scanning ───────────────────────────────────────────────
 function scanModalStart() {
-    _smBuffer = '';
+    _smBuffer     = '';
+    _smProcessing = false;
     _smSetViewportActive(true);
     _smUpdateVpText('Đang chờ quét');
 
-    // Update button
+    // Update button to "scanning" state
     const startBtn = document.getElementById('sm-start-btn');
     if (startBtn) {
         startBtn.innerHTML = `
@@ -954,23 +1030,40 @@ function scanModalStart() {
             <rect x="6" y="6" width="12" height="12" rx="2"/>
           </svg>
           Đang quét...`;
-        startBtn.onclick = () => { _smCleanup(); scanModalReset(); };
+        startBtn.onclick = () => { scanModalReset(); };
     }
 
-    // Timeout
+    // Focus the hidden input — CRITICAL for scanner capture
+    _smFocusInput();
+
+    // Attach hidden input event listeners
+    const hi = _smGetHiddenInput();
+    if (hi) {
+        hi.removeEventListener('input', _smInputHandler);
+        hi.addEventListener('input', _smInputHandler);
+        hi.removeEventListener('blur', _smBlurHandler);
+        hi.addEventListener('blur', _smBlurHandler);
+    }
+
+    // Ensure window keydown is attached
+    window.removeEventListener('keydown', _smKeyHandler, { capture: true });
+    window.addEventListener('keydown', _smKeyHandler, { capture: true });
+
+    // Timeout: auto-fail after 45s
     clearTimeout(_smTimeoutTimer);
     _smTimeoutTimer = setTimeout(() => {
         _smShowResult({ is_valid: false, error: 'Hết thời gian chờ (45s). Vui lòng thử lại.' });
     }, _SM_TIMEOUT_MS);
-
-    // Keyboard listener
-    _smClearListeners();
-    window.addEventListener('keydown', _smKeyHandler, { capture: true });
 }
 
-// ── Key handler ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// LAYER 1: Window keydown handler (capture phase)
+// ══════════════════════════════════════════════════════════════
 function _smKeyHandler(e) {
-    const isFormInput = (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') && !e.target.closest('#scanModal');
+    // Don't capture events for inputs OUTSIDE the scan modal
+    const isExternalInput = (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')
+                            && !e.target.closest('#scanModal');
+    if (isExternalInput) return;
 
     if (e.key === 'Escape') {
         e.preventDefault();
@@ -980,27 +1073,68 @@ function _smKeyHandler(e) {
 
     if (e.key === 'Enter') {
         e.preventDefault();
+        e.stopPropagation();
         _smFlush();
         return;
     }
 
+    // Collect printable characters into buffer
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (!isFormInput || document.activeElement === document.body) {
-            clearTimeout(_smFlushTimer);
-            _smBuffer += e.key;
-            _smFlushTimer = setTimeout(() => { _smBuffer = ''; }, 600);
-        }
+        clearTimeout(_smFlushTimer);
+        _smBuffer += e.key;
+        // Auto-clear buffer if no more chars after 800ms
+        _smFlushTimer = setTimeout(() => { _smBuffer = ''; }, 800);
     }
 }
 
-// ── Flush buffer ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// LAYER 2: Hidden input 'input' event
+// Scanner characters also appear in the hidden input's value.
+// This catches cases where keydown misses chars (e.g. IME/unicode).
+// ══════════════════════════════════════════════════════════════
+function _smInputHandler(e) {
+    // Reset the auto-flush timer — scanner is still typing
+    clearTimeout(_smFlushTimer);
+    _smFlushTimer = setTimeout(() => {
+        // If the hidden input has enough chars, auto-flush (no Enter needed)
+        _smFlush();
+    }, 300); // scanner finishes typing within ~100-200ms
+}
+
+// ══════════════════════════════════════════════════════════════
+// FLUSH: Process accumulated scan data
+// Checks both keydown buffer AND hidden input value.
+// ══════════════════════════════════════════════════════════════
 function _smFlush() {
+    if (_smProcessing) return; // prevent double-fire
+
     clearTimeout(_smFlushTimer);
     clearTimeout(_smTimeoutTimer);
 
+    // Strategy 1: keydown buffer
+    let raw = '';
     if (_smBuffer.length >= _SM_MIN_LEN) {
-        const raw = _smBuffer;
-        _smBuffer = '';
+        raw = _smBuffer;
+    }
+
+    // Strategy 2: hidden input value (fallback)
+    if (!raw) {
+        const hi = _smGetHiddenInput();
+        if (hi) {
+            const val = hi.value.trim();
+            if (val.length >= _SM_MIN_LEN) {
+                raw = val;
+            }
+        }
+    }
+
+    // Clear both
+    _smBuffer = '';
+    const hi = _smGetHiddenInput();
+    if (hi) hi.value = '';
+
+    if (raw) {
+        _smProcessing = true;
         _processScan(raw);
     }
 }
@@ -1267,6 +1401,11 @@ function _smCleanup() {
 
 function _smClearListeners() {
     window.removeEventListener('keydown', _smKeyHandler, { capture: true });
+    const hi = _smGetHiddenInput();
+    if (hi) {
+        hi.removeEventListener('input', _smInputHandler);
+        hi.removeEventListener('blur', _smBlurHandler);
+    }
 }
 
 // ── Exports ──────────────────────────────────────────────────────
