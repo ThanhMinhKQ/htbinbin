@@ -43,6 +43,7 @@ RapidFuzz==3.13.0
 # ===== EXCEL =====
 openpyxl==3.1.5
 
+APScheduler==3.10.4
 # ===== UTILS =====
 requests==2.32.5
 tenacity==9.1.2
