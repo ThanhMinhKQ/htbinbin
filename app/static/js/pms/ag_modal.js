@@ -652,13 +652,14 @@ async function agFillFromScan(parsed) {
     const genderEl  = document.getElementById('ag-gender');
     const birthEl   = document.getElementById('ag-birth');
 
-    const idValue = parsed.id_number || parsed.old_id || parsed.cccd || '';
+    const isCmnd = parsed.card_type === 'CMND';
+    const idValue = isCmnd ? (parsed.old_id || parsed.id_number || parsed.cccd || '') : (parsed.id_number || parsed.cccd || '');
     if (cccdEl) {
         cccdEl.value = idValue;
         cccdEl.classList.remove('is-invalid');
     }
     if (idTypeEl) {
-        idTypeEl.value = parsed.card_type === 'CMND' ? 'cmnd' : 'cccd';
+        idTypeEl.value = isCmnd ? 'cmnd' : 'cccd';
         if (typeof agToggleIdFields === 'function') agToggleIdFields(idTypeEl);
     }
     if (expireEl && parsed.expiry_date && parsed.expiry_date !== 'Không thời hạn') {
@@ -666,7 +667,7 @@ async function agFillFromScan(parsed) {
         if (typeof agCheckIdExpire === 'function') agCheckIdExpire(expireEl);
     }
     if (nameEl) {
-        nameEl.value = parsed.name || '';
+        nameEl.value = pmsTitleCase(parsed.name || '');
         nameEl.classList.remove('is-invalid');
     }
     if (genderEl && parsed.gender) {

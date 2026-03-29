@@ -15,7 +15,7 @@
 console.log('PMS modules loaded successfully');
 
 // Export PMS namespace
-window.PMS = window.PMS || { floors: {}, branchId: null, roomTypes: [], timer: null };
+window.PMS = window.PMS || { floors: {}, branchId: null, roomTypes: [], timer: null, _loading: false };
 
 // Make sure all global functions are available
 // These are already exported in each module file

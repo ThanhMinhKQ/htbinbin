@@ -10,6 +10,8 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/vn.js"></script>
 <!-- Lucide icons CDN -->
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<!-- Scan modal CSS -->
+<link rel="stylesheet" href="/static/css/pms/scan_modal.css">
 <style>
   /* ── Dark Mode Variables ── */
   :root {
@@ -1527,6 +1529,16 @@ function pmsToggleTheme() {
     m.style.display = 'none';
   });
 })();
+// Also handle bfcache (back-forward cache) - pages restored from cache skip script re-run
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) {
+    document.querySelectorAll('.v-modal.show').forEach(m => {
+      m.classList.remove('show');
+      m.style.display = 'none';
+    });
+    localStorage.removeItem('pms_open_modal');
+  }
+});
 
 // Expose modal toggle globally for pms.js
 function openModal(id) {
@@ -1557,6 +1569,7 @@ document.addEventListener('click', e => {
 });
 </script>
 <script src="/static/js/pms/pms_common.js"></script>
+<script src="/static/js/pms/scan_modal.js"></script>
 <script src="/static/js/pms/pms_dashboard.js"></script>
 <script src="/static/js/pms/pms_booking.js"></script>
 <script src="/static/js/pms/nationalities.js"></script>
@@ -1569,6 +1582,7 @@ document.addEventListener('click', e => {
 <script src="/static/js/pms/ag_address.js"></script>
 <script src="/static/js/pms/ag_search.js"></script>
 <script src="/static/js/pms/ag_modal.js"></script>
+<script src="/static/js/pms/eg_address.js"></script>
 <script src="/static/js/pms/eg_modal.js"></script>
 <script src="/static/js/pms/pms_transfer.js"></script>
 <script src="/static/js/pms/pms.js"></script>

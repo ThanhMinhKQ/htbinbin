@@ -566,14 +566,18 @@ async function pmsCiFillFromScan(parsed) {
     const birthEl   = document.getElementById('ci-birth');
 
     // id_number = CCCD 12 số | old_id = CMND 9 số | backward compat: 'cccd'
-    const idValue = parsed.id_number || parsed.old_id || parsed.cccd || '';
+    // Chỉ dùng old_id khi card_type = 'CMND' (CMND thật sự), không dùng cho CCCD/Căn cước
+    const isCmnd = parsed.card_type === 'CMND';
+    const idValue = isCmnd
+        ? (parsed.old_id || parsed.id_number || parsed.cccd || '')
+        : (parsed.id_number || parsed.cccd || '');
     if (cccdEl) {
         cccdEl.value = idValue;
         cccdEl.classList.remove('is-invalid');
     }
     // card_type: "CCCD_CU" | "CAN_CUOC_MOI" | "CMND"
     if (idTypeEl) {
-        idTypeEl.value = parsed.card_type === 'CMND' ? 'cmnd' : 'cccd';
+        idTypeEl.value = isCmnd ? 'cmnd' : 'cccd';
         pmsCiToggleIdFields(idTypeEl);
     }
     if (expireEl && parsed.expiry_date && parsed.expiry_date !== 'Không thời hạn') {
@@ -581,7 +585,7 @@ async function pmsCiFillFromScan(parsed) {
         pmsCiCheckIdExpire(expireEl);
     }
     if (nameEl) {
-        nameEl.value = parsed.name || '';
+        nameEl.value = pmsTitleCase(parsed.name || '');
         nameEl.classList.remove('is-invalid');
     }
     if (genderEl && parsed.gender) {

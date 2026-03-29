@@ -22,8 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     pmsLoadRooms();
-    PMS.timer = setInterval(() => pmsLoadRooms(undefined, true), 45000);
-    pmsStartLiveCounters();
+    // Periodic refresh: bảo đảm không chồng request nếu load chưa xong
+    PMS.timer = setInterval(() => {
+        if (!PMS._loading) pmsLoadRooms(undefined, true);
+    }, 45000);
     document.addEventListener('keydown', (e) => {
         if (e.key === 'F1' && document.getElementById('ciModal')?.classList?.contains('show')) {
             e.preventDefault();
@@ -41,7 +43,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Load Rooms
 // ─────────────────────────────────────────────────────────────────────────────
-async function pmsLoadRooms(bid, silent = false) {
+    async function pmsLoadRooms(bid, silent = false) {
+    if (PMS._loading) return; // tránh gọi chồng
+    PMS._loading = true;
     if (bid!==undefined) PMS.branchId=bid;
     const loadEl = document.getElementById('pms-loading');
     const floorsEl = document.getElementById('pms-floors');
@@ -59,6 +63,9 @@ async function pmsLoadRooms(bid, silent = false) {
     } catch(e) {
         if (loadEl) loadEl.innerHTML=`<span class="text-danger small">${e.message}</span>`;
         else pmsToast(e.message, false);
+    } finally {
+        PMS._loading = false;
+        pmsStartLiveCounters();
     }
 }
 
@@ -191,6 +198,7 @@ function pmsRender() {
     floorsEl.innerHTML = html;
     loadEl.style.display = 'none';
     floorsEl.style.display = 'block';
+    pmsTickLiveCounters();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -205,9 +213,11 @@ function pmsRoomCard(r) {
         const checkInTime = pmsFdtLong(s.check_in_at);
         const checkOutTime = s.check_out_at ? pmsFdtLong(s.check_out_at) : null;
         const isCheckoutSoon = s.check_out_at && (new Date(s.check_out_at) - new Date()) < 3600000;
-        const stayDurationStr = pmsFormatDurLive(s.check_in_at);
+        const checkInMs = new Date(s.check_in_at).getTime();
+        const stayDurationStr = pmsFormatDurLive(Number.isFinite(checkInMs) ? checkInMs : s.check_in_at);
+        const checkInMsAttr = Number.isFinite(checkInMs) ? String(checkInMs) : '';
 
-        info = `<div class="ri-stay-vertical" data-checkin="${s.check_in_at}" data-checkout="${s.check_out_at || ''}">
+        info = `<div class="ri-stay-vertical" data-checkin-ms="${checkInMsAttr}" data-checkin="${pmsEscapeHtml(String(s.check_in_at || ''))}" data-checkout="${pmsEscapeHtml(String(s.check_out_at || ''))}">
             <div class="ri-v-row active">
                 <span class="ri-label">Start:</span>
                 <span class="ri-value">${checkInTime}</span>
@@ -325,19 +335,28 @@ function pmsSetRoomLoading(roomId, roomNum) {
     }
 }
 window.pmsSetRoomLoading = pmsSetRoomLoading;
-// Live counter update
-function pmsStartLiveCounters() {
-    if (PMS.liveInterval) clearInterval(PMS.liveInterval);
-    PMS.liveInterval = setInterval(() => {
-        document.querySelectorAll('.ri-stay-vertical').forEach(el => {
+
+function pmsTickLiveCounters() {
+    document.querySelectorAll('.ri-stay-vertical').forEach(el => {
+        const counterEl = el.querySelector('.live-counter');
+        if (!counterEl) return;
+        const rawMs = el.dataset.checkinMs;
+        let anchorMs = rawMs !== undefined && rawMs !== '' ? Number(rawMs) : NaN;
+        if (!Number.isFinite(anchorMs)) {
             const checkin = el.dataset.checkin;
             if (!checkin) return;
-            const counterEl = el.querySelector('.live-counter');
-            if (counterEl) {
-                counterEl.textContent = pmsFormatDurLive(checkin);
-            }
-        });
-    }, 1000);
+            anchorMs = new Date(checkin).getTime();
+        }
+        if (!Number.isFinite(anchorMs)) return;
+        counterEl.textContent = pmsFormatDurLive(anchorMs);
+    });
 }
 
+function pmsStartLiveCounters() {
+    if (PMS.liveInterval) clearInterval(PMS.liveInterval);
+    pmsTickLiveCounters();
+    PMS.liveInterval = setInterval(pmsTickLiveCounters, 1000);
+}
+
+window.pmsTickLiveCounters = pmsTickLiveCounters;
 window.pmsStartLiveCounters = pmsStartLiveCounters;

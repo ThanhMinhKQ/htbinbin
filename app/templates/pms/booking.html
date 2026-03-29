@@ -293,6 +293,24 @@ function closeModal(id) {
 document.addEventListener('click', function(e) {
   if (e.target.classList && e.target.classList.contains('v-modal')) closeModal(e.target.id);
 });
+// Modal State Management - Clear on page load to prevent "flash" on F5
+(function initModalState() {
+  localStorage.removeItem('pms_open_modal');
+  document.querySelectorAll('.v-modal.show').forEach(m => {
+    m.classList.remove('show');
+    m.style.display = 'none';
+  });
+})();
+// Also handle bfcache (back-forward cache) - pages restored from cache skip script re-run
+window.addEventListener('pageshow', function(e) {
+  if (e.persisted) {
+    document.querySelectorAll('.v-modal.show').forEach(m => {
+      m.classList.remove('show');
+      m.style.display = 'none';
+    });
+    localStorage.removeItem('pms_open_modal');
+  }
+});
 </script>
 <script src="/static/js/pms/pms_common.js"></script>
 <script src="/static/js/pms/pms_dashboard.js"></script>
@@ -305,6 +323,7 @@ document.addEventListener('click', function(e) {
 <script src="/static/js/pms/ag_address.js"></script>
 <script src="/static/js/pms/ag_search.js"></script>
 <script src="/static/js/pms/ag_modal.js"></script>
+<script src="/static/js/pms/eg_address.js"></script>
 <script src="/static/js/pms/eg_modal.js"></script>
 <script src="/static/js/pms/pms.js"></script>
 {% endblock %}

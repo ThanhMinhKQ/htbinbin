@@ -134,7 +134,7 @@ async function egSwitchMode(mode, keepValues = true) {
         if (convGrp) convGrp.style.display = '';
         if (oldRadio) oldRadio.checked = true;
 
-        // Load province datalist for old mode
+        // Load old province datalist
         if (typeof egLoadOldProvinces === 'function') {
             const provinces = await egLoadOldProvinces();
             if (typeof egPopulateDatalist === 'function') {
@@ -142,14 +142,23 @@ async function egSwitchMode(mode, keepValues = true) {
             }
         }
 
-        // Load districts for current province
+        // If province already has value (from existing guest data), trigger district load
         const provEl = document.getElementById('eg-province');
-        if (provEl && provEl.value) {
-            await egLoadDistricts(provEl.value);
+        if (provEl && provEl.value && typeof egOnOldProvinceChange === 'function') {
+            await egOnOldProvinceChange(provEl);
+
+            // Also trigger district change if district has value
+            const distEl = document.getElementById('eg-district');
+            if (distEl && distEl.value && typeof egOnOldDistrictChange === 'function') {
+                await egOnOldDistrictChange(distEl);
+            }
         }
 
-        // Trigger conversion if province/ward values exist
+        // Trigger conversion display
         egTriggerConversion();
+
+        // Auto-focus province input
+        if (provEl) provEl.focus();
     } else {
         if (distGrp) distGrp.style.display = 'none';
         if (convGrp) convGrp.style.display = 'none';
@@ -185,8 +194,16 @@ async function egTriggerConversion() {
     if (mode !== 'old') return;
 
     try {
-        const url = `/api/vn-address/convert?province=${encodeURIComponent(provEl.value)}&ward=${encodeURIComponent(wardEl?.value || '')}`;
-        const res = await fetch(url);
+        const res = await fetch('/api/vn-address/convert', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                old_ward_name: wardEl?.value || '',
+                old_province_name: provEl.value,
+                old_district_name: '',
+                old_province_code: null,
+            })
+        });
         if (res.ok) {
             const data = await res.json();
             if (newProvEl) {
@@ -204,7 +221,7 @@ async function egTriggerConversion() {
 }
 
 // ─── Fill guest data ──────────────────────────────────────────────────────────
-function egFillGuestData(g) {
+async function egFillGuestData(g) {
     // 0. Mark as trusted BEFORE filling (PMS_ADDR progressive normalization)
     if (typeof PMS_ADDR !== 'undefined' && PMS_ADDR.markAutofill) {
         PMS_ADDR.markAutofill();
@@ -274,39 +291,51 @@ function egFillGuestData(g) {
         if (oldRadio) { oldRadio.checked = true; oldRadio.disabled = false; }
         if (newRadio) newRadio.disabled = false;
         if (distGrp) distGrp.style.display = '';
-        if (convGrp) convGrp.style.display = '';
+        if (convGrp) convGrp.style.display = 'none';
 
-        // Fill OLD values
-        if (provEl) provEl.value = g.old_city || '';
-        if (distEl) distEl.value = g.old_district || '';
-        if (wardEl) wardEl.value = g.old_ward || '';
-
-        // Fill NEW conversion display
-        if (newProvEl) {
-            newProvEl.value = g.city || '';
-            newProvEl.style.color = g.city ? '#15803d' : '';
-        }
-        if (newWardEl) {
-            newWardEl.value = g.ward || '';
-            newWardEl.style.color = g.ward ? '#15803d' : '';
-        }
-
-        // Load wards for old district
-        if (g.old_city && typeof _egVnCache.provinces !== 'undefined') {
-            const prov = _egVnCache.provinces.find(p =>
-                p.name === g.old_city || p.short === g.old_city
-            );
-            if (prov) {
-                egLoadWards(prov.short || prov.name).then(() => {
-                    if (wardEl) wardEl.value = g.old_ward || '';
-                });
+        // Load OLD province datalist first
+        if (typeof egLoadOldProvinces === 'function') {
+            const oldProvinces = await egLoadOldProvinces();
+            if (typeof egPopulateDatalist === 'function') {
+                egPopulateDatalist('dl-eg-province', oldProvinces);
             }
         }
+
+        // Fill NEW conversion display FIRST (values from DB, shown as converted target)
+        if (newProvEl) { newProvEl.value = g.city || ''; newProvEl.style.color = g.city ? '#15803d' : ''; }
+        if (newWardEl) { newWardEl.value = g.ward || ''; newWardEl.style.color = g.ward ? '#15803d' : ''; }
+
+        // Set province FIRST, then load districts via province change
+        if (provEl) provEl.value = g.old_city || '';
+        if (provEl && typeof egOnOldProvinceChange === 'function') await egOnOldProvinceChange(provEl);
+
+        // NOW set district value (after districts are loaded)
+        if (distEl) distEl.value = g.old_district || '';
+        if (distEl && typeof egOnOldDistrictChange === 'function') await egOnOldDistrictChange(distEl);
+
+        // NOW set ward value (after wards are loaded)
+        if (wardEl) wardEl.value = g.old_ward || '';
+
+        // Match ward value to datalist option
+        if (wardEl && wardEl.value) {
+            const dl = document.getElementById('dl-eg-ward');
+            if (dl) {
+                for (const opt of dl.options) {
+                    if (opt.value.trim().toLowerCase() === wardEl.value.trim().toLowerCase()) {
+                        wardEl.value = opt.value; break;
+                    }
+                }
+            }
+            wardEl.dispatchEvent(new Event('blur'));
+        }
+        if (distEl) distEl.dispatchEvent(new Event('blur'));
+        if (provEl) provEl.dispatchEvent(new Event('blur'));
+
     } else {
-        if (newRadio) { newRadio.checked = true; }
+        if (newRadio) { newRadio.checked = true; newRadio.disabled = false; }
+        if (oldRadio) { oldRadio.disabled = false; oldRadio.style.display = ''; }
         if (distGrp) distGrp.style.display = 'none';
         if (convGrp) convGrp.style.display = 'none';
-        if (oldRadio) { oldRadio.disabled = true; oldRadio.style.display = 'none'; }
 
         // Fill NEW values
         if (provEl) provEl.value = g.city || '';
@@ -434,35 +463,28 @@ function egPopulateDatalist(datalistId, items) {
     sorted.forEach(item => {
         const val = typeof item === 'string' ? item : item.name;
         const safeVal = val.replace(/"/g, '&quot;');
+        const codeAttr = item.code != null ? ` data-code="${item.code}"` : '';
         const shortAttr = item.short ? ` data-short="${item.short}"` : '';
-        html += `<option value="${safeVal}"${shortAttr}></option>`;
+        html += `<option value="${safeVal}"${codeAttr}${shortAttr}></option>`;
     });
     dl.innerHTML = html;
 }
 
 async function egOnProvinceChange(inputEl) {
-    const name = inputEl.value.trim();
-    const dl = document.getElementById('dl-eg-province');
-    let short = null;
-    if (dl) {
-        for (const opt of dl.options) {
-            if (opt.value.trim() === name) {
-                short = opt.dataset.short;
-                break;
-            }
-        }
-    }
-    const wardEl = document.getElementById('eg-ward');
-    if (wardEl) wardEl.value = '';
-    egPopulateDatalist('dl-eg-ward', []);
-    if (!short) return;
-    await egLoadWards(short);
+    if (egGetMode() === 'new') await egOnNewProvinceChange(inputEl);
+    else await egOnOldProvinceChange(inputEl);
+}
 
-    // If in old mode, trigger conversion
-    const mode = document.querySelector('input[name="eg-area"]:checked')?.value;
-    if (mode === 'old') {
-        egTriggerConversion();
-    }
+async function egOnDistrictChange(inputEl) {
+    if (egGetMode() === 'old') await egOnOldDistrictChange(inputEl);
+}
+
+async function egOnWardChange(inputEl) {
+    if (egGetMode() === 'old') await egOnOldWardChange(inputEl);
+}
+
+function egGetMode() {
+    return document.querySelector('input[name="eg-area"]:checked')?.value || 'new';
 }
 
 function egValidateDatalist(inputEl) {

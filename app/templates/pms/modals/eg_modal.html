@@ -494,14 +494,14 @@
               <!-- District (chỉ hiện khi địa bàn cũ) -->
               <div class="f-grp" id="eg-grp-district" style="display:none;">
                 <label>Quận/Huyện <span class="f-req">*</span></label>
-                <input list="dl-eg-district" class="f-ctrl" autocomplete="off" id="eg-district" placeholder="Chọn Quận/Huyện" data-dl="dl-eg-district" onblur="egValidateDatalist(this)">
+                <input list="dl-eg-district" class="f-ctrl" autocomplete="off" id="eg-district" placeholder="Chọn Quận/Huyện" data-dl="dl-eg-district" oninput="egOnDistrictChange(this)" onchange="egOnDistrictChange(this)" onblur="egValidateDatalist(this)">
                 <datalist id="dl-eg-district"></datalist>
               </div>
 
               <!-- Ward -->
               <div class="f-grp" id="eg-grp-ward">
                 <label>Phường/Xã <span class="f-req">*</span></label>
-                <input list="dl-eg-ward" class="f-ctrl" autocomplete="off" id="eg-ward" placeholder="Chọn Phường/Xã" data-dl="dl-eg-ward" onblur="egValidateDatalist(this)">
+                <input list="dl-eg-ward" class="f-ctrl" autocomplete="off" id="eg-ward" placeholder="Chọn Phường/Xã" data-dl="dl-eg-ward" oninput="egOnWardChange(this)" onchange="egOnWardChange(this)" onblur="egValidateDatalist(this)">
                 <datalist id="dl-eg-ward"></datalist>
               </div>
 

@@ -94,12 +94,20 @@ def fmt_dmy(raw: str) -> Optional[str]:
         return None
 
 
+def _add_years_same_day(d: date, years: int) -> date:
+    """Cộng năm, giữ ngày/tháng (xử lý 29/2)."""
+    try:
+        return d.replace(year=d.year + years)
+    except ValueError:
+        return d.replace(month=2, day=28, year=d.year + years)
+
+
 def calc_expiry(dob_fmt: str) -> str:
     """
-    Tính ngày hết hạn CCCD:
-      < 25 tuổi  → hết hạn lúc 25
-      25–39      → hết hạn lúc 40
-      40–59      → hết hạn lúc 60
+    Tính ngày hết hạn CCCD (mốc đổi thẻ theo tuổi, cùng ngày/tháng sinh):
+      < 25 tuổi  → hết hạn đủ 25 tuổi
+      25–39      → đủ 40 tuổi
+      40–59      → đủ 60 tuổi
       ≥ 60       → Không thời hạn
     dob_fmt: 'dd/MM/yyyy'
     """
@@ -108,13 +116,17 @@ def calc_expiry(dob_fmt: str) -> str:
     except Exception:
         return "Không xác định"
 
-    year = dob.year
-    now  = date.today()
-    ages = [year + 25, year + 40, year + 60]
+    today = date.today()
+    age = today.year - dob.year
+    if (today.month, today.day) < (dob.month, dob.day):
+        age -= 1
 
-    for i, threshold in enumerate([25, 40, 60]):
-        if now.year < threshold:
-            return dob.replace(year=ages[i]).strftime("%d/%m/%Y")
+    if age < 25:
+        return _add_years_same_day(dob, 25).strftime("%d/%m/%Y")
+    if age < 40:
+        return _add_years_same_day(dob, 40).strftime("%d/%m/%Y")
+    if age < 60:
+        return _add_years_same_day(dob, 60).strftime("%d/%m/%Y")
     return "Không thời hạn"
 
 
@@ -146,14 +158,34 @@ def get_expiry_status(expiry: str) -> str:
 
 # ─────────────────────────── Card type detection ────────────────────────────────
 
-def detect_card_type(parts: list[str], date_candidates: list[tuple[str, str]]) -> str:
+def _address_hints_old_admin_levels(address_raw: str) -> bool:
+    """QR còn cấp Quận/Huyện sau dấu phẩy → tách 4 cấp (CCCD_CU), không gộp nhầm vào CAN_CUOC_MOI."""
+    if not address_raw or not address_raw.strip():
+        return False
+    return bool(re.search(r",\s*(quận|huyện|thị xã|tx\.)\s", address_raw, re.IGNORECASE))
+
+
+def detect_card_type(
+    parts: list[str],
+    date_candidates: list[tuple[str, str]],
+    address_raw: str = "",
+) -> str:
     """
-    3-rule combo detection:
-      Rule 1 – Field 2 bị rỗng  → CAN_CUOC_MOI
-      Rule 2 – > 7 fields        → CAN_CUOC_MOI
-      Rule 3 – Ngày cấp ≥ 2024 → CAN_CUOC_MOI
+    Phát hiện loại thẻ / format QR:
+      Rule 0 – Địa chỉ có Quận/Huyện/Thị xã (sau dấu phẩy) → CCCD_CU (đúng 4 cấp địa giới cũ)
+      Rule 1 – Field 2 là số CMND 9 số (old_id) → CAN_CUOC_MOI (thẻ gắn chip, field 2 chứa CMND cũ)
+      Rule 2 – Field 2 bị rỗng  → CAN_CUOC_MOI
+      Rule 3 – Nhiều field rỗng / > 7 field có dữ liệu  → CAN_CUOC_MOI
+      Rule 4 – Ngày cấp ≥ 2024 → CAN_CUOC_MOI
       Fallback                   → CCCD_CU
     """
+    if _address_hints_old_admin_levels(address_raw):
+        return CCCD_CU
+
+    # Rule 1 – field 2 là số 9 chữ số → đây là CAN_CUOC_MOI (CMND cũ gắn chip)
+    if len(parts) > 1 and re.fullmatch(r"\d{9}", parts[1].strip()):
+        return CAN_CUOC_MOI
+
     if len(parts) > 1 and parts[1].strip() == "":
         return CAN_CUOC_MOI
 
@@ -363,7 +395,7 @@ def parse_qr(raw: str) -> dict:
         ):
             address_raw = p
 
-    card_type = detect_card_type(parts, date_candidates)
+    card_type = detect_card_type(parts, date_candidates, address_raw)
 
     dob_fmt    = date_candidates[0][1] if date_candidates else ""
     issue_date = date_candidates[-1][1] if len(date_candidates) > 1 else ""

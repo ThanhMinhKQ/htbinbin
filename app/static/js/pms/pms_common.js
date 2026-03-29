@@ -98,12 +98,21 @@ function pmsDurFull(fromISO) {
     return parts.join(' ');
 }
 
-// Format duration for live counter: [X ngày] HH:mm:ss
-function pmsFormatDurLive(fromISO) {
-    const ms = Date.now() - new Date(fromISO).getTime();
+// Format duration for live counter: [X ngày] HH:mm:ss (fromISO string hoặc epoch ms)
+function pmsFormatDurLive(fromISOOrMs) {
+    let fromMs;
+    if (typeof fromISOOrMs === 'number' && Number.isFinite(fromISOOrMs)) {
+        fromMs = fromISOOrMs;
+    } else if (fromISOOrMs != null && fromISOOrMs !== '') {
+        fromMs = new Date(fromISOOrMs).getTime();
+    } else {
+        return '00:00:00';
+    }
+    if (!Number.isFinite(fromMs)) return '00:00:00';
+    const ms = Date.now() - fromMs;
     if (ms < 0) return '00:00:00';
-    const days = Math.floor(ms / (24 * 3600000));
-    const remMs = ms % (24 * 3600000);
+    const days = Math.floor(ms / 86400000);
+    const remMs = ms % 86400000;
     const h = Math.floor(remMs / 3600000);
     const m = Math.floor((remMs % 3600000) / 60000);
     const s = Math.floor((remMs % 60000) / 1000);
@@ -147,6 +156,14 @@ function pmsEscapeHtml(s) {
     return div.innerHTML;
 }
 
+/** Convert name to Title Case: "BÙI HẠNH" → "Bùi Hạnh" */
+function pmsTitleCase(s) {
+    if (!s) return '';
+    return String(s).trim().split(/\s+/).map(w =>
+        w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    ).join(' ');
+}
+
 // Parse currency input (remove separators)
 function pmsParseCurrency(val) {
     if (!val) return 0;
@@ -175,7 +192,7 @@ function pmsCloseModal(id) {
 }
 
 // Global PMS state
-window.PMS = window.PMS || { floors: {}, branchId: null, roomTypes: [], timer: null };
+window.PMS = window.PMS || { floors: {}, branchId: null, roomTypes: [], timer: null, _loading: false };
 
 // Change branch handler
 function pmsChangeBranch(branchId) {
@@ -220,6 +237,12 @@ window.pmsChangeBranch = pmsChangeBranch;
  *            address: { raw, detail, ward, district, province },
  *            issue_date, expiry_date, age, is_valid, expiry_status, error }
  */
+/** Địa chỉ QR còn cấp Quận/Huyện sau dấu phẩy → dùng tách 4 cấp (CCCD_CU). */
+function _pmsAddressHintsOldAdminLevels(raw) {
+    if (!raw || !String(raw).trim()) return false;
+    return /,\s*(quận|huyện|thị xã|tx\.)\s/i.test(String(raw));
+}
+
 function pmsParseScanCCCD(raw) {
     // Strip known prefixes
     let cleaned = raw.trim();
@@ -255,10 +278,8 @@ function pmsParseScanCCCD(raw) {
 
         if (re12.test(p) && !result.id_number) {
             result.id_number = p;
-            result.card_type = "CCCD_CU";
         } else if (re9.test(p) && !result.old_id) {
             result.old_id = p;
-            if (!result.card_type) result.card_type = "CMND";
         } else if (re8.test(p)) {
             const d = parseInt(p.slice(0, 2)), m = parseInt(p.slice(2, 4)), y = parseInt(p.slice(4));
             if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
@@ -268,7 +289,7 @@ function pmsParseScanCCCD(raw) {
         } else if (p === "Nam" || p === "Nữ") {
             result.gender = p;
         } else if (!result.name && /[\u00C0-\u1EF9]/.test(p)) {
-            result.name = p.trim().toUpperCase();
+            result.name = pmsTitleCase(p.trim());
         } else if (p.length > addressCandidate.length) {
             if (/[\d,]|TP\.|Tỉnh|Thành phố|Quận|Huyện|Phường|Xã|Đường|Phố|Tổ|KP/.test(p)) {
                 addressCandidate = p;
@@ -277,24 +298,29 @@ function pmsParseScanCCCD(raw) {
     }
 
     // ── Card type detection ───────────────────────────────────────────────
-    let detectedCardType = result.card_type || CCCD_CU;
-
-    // Rule 1: field[1] empty
-    if (parts.length > 1 && parts[1].trim() === "") {
-        detectedCardType = CAN_CUOC_MOI;
-    }
-    // Rule 2: > 7 fields or >= 2 empty fields
-    const emptyCount = parts.filter(p => !p.trim()).length;
-    const nonEmptyCount = parts.filter(p => p.trim()).length;
-    if (emptyCount >= 2 || nonEmptyCount > 7) {
-        detectedCardType = CAN_CUOC_MOI;
-    }
-    // Rule 3: issue year >= 2024
-    if (dateCandidates.length >= 2) {
-        try {
-            const issueYear = parseInt(dateCandidates[dateCandidates.length - 1].raw.slice(4));
-            if (issueYear >= 2024) detectedCardType = CAN_CUOC_MOI;
-        } catch (_) {}
+    let detectedCardType;
+    if (!result.id_number && result.old_id) {
+        detectedCardType = CMND_TYPE;
+    } else {
+        detectedCardType = CCCD_CU;
+        if (_pmsAddressHintsOldAdminLevels(addressCandidate)) {
+            detectedCardType = CCCD_CU;
+        } else {
+            if (parts.length > 1 && parts[1].trim() === "") {
+                detectedCardType = CAN_CUOC_MOI;
+            }
+            const emptyCount = parts.filter(p => !p.trim()).length;
+            const nonEmptyCount = parts.filter(p => p.trim()).length;
+            if (emptyCount >= 2 || nonEmptyCount > 7) {
+                detectedCardType = CAN_CUOC_MOI;
+            }
+            if (dateCandidates.length >= 2) {
+                try {
+                    const issueYear = parseInt(dateCandidates[dateCandidates.length - 1].raw.slice(4));
+                    if (issueYear >= 2024) detectedCardType = CAN_CUOC_MOI;
+                } catch (_) {}
+            }
+        }
     }
     result.card_type = detectedCardType;
 
@@ -948,16 +974,28 @@ async function _pmsWaitForDatalist(datalistId, maxMs = 2000) {
     }
 }
 
-/** Tính ngày hết hạn CCCD: dob = 'dd/MM/yyyy' */
+/** Tính ngày hết hạn CCCD theo tuổi (cùng ngày/tháng sinh): dob = 'dd/MM/yyyy' */
 function _pmsCalcCCCDExpiry(dob) {
     const m = dob.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!m) return "Không xác định";
-    const day = parseInt(m[1]), month = parseInt(m[2]), year = parseInt(m[3]);
+    const d = parseInt(m[1], 10), mo = parseInt(m[2], 10), y = parseInt(m[3], 10);
     const today = new Date();
-    const by25 = year + 25, by40 = year + 40, by60 = year + 60;
-    if (today.getFullYear() < by25) return `01/${String(month).padStart(2, "0")}/${by25}`;
-    if (today.getFullYear() < by40) return `01/${String(month).padStart(2, "0")}/${by40}`;
-    if (today.getFullYear() < by60) return `01/${String(month).padStart(2, "0")}/${by60}`;
+    let age = today.getFullYear() - y;
+    const tm = today.getMonth(), td = today.getDate();
+    if (tm < mo - 1 || (tm === mo - 1 && td < d)) age--;
+
+    function addYears(ny) {
+        const t = new Date(y, mo - 1, d);
+        t.setFullYear(t.getFullYear() + ny);
+        const dd = String(t.getDate()).padStart(2, "0");
+        const mm = String(t.getMonth() + 1).padStart(2, "0");
+        const yy = t.getFullYear();
+        return `${dd}/${mm}/${yy}`;
+    }
+
+    if (age < 25) return addYears(25);
+    if (age < 40) return addYears(40);
+    if (age < 60) return addYears(60);
     return "Không thời hạn";
 }
 

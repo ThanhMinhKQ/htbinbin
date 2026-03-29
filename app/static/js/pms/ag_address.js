@@ -205,7 +205,12 @@ async function agOnOldProvinceChange(inputEl) {
     agPopulateDatalist('dl-ag-ward', []);
     agClearConversion();
 
-    if (!newCode) return;
+    if (!newCode) {
+        if (newName === '') {
+            _agOldProv = { code: null, name: '' };
+        }
+        return;
+    }
     _agDistrictLoading = true;
     const districts = await agLoadOldDistricts(newCode);
     _agDistrictLoading = false;
@@ -234,7 +239,12 @@ async function agOnOldDistrictChange(inputEl) {
     agPopulateDatalist('dl-ag-ward', []);
     agClearConversion();
 
-    if (!newCode) return;
+    if (!newCode) {
+        if (newName === '') {
+            _agOldDist = { code: null, name: '' };
+        }
+        return;
+    }
     _agWardLoading = true;
     const wards = await agLoadOldWards(newCode);
     _agWardLoading = false;

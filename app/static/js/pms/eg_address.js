@@ -19,7 +19,7 @@ const _egVnCacheAddr = {
 };
 
 window._egOldProv = { code: null, name: '' };
-window._egOldDist = { name: '' };
+window._egOldDist = { code: null, name: '' };
 
 let _egDistrictLoading = false;
 let _egWardLoading = false;
@@ -144,6 +144,33 @@ function egGetOpt(datalistId, name) {
     return null;
 }
 
+function egFindOptWithPrefix(datalistId, name, extraPrefixes = []) {
+    if (!name) return null;
+    const dl = document.getElementById(datalistId);
+    if (!dl) return null;
+
+    // 1. Exact match
+    const exact = egGetOpt(datalistId, name);
+    if (exact) return exact;
+
+    // 2. Try stripping prefixes first
+    const stripped = egVnStripPrefix(name);
+    if (stripped !== name) {
+        const strippedOpt = egGetOpt(datalistId, stripped);
+        if (strippedOpt) return strippedOpt;
+    }
+
+    // 3. Try adding prefixes
+    const allPrefixes = [...extraPrefixes, 'Quận ', 'Huyện ', 'Thị xã ', 'Phường ', 'Xã '];
+    for (const prefix of allPrefixes) {
+        const withPrefix = prefix + stripped;
+        const opt = egGetOpt(datalistId, withPrefix);
+        if (opt) return opt;
+    }
+
+    return null;
+}
+
 function egSetConversion(province, ward, matched) {
     const provEl = document.getElementById('eg-new-province');
     const wardEl = document.getElementById('eg-new-ward');
@@ -191,8 +218,14 @@ async function egOnNewProvinceChange(inputEl) {
 }
 
 async function egOnOldProvinceChange(inputEl) {
-    const opt = egGetOpt('dl-eg-province', inputEl.value);
-    const newCode = opt ? parseInt(opt.dataset.code) : null;
+    const name = inputEl.value.trim();
+    let opt = egFindOptWithPrefix('dl-eg-province', name, ['Tỉnh ', 'Thành phố ', 'TP. ']);
+    let newCode = opt ? parseInt(opt.dataset.code) : null;
+
+    if (opt) {
+        inputEl.value = opt.value;
+    }
+
     const newName = inputEl.value.trim();
 
     if (_egOldProv.code === newCode && _egOldProv.name === newName) return; // no change
@@ -200,29 +233,35 @@ async function egOnOldProvinceChange(inputEl) {
 
     if (!newCode && newName !== '') return; // still typing a partial string
 
-    _egOldDist = { name: '' };
+    _egOldDist = { code: null, name: '' };
     ['eg-district', 'eg-ward'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
     egPopulateDatalist('dl-eg-district', []);
     egPopulateDatalist('dl-eg-ward', []);
     egClearConversion();
 
-    if (!newCode) return;
+    if (!newCode) {
+        if (newName === '') { _egOldProv = { code: null, name: '' }; }
+        return;
+    }
 
     egSetDistrictLoading(true);
     const districts = await egLoadOldDistricts(newCode);
     egSetDistrictLoading(false);
     egPopulateDatalist('dl-eg-district', districts);
 
-    // Auto-focus district input after loading
     const distEl = document.getElementById('eg-district');
-    if (distEl && districts.length > 0) {
-        distEl.focus();
-    }
+    if (distEl && districts.length > 0) { distEl.focus(); }
 }
 
 async function egOnOldDistrictChange(inputEl) {
-    const opt = egGetOpt('dl-eg-district', inputEl.value);
-    const newCode = opt ? parseInt(opt.dataset.code) : null;
+    const name = inputEl.value.trim();
+    let opt = egFindOptWithPrefix('dl-eg-district', name, ['Quận ', 'Huyện ', 'Thị xã ']);
+    let newCode = opt ? parseInt(opt.dataset.code) : null;
+
+    if (opt) {
+        inputEl.value = opt.value;
+    }
+
     const newName = inputEl.value.trim();
 
     if (_egOldDist.code === newCode && _egOldDist.name === newName) return; // no change
@@ -235,25 +274,33 @@ async function egOnOldDistrictChange(inputEl) {
     egPopulateDatalist('dl-eg-ward', []);
     egClearConversion();
 
-    if (!newCode) return;
+    if (!newCode) {
+        if (newName === '') { _egOldDist = { code: null, name: '' }; }
+        return;
+    }
 
     egSetWardLoading(true);
     const wards = await egLoadOldWards(newCode);
     egSetWardLoading(false);
     egPopulateDatalist('dl-eg-ward', wards);
 
-    // Auto-focus ward input after loading
     const wEl = document.getElementById('eg-ward');
-    if (wEl && wards.length > 0) {
-        wEl.focus();
-    }
+    if (wEl && wards.length > 0) { wEl.focus(); }
 }
 
 async function egOnOldWardChange(inputEl) {
     const wardName = inputEl.value.trim();
+
+    // Flexible match: try exact, strip prefix, add prefix
+    let opt = egFindOptWithPrefix('dl-eg-ward', wardName, ['Phường ', 'Xã ', 'Thị trấn ']);
+    if (opt) {
+        inputEl.value = opt.value;
+    }
+
     egClearConversion();
-    if (!wardName) return;
-    if (!egIsInDatalist('dl-eg-ward', wardName)) return;
+    if (!inputEl.value) return;
+    if (!egIsInDatalist('dl-eg-ward', inputEl.value)) return;
+
     clearTimeout(_egConvTimeout);
     _egConvTimeout = setTimeout(async () => {
         try {
@@ -261,7 +308,7 @@ async function egOnOldWardChange(inputEl) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    old_ward_name: wardName,
+                    old_ward_name: inputEl.value,
                     old_province_name: _egOldProv.name,
                     old_district_name: _egOldDist.name,
                     old_province_code: _egOldProv.code,
@@ -413,6 +460,8 @@ window.egIsInDatalist = egIsInDatalist;
 window.egOnProvinceChange = egOnProvinceChange;
 window.egOnDistrictChange = egOnDistrictChange;
 window.egOnWardChange = egOnWardChange;
+window.egOnOldProvinceChange = egOnOldProvinceChange;
+window.egOnOldDistrictChange = egOnOldDistrictChange;
 window.egSwitchMode = egSwitchMode;
 window.egLoadNewProvinces = egLoadNewProvinces;
 window.egLoadOldProvinces = egLoadOldProvinces;
