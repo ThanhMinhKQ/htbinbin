@@ -74,7 +74,7 @@ DEPARTMENTS = ["Chưa phân loại", "Nội bộ", "Sơn nước", "Thợ hồ",
 # Danh sách này có thể được thay thế bằng cách query từ bảng `branches` nếu muốn linh hoạt hơn
 BRANCHES = [
     "B1", "B2", "B3", "B5", "B6", "B7", "B8", "B9", "B10",
-    "B11", "B12", "B14", "B15", "B16", "B17",
+    "B11", "B12", "B14", "B15", "B16", "B17", "B18",
     "DI DONG", "KTV", "QL"
 ]
 
@@ -111,15 +111,16 @@ BRANCH_COORDINATES = {
     "B15": [10.775572501574938,106.75167172807936],
     "B16": [10.760347394497392,106.69043939445082],
     "B17": [10.70590976421059, 106.7078826381241],
+    "B18": [10.774323657, 106.753926340],
 }
 
 # Map để dịch loại giao dịch Giao Ca sang tiếng Việt
 SHIFT_TRANSACTION_TYPES = {
-    "BRANCH_ACCOUNT": "Chi nhánh",
+    "BRANCH_ACCOUNT": "Chuyển khoản",
     "COMPANY_ACCOUNT": "Công ty",
     "OTA": "OTA",
-    "UNC": "UNC",
+    "UNC": "Công nợ",
     "CARD": "Quẹt thẻ",
     "CASH_EXPENSE": "Chi tiền quầy",
-    "OTHER": "Khác",
+    "OTHER": "Tiền mặt",
 }
