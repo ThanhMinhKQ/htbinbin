@@ -1,222 +1,899 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xác nhận đặt phòng - {{ booking.external_id or ('#' ~ booking.id) }}</title>
     <style>
-        @page { size: A4; margin: 14mm; }
-        :root {
-            --primary: #0d6e6e;
-            --primary-dark: #0a5555;
-            --success: #059669;
-            --warning: #d97706;
-            --text: #172033;
-            --muted: #64748b;
-            --border: #e2e8f0;
-            --bg: #f8fafc;
+        @page {
+            size: A4;
+            margin: 8mm 10mm;
         }
-        * { box-sizing: border-box; }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            background: #eef2f7;
-            color: var(--text);
-            font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
-            line-height: 1.5;
+            padding: 0;
+            background: #eef2f6;
+            color: #000;
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            line-height: 1.4;
+            font-size: 11px;
+            /* Nhỏ gọn hơn */
         }
+
         .no-print {
-            max-width: 820px;
-            margin: 18px auto;
-            padding: 14px;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: #fff;
             text-align: center;
-        }
-        .btn {
-            border: 0;
-            border-radius: 999px;
-            padding: 11px 22px;
-            font-weight: 800;
-            cursor: pointer;
-        }
-        .btn.primary { background: var(--primary); color: #fff; }
-        .btn.ghost { margin-left: 8px; background: var(--bg); color: var(--muted); }
-        .sheet {
-            max-width: 820px;
-            margin: 0 auto 28px;
-            padding: 28px;
+            padding: 15px;
             background: #fff;
-            border-radius: 22px;
-            box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
-        .hero {
+
+        .btn {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        .btn.primary {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        .btn + .btn {
+            margin-left: 8px;
+        }
+
+        .sheet {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 10mm 10mm;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        /* Watermark */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img {
+            width: 400px;
+            height: auto;
+        }
+
+        .content-layer {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header New Layout - Corporate Letterhead */
+        .header-container {
+            margin-bottom: 14px;
+        }
+
+        .brand-top-row {
             display: flex;
             justify-content: space-between;
-            gap: 24px;
-            padding-bottom: 20px;
-            border-bottom: 4px solid var(--primary);
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            position: relative;
         }
-        .brand { display: flex; gap: 14px; align-items: flex-start; }
-        .logo {
-            width: 58px;
-            height: 58px;
-            border-radius: 16px;
-            display: grid;
-            place-items: center;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: #fff;
-            font-size: 24px;
-            font-weight: 900;
+
+        .brand-top-row::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 72%;
+            height: 1px;
+            transform: translateX(-50%);
+            background: #cfd6df;
         }
-        .hotel-name { font-size: 23px; font-weight: 900; color: var(--primary-dark); }
-        .hotel-meta { margin-top: 4px; color: var(--muted); font-size: 12px; }
-        .doc-meta { text-align: right; }
-        .doc-title { font-size: 27px; font-weight: 900; text-transform: uppercase; color: var(--primary-dark); letter-spacing: 1px; }
-        .code {
-            display: inline-block;
-            margin-top: 8px;
-            padding: 5px 12px;
-            border-radius: 999px;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            font-weight: 900;
-        }
-        .status {
-            display: inline-block;
-            margin-top: 8px;
-            padding: 6px 12px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 900;
-            color: #fff;
-            background: var(--warning);
-        }
-        .status.CONFIRMED { background: var(--success); }
-        .section { margin-top: 22px; }
-        .section-title {
+
+        .brand-main {
             display: flex;
             align-items: center;
-            gap: 10px;
-            color: var(--primary);
-            font-size: 13px;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .brand-logo-wrap {
+            flex-shrink: 0;
+        }
+
+        .logo-img {
+            width: 82px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .brand-info-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .brand-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: .6px;
+            color: #b71c1c;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .slogan {
+            margin: 1px 0 6px 0;
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            font-style: italic;
+            white-space: nowrap;
+        }
+
+        .brand-address-box {
+            text-align: left;
+        }
+
+        .brand-address-box p {
+            margin: 0 0 2px 0;
+            font-size: 10px;
+            color: #222;
+            white-space: nowrap;
+        }
+
+        .brand-address-box p strong {
+            display: inline-block;
+            width: 50px;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .brand-qr-wrap {
+            flex-shrink: 0;
+            text-align: center;
+            margin-left: 6px;
+        }
+
+        .header-qr {
+            width: 88px;
+            height: 88px;
+        }
+
+        .qr-text {
+            font-size: 10px;
+            font-weight: bold;
+            margin-top: 6px;
+            color: #b71c1c;
+        }
+
+        .doc-title-block {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .doc-title {
+            margin: 0 0 5px 0;
+            font-size: 18px;
             font-weight: 900;
             text-transform: uppercase;
-            letter-spacing: .08em;
-            margin-bottom: 12px;
+            color: #000;
+            letter-spacing: 1px;
         }
-        .section-title::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-        .card {
-            padding: 16px;
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            background: var(--bg);
+
+        .booking-meta {
+            font-size: 10.5px;
+            color: #333;
         }
-        .row { display: flex; justify-content: space-between; gap: 18px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
-        .row:last-child { border-bottom: 0; }
-        .label { color: var(--muted); font-size: 12px; }
-        .value { font-weight: 800; text-align: right; }
-        .timeline { display: grid; grid-template-columns: 1fr 1fr 1fr; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
-        .time-box { padding: 16px; background: #fff; border-right: 1px solid var(--border); }
-        .time-box:last-child { border-right: 0; background: #f0fdf4; }
-        .time-label { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
-        .time-value { margin-top: 4px; font-size: 17px; font-weight: 900; }
-        .money { font-family: "SF Mono", ui-monospace, Menlo, monospace; }
-        .note-box {
-            padding: 16px;
-            border-radius: 16px;
-            border: 1px solid #bae6fd;
-            background: #f0f9ff;
-            color: #0f3f5f;
-        }
-        .footer {
-            margin-top: 36px;
-            padding-top: 18px;
-            border-top: 1px solid var(--border);
-            color: var(--muted);
-            text-align: center;
+
+        .booking-meta strong {
             font-size: 12px;
         }
+
+        .divider-thick {
+            display: none;
+            /* Replaced by double border in header */
+        }
+
+        /* Guest Info (Horizontal) */
+        .guest-info-box {
+            border: 1px solid #cfd6df;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            background: transparent;
+            border-radius: 6px;
+        }
+
+        .guest-info-title {
+            font-size: 10.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            border-bottom: 1px dotted #cbd5e1;
+            padding-bottom: 4px;
+            letter-spacing: .3px;
+        }
+
+        .guest-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px 14px;
+        }
+
+        .info-row {
+            min-width: 0;
+        }
+
+        .info-row.info-row-pair {
+            grid-column: span 2;
+        }
+
+        .info-date-pair {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .info-label {
+            display: block;
+            color: #5b6675;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .2px;
+            margin-bottom: 1px;
+        }
+
+        .info-val {
+            display: block;
+            font-weight: bold;
+            font-size: 11px;
+            color: #000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Main Table */
+        .table-title {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 15px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            overflow: hidden;
+            table-layout: auto;
+            font-size: 11px;
+        }
+
+        .main-table th {
+            border-right: 1px solid #d0d7de;
+            border-bottom: 1px solid #d0d7de;
+            padding: 7px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: none;
+            background: transparent;
+            white-space: nowrap;
+            color: #111;
+        }
+
+        .main-table th:last-child {
+            border-right: 0;
+        }
+
+        .main-table td {
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 7px 6px;
+            font-size: 11px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .main-table td:last-child {
+            border-right: 0;
+        }
+
+        .main-table .center {
+            text-align: center;
+        }
+
+        .main-table .right {
+            text-align: right;
+        }
+
+        .main-table .money {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: bold;
+        }
+
+        .main-table td.desc-col {
+            white-space: normal;
+            width: 44%;
+            line-height: 1.45;
+        }
+
+        .line-note,
+        .date-time {
+            color: #666;
+            font-size: 11px;
+            font-weight: normal;
+        }
+
+        .date-time {
+            display: inline-block;
+            margin-top: 1px;
+        }
+
+        /* Summary table alignment */
+        .summary-wrapper {
+            margin-bottom: 15px;
+        }
+
+        .main-table tbody tr:last-child td {
+            border-bottom: 1px solid #d0d7de;
+        }
+
+        .main-table tfoot td {
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 6px;
+            background: transparent;
+        }
+
+        .main-table tfoot td:last-child {
+            border-right: 0;
+        }
+
+        .main-table tfoot tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .table-total-row td {
+            font-weight: bold;
+            padding-top: 7px;
+        }
+
+        .table-deposit-row .money {
+            color: #111;
+        }
+
+        .table-balance-row td {
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .table-balance-row .money {
+            color: #111;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .summary-table td {
+            padding: 3px 0;
+            font-size: 10.5px;
+            white-space: nowrap;
+            font-weight: normal;
+            color: #333;
+        }
+
+        .summary-table td.label {
+            text-align: left;
+        }
+
+        .summary-table td.val {
+            text-align: right;
+            font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+
+        .summary-table tr.total-row td {
+            font-weight: bold;
+            color: #000;
+            font-size: 11.5px;
+        }
+
+        .summary-table tr.balance-row td {
+            font-size: 13px;
+            font-weight: bold;
+            padding-top: 6px;
+        }
+
+        .summary-table tr.balance-row td.val {
+            color: #d93025;
+        }
+
+        /* Policy Box */
+        .policy-box {
+            border: 1px solid #f59e0b;
+            padding: 8px 12px;
+            margin-bottom: 15px;
+            background: #fffbeb;
+            color: #7c4a03;
+            border-radius: 8px;
+        }
+
+        .policy-box strong {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            color: #92400e;
+        }
+
+        .policy-box p {
+            margin: 0 0 6px 0;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 1.4;
+            color: #7c4a03;
+        }
+
+        .policy-box p.en {
+            font-style: italic;
+            font-weight: normal;
+            margin-bottom: 0;
+            color: #8a5a12;
+        }
+
+        .bank-info {
+            border: 1px solid #cfd6df;
+            padding: 10px;
+            border-radius: 6px;
+            background: transparent;
+            min-width: 0;
+        }
+
+        .bank-info h4 {
+            margin: 0 0 8px 0;
+            font-size: 11.5px;
+            text-transform: uppercase;
+            text-align: left;
+            letter-spacing: .2px;
+            color: #111;
+        }
+
+        .bank-line {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.2fr 1.5fr;
+            gap: 6px;
+        }
+
+        .bank-item {
+            min-width: 0;
+            padding: 7px 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            background: transparent;
+        }
+
+        .bank-item.memo {
+            background: transparent;
+            border-color: #fed7aa;
+        }
+
+        .bank-label {
+            display: block;
+            color: #64748b;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .2px;
+            margin-bottom: 3px;
+        }
+
+        .bank-value {
+            display: block;
+            font-size: 11.5px;
+            font-weight: bold;
+            color: #000;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.25;
+        }
+
+        .bank-item.memo .bank-value {
+            color: #9a3412;
+        }
+
+        /* Signature */
+        .signature-block {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding: 0 40px;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-box strong {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 35px;
+        }
+
+        .prepared-signature-name {
+            margin: 22px 0 0 0;
+            color: #111;
+            font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Arial", sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: .2px;
+        }
+
+        .page-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 9.5px;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            line-height: 1.4;
+        }
+
         @media print {
-            body { background: #fff; }
-            .no-print { display: none !important; }
-            .sheet { margin: 0; padding: 0; box-shadow: none; border-radius: 0; max-width: none; }
+            body {
+                background: #fff;
+            }
+
+            .sheet {
+                box-shadow: none;
+                padding: 0;
+                max-width: none;
+                width: 100%;
+                margin: 0;
+                min-height: auto;
+            }
+
+            .no-print {
+                display: none !important;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="no-print">
-        <button class="btn primary" onclick="window.print()">In / Lưu PDF</button>
+        <button class="btn primary" onclick="window.print()">In Phiếu (Ctrl + P)</button>
+        <button class="btn" onclick="downloadSheetImage()">Chụp phiếu PNG</button>
+        <button class="btn" onclick="window.print()">Xuất PDF</button>
         <button class="btn ghost" onclick="window.close()">Đóng</button>
     </div>
+
     <main class="sheet">
-        <header class="hero">
-            <div class="brand">
-                <div class="logo">{{ (booking.branch_name or 'B')[:1] }}</div>
-                <div>
-                    <div class="hotel-name">{{ booking.branch_name or 'Bin Bin Hotel' }}</div>
-                    <div class="hotel-meta">{{ booking.branch_address or '—' }}</div>
-                    <div class="hotel-meta">Mã chi nhánh: {{ booking.branch_code or '—' }}</div>
+        <div class="watermark">
+            <img src="/static/logo.png" alt="watermark">
+        </div>
+
+        <div class="content-layer">
+            <header class="header-container">
+                <div class="brand-top-row">
+                    <!-- Brand Identity & Address -->
+                    <div class="brand-main">
+                        <div class="brand-logo-wrap">
+                            <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                        </div>
+                        <div class="brand-info-wrap">
+                            {% set branch_display_name = (booking.branch_name or 'BIN BIN HOTEL 17')|string %}
+                            {% set branch_display_upper = branch_display_name|upper %}
+                            {% if branch_display_upper.startswith('CHI NHÁNH B') %}
+                            <h1 class="brand-title">BIN BIN HOTEL {{ branch_display_upper.replace('CHI NHÁNH B', '').strip() }}</h1>
+                            {% else %}
+                            <h1 class="brand-title">{{ branch_display_name }}</h1>
+                            {% endif %}
+                            <p class="slogan">"Your Second Home"</p>
+                            <div class="brand-address-box">
+                                <p><strong>Địa chỉ:</strong> {{ booking.branch_address or 'L19 Đường số 14, KDC Him Lam,
+                                    Phường Tân Hưng, TP. HCM' }}</p>
+                                <p><strong>Address:</strong> L19, Street No. 14, Him Lam Residential Area, Tan Hung
+                                    Ward, HCMC</p>
+                                <p><strong>Hotline:</strong> {{ booking.branch_phone or '028 6298 3685' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zalo Support -->
+                    <div class="brand-qr-wrap">
+                        <img src="/static/qrzalooa.jpg" alt="Zalo QR" class="header-qr"
+                            onerror="this.style.display='none'">
+                    </div>
                 </div>
+
+        <div class="doc-title-block">
+            <h2 class="doc-title">XÁC NHẬN ĐẶT PHÒNG / RESERVATION CONFIRMATION</h2>
+            <div class="booking-meta">
+                Mã đặt phòng / Booking ID: <strong>{{ booking.external_id or ('#' ~ booking.id) }}</strong>
+                &nbsp;|&nbsp;
+                Trạng thái: <strong>{{ 'ĐÃ XÁC NHẬN' if booking.reservation_status == 'CONFIRMED' else 'CHỜ XÁC NHẬN'
+                    }}</strong>
             </div>
-            <div class="doc-meta">
-                <div class="doc-title">Xác nhận đặt phòng</div>
-                <div class="code">{{ booking.external_id or ('#' ~ booking.id) }}</div><br>
-                <div class="status {{ booking.reservation_status }}">{{ 'Đã xác nhận' if booking.reservation_status == 'CONFIRMED' else 'Chờ xác nhận' }}</div>
-                <div class="hotel-meta">Ngày xuất: {{ current_time }}</div>
-            </div>
+        </div>
         </header>
 
-        <section class="section">
-            <div class="section-title">Thông tin lưu trú</div>
-            <div class="timeline">
-                <div class="time-box">
-                    <div class="time-label">Nhận phòng</div>
-                    <div class="time-value">{{ booking.check_in or '—' }}</div>
-                    <div class="hotel-meta">{{ booking.estimated_arrival or '14:00' }}</div>
+        <div class="divider-thick"></div>
+
+        {% set raw = booking.raw_data or {} %}
+        {% set pricing = raw.pricing_preview or {} %}
+        {% set breakdown = pricing.breakdown if pricing.breakdown is iterable and pricing.breakdown is not string and pricing.breakdown is not mapping else [] %}
+        {% set services = raw.services or [] %}
+        {% set check_in_time = (raw.check_in_at or booking.estimated_arrival or '14:00')[-5:] %}
+        {% set check_out_time = (raw.check_out_at or '12:00')[-5:] %}
+        {% set legacy_breakdown = pricing.breakdown if pricing.breakdown is mapping else {} %}
+        {% set early_fee = legacy_breakdown.early_checkin_fee or raw.early_checkin_fee or raw.early_fee or 0 %}
+        {% set late_fee = legacy_breakdown.late_checkout_fee or raw.late_checkout_fee or raw.late_fee or 0 %}
+        {% set source_value = (booking.booking_source or booking.booking_type or 'Direct')|string %}
+        {% set source_label = 'Trực tiếp' if source_value|lower in ['direct', 'walk-in', 'walk_in'] else source_value %}
+
+        <div class="guest-info-box">
+            <div class="guest-info-title">Thông tin đặt phòng / Reservation Details</div>
+            <div class="guest-grid">
+                {% if booking.guest_name %}
+                <div class="info-row"><span class="info-label">Khách / Guest</span><span class="info-val">{{ booking.guest_name }}</span></div>
+                {% endif %}
+                {% if booking.guest_phone %}
+                <div class="info-row"><span class="info-label">Điện thoại / Phone</span><span class="info-val">{{ booking.guest_phone }}</span></div>
+                {% endif %}
+                {% if source_label %}
+                <div class="info-row"><span class="info-label">Nguồn / Source</span><span class="info-val">{{ source_label }}</span></div>
+                {% endif %}
+                {% if booking.assigned_room_number %}
+                <div class="info-row"><span class="info-label">Phòng / Room</span><span class="info-val">{{ booking.assigned_room_number }}</span></div>
+                {% endif %}
+                {% if booking.room_type %}
+                <div class="info-row"><span class="info-label">Loại phòng / Room Type</span><span class="info-val">{{ booking.room_type }}</span></div>
+                {% endif %}
+                {% if raw and raw.nights %}
+                <div class="info-row"><span class="info-label">Số đêm / Nights</span><span class="info-val">{{ raw.nights }}</span></div>
+                {% endif %}
+                {% if booking.num_guests %}
+                <div class="info-row"><span class="info-label">Số người / Guests</span><span class="info-val">{{ booking.num_guests }}</span></div>
+                {% endif %}
+                {% if booking.check_in or booking.check_out %}
+                <div class="info-row info-row-pair">
+                    <div class="info-date-pair">
+                        {% if booking.check_in %}
+                        <div><span class="info-label">Nhận phòng / Check-in</span><span class="info-val">{{ booking.check_in }} {{ check_in_time }}</span></div>
+                        {% endif %}
+                        {% if booking.check_out %}
+                        <div><span class="info-label">Trả phòng / Check-out</span><span class="info-val">{{ booking.check_out }} {{ check_out_time }}</span></div>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="time-box">
-                    <div class="time-label">Số đêm</div>
-                    <div class="time-value">{{ booking.raw_data.nights if booking.raw_data and booking.raw_data.nights else '—' }}</div>
-                    <div class="hotel-meta">{{ booking.num_guests or 1 }} khách</div>
-                </div>
-                <div class="time-box">
-                    <div class="time-label">Trả phòng</div>
-                    <div class="time-value">{{ booking.check_out or '—' }}</div>
-                    <div class="hotel-meta">12:00</div>
+                {% endif %}
+                {% if booking.special_requests %}
+                <div class="info-row"><span class="info-label">Yêu cầu / Requests</span><span class="info-val">{{ booking.special_requests }}</span></div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Main Table (Stay & Service Combined) -->
+        <div class="table-title">Chi tiết lưu trú & dịch vụ / Stay & Service Details</div>
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th style="text-align: left;">Mô tả dịch vụ / Description</th>
+                    <th class="center">Nhận phòng / In</th>
+                    <th class="center">Trả phòng / Out</th>
+                    <th class="center">SL / Qty</th>
+                    <th class="right">Thành tiền / Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for service in services %}
+                {% set service_name = service.name or service.service_name or service.label or 'Dịch vụ phát sinh' %}
+                {% set service_note = service.description or service.note or service.memo or '' %}
+                {% set service_qty = service.qty or service.quantity or 1 %}
+                {% set service_price = service.total or service.amount or ((service.price or 0) * service_qty) %}
+                <tr>
+                    <td class="desc-col"><strong>{{ service_name }}</strong>{% if service_note %}<br><span
+                            class="line-note">{{ service_note }}</span>{% endif %}</td>
+                    <td class="center">—</td>
+                    <td class="center">—</td>
+                    <td class="center">{{ service_qty }}</td>
+                    <td class="right money">{{ '{:,.0f}'.format(service_price or 0).replace(',', '.') }}</td>
+                </tr>
+                {% endfor %}
+                {% for item in breakdown %}
+                {% if item.amount and item.amount > 0 %}
+                {% set fee_label = 'Phí nhận phòng sớm' if item.type == 'EARLY_CHECKIN_FEE' else ('Phí trả phòng muộn'
+                if item.type == 'LATE_CHECKOUT_FEE' else ('Tiền phòng' if item.type in ['ROOM_CHARGE', 'HOURLY_CHARGE'] else (item.description or 'Chi phí phát sinh'))) %}
+                {% set fee_qty = item.hours or item.days or 1 %}
+                {% set fee_unit = (item.amount / fee_qty) if fee_qty else item.amount %}
+                <tr>
+                    <td class="desc-col"><strong>{{ fee_label }}</strong><br><span
+                            class="line-note">{% if item.hours
+                            %}{{ item.hours }} tiếng × {{ '{:,.0f}'.format(fee_unit or 0).replace(',', '.') }}{% elif
+                            item.days %}{{ item.days }} đêm × {{ '{:,.0f}'.format(fee_unit or 0).replace(',', '.')
+                            }}{% else %}{{ fee_label }}{% endif %}</span></td>
+                    <td class="center">{% if item.start_iso %}{{ item.start_iso[:10] }}<br><span class="date-time">{{ item.start_iso[11:16] }}</span>{% else %}—{% endif %}</td>
+                    <td class="center">{% if item.end_iso %}{{ item.end_iso[:10] }}<br><span class="date-time">{{ item.end_iso[11:16] }}</span>{% else %}—{% endif %}</td>
+                    <td class="center">{{ fee_qty }}</td>
+                    <td class="right money">{{ '{:,.0f}'.format(item.amount or 0).replace(',', '.') }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                {% if early_fee and early_fee > 0 %}
+                {% set early_hours = raw.early_checkin_hours or raw.early_hours or 1 %}
+                {% set early_unit = early_fee / early_hours if early_hours else early_fee %}
+                <tr>
+                    <td class="desc-col"><strong>Phí nhận phòng sớm / Early check-in fee</strong><br><span
+                            class="line-note">{{ early_hours }} tiếng × {{ '{:,.0f}'.format(early_unit or 0).replace(',', '.') }}</span></td>
+                    <td class="center">{{ booking.check_in or '—' }}<br><span class="date-time">{{ check_in_time }}</span></td>
+                    <td class="center">{{ booking.check_in or '—' }}<br><span class="date-time">14:00</span></td>
+                    <td class="center">{{ early_hours }}</td>
+                    <td class="right money">{{ '{:,.0f}'.format(early_fee or 0).replace(',', '.') }}</td>
+                </tr>
+                {% endif %}
+                {% if late_fee and late_fee > 0 %}
+                {% set late_hours = raw.late_checkout_hours or raw.late_hours or 1 %}
+                {% set late_unit = late_fee / late_hours if late_hours else late_fee %}
+                <tr>
+                    <td class="desc-col"><strong>Phí trả phòng muộn / Late check-out fee</strong><br><span
+                            class="line-note">{{ late_hours }} tiếng × {{ '{:,.0f}'.format(late_unit or 0).replace(',', '.') }}</span></td>
+                    <td class="center">{{ booking.check_out or '—' }}<br><span class="date-time">12:00</span></td>
+                    <td class="center">{{ booking.check_out or '—' }}<br><span class="date-time">{{ check_out_time }}</span></td>
+                    <td class="center">{{ late_hours }}</td>
+                    <td class="right money">{{ '{:,.0f}'.format(late_fee or 0).replace(',', '.') }}</td>
+                </tr>
+                {% endif %}
+                {% if not services and not breakdown and not early_fee and not late_fee and booking.total_price and booking.total_price > 0 %}
+                {% set stay_nights = raw.nights if raw and raw.nights else 1 %}
+                <tr>
+                    <td class="desc-col"><strong>Tiền phòng / Room charge</strong><br><span
+                            class="line-note">{{ stay_nights }} đêm / night(s)</span></td>
+                    <td class="center">{{ booking.check_in or '—' }}<br><span class="date-time">{{ check_in_time }}</span></td>
+                    <td class="center">{{ booking.check_out or '—' }}<br><span class="date-time">{{ check_out_time }}</span></td>
+                    <td class="center">{{ stay_nights }}</td>
+                    <td class="right money">{{ '{:,.0f}'.format(booking.total_price or 0).replace(',', '.') }}</td>
+                </tr>
+                {% endif %}
+            </tbody>
+            <tfoot>
+                <tr class="table-total-row">
+                    <td colspan="4" class="right">Tổng cộng / Total ({{ booking.currency or 'VND' }})</td>
+                    <td class="right money">{{ '{:,.0f}'.format(booking.total_price or 0).replace(',', '.') }}</td>
+                </tr>
+                {% if booking.deposit_amount and booking.deposit_amount > 0 %}
+                <tr class="table-deposit-row">
+                    <td colspan="4" class="right">Đã đặt cọc / Deposit Paid</td>
+                    <td class="right money">-{{ '{:,.0f}'.format(booking.deposit_amount or 0).replace(',', '.') }}</td>
+                </tr>
+                {% endif %}
+                <tr class="table-balance-row">
+                    <td colspan="4" class="right">Cần thanh toán / Balance Due</td>
+                    <td class="right money">{{ '{:,.0f}'.format((booking.total_price or 0) - (booking.deposit_amount or 0)).replace(',', '.') }}</td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Payment Summary -->
+        <div class="summary-wrapper">
+            <div class="bank-info">
+                <h4>Thông tin chuyển khoản / Bank Transfer</h4>
+                <div class="bank-line">
+                    <div class="bank-item"><span class="bank-label">Ngân hàng / Bank</span><span class="bank-value">MB Bank</span></div>
+                    <div class="bank-item"><span class="bank-label">Số TK / A/C</span><span class="bank-value">0123456789</span></div>
+                    <div class="bank-item"><span class="bank-label">Chủ TK / Name</span><span class="bank-value">BIN BIN HOTEL</span></div>
+                    <div class="bank-item memo"><span class="bank-label">Nội dung / Memo</span><span class="bank-value">Thanh toan {{ booking.external_id or booking.id }}</span></div>
                 </div>
             </div>
-        </section>
+        </div>
 
-        <section class="section grid">
-            <div class="card">
-                <div class="section-title">Khách hàng</div>
-                <div class="row"><span class="label">Họ tên</span><span class="value">{{ booking.guest_name or 'Khách lẻ' }}</span></div>
-                <div class="row"><span class="label">SĐT</span><span class="value">{{ booking.guest_phone or '—' }}</span></div>
-                <div class="row"><span class="label">Email</span><span class="value">{{ booking.guest_email or '—' }}</span></div>
-                <div class="row"><span class="label">Nguồn đặt</span><span class="value">{{ booking.booking_source or booking.booking_type or 'Direct' }}</span></div>
+        <!-- Policy Box -->
+        <div class="policy-box">
+            <strong>Lưu ý quan trọng / Important Notice</strong>
+            <p>Chúng tôi không hoàn trả tiền cọc dưới bất kỳ hình thức nào. Trường hợp phát sinh vấn đề, xin vui lòng
+                liên hệ trong vòng 24 giờ kể từ lúc đặt phòng, để bảo lưu tiền cọc thời hạn một tháng.</p>
+            <p class="en">We do not offer refunds for deposits under any circumstances. Should any issues arise, please
+                contact us within 24 hours of booking to retain your deposit for up to one month.</p>
+        </div>
+
+
+        <!-- Signatures -->
+        <div class="signature-block">
+            <div class="signature-box guest-signature-box">
+                <strong>Khách hàng / Guest</strong>
+                <p style="font-size: 11px;">(Ký, ghi rõ họ tên / Sign & Print Name)</p>
             </div>
-            <div class="card">
-                <div class="section-title">Phòng & giá</div>
-                <div class="row"><span class="label">Loại phòng</span><span class="value">{{ booking.room_type or '—' }}</span></div>
-                <div class="row"><span class="label">Phòng gán</span><span class="value">{{ booking.assigned_room_number or 'Chưa gán' }}</span></div>
-                <div class="row"><span class="label">Tổng tiền</span><span class="value money">{{ '{:,.0f}'.format(booking.total_price or 0).replace(',', '.') }} {{ booking.currency or 'VND' }}</span></div>
-                <div class="row"><span class="label">Đã cọc</span><span class="value money">{{ '{:,.0f}'.format(booking.deposit_amount or 0).replace(',', '.') }} {{ booking.currency or 'VND' }}</span></div>
+            <div class="signature-box">
+                <strong>Người lập đơn / Prepared by</strong>
+                <p class="prepared-signature-name">
+                    {% if current_user is defined and current_user %}
+                    {{ current_user.full_name or current_user.name or current_user.username or 'Nhân viên lễ tân' }}
+                    {% elif request is defined and request.state and request.state._state.get('user') %}
+                    {{ request.state.user.full_name or request.state.user.name or request.state.user.username or 'Nhân viên lễ tân' }}
+                    {% else %}
+                    Nhân viên lễ tân
+                    {% endif %}
+                </p>
             </div>
-        </section>
+        </div>
 
-        {% if booking.special_requests %}
-        <section class="section">
-            <div class="section-title">Yêu cầu đặc biệt</div>
-            <div class="note-box">{{ booking.special_requests }}</div>
-        </section>
-        {% endif %}
-
-        <footer class="footer">
-            <strong>{{ booking.branch_name or 'Bin Bin Hotel' }}</strong><br>
-            Vui lòng xuất trình mã đặt phòng khi nhận phòng. Thời gian và giá trị đặt phòng có thể thay đổi theo chính sách của khách sạn.
-        </footer>
+        <div class="page-footer">
+            <p>Cảm ơn quý khách đã tin tưởng và lựa chọn dịch vụ của chúng tôi. Chúc quý khách có một kỳ nghỉ tuyệt vời!
+            </p>
+            <p>Thank you for choosing our services. We wish you a wonderful stay!</p>
+        </div>
+        </div>
     </main>
+    <script>
+        function ensureHtml2Canvas() {
+            if (typeof html2canvas === 'function') return Promise.resolve(true);
+            return new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                script.onload = () => resolve(typeof html2canvas === 'function');
+                script.onerror = () => resolve(false);
+                document.head.appendChild(script);
+            });
+        }
+
+        async function downloadSheetImage() {
+            const sheet = document.querySelector('.sheet');
+            const ready = await ensureHtml2Canvas();
+            if (!ready) {
+                alert('Không tải được thư viện chụp ảnh. Vui lòng thử lại hoặc dùng Xuất PDF.');
+                return;
+            }
+
+            const guestSignature = sheet.querySelector('.guest-signature-box');
+            const originalBoxShadow = sheet.style.boxShadow;
+            const originalGuestVisibility = guestSignature ? guestSignature.style.visibility : '';
+            sheet.style.boxShadow = 'none';
+            if (guestSignature) guestSignature.style.visibility = 'hidden';
+            const canvas = await html2canvas(sheet, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: -window.scrollY,
+                width: sheet.scrollWidth,
+                height: sheet.scrollHeight,
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight,
+            });
+            sheet.style.boxShadow = originalBoxShadow;
+            if (guestSignature) guestSignature.style.visibility = originalGuestVisibility;
+
+            const link = document.createElement('a');
+            link.download = `reservation-confirmation-{{ booking.external_id or booking.id }}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
 </body>
+
 </html>

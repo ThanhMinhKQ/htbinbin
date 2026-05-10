@@ -50,6 +50,7 @@ const BookingHub = {
         this.bindOtaCancellationRefresh();
         this.applyActiveTabUI();
         this.loadAll({ availability: true });
+        this.startOtaRealtimePolling();
     },
 
     bindOtaCancellationRefresh() {

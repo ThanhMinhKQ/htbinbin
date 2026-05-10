@@ -391,6 +391,20 @@ class OTAAgent:
         if check_out:
             normalized['check_out'] = check_out
         if check_in and check_out and check_out <= check_in:
+            check_in_minutes = self._time_minutes(normalized.get('check_in_time') or normalized.get('estimated_arrival'))
+            check_out_minutes = self._time_minutes(normalized.get('check_out_time') or normalized.get('estimated_departure'))
+            crosses_midnight = (
+                check_in == check_out
+                and check_in_minutes is not None
+                and check_out_minutes is not None
+                and check_out_minutes <= check_in_minutes
+            )
+            if crosses_midnight:
+                normalized['check_out'] = check_in + timedelta(days=1)
+                normalized['ota_same_day_booking'] = False
+                normalized['ota_cross_midnight_booking'] = True
+                normalized.pop('ota_actual_check_out', None)
+                return normalized
             normalized['ota_actual_check_out'] = check_out
             normalized['ota_same_day_booking'] = True
             normalized['check_out'] = check_in + timedelta(days=1)
@@ -404,6 +418,20 @@ class OTAAgent:
         if isinstance(value, str) and value.strip():
             return date.fromisoformat(value[:10])
         return None
+
+    def _time_minutes(self, value):
+        if value is None:
+            return None
+        if isinstance(value, datetime) or (hasattr(value, "hour") and hasattr(value, "minute")):
+            return int(value.hour) * 60 + int(value.minute)
+        match = re.match(r"^\s*(\d{1,2}):(\d{2})", str(value))
+        if not match:
+            return None
+        hour = int(match.group(1))
+        minute = int(match.group(2))
+        if hour > 23 or minute > 59:
+            return None
+        return hour * 60 + minute
 
     def _safe_text(self, value, max_length: int):
         if value is None:

@@ -3,6 +3,8 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from app.api.ota_dashboard import _build_ota_change_token, _has_ota_changes_since
+from app.api.pms.reservation_api import _is_cancel_booking_log, _is_success_booking_log
+from app.db.models import BookingStatus, OTAParsingStatus
 
 
 class OTARealtimeRefreshTests(unittest.TestCase):
@@ -54,6 +56,17 @@ class OTARealtimeRefreshTests(unittest.TestCase):
         }
 
         self.assertFalse(_has_ota_changes_since(before, dict(before)))
+
+    def test_status_endpoint_treats_cancelled_booking_log_without_action_type_as_cancel(self):
+        log = SimpleNamespace(
+            status=OTAParsingStatus.SUCCESS,
+            booking_id=7,
+            extracted_data={"external_id": "OTA-7", "booking_source": "Go2Joy"},
+            booking=SimpleNamespace(status=BookingStatus.CANCELLED, reservation_status="CANCELLED"),
+        )
+
+        self.assertTrue(_is_cancel_booking_log(log))
+        self.assertFalse(_is_success_booking_log(log))
 
 
 if __name__ == "__main__":

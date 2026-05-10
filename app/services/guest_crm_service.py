@@ -253,10 +253,17 @@ def calculate_folio_crm_amounts(db: Session, folio: Optional[Folio]) -> Dict[str
 
     total_charge = totals.get("charge", zero) or zero
     discount = totals.get("discount", zero) or zero
+    transfer_settled = sum(
+        abs(tx.amount or zero)
+        for tx in (folio.transactions or [])
+        if tx.reference_type == "room_bill_transfer"
+        and not tx.is_voided
+        and (tx.amount or zero) < zero
+    )
     deposit_paid = totals.get("deposit_used", zero) or zero
     payments_paid = totals.get("payment", zero) or zero
     final_amount = max(zero, total_charge - discount)
-    paid_amount = min(final_amount, deposit_paid + payments_paid)
+    paid_amount = min(final_amount, deposit_paid + payments_paid + transfer_settled)
     debt_amount = max(zero, final_amount - paid_amount)
 
     return {

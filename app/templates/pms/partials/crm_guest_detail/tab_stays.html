@@ -102,10 +102,26 @@
               <span class="gd-stay-detail-value" x-text="stay.guest_count || 1">1</span>
             </div>
             <div class="gd-stay-detail-item">
-              <span class="gd-stay-detail-label">Còn nợ</span>
-              <span class="gd-stay-detail-value" :class="{ 'gd-debt-text': (stay.debt_amount || 0) > 0 }" x-text="fmtMoney(stay.debt_amount || 0)">0đ</span>
+              <span class="gd-stay-detail-label" x-text="stay.transfer_settlement ? 'Đã gộp bill' : 'Còn nợ'">Còn nợ</span>
+              <span class="gd-stay-detail-value" :class="{ 'gd-debt-text': (stay.debt_amount || 0) > 0 && !stay.transfer_settlement }" x-text="fmtMoney(stay.transfer_settlement?.amount || stay.debt_amount || 0)">0đ</span>
             </div>
           </div>
+
+          <template x-if="stay.transfer_settlement">
+            <div class="gd-stay-timeline">
+              <div class="gd-stay-timeline-title">Truy vết thanh toán</div>
+              <div class="gd-stay-timeline-item">
+                <span class="gd-stay-timeline-dot payment"></span>
+                <div class="gd-stay-timeline-body">
+                  <div class="gd-stay-timeline-head">
+                    <strong>Phòng khác thanh toán</strong>
+                    <span x-text="fmtDateTime(stay.transfer_settlement.settled_at)"></span>
+                  </div>
+                  <div class="gd-stay-timeline-desc" x-text="'Gộp sang phòng ' + (stay.transfer_settlement.target_room_number || '-') + ' bởi ' + (stay.transfer_settlement.settled_by_name || ('User #' + stay.transfer_settlement.settled_by_user_id))"></div>
+                </div>
+              </div>
+            </div>
+          </template>
 
           <template x-if="stayActivities(stay).length > 0">
             <div class="gd-stay-timeline">

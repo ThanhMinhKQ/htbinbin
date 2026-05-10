@@ -38,14 +38,14 @@ def api_get_rooms(
     is_admin = _is_admin(user)
     branch_code = _active_branch(request)
 
-    # Xác định branch filter
-    if is_admin and branch_id:
+    # Sơ đồ phòng phải luôn bám vào một chi nhánh cụ thể.
+    if is_admin:
         target_branch_id = branch_id
-    elif not is_admin:
+    else:
         branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
         target_branch_id = branch.id if branch else None
-    else:
-        target_branch_id = None
+    if not target_branch_id:
+        return JSONResponse({"floors": {}, "total_rooms": 0, "requires_branch": True})
 
     # ── Performance: tách 2 query để tránh cartesian rooms × stays × guests ──
     # Trước đây: outerjoin(stay).outerjoin(guest) + contains_eager tạo N×M×K rows
@@ -109,6 +109,10 @@ def api_get_room_types(
         branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
         if branch:
             q = q.filter(HotelRoomType.branch_id == branch.id)
+        else:
+            return JSONResponse([])
+    else:
+        return JSONResponse([])
 
     types = q.order_by(HotelRoomType.sort_order, HotelRoomType.name).all()
     return JSONResponse([

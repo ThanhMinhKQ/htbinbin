@@ -142,6 +142,35 @@ def _payment_transaction_code(db: Session, payment: GuestPaymentSummary) -> Opti
     return None
 
 
+def _stay_transfer_settlement_payload(db: Session, stay_id: int) -> Optional[dict]:
+    tx = db.query(FolioTransaction).filter(
+        FolioTransaction.stay_id == stay_id,
+        FolioTransaction.reference_type == "room_bill_transfer",
+        FolioTransaction.amount < 0,
+        FolioTransaction.is_voided == False,
+    ).order_by(FolioTransaction.created_at.desc()).first()
+    if not tx:
+        return None
+
+    target_stay = db.query(HotelStay).filter(HotelStay.id == tx.reference_id).first() if tx.reference_id else None
+    target_room = None
+    if target_stay and target_stay.room_id:
+        target_room = db.query(HotelRoom).filter(HotelRoom.id == target_stay.room_id).first()
+    actor = db.query(User).filter(User.id == tx.created_by).first() if tx.created_by else None
+
+    return {
+        "type": "room_bill_transfer",
+        "amount": float(abs(tx.amount or Decimal("0"))),
+        "source_stay_id": stay_id,
+        "target_stay_id": target_stay.id if target_stay else tx.reference_id,
+        "target_room_number": target_room.room_number if target_room else None,
+        "settled_by_user_id": actor.id if actor else tx.created_by,
+        "settled_by_name": actor.name if actor else None,
+        "settled_at": tx.created_at.isoformat() if tx.created_at else None,
+        "description": tx.description,
+    }
+
+
 def _active_branch_id(request: Request, db: Session) -> Optional[int]:
     branch_code = _active_branch(request)
     if not branch_code:
@@ -885,6 +914,7 @@ def api_get_guest_stays(
             GuestActivity.guest_id == guest_id,
             GuestActivity.stay_id == s.stay_id,
         ).order_by(GuestActivity.created_at.desc()).limit(20).all()
+        transfer_settlement = _stay_transfer_settlement_payload(db, s.stay_id)
         results.append({
             "id": s.id,
             "stay_id": s.stay_id,
@@ -911,6 +941,7 @@ def api_get_guest_stays(
             "vehicle": s.vehicle,
             "source": s.source,
             "debt_status": s.debt_status,
+            "transfer_settlement": transfer_settlement,
             "activities": [_activity_payload(a) for a in activities],
         })
 

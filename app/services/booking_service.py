@@ -1001,20 +1001,9 @@ class BookingService:
         else:
             self._mark_unreserved(booking)
 
-        guest_payload = {
-            "guest_name": booking.guest_name,
-            "guest_phone": booking.guest_phone,
-            "guest_email": raw.get("guest_email"),
-            "guest_cccd": raw.get("guest_cccd"),
-            "date_of_birth": raw.get("date_of_birth"),
-            "gender": raw.get("gender"),
-            "nationality": raw.get("nationality"),
-            "id_expire": raw.get("id_expire"),
-            "address": raw.get("address"),
-        }
-        guest = self._find_or_create_guest(guest_payload, user_id)
-        if guest:
-            booking.guest_id = guest.id
+        booking.guest_id = None
+        raw.pop("selected_crm_guest_id", None)
+        booking.raw_data = raw
 
         booking.updated_by = user_id
         booking.updated_at = self._now()

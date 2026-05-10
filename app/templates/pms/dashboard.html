@@ -2425,8 +2425,8 @@
     <div class="relative">
       <select class="v-select !pr-8 appearance-none" style="width:160px;" onchange="pmsChangeBranch(this.value)"
         id="branchSelect">
-        <option value="">— Chi nhánh —</option>
-        {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        <option value="" disabled>— Chi nhánh —</option>
+        {% for b in branches %}<option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
       </select>
       <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"

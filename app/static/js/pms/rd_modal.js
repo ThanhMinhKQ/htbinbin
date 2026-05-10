@@ -163,16 +163,17 @@ function rdCalculateFolioBalance(folio = rdCurrentFolio, options = {}) {
 }
 
 function rdGetCheckedOutDisplayBalance() {
+    const projected = rdPaymentState?.projected_balance ?? rdPaymentState?.balance;
+    if (projected !== undefined && projected !== null && projected !== '') return rdNum(projected);
+
     const paidFromParts = rdNum(rdPaymentState?.effective_paid) + rdNum(rdPaymentState?.deposit_used);
-    const paid = paidFromParts
-        || rdNum(rdPaymentState?.total_paid)
-        || rdNum(rdCurrentFolio?.total_paid);
-    const total = rdNum(rdPaymentState?.net_charge)
-        || rdNum(rdPaymentState?.final_total)
-        || rdNum(rdPaymentState?.total_charge)
-        || rdNum(rdCurrentFolio?.total_charge);
+    const paid = paidFromParts > 0
+        ? paidFromParts
+        : rdNum(rdPaymentState?.total_paid ?? rdCurrentFolio?.total_paid ?? 0);
+    const totalRaw = rdPaymentState?.net_charge ?? rdPaymentState?.final_total ?? rdPaymentState?.total_charge ?? rdCurrentFolio?.total_charge ?? 0;
+    const total = rdNum(totalRaw);
     if (total > 0 || paid > 0) return total - paid;
-    return rdNum(rdPaymentState?.projected_balance ?? rdCurrentFolio?.balance ?? 0);
+    return rdNum(rdCurrentFolio?.balance ?? 0);
 }
 
 function rdMergeChargeResult(resp, fallback = {}) {

@@ -392,10 +392,30 @@ class RuleBasedOTAExtractor:
         room_price = parse_amount(value_between_labels(text, "Tiền phòng", labels) or value_between_labels(text, "Price", labels) or first_match(text, [r"(?:Tiền phòng|Price)\s+([\d.,]+)\s*(?:VND|VNĐ|đ|₫)?"]))
         payment_amount = parse_amount(value_between_labels(text, "Số tiền thanh toán", labels) or value_between_labels(text, "Payment amount", labels) or first_match(text, [r"(?:Số tiền thanh toán|Payment amount)\s+([\d.,]+)\s*(?:VND|VNĐ|đ|₫)?"]))
         guest_count = int(first_match(text, [r"(?:Số khách|No\. of Guests|Guests?|Occupancy|Số người)\s*:?\s*(\d+)"]) or 1)
+
+        def clean_go2joy_guest(value: Optional[str]) -> Optional[str]:
+            guest = clean_field(value)
+            if not guest:
+                return None
+            key = normalize_key(guest)
+            body_markers = (
+                "ma dat phong", "booking number", "loai phong", "room type",
+                "loai dat phong", "booking type", "thoi gian nhan phong",
+                "check-in", "tien phong", "price", "tinh trang thanh toan",
+                "payment status", "english below",
+            )
+            if len(guest) > 80 or any(marker in key for marker in body_markers):
+                return None
+            return guest
+
+        guest_name = (
+            clean_go2joy_guest(value_between_labels(text, "Tên khách", ["Mã đặt phòng", "Booking Number"]))
+            or clean_go2joy_guest(value_between_labels(text, "Guest's name", ["Booking Number", "Mã đặt phòng"]))
+        )
         data.update({
             "external_id": booking_id,
             "hotel_name": clean_field(first_match(text, [r"(?:Quý khách sạn|Dear Hotel)\s+(.+?)(?:,| You have| Khách sạn vừa nhận|$)"])),
-            "guest_name": clean_field(value_between_labels(text, "Tên khách", ["Mã đặt phòng", "Booking Number"]) or value_between_labels(text, "Guest's name", ["Booking Number", "Mã đặt phòng"])) or "Go2Joy Guest",
+            "guest_name": guest_name or "Go2Joy Guest",
             "room_type": clean_field(first_match(text, [r"(?:Mã đặt phòng|Booking Number)\s+(?:Loại phòng|Room type)\s+\d+\s+(.+?)\s+(?:Loại đặt phòng|Booking type)"])),
             "num_rooms": int(first_match(text, [r"(?:Số phòng|No\. of Rooms|Room\(s\)|Rooms?)\s*:?\s*([0-9]+)"]) or 1),
             "num_guests": guest_count,

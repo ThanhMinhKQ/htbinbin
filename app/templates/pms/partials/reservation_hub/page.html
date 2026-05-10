@@ -15,11 +15,18 @@
               {% endfor %}
             </select>
           </div>
+          {% elif branch %}
+          <div class="bk-control-group bk-branch-control">
+            <label>Chi nhánh</label>
+            <select id="bk-branch" class="bk-select bk-branch-select" disabled>
+              <option value="{{ branch.id }}" selected>{{ branch_name or branch.name }}</option>
+            </select>
+          </div>
           {% else %}
           <div class="bk-control-group bk-branch-control">
             <label>Chi nhánh</label>
-            <select id="bk-branch" class="bk-select bk-branch-select">
-              <option value="">Tất cả chi nhánh</option>
+            <select id="bk-branch" class="bk-select bk-branch-select" disabled>
+              <option value="">Cần chọn chi nhánh</option>
             </select>
           </div>
           {% endif %}

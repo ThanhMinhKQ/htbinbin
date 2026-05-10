@@ -957,8 +957,8 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
     <div class="rh-controls">
       {% if is_admin %}
       <select class="rh-select" id="rh-branch-select" onchange="rhChangeBranch(this.value)">
-        <option value="">— Chi nhánh —</option>
-        {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        <option value="" disabled>— Chi nhánh —</option>
+        {% for b in branches %}<option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
       </select>
       {% endif %}
       <button class="rh-btn" onclick="rhLoad()">
@@ -1083,6 +1083,9 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
 <script src="/static/js/pms/pms_common.js"></script>
 <script src="/static/js/pms/rd_modal.js"></script>
 <script src="/static/js/pms/pms_checkout.js"></script>
+<script>
+window.PMS_ROOM_HISTORY_BOOT = JSON.parse('{{ boot_json|safe }}');
+</script>
 <script src="/static/js/pms/pms_room_history.js"></script>
 <script>
 function rhChangeBranch(val) {

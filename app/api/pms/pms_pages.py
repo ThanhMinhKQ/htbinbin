@@ -4,6 +4,9 @@ PMS Pages - Dashboard, Booking, and Setup pages
 """
 from __future__ import annotations
 
+import json
+import re
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -17,6 +20,16 @@ router = APIRouter()
 
 BASE_DIR = __import__("pathlib").Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def _natural_branch_key(code: str):
+    parts = re.split(r'(\d+)', code or '')
+    return [(int(p) if p.isdigit() else p.lower()) for p in parts]
+
+
+def _hotel_branches(db: Session) -> list[Branch]:
+    branches = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
+    return sorted(branches, key=lambda b: _natural_branch_key(b.branch_code))
 
 
 # ─────────────────────────── UI Pages ───────────────────────────────
@@ -33,26 +46,19 @@ def pms_dashboard(request: Request, db: Session = Depends(get_db)):
     if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
         branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
 
-    branches = []
-    if is_admin:
-        # Sắp xếp theo thứ tự tự nhiên: B1, B2, B3... thay vì B1, B10, B11, B2...
-        branches_raw = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
-        import re
-        def natural_key(code):
-            parts = re.split(r'(\d+)', code)
-            return [(int(p) if p.isdigit() else p.lower()) for p in parts]
-        branches = sorted(branches_raw, key=lambda b: natural_key(b.branch_code))
+    branches = _hotel_branches(db) if is_admin else []
+    selected_branch = branch or (branches[0] if is_admin and branches else None)
 
     return templates.TemplateResponse(request, "pms/dashboard.html", {
         "request": request,
         "user": user,
         "active_page": "pms",
-        "branch": branch,
+        "branch": selected_branch,
         "branches": branches,
         "is_admin": is_admin,
         "is_manager": is_manager,
         "branch_code": branch_code,
-        "branch_name": branch.name if branch else "",
+        "branch_name": selected_branch.name if selected_branch else "",
         "stats": {
             "total_rooms": 0,
             "occupied_rooms": 0,
@@ -78,14 +84,7 @@ def pms_booking(request: Request, db: Session = Depends(get_db)):
     branch = None
     if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
         branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
-    branches_raw = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
-    branches = []
-    if branches_raw:
-        import re
-        def natural_key(code):
-            parts = re.split(r'(\d+)', code)
-            return [(int(p) if p.isdigit() else p.lower()) for p in parts]
-        branches = sorted(branches_raw, key=lambda b: natural_key(b.branch_code or ''))
+    branches = _hotel_branches(db)
     visible_branches = branches if is_admin else []
     room_types = []
     selected_branch = branch or (branches[0] if is_admin and branches else None)
@@ -96,10 +95,9 @@ def pms_booking(request: Request, db: Session = Depends(get_db)):
             .order_by(HotelRoomType.sort_order, HotelRoomType.name)
             .all()
         )
-    import json
     boot_data = {
         "isAdmin": is_admin,
-        "branchId": (branch.id if branch else (branches[0].id if is_admin and branches else None)),
+        "branchId": selected_branch.id if selected_branch else None,
         "branches": [{"id": b.id, "name": b.name, "branch_code": b.branch_code} for b in visible_branches],
         "transferBranches": [{"id": b.id, "name": b.name, "branch_code": b.branch_code} for b in branches],
         "roomTypes": [
@@ -111,7 +109,7 @@ def pms_booking(request: Request, db: Session = Depends(get_db)):
         "request": request,
         "user": user,
         "active_page": "pms_booking",
-        "branch": branch,
+        "branch": selected_branch,
         "branches": visible_branches,
         "is_admin": is_admin,
         "is_manager": is_manager,
@@ -132,16 +130,8 @@ def pms_room_status(request: Request, db: Session = Depends(get_db)):
     branch = None
     if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
         branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
-    branches = []
-    if is_admin:
-        import re
-        def natural_key(code):
-            parts = re.split(r'(\d+)', code)
-            return [(int(p) if p.isdigit() else p.lower()) for p in parts]
-        branches_raw = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
-        branches = sorted(branches_raw, key=lambda b: natural_key(b.branch_code))
+    branches = _hotel_branches(db) if is_admin else []
     selected_branch = branch or (branches[0] if is_admin and branches else None)
-    import json
     boot_data = {
         "isAdmin": is_admin,
         "branchId": selected_branch.id if selected_branch else None,
@@ -151,7 +141,7 @@ def pms_room_status(request: Request, db: Session = Depends(get_db)):
         "request": request,
         "user": user,
         "active_page": "pms_room_status",
-        "branch": branch,
+        "branch": selected_branch,
         "branches": branches,
         "is_admin": is_admin,
         "is_manager": is_manager,
@@ -194,25 +184,24 @@ def pms_room_history(request: Request, db: Session = Depends(get_db)):
     if branch_code and branch_code not in ("HỆ THỐNG", "Chưa phân bổ"):
         branch = db.query(Branch).filter(Branch.branch_code == branch_code).first()
 
-    branches = []
-    if is_admin:
-        import re
-        def natural_key(code):
-            parts = re.split(r'(\d+)', code)
-            return [(int(p) if p.isdigit() else p.lower()) for p in parts]
-        branches_raw = db.query(Branch).filter(Branch.branch_code.like('B%')).order_by(Branch.branch_code).all()
-        branches = sorted(branches_raw, key=lambda b: natural_key(b.branch_code))
+    branches = _hotel_branches(db) if is_admin else []
+    selected_branch = branch or (branches[0] if is_admin and branches else None)
+    boot_data = {
+        "isAdmin": is_admin,
+        "branchId": selected_branch.id if selected_branch else None,
+    }
 
     return templates.TemplateResponse(request, "pms/room_history.html", {
         "request": request,
         "user": user,
         "active_page": "pms_history",
-        "branch": branch,
+        "branch": selected_branch,
         "branches": branches,
         "is_admin": is_admin,
         "is_manager": is_manager,
         "branch_code": branch_code,
-        "branch_name": branch.name if branch else "",
+        "branch_name": selected_branch.name if selected_branch else "",
+        "boot_json": json.dumps(boot_data, ensure_ascii=False),
     })
 
 

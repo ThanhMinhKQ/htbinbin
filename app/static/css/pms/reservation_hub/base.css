@@ -1,16 +1,13 @@
 #pms-booking-page {
-    background: #ffffff;
-    color: #0f172a;
-    padding: 18px;
-  }
+    /* Rely on the default app-main > * card styles from base.html */
+}
 
-  .bk-shell {
+.bk-shell {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    max-width: 1500px;
-    margin: 0 auto;
-  }
+    gap: 16px;
+    width: 100%;
+}
 
   .bk-title h1 {
     margin: 0;

@@ -70,6 +70,81 @@ Object.assign(BookingHub, {
         }
     },
 
+    startOtaRealtimePolling() {
+        if (this.state.otaRealtimeTimer) return;
+        const tick = () => this.checkOtaRealtime().catch(() => {});
+        tick();
+        this.state.otaRealtimeTimer = setInterval(tick, 10000);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) tick();
+        });
+    },
+
+    buildOtaRealtimeStatusUrl() {
+        const params = new URLSearchParams();
+        params.set('days', '1');
+        params.set('fresh', '1');
+        if (this.state.branchId) params.set('branch_id', this.state.branchId);
+        return `/api/pms/reservations/ota/status?${params.toString()}`;
+    },
+
+    otaRealtimeScopeKey() {
+        return String(this.state.branchId || 'all');
+    },
+
+    otaRealtimeMessage(payload, action) {
+        const source = payload?.booking_source || 'OTA';
+        const guest = payload?.guest_name || 'khách';
+        const code = payload?.external_id ? ` #${payload.external_id}` : '';
+        const branch = payload?.branch_name && payload.branch_name !== 'Chưa xác định' ? ` • ${payload.branch_name}` : '';
+        if (action === 'cancel') return `OTA hủy phòng ${source}${code}: ${guest}${branch}`;
+        return `Booking ${source}${code}: ${guest}${branch}`;
+    },
+
+    updateOtaRealtimeBaseline(data) {
+        this.state.otaRealtimeBaseline = {
+            scope: this.otaRealtimeScopeKey(),
+            latestSuccessLogId: Number(data?.latest_success_log_id || 0) || null,
+            latestCancelLogId: Number(data?.latest_cancel_log_id || 0) || null,
+        };
+    },
+
+    async checkOtaRealtime() {
+        if (document.hidden || this.state.otaRealtimeChecking) return;
+        this.state.otaRealtimeChecking = true;
+        try {
+            const data = await pmsApi(this.buildOtaRealtimeStatusUrl());
+            if (data?.database_offline) return;
+            this.renderOtaStatus(data || {});
+            const baseline = this.state.otaRealtimeBaseline;
+            const currentScope = this.otaRealtimeScopeKey();
+            if (!baseline || baseline.scope !== currentScope) {
+                this.updateOtaRealtimeBaseline(data);
+                return;
+            }
+
+            const latestSuccessLogId = Number(data?.latest_success_log_id || 0) || null;
+            const latestCancelLogId = Number(data?.latest_cancel_log_id || 0) || null;
+            const hasNewBooking = latestSuccessLogId && (!baseline.latestSuccessLogId || latestSuccessLogId > baseline.latestSuccessLogId);
+            const hasCancel = latestCancelLogId && (!baseline.latestCancelLogId || latestCancelLogId > baseline.latestCancelLogId);
+            if (!hasNewBooking && !hasCancel) return;
+
+            this.updateOtaRealtimeBaseline(data);
+            if (hasCancel) pmsToast(this.otaRealtimeMessage(data.latest_cancel_booking, 'cancel'), true);
+            if (hasNewBooking) pmsToast(this.otaRealtimeMessage(data.latest_success_booking, 'new'), true);
+            await Promise.all([this.loadStats(), this.loadReservations()]);
+            if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
+                await this.loadOtaLogs();
+            }
+            this.loadAvailabilityBar();
+            this.renderOtaStatus(data || {});
+        } catch (err) {
+            // Polling is best-effort; manual refresh remains available.
+        } finally {
+            this.state.otaRealtimeChecking = false;
+        }
+    },
+
     openOtaLogModal() {
         const modal = document.getElementById('bk-ota-log-modal');
         if (!modal) return;

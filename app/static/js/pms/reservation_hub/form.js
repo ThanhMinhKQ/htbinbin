@@ -64,6 +64,7 @@ Object.assign(BookingHub, {
             this.state.depositTargetRoomKey = '';
             this.state.depositSplitAmounts = {};
             this.state.depositSplitTouched = false;
+            this.state.bookingPricingPreview = booking.raw_data?.pricing_preview || null;
             await this.fillBookingForm(booking);
             this.setWizardStep(2);
             this.showModal('bk-create-modal');
@@ -166,7 +167,7 @@ Object.assign(BookingHub, {
             selected.style.display = 'block';
             selected.textContent = `Đã chọn CRM: ${booking.guest_name || 'Khách'} • ${booking.guest_tier || 'BASIC'}`;
         }
-        this.setBookingCrmFieldsLocked(Boolean(booking.guest_id));
+        this.setBookingCrmFieldsLocked(false);
         document.getElementById('bk-step-2')?.classList.toggle('bk-ota-guest-relaxed', booking.booking_type === 'OTA');
     },
 
@@ -1297,6 +1298,7 @@ Object.assign(BookingHub, {
                 return { item, data, unitTotal };
             }));
             const total = results.reduce((sum, row) => sum + row.unitTotal * Number(row.item.quantity || 1), 0);
+            this.state.bookingPricingPreview = results[0]?.data || null;
             if (totalInput && !isOta) totalInput.value = Number(total).toLocaleString('vi-VN');
             this.renderBookingPriceBreakdown(results[0]?.data || {}, { referenceLabel: isOta ? 'Tổng PMS tham chiếu' : 'Tổng cộng' });
             if (breakdown && results.length > 1) {
@@ -1308,6 +1310,7 @@ Object.assign(BookingHub, {
             }
             this.renderRoomCart();
         } catch (err) {
+            this.state.bookingPricingPreview = null;
             const targets = cart.length ? cart : [rt];
             const fallbackTotal = targets.reduce((sum, item) => {
                 const unit = Math.round(Number(item.base_price || 0) * Math.max(1, this.dateDiff(ci.slice(0, 10), co.slice(0, 10))));
@@ -1790,6 +1793,7 @@ Object.assign(BookingHub, {
     async submitCreate() {
         const btn = document.getElementById('bk-create-submit');
         if (!this.validateReservationForm()) return;
+        await this.previewBookingPrice();
         const isEdit = Boolean(this.state.editingBookingId);
         this.applyOverCapacityStatusLock();
         const depositMethod = this.getEffectiveBookingPaymentMethod();
@@ -1843,10 +1847,10 @@ Object.assign(BookingHub, {
                 deposit_meta: depositMeta,
                 check_in_at: this.value('bk-form-check-in-at'),
                 check_out_at: this.value('bk-form-check-out-at'),
+                pricing_preview: this.state.bookingPricingPreview || null,
                 source_label: this.getBookingSourceLabel(),
                 booking_reference_code: this.value('bk-form-booking-type') === 'OTA' ? this.value('bk-form-booking-code') : '',
                 ota_channel: this.value('bk-form-booking-type') === 'OTA' ? this.value('bk-form-ota-channel') : '',
-                selected_crm_guest_id: this.value('bk-form-guest-id') ? Number(this.value('bk-form-guest-id')) : null,
                 over_capacity_pending: this.hasOverCapacityCart(),
                 ...otaPricing,
                 sales_name: this.value('bk-form-booking-type') === 'SALES' ? this.value('bk-form-sales-name') : '',
@@ -1890,6 +1894,7 @@ Object.assign(BookingHub, {
             this.closeCreate();
             this.resetCreateForm();
             await this.refreshAfterMutation({ availability: true });
+            if (isEdit && createdBooking?.id) await this.openDetail(createdBooking.id);
             if (!isEdit && createdBooking?.id) await this.openDetail(createdBooking.id);
         } catch (err) {
             pmsToast(err.message || 'Không tạo được đặt phòng', false);

@@ -353,9 +353,10 @@ function pmsCiOpenReservationModal(context) {
     if (rn) rn.value = pmsCi.room_number || 'Chưa gán';
 
     pmsCiInitFlatpickr();
-    const arrival = data.estimated_arrival || '14:00';
+    const arrival = raw.check_in_time || raw.estimated_arrival || data.estimated_arrival || '14:00';
+    const departure = raw.check_out_time || raw.estimated_departure || data.estimated_departure || '12:00';
     if (data.check_in) pmsCiSetDateTime('ci-in', `${data.check_in}T${arrival}`);
-    if (data.check_out) pmsCiSetDateTime('ci-out', `${data.check_out}T12:00`);
+    if (data.check_out) pmsCiSetDateTime('ci-out', `${data.check_out}T${departure}`);
 
     const elHero = document.getElementById('ci-hero-amount');
     if (elHero) elHero.textContent = data.total_price ? pmsMoney(Number(data.total_price)) : '—';

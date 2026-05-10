@@ -264,6 +264,52 @@ class RuleBasedOTAExtractorTests(unittest.TestCase):
         self.assertEqual(data["payment_method"], "Đã thanh toán (Ví MoMo)")
         self.assertTrue(is_confident_booking(data))
 
+    def test_go2joy_empty_guest_name_uses_short_fallback(self):
+        email = {
+            "sender": "info.mail@go2joy.vn",
+            "subject": "Go2Joy - Thông báo có đặt phòng mới - 4492068",
+            "html": """
+                <p>Thân gửi Quý khách sạn Bin Bin Hotel 1 – Near Rmit University D7,</p>
+                <p>Khách sạn vừa nhận được 1 đặt phòng mới từ khách của Go2Joy.</p>
+                <p>Tên khách</p><b></b>
+                <div>Mã đặt phòng</div><div>Loại phòng</div>
+                <div>4492068</div><div>Superior room</div>
+                <div>Loại đặt phòng</div><div>Thời gian nhận phòng ~ trả phòng</div>
+                <div>Giờ</div><div>15:00, 10/05/2026 ~ 18:00, 10/05/2026</div>
+                <div>Tiền phòng</div><div>300.000 VND</div>
+                <div>Phụ thu</div><div>0 VND</div>
+                <div>Tiền sản phẩm</div><div>0 VND</div>
+                <div>Số tiền thanh toán</div><div>300.000 VND</div>
+                <div>Tình trạng thanh toán</div><div>Đã thanh toán (Ví MoMo)</div>
+                <p>English below</p>
+                <p>Guest's name</p><b></b>
+                <p>Booking Number</p><p>Room type</p>
+                <p>4492068</p><p>Superior room</p>
+                <p>Booking type</p><p>Check-in ~ checkout time</p>
+                <p>Hourly</p><p>15:00, 10/05/2026 ~ 18:00, 10/05/2026</p>
+                <p>Price</p><p>300,000 VND</p>
+                <p>Payment amount</p><p>300,000 VND</p>
+                <p>Payment status</p><p>Paid (MoMo Wallet)</p>
+            """,
+        }
+
+        data = self.extractor.extract(email)
+
+        self.assertEqual(data["booking_source"], "Go2Joy")
+        self.assertEqual(data["external_id"], "4492068")
+        self.assertEqual(data["guest_name"], "Go2Joy Guest")
+        self.assertNotIn("Mã đặt phòng", data["guest_name"])
+        self.assertNotIn("Booking Number", data["guest_name"])
+        self.assertLessEqual(len(data["guest_name"]), 32)
+        self.assertEqual(data["room_type"], "Superior room")
+        self.assertEqual(str(data["check_in"]), "2026-05-10")
+        self.assertEqual(data["check_in_time"], "15:00")
+        self.assertEqual(str(data["check_out"]), "2026-05-10")
+        self.assertEqual(data["check_out_time"], "18:00")
+        self.assertEqual(data["total_price"], 300000)
+        self.assertTrue(data["is_prepaid"])
+        self.assertTrue(is_confident_booking(data))
+
     def test_go2joy_cancellation_template_extracts_cancel_action_and_stay(self):
         email = {
             "sender": "info.mail@go2joy.vn",

@@ -233,6 +233,18 @@ def _is_relevant_ota_log(log: OTAParsingLog) -> bool:
     return has_booking_signal or is_booking_action or is_failed_review
 
 
+def _booking_is_cancelled(booking: Optional[Booking]) -> bool:
+    if not booking:
+        return False
+    for attr in ("reservation_status", "status"):
+        value = getattr(booking, attr, None)
+        if hasattr(value, "value"):
+            value = value.value
+        if str(value or "").upper() in {"CANCELLED", "NO_SHOW"}:
+            return True
+    return False
+
+
 def _is_success_booking_log(log: OTAParsingLog) -> bool:
     if log.status != OTAParsingStatus.SUCCESS or not log.booking_id:
         return False
@@ -240,7 +252,7 @@ def _is_success_booking_log(log: OTAParsingLog) -> bool:
     if data.get("status") == "SKIPPED" or data.get("non_booking"):
         return False
     action_type = str(data.get("action_type") or "NEW").upper()
-    return action_type not in {"SKIP", "CANCEL", "CANCELLED"}
+    return action_type not in {"SKIP", "CANCEL", "CANCELLED"} and not _booking_is_cancelled(log.booking)
 
 
 def _is_cancel_booking_log(log: OTAParsingLog) -> bool:
@@ -250,7 +262,7 @@ def _is_cancel_booking_log(log: OTAParsingLog) -> bool:
     if data.get("status") == "SKIPPED" or data.get("non_booking"):
         return False
     action_type = str(data.get("action_type") or "").upper()
-    if action_type not in {"CANCEL", "CANCELLED"}:
+    if action_type not in {"CANCEL", "CANCELLED"} and not _booking_is_cancelled(log.booking):
         return False
     return bool(log.booking_id or data.get("external_id") or data.get("booking_source"))
 
@@ -523,6 +535,7 @@ def api_ota_status(
     request: Request,
     branch_id: Optional[int] = None,
     days: int = Query(7, ge=1, le=90),
+    fresh: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     user = _require_login(request)
@@ -535,7 +548,7 @@ def api_ota_status(
     cache_key = (target_branch, days)
     now_ts = time.time()
     cached = _OTA_STATUS_CACHE.get(cache_key)
-    if cached and (now_ts - cached[0]) < _OTA_STATUS_TTL:
+    if not fresh and cached and (now_ts - cached[0]) < _OTA_STATUS_TTL:
         return JSONResponse(cached[1])
 
     branch = db.query(Branch).filter(Branch.id == target_branch).first() if target_branch else None
@@ -614,11 +627,12 @@ def api_ota_status(
         "latest_cancel_log_id": latest_cancel_log.id if latest_cancel_log else None,
         "latest_cancel_booking": latest_cancel_payload,
     }
-    _OTA_STATUS_CACHE[cache_key] = (now_ts, payload)
-    # Don trim cache đơn giản để tránh leak
-    if len(_OTA_STATUS_CACHE) > 64:
-        oldest = min(_OTA_STATUS_CACHE.items(), key=lambda kv: kv[1][0])[0]
-        _OTA_STATUS_CACHE.pop(oldest, None)
+    if not fresh:
+        _OTA_STATUS_CACHE[cache_key] = (now_ts, payload)
+        # Don trim cache đơn giản để tránh leak
+        if len(_OTA_STATUS_CACHE) > 64:
+            oldest = min(_OTA_STATUS_CACHE.items(), key=lambda kv: kv[1][0])[0]
+            _OTA_STATUS_CACHE.pop(oldest, None)
     return JSONResponse(payload)
 
 
@@ -795,6 +809,7 @@ def page_reservation_confirmation_print(
     return templates.TemplateResponse(request, "pms/reservation_confirmation_print.html", {
         "request": request,
         "booking": BookingService(db).serialize(booking),
+        "current_user": user,
         "current_time": datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M"),
     })
 

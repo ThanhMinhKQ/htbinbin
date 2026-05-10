@@ -104,6 +104,30 @@ class ReservationHubBookingTableUiContractTest(unittest.TestCase):
         self.assertNotIn("bk-row-click-hint", js)
         self.assertNotIn("Bấm dòng để xem chi tiết", js)
 
+    def test_ota_overnight_with_times_is_not_labelled_hourly(self):
+        js = RESERVATIONS_JS.read_text(encoding="utf-8")
+        self.assertIn("const parseStayMinutes = (value) => {", js)
+        self.assertIn("const crossesMidnight = Boolean(", js)
+        self.assertIn("rawData.ota_cross_midnight_booking", js)
+        self.assertIn("checkOutMinutes <= checkInMinutes", js)
+        self.assertIn("const checkOutDate = rawData.ota_actual_check_out && !crossesMidnight ? rawData.ota_actual_check_out : booking.check_out", js)
+        self.assertIn("const actualStayDays = this.dateDiff(booking.check_in, checkOutDate)", js)
+        self.assertIn("const isHourlyStay = Boolean(rawData.ota_same_day_booking && !crossesMidnight && actualStayDays <= 0)", js)
+        self.assertNotIn("rawData.ota_same_day_booking || rawData.check_in_time || rawData.check_out_time", js)
+
+    def test_booking_hub_polls_ota_changes_and_refreshes_table(self):
+        core_js = Path("app/static/js/pms/reservation_hub/core.js").read_text(encoding="utf-8")
+        ota_js = Path("app/static/js/pms/reservation_hub/ota.js").read_text(encoding="utf-8")
+        self.assertIn("this.startOtaRealtimePolling()", core_js)
+        for token in [
+            "params.set('fresh', '1')",
+            "latest_cancel_log_id",
+            "latest_success_log_id",
+            "pmsToast(this.otaRealtimeMessage(data.latest_cancel_booking, 'cancel'), true)",
+            "await Promise.all([this.loadStats(), this.loadReservations()])",
+        ]:
+            self.assertIn(token, ota_js)
+
     def test_row_click_opens_detail_modal_and_detail_action_button_is_removed(self):
         js = RESERVATIONS_JS.read_text(encoding="utf-8")
         self.assertIn("onclick=\"BookingHub.openDetail(${booking.id})\"", js)

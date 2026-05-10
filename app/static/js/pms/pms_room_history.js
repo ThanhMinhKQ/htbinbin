@@ -690,6 +690,11 @@
     // ── Init ────────────────────────────────────────────────────────────────────
 
     document.addEventListener('DOMContentLoaded', () => {
+        const boot = window.PMS_ROOM_HISTORY_BOOT || {};
+        const branchSelect = document.getElementById('rh-branch-select');
+        const initialBranch = (branchSelect && branchSelect.value) || boot.branchId || null;
+        state.branchId = initialBranch ? String(initialBranch) : null;
+        if (branchSelect && state.branchId) branchSelect.value = state.branchId;
         rhInitDatePickers();
         rhBindCardDelegation();
         rhBindFilters();
