@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}PMS - Quản lý đặt phòng{% endblock %}
+{% block page_title %}Quản lý đặt phòng{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="/static/css/pms/scan_modal.css">
+<link rel="stylesheet" href="/static/css/pms/pms_modals.css">
+<link rel="stylesheet" href="/static/css/pms/pms_checkin_extras.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/base.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/inventory.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/modal.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/availability.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/form.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/theme.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/palette.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/dark.css">
+{% endblock %}
+
+{% block content %}
+{% include "pms/partials/reservation_hub/page.html" %}
+{% include "pms/partials/reservation_hub/create_modal.html" %}
+{% include "pms/partials/reservation_hub/assign_modal.html" %}
+{% include "pms/partials/reservation_hub/detail_modal.html" %}
+{% include "pms/modals/scan_modal.html" %}
+{% include "pms/checkin.html" %}
+{% include "pms/modals/rd_popups.html" %}
+<div id="pms-toast"></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/pms/pms_common.js"></script>
+<script src="/static/js/pms/vn_address.js"></script>
+<script src="/static/js/pms/pms_addr.js"></script>
+<script src="/static/js/pms/nationalities.js"></script>
+<script src="/static/js/pms/scan_modal.js"></script>
+<script src="/static/js/pms/pms_checkin.js"></script>
+<script src="/static/js/pms/rd_modal.js"></script>
+<script>
+window.PMS_BOOKING_BOOT = JSON.parse('{{ boot_json|safe }}');
+</script>
+<script src="/static/js/pms/reservation_hub/core.js"></script>
+<script src="/static/js/pms/reservation_hub/utils.js"></script>
+<script src="/static/js/pms/reservation_hub/reservations.js"></script>
+<script src="/static/js/pms/reservation_hub/form.js"></script>
+<script src="/static/js/pms/reservation_hub/ota.js"></script>
+<script src="/static/js/pms/reservation_hub/bootstrap.js"></script>
+{% endblock %}

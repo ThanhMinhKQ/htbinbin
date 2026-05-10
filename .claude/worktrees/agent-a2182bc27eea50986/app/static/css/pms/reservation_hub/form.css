@@ -1,0 +1,829 @@
+  /* ── Wizard Steps ──────────────────────────────────── */
+  .bk-wizard-steps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .bk-wizard-step {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #f1f5f9;
+    font-size: 12px;
+    font-weight: 800;
+    color: #94a3b8;
+    text-align: center;
+    transition: all .2s;
+  }
+
+  .bk-wizard-step.active {
+    background: #088395;
+    color: #fff;
+  }
+
+  .bk-wizard-step.done {
+    background: #ecfeff;
+    color: #088395;
+    border: 1px solid #a5f3fc;
+  }
+
+  .bk-step-panel {
+    display: none;
+  }
+
+  .bk-step-panel.active {
+    display: block;
+  }
+
+  .bk-booking-summary {
+    background: #f8fafc;
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .bk-room-planner,
+  .bk-stay-card {
+    background:
+      linear-gradient(135deg, rgba(236, 254, 255, .75), rgba(255, 255, 255, .92) 42%),
+      #fff;
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, .06);
+  }
+
+  .bk-room-time-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    gap: 12px;
+    padding: 10px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(203, 213, 225, .8);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .82);
+    align-items: stretch;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+  }
+
+  .bk-room-meta-row {
+    display: grid;
+    grid-template-columns: minmax(120px, .7fr) minmax(180px, 1fr) minmax(180px, 1fr);
+    gap: 14px;
+    align-items: end;
+  }
+
+  .bk-room-meta-row.has-source-extra {
+    grid-template-columns: minmax(110px, .55fr) minmax(170px, .85fr) minmax(220px, 1.1fr) minmax(160px, .8fr);
+  }
+
+  .bk-time-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 0;
+  }
+
+  .bk-time-field label {
+    display: block;
+    margin-bottom: 7px;
+    color: #475569;
+    font-size: 11px;
+    font-weight: 850;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  .bk-shad-dt-wrap {
+    position: relative;
+    display: flex;
+  }
+
+  .bk-shad-dt-wrap .ci-shad-dt-input {
+    width: 100%;
+    min-height: 58px;
+    padding: 0 16px;
+    cursor: pointer;
+    background: #fff;
+    color: #1e293b;
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 900;
+    text-align: center;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, .06);
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+  }
+
+  .bk-shad-dt-wrap .ci-shad-dt-input:hover,
+  .bk-shad-dt-wrap .ci-shad-dt-input:focus {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 30px rgba(15, 23, 42, .09);
+  }
+
+  .bk-time-field:first-child .ci-shad-dt-input {
+    border-color: #a5f3fc;
+    background: #ecfeff;
+    color: #0e7490;
+  }
+
+  .bk-time-field:last-child .ci-shad-dt-input {
+    border-color: #c7d2fe;
+    background: #eef2ff;
+    color: #3730a3;
+  }
+
+  .bk-room-meta-row .bk-field {
+    min-width: 0;
+  }
+
+  .bk-room-type-section {
+    margin-top: 16px;
+  }
+
+  .bk-room-type-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .bk-room-type-head label {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  .bk-room-type-head span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .bk-room-cart {
+    margin-top: 14px;
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .bk-room-cart-head,
+  .bk-room-cart-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bk-room-cart-head {
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .bk-room-cart-head span {
+    color: #088395;
+    font-weight: 900;
+  }
+
+  .bk-room-cart-row {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .bk-room-cart-row:last-child {
+    border-bottom: 0;
+  }
+
+  .bk-room-cart-main {
+    min-width: 0;
+  }
+
+  .bk-room-cart-main strong {
+    display: block;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .bk-room-cart-main span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .bk-room-cart-qty {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bk-room-cart-qty button {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .bk-room-cart-qty span {
+    min-width: 22px;
+    text-align: center;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .bk-room-cart-money {
+    min-width: 110px;
+    text-align: right;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .bk-payment-room-summary {
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .bk-payment-empty {
+    padding: 14px;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 750;
+    text-align: center;
+  }
+
+  .bk-payment-kpis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 12px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .bk-payment-kpis > div {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .bk-payment-kpis span,
+  .bk-payment-kpis small {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.3;
+  }
+
+  .bk-payment-kpis strong {
+    display: block;
+    margin: 4px 0;
+    color: #0f172a;
+    font-size: 15px;
+    font-weight: 950;
+    line-height: 1.2;
+  }
+
+  .bk-payment-progress {
+    height: 8px;
+    background: #e2e8f0;
+    overflow: hidden;
+  }
+
+  .bk-payment-progress > div {
+    height: 100%;
+    background: #088395;
+    transition: width .2s ease;
+  }
+
+  .bk-payment-room-list {
+    display: grid;
+  }
+
+  .bk-payment-room-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+
+  .bk-payment-room-row:last-child {
+    border-bottom: 0;
+  }
+
+  .bk-payment-room-name {
+    min-width: 0;
+  }
+
+  .bk-payment-room-row strong,
+  .bk-payment-room-name strong {
+    color: #0f172a;
+    font-weight: 900;
+  }
+
+  .bk-payment-room-name strong,
+  .bk-payment-room-name span {
+    display: block;
+  }
+
+  .bk-payment-room-name span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .bk-payment-note {
+    padding: 10px 12px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  #bk-create-modal .bk-dialog {
+    max-width: 1120px;
+  }
+
+  .bk-step-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .bk-step-topline .bk-booking-summary {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .bk-summary-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .bk-summary-main strong {
+    color: #0f172a;
+    font-size: 14px;
+  }
+
+  .bk-summary-main span {
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .bk-guest-workspace.create {
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr);
+  }
+
+  .bk-guest-workspace.create.single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bk-guest-workspace.create.single .bk-guest-main {
+    max-width: 920px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .bk-form-section.emphasis {
+    border-color: #a5f3fc;
+    box-shadow: 0 12px 28px rgba(8, 131, 149, .07);
+  }
+
+  .bk-field-row {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .bk-field.col-3 { grid-column: span 3; }
+  .bk-field.col-4 { grid-column: span 4; }
+  .bk-field.col-5 { grid-column: span 5; }
+  .bk-field.col-6 { grid-column: span 6; }
+  .bk-field.col-7 { grid-column: span 7; }
+  .bk-field.col-8 { grid-column: span 8; }
+  .bk-field.col-12 { grid-column: 1 / -1; }
+
+  .bk-required::after {
+    content: " *";
+    color: #dc2626;
+  }
+
+  .bk-input.is-invalid,
+  .bk-select.is-invalid,
+  .bk-textarea.is-invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, .11);
+  }
+
+  .bk-input.bk-crm-locked,
+  .bk-select.bk-crm-locked,
+  .bk-textarea.bk-crm-locked {
+    background: #f8fafc;
+    color: #475569;
+    border-color: #dbe8ec;
+    cursor: not-allowed;
+  }
+
+  .bk-field-hint {
+    color: #64748b;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .bk-reservation-side {
+    position: sticky;
+    top: 0;
+  }
+
+  .bk-price-stack {
+    display: grid;
+    gap: 10px;
+  }
+
+  .bk-total-preview {
+    border-radius: 8px;
+    padding: 14px;
+    background: #ecfeff;
+    border: 1px solid #a5f3fc;
+  }
+
+  .bk-hero-price {
+    background: linear-gradient(135deg, #088395, #09637e);
+    border: 0;
+    color: #fff;
+    min-height: 128px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 12px 24px -10px rgba(9, 99, 126, .35);
+  }
+
+  .bk-total-preview span {
+    display: block;
+    color: #0e7490;
+    font-size: 11px;
+    font-weight: 850;
+    text-transform: uppercase;
+  }
+
+  .bk-hero-price span {
+    color: rgba(235, 244, 246, .86);
+    letter-spacing: .05em;
+  }
+
+  .bk-total-preview strong {
+    display: block;
+    margin-top: 4px;
+    color: #0f172a;
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .bk-hero-price strong {
+    color: #fff;
+    font-size: 32px;
+    font-weight: 900;
+  }
+
+  .bk-hero-price small {
+    display: inline-block;
+    width: fit-content;
+    margin-top: 10px;
+    padding: 4px 10px;
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .14);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+
+  .bk-price-breakdown {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .bk-bd-rows {
+    padding: 8px 14px;
+  }
+
+  .bk-bd-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+
+  .bk-bd-row:last-child {
+    border-bottom: 0;
+  }
+
+  .bk-bd-row-label {
+    min-width: 0;
+  }
+
+  .bk-bd-row-name {
+    display: block;
+    color: #334155;
+    font-weight: 800;
+  }
+
+  .bk-bd-row-time {
+    display: block;
+    margin-top: 2px;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .bk-bd-row-amount {
+    color: #0f172a;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .bk-bd-row.fee-early .bk-bd-row-name { color: #d97706; }
+  .bk-bd-row.fee-late .bk-bd-row-name { color: #dc2626; }
+  .bk-bd-row.fee-core .bk-bd-row-name { color: #0891b2; }
+  .bk-bd-row.fee-refund .bk-bd-row-name,
+  .bk-bd-row.fee-refund .bk-bd-row-amount { color: #16a34a; }
+
+  .bk-bd-total {
+    border-top: 1px dashed #cbd5e1;
+    background: #f8fafc;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .bk-payment-meta {
+    display: none;
+  }
+
+  .bk-payment-meta.show {
+    display: flex;
+  }
+
+  .bk-hidden-select {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .bk-payment-method-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .bk-payment-method-card {
+    min-height: 66px;
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    background: #fff;
+    color: #334155;
+    padding: 10px;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    transition: background .15s, border-color .15s, box-shadow .15s;
+  }
+
+  .bk-payment-method-card:hover {
+    border-color: #94a3b8;
+    background: #f8fafc;
+  }
+
+  .bk-payment-method-card.active {
+    border-color: #088395;
+    background: #ecfeff;
+    box-shadow: 0 0 0 3px rgba(8, 131, 149, .1);
+  }
+
+  .bk-payment-method-card.disabled {
+    cursor: not-allowed;
+    opacity: .55;
+  }
+
+  .bk-payment-method-card.disabled.active {
+    opacity: 1;
+  }
+
+  .bk-payment-method-card.disabled:not(.active):hover {
+    border-color: #dbe8ec;
+    background: #fff;
+  }
+
+  .bk-payment-method-card span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  .bk-payment-method-card strong {
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 850;
+  }
+
+  .bk-guest-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .bk-guest-main,
+  .bk-guest-side {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .bk-form-section {
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .bk-form-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+  }
+
+  .bk-form-section-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #ecfeff;
+    color: #088395;
+    font-weight: 900;
+    flex: 0 0 auto;
+  }
+
+  .bk-form-section-title {
+    min-width: 0;
+  }
+
+  .bk-form-section-title h3 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 850;
+  }
+
+  .bk-form-section-title p {
+    margin: 2px 0 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .bk-form-section-body {
+    padding: 14px;
+  }
+
+  .bk-guest-toolbar {
+    border: 1px solid #dbe8ec;
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 10px;
+  }
+
+  .bk-guest-toolbar-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .bk-guest-toolbar-row .bk-input {
+    flex: 1;
+  }
+
+  .bk-section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .bk-section-grid.three {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .bk-section-grid .full {
+    grid-column: 1 / -1;
+  }
+
+  .bk-money-panel {
+    border-radius: 8px;
+    padding: 16px;
+    background: linear-gradient(135deg, #088395, #09637e);
+    color: #fff;
+  }
+
+  .bk-money-panel span {
+    display: block;
+    font-size: 11px;
+    font-weight: 850;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(255,255,255,.78);
+  }
+
+  .bk-money-panel strong {
+    display: block;
+    margin-top: 6px;
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 900;
+  }
+
+  @media (max-width: 1100px) {
+    .bk-room-time-row,
+    .bk-room-meta-row,
+    .bk-room-meta-row.has-source-extra {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 720px) {
+    .bk-room-time-row,
+    .bk-room-meta-row,
+    .bk-room-meta-row.has-source-extra,
+    .bk-time-grid,
+    .bk-section-grid,
+    .bk-payment-method-cards,
+    .bk-field-row {
+      grid-template-columns: 1fr;
+    }
+
+    .bk-field.col-3,
+    .bk-field.col-4,
+    .bk-field.col-5,
+    .bk-field.col-6,
+    .bk-field.col-7,
+    .bk-field.col-8,
+    .bk-field.col-12 {
+      grid-column: 1 / -1;
+    }
+  }

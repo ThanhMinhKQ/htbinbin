@@ -1,0 +1,299 @@
+<div id="pms-booking-page">
+  <div class="bk-shell">
+    <div class="bk-dashboard-header">
+      <div class="bk-ota-strip">
+        <div class="bk-ota-strip-controls">
+          {% if branches and branches|length > 0 %}
+          <div class="bk-control-group bk-branch-control">
+            <label>Chi nhánh</label>
+            <select id="bk-branch" class="bk-select bk-branch-select" onchange="BookingHub.changeBranch(this.value)">
+              {% for b in branches %}
+              {% set code = b.branch_code or '' %}
+              <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% elif not branch and loop.first %}selected{% endif %}>
+                {% if code and code[0] == 'B' and code[1:].isdigit() %}Bin Bin Hotel {{ code[1:] }}{% else %}{{ b.name }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          {% else %}
+          <div class="bk-control-group bk-branch-control">
+            <label>Chi nhánh</label>
+            <select id="bk-branch" class="bk-select bk-branch-select">
+              <option value="">Tất cả chi nhánh</option>
+            </select>
+          </div>
+          {% endif %}
+          <div class="bk-control-group">
+            <label>Ngày quét</label>
+            <input class="bk-input" id="bk-ota-scan-date" type="date">
+          </div>
+          <div class="bk-action-btns">
+            <button class="bk-btn primary glow" id="bk-ota-scan-btn" onclick="BookingHub.scanOtaToday()">
+              <i class="bi bi-arrow-repeat"></i> Quét OTA
+            </button>
+            <button class="bk-btn secondary" onclick="BookingHub.openOtaLogModal()">
+              <i class="bi bi-list-task"></i> Log
+            </button>
+          </div>
+        </div>
+
+        <div class="bk-ota-strip-metrics" aria-label="Thống kê OTA Agent">
+          <div class="bk-metric-card">
+            <span class="label"><i class="bi bi-globe2"></i> OTA</span>
+            <strong id="bk-ota-total">0</strong>
+          </div>
+          <div class="bk-metric-card">
+            <span class="label"><i class="bi bi-box-arrow-in-right"></i> Vào PMS</span>
+            <strong id="bk-ota-confirmed">0</strong>
+          </div>
+          <div class="bk-metric-card danger">
+            <span class="label"><i class="bi bi-x-octagon"></i> Huỷ</span>
+            <strong id="bk-ota-cancelled">0</strong>
+          </div>
+          <div class="bk-metric-card danger">
+            <span class="label"><i class="bi bi-exclamation-triangle"></i> Lỗi</span>
+            <strong id="bk-ota-failed">0</strong>
+          </div>
+          <div class="bk-metric-card ai">
+            <span class="label"><i class="bi bi-robot"></i> AI</span>
+            <strong id="bk-ota-agent-ai">0</strong>
+          </div>
+          <div class="bk-metric-card rule">
+            <span class="label"><i class="bi bi-cpu"></i> Rule</span>
+            <strong id="bk-ota-agent-rule">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="bk-stats-grid" id="bk-stats">
+        <div class="bk-stat-card total">
+          <div class="bk-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/><path d="m9 15 2 2 4-5"/></svg>
+          </div>
+          <div class="bk-stat-info">
+            <span>Tổng booking</span>
+            <strong id="bk-stat-total">0</strong>
+          </div>
+        </div>
+        <div class="bk-stat-card arrival">
+          <div class="bk-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 12h11"/><path d="m10 8 4 4-4 4"/><path d="M14 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5"/></svg>
+          </div>
+          <div class="bk-stat-info">
+            <span>Đến hôm nay</span>
+            <strong id="bk-stat-arrivals">0</strong>
+          </div>
+        </div>
+        <div class="bk-stat-card departure">
+          <div class="bk-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M14 12H3"/><path d="m7 8-4 4 4 4"/><path d="M10 4h9a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-9"/></svg>
+          </div>
+          <div class="bk-stat-info">
+            <span>Rời hôm nay</span>
+            <strong id="bk-stat-departures">0</strong>
+          </div>
+        </div>
+        <div class="bk-stat-card confirmed">
+          <div class="bk-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/><path d="M12 21a9 9 0 1 0-8.4-12.2"/></svg>
+          </div>
+          <div class="bk-stat-info">
+            <span>Đã xác nhận</span>
+            <strong id="bk-stat-confirmed">0</strong>
+          </div>
+        </div>
+        <div class="bk-stat-card pending">
+          <div class="bk-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"/><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+          </div>
+          <div class="bk-stat-info">
+            <span>Chờ xử lý</span>
+            <strong id="bk-stat-pending">0</strong>
+          </div>
+        </div>
+        <div class="bk-stat-card revenue">
+          <div class="bk-stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div class="bk-stat-info">
+            <span>Doanh thu dự kiến</span>
+            <strong id="bk-visible-revenue">0₫</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-modal bk-ota-log-modal" id="bk-ota-log-modal" aria-hidden="true">
+      <div class="bk-dialog bk-ota-log-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="bk-ota-log-title">
+        <div class="bk-dialog-head">
+          <div>
+            <span class="bk-eyebrow">OTA processing log</span>
+            <h2 id="bk-ota-log-title">Log xử lý đặt/hủy phòng OTA</h2>
+            <p>Chỉ hiển thị email liên quan booking hoặc hủy phòng; email admin/quảng cáo/không liên quan đã được lọc ở backend.</p>
+          </div>
+          <button class="bk-close" type="button" onclick="BookingHub.closeOtaLogModal()" aria-label="Đóng">×</button>
+        </div>
+        <div class="bk-dialog-body">
+          <div class="bk-ota-log-filters">
+            <select class="bk-select" id="bk-ota-log-status-filter" onchange="BookingHub.loadOtaLogs()">
+              <option value="">Mọi trạng thái</option>
+              <option value="SUCCESS">Thành công</option>
+              <option value="FAILED">Lỗi</option>
+            </select>
+            <select class="bk-select" id="bk-ota-log-method-filter" onchange="BookingHub.loadOtaLogs()">
+              <option value="">AI + Rule</option>
+              <option value="gemini">AI agent Gemini</option>
+              <option value="rule">Rule parser</option>
+            </select>
+            <select class="bk-select" id="bk-ota-log-action-filter" onchange="BookingHub.loadOtaLogs()">
+              <option value="">Mọi loại</option>
+              <option value="NEW">Đặt phòng</option>
+              <option value="CANCEL">Hủy phòng</option>
+              <option value="UPDATE">Cập nhật</option>
+            </select>
+            <input class="bk-input" id="bk-ota-log-from-date" type="date" onchange="BookingHub.loadOtaLogs()" aria-label="Từ ngày">
+            <input class="bk-input" id="bk-ota-log-to-date" type="date" onchange="BookingHub.loadOtaLogs()" aria-label="Đến ngày">
+            {% if is_admin and branches %}
+            <select class="bk-select" id="bk-ota-log-branch-filter" onchange="BookingHub.loadOtaLogs()">
+              <option value="">Tất cả chi nhánh</option>
+              {% for b in branches %}
+              {% set code = b.branch_code or '' %}
+              <option value="{{ b.id }}">{% if code and code[0] == 'B' and code[1:].isdigit() %}Bin Bin Hotel {{ code[1:] }}{% else %}{{ b.name }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            {% endif %}
+            <input class="bk-input bk-ota-log-search" id="bk-ota-log-search" placeholder="Tìm subject, khách, mã OTA..." onkeydown="BookingHub.onOtaLogSearchKey(event)">
+            <button class="bk-btn" type="button" onclick="BookingHub.loadOtaLogs()">Lọc</button>
+            <button class="bk-btn" type="button" onclick="BookingHub.resetOtaLogFilters()">Xóa lọc</button>
+          </div>
+          <div class="bk-ota-log-meta" id="bk-ota-log-meta">Đang tải log...</div>
+          <div class="bk-ota-log-table-wrap">
+            <table class="bk-ota-log-table">
+              <thead>
+                <tr>
+                  <th>Thời gian</th>
+                  <th>Chi nhánh</th>
+                  <th>Nguồn</th>
+                  <th>Xử lý</th>
+                  <th>Booking</th>
+                  <th>Trạng thái</th>
+                  <th>Subject / lỗi</th>
+                  <th style="text-align:right;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="bk-ota-log-rows">
+                <tr><td colspan="8">Chưa tải log.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bk-avail-bar" id="bk-avail-bar">
+      <div class="bk-avail-head">
+        <div class="bk-avail-title">
+          <strong>Tồn phòng khả dụng</strong>
+          <span>Chọn khoảng ngày để xem sức chứa theo loại phòng và tạo booking nhanh.</span>
+        </div>
+        <div class="bk-avail-controls">
+          <div class="bk-avail-dates">
+            <div class="bk-avail-dt-field">
+              <label>Nhận phòng</label>
+              <div class="ci-shad-dt-wrap bk-shad-dt-wrap bk-avail-dt-wrap" data-target="bk-avail-ci-at">
+                <input type="text" class="f-ctrl ci-shad-dt-input" id="bk-avail-ci-at-display" placeholder="DD/MM/YYYY, HH:mm" autocomplete="off">
+                <input id="bk-avail-ci-at" type="hidden" onchange="BookingHub.onAvailabilityDateTimeChange()">
+                <input id="bk-avail-ci" type="hidden">
+              </div>
+            </div>
+            <span>→</span>
+            <div class="bk-avail-dt-field">
+              <label>Trả phòng</label>
+              <div class="ci-shad-dt-wrap bk-shad-dt-wrap bk-avail-dt-wrap" data-target="bk-avail-co-at">
+                <input type="text" class="f-ctrl ci-shad-dt-input" id="bk-avail-co-at-display" placeholder="DD/MM/YYYY, HH:mm" autocomplete="off">
+                <input id="bk-avail-co-at" type="hidden" onchange="BookingHub.onAvailabilityDateTimeChange()">
+                <input id="bk-avail-co" type="hidden">
+              </div>
+            </div>
+          </div>
+          <div class="bk-avail-actions">
+            <button class="bk-btn success glow bk-avail-create-btn" type="button" onclick="BookingHub.openCreate()">
+              <span class="bk-avail-create-icon" aria-hidden="true">
+                <i class="bi bi-plus-circle-fill"></i>
+              </span>
+              <span class="bk-avail-create-label">Đặt phòng mới</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="bk-avail-cards" id="bk-avail-cards">
+        <div class="bk-avail-empty">Chọn ngày để xem tồn phòng</div>
+      </div>
+    </div>
+
+    <div class="bk-card bk-reservations-card">
+      <div class="bk-card-head bk-reservations-head">
+        <div class="bk-table-tools">
+          <div class="bk-tabs" id="bk-tabs">
+            <button class="bk-tab active" data-tab="today" onclick="BookingHub.selectTab('today')">Hôm nay</button>
+            <button class="bk-tab" data-tab="upcoming" onclick="BookingHub.selectTab('upcoming')">Sắp đến</button>
+            <button class="bk-tab" data-tab="pending" onclick="BookingHub.selectTab('pending')">Chờ xác nhận</button>
+            <button class="bk-tab" data-tab="ota" onclick="BookingHub.selectTab('ota')">OTA</button>
+            <button class="bk-tab" data-tab="all" onclick="BookingHub.selectTab('all')">Tất cả</button>
+          </div>
+          <div class="bk-filter-row">
+            <div class="bk-search-box">
+              <i class="bi bi-search bk-search-icon"></i>
+              <input class="bk-search-input" id="bk-search" placeholder="Tìm mã đơn, tên khách, SĐT..." onkeydown="BookingHub.onSearchKey(event)" onblur="BookingHub.loadReservations()">
+            </div>
+            <select class="bk-select" id="bk-status-filter" onchange="BookingHub.loadReservations()">
+              <option value="">Mọi trạng thái</option>
+              <option value="PENDING">Chờ xác nhận</option>
+              <option value="CONFIRMED">Đã xác nhận</option>
+              <option value="CHECKED_IN">Đã nhận phòng</option>
+              <option value="CHECKED_OUT">Đã trả phòng</option>
+              <option value="CANCELLED">Đã hủy</option>
+              <option value="NO_SHOW">No-show</option>
+            </select>
+            <div class="bk-stay-filter" aria-label="Lọc ngày lưu trú">
+              <input class="bk-input" id="bk-stay-from" type="date" onchange="BookingHub.loadReservations()" aria-label="Khách đến từ ngày">
+              <span class="bk-stay-filter-separator">—</span>
+              <input class="bk-input" id="bk-stay-to" type="date" onchange="BookingHub.loadReservations()" aria-label="Khách đến đến ngày">
+            </div>
+            <button class="bk-btn bk-filter-reset-btn" type="button" onclick="BookingHub.resetReservationFilters()" title="Xóa bộ lọc" aria-label="Xóa bộ lọc">Làm mới</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="bk-table-panel">
+        <div class="bk-loading" id="bk-loading">
+          <div class="bk-skeleton"></div>
+          <div class="bk-skeleton"></div>
+          <div class="bk-skeleton"></div>
+          <div class="bk-skeleton"></div>
+        </div>
+        <div class="bk-empty" id="bk-empty">Chưa có đặt phòng phù hợp bộ lọc.</div>
+        <div class="bk-table-wrap bk-reservations-table-wrap" id="bk-table-wrap">
+          <table class="bk-table bk-reservations-table">
+            <thead>
+              <tr>
+                <th style="width:110px;">Mã đơn</th>
+                <th style="width:105px;">Kênh OTA</th>
+                <th style="width:160px;">Khách hàng</th>
+                <th style="width:150px;">Phòng</th>
+                <th style="width:170px;">Lưu trú</th>
+                <th style="width:120px;">Trạng thái</th>
+                <th style="width:120px;">Tổng tiền</th>
+                <th style="width:170px;">Yêu cầu</th>
+                <th style="width:160px;text-align:right;">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="bk-reservation-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,35 @@
+<div class="bk-modal" id="bk-block-modal">
+  <div class="bk-dialog" style="max-width:620px;">
+    <div class="bk-dialog-head">
+      <div>
+        <h2>Khóa phòng</h2>
+        <p>Tạo lịch khóa phòng để tồn phòng tự trừ trong khoảng ngày bảo trì.</p>
+      </div>
+      <button class="bk-close" type="button" onclick="BookingHub.closeBlock()">×</button>
+    </div>
+    <div class="bk-dialog-body">
+      <div class="bk-form-grid">
+        <div class="bk-field full">
+          <label>Phòng</label>
+          <select class="bk-select" id="bk-block-room"></select>
+        </div>
+        <div class="bk-field">
+          <label>Từ ngày</label>
+          <input class="bk-input" id="bk-block-start" type="date">
+        </div>
+        <div class="bk-field">
+          <label>Đến ngày</label>
+          <input class="bk-input" id="bk-block-end" type="date">
+        </div>
+        <div class="bk-field full">
+          <label>Lý do</label>
+          <textarea class="bk-textarea" id="bk-block-reason" placeholder="Ví dụ: bảo trì điều hòa, sửa WC, khóa bán..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="bk-dialog-foot">
+      <button class="bk-btn" type="button" onclick="BookingHub.closeBlock()">Hủy</button>
+      <button class="bk-btn warning" id="bk-block-submit" type="button" onclick="BookingHub.submitBlock()">Lưu khóa phòng</button>
+    </div>
+  </div>
+</div>

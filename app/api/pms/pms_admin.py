@@ -1,0 +1,566 @@
+# app/api/pms/pms_admin.py
+"""
+PMS Admin API - CRUD for rooms, room types (admin only)
+"""
+from __future__ import annotations
+
+from datetime import time as dt_time
+from decimal import Decimal
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session, joinedload
+
+from ...db.models import Branch, HotelRoom, HotelRoomType, HotelStay, HotelStayStatus
+from ...db.session import get_db
+from .pms_helpers import _require_login, _is_admin, _active_branch
+
+router = APIRouter()
+
+
+# ─────────────────────────── API: Room Types ─────────────────────────────
+
+@router.get("/api/pms/admin/room-types", tags=["PMS"])
+def api_admin_get_room_types(
+    request: Request,
+    branch_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Lấy danh sách loại phòng (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    q = db.query(HotelRoomType).filter(HotelRoomType.is_active == True)
+    if branch_id:
+        q = q.filter(HotelRoomType.branch_id == branch_id)
+
+    types = q.order_by(HotelRoomType.sort_order, HotelRoomType.name).all()
+
+    return JSONResponse([
+        {
+            "id": t.id,
+            "name": t.name,
+            "description": t.description,
+            "price_per_night": float(t.price_per_night),
+            "price_per_hour": float(t.price_per_hour),
+            "price_next_hour": float(t.price_next_hour),
+            "promo_start_time": t.promo_start_time.isoformat() if t.promo_start_time else None,
+            "promo_end_time": t.promo_end_time.isoformat() if t.promo_end_time else None,
+            "promo_discount_amount": float(getattr(t, "promo_discount_amount", 0) or 0),
+            "promo_discount_percent": float(t.promo_discount_percent or 0),  # legacy
+            "min_hours": t.min_hours,
+            "max_guests": t.max_guests,
+            "branch_id": t.branch_id,
+            "standard_checkin_time": t.standard_checkin_time.isoformat() if t.standard_checkin_time else None,
+            "standard_checkout_time": t.standard_checkout_time.isoformat() if t.standard_checkout_time else None,
+            "early_checkin_fee_per_hour": float(t.early_checkin_fee_per_hour or 0),
+            "late_checkout_fee_per_hour": float(t.late_checkout_fee_per_hour or 0),
+            "grace_minutes": t.grace_minutes,
+            "day_threshold_hours": t.day_threshold_hours,
+        }
+        for t in types
+    ])
+
+
+@router.post("/api/pms/admin/room-types", tags=["PMS"])
+def api_admin_create_room_type(
+    request: Request,
+    name: str = Form(...),
+    branch_id: int = Form(...),
+    description: str = Form(""),
+    price_per_night: float = Form(0),
+    price_per_hour: float = Form(0),
+    price_next_hour: float = Form(0),
+    min_hours: int = Form(1),
+    max_guests: int = Form(2),
+    promo_start_time: Optional[str] = Form(None),
+    promo_end_time: Optional[str] = Form(None),
+    promo_discount_amount: float = Form(0),
+    promo_discount_percent: float = Form(0),  # legacy fallback
+    standard_checkin_time: Optional[str] = Form(None),
+    standard_checkout_time: Optional[str] = Form(None),
+    early_checkin_fee_per_hour: Optional[float] = Form(None),
+    late_checkout_fee_per_hour: Optional[float] = Form(None),
+    grace_minutes: Optional[int] = Form(None),
+    day_threshold_hours: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Tạo loại phòng mới (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    # Validate branch
+    branch = db.query(Branch).filter(Branch.id == branch_id).first()
+    if not branch:
+        raise HTTPException(status_code=400, detail="Không tìm thấy chi nhánh")
+
+    # Check duplicate name
+    existing = db.query(HotelRoomType).filter(
+        HotelRoomType.branch_id == branch_id,
+        HotelRoomType.name == name,
+        HotelRoomType.is_active == True
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Tên loại phòng đã tồn tại")
+
+    # Parse promo times
+    promo_start = None
+    promo_end = None
+    if promo_start_time:
+        try:
+            promo_start = dt_time.fromisoformat(promo_start_time)
+        except:
+            pass
+    if promo_end_time:
+        try:
+            promo_end = dt_time.fromisoformat(promo_end_time)
+        except:
+            pass
+
+    # Parse standard time frame
+    std_checkin = None
+    std_checkout = None
+    if standard_checkin_time:
+        try:
+            std_checkin = dt_time.fromisoformat(standard_checkin_time)
+        except:
+            pass
+    if standard_checkout_time:
+        try:
+            std_checkout = dt_time.fromisoformat(standard_checkout_time)
+        except:
+            pass
+
+    rt = HotelRoomType(
+        branch_id=branch_id,
+        name=name,
+        description=description,
+        price_per_night=price_per_night,
+        price_per_hour=price_per_hour,
+        price_next_hour=price_next_hour,
+        min_hours=min_hours,
+        max_guests=max_guests,
+        promo_start_time=promo_start,
+        promo_end_time=promo_end,
+        promo_discount_amount=Decimal(str(promo_discount_amount or 0)),
+        promo_discount_percent=promo_discount_percent,
+        standard_checkin_time=std_checkin,
+        standard_checkout_time=std_checkout,
+        early_checkin_fee_per_hour=early_checkin_fee_per_hour or Decimal("50000"),
+        late_checkout_fee_per_hour=late_checkout_fee_per_hour or Decimal("50000"),
+        grace_minutes=grace_minutes if grace_minutes is not None else 10,
+        day_threshold_hours=day_threshold_hours if day_threshold_hours is not None else 8,
+    )
+    db.add(rt)
+    db.commit()
+
+    return JSONResponse({
+        "message": "Tạo loại phòng thành công",
+        "room_type_id": rt.id,
+    })
+
+
+@router.put("/api/pms/admin/room-types/{type_id}", tags=["PMS"])
+def api_admin_update_room_type(
+    request: Request,
+    type_id: int,
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    price_per_night: Optional[float] = Form(None),
+    price_per_hour: Optional[float] = Form(None),
+    price_next_hour: Optional[float] = Form(None),
+    min_hours: Optional[int] = Form(None),
+    max_guests: Optional[int] = Form(None),
+    promo_start_time: Optional[str] = Form(None),
+    promo_end_time: Optional[str] = Form(None),
+    promo_discount_amount: Optional[float] = Form(None),
+    promo_discount_percent: Optional[float] = Form(None),  # legacy fallback
+    standard_checkin_time: Optional[str] = Form(None),
+    standard_checkout_time: Optional[str] = Form(None),
+    early_checkin_fee_per_hour: Optional[float] = Form(None),
+    late_checkout_fee_per_hour: Optional[float] = Form(None),
+    grace_minutes: Optional[int] = Form(None),
+    day_threshold_hours: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Cập nhật loại phòng (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    rt = db.query(HotelRoomType).filter(HotelRoomType.id == type_id).first()
+    if not rt:
+        raise HTTPException(status_code=404, detail="Không tìm thấy loại phòng")
+
+    if name is not None:
+        rt.name = name
+    if description is not None:
+        rt.description = description
+    if price_per_night is not None:
+        rt.price_per_night = price_per_night
+    if price_per_hour is not None:
+        rt.price_per_hour = price_per_hour
+    if price_next_hour is not None:
+        rt.price_next_hour = price_next_hour
+    if min_hours is not None:
+        rt.min_hours = min_hours
+    if max_guests is not None:
+        rt.max_guests = max_guests
+
+    if promo_start_time is not None:
+        try:
+            rt.promo_start_time = dt_time.fromisoformat(promo_start_time)
+        except:
+            rt.promo_start_time = None
+    if promo_end_time is not None:
+        try:
+            rt.promo_end_time = dt_time.fromisoformat(promo_end_time)
+        except:
+            rt.promo_end_time = None
+    if promo_discount_amount is not None:
+        rt.promo_discount_amount = Decimal(str(promo_discount_amount or 0))
+    if promo_discount_percent is not None:
+        rt.promo_discount_percent = promo_discount_percent
+
+    if standard_checkin_time is not None:
+        try:
+            rt.standard_checkin_time = dt_time.fromisoformat(standard_checkin_time)
+        except:
+            rt.standard_checkin_time = None
+    if standard_checkout_time is not None:
+        try:
+            rt.standard_checkout_time = dt_time.fromisoformat(standard_checkout_time)
+        except:
+            rt.standard_checkout_time = None
+    if early_checkin_fee_per_hour is not None:
+        rt.early_checkin_fee_per_hour = Decimal(str(early_checkin_fee_per_hour))
+    if late_checkout_fee_per_hour is not None:
+        rt.late_checkout_fee_per_hour = Decimal(str(late_checkout_fee_per_hour))
+    if grace_minutes is not None:
+        rt.grace_minutes = grace_minutes
+    if day_threshold_hours is not None:
+        rt.day_threshold_hours = day_threshold_hours
+
+    db.commit()
+
+    return JSONResponse({"message": "Cập nhật thành công"})
+
+
+@router.delete("/api/pms/admin/room-types/{type_id}", tags=["PMS"])
+def api_admin_delete_room_type(
+    request: Request,
+    type_id: int,
+    db: Session = Depends(get_db),
+):
+    """Xóa loại phòng (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    rt = db.query(HotelRoomType).filter(HotelRoomType.id == type_id).first()
+    if not rt:
+        raise HTTPException(status_code=404, detail="Không tìm thấy loại phòng")
+
+    # Check if any rooms use this type
+    rooms = db.query(HotelRoom).filter(
+        HotelRoom.room_type_id == type_id,
+        HotelRoom.is_active == True
+    ).count()
+    if rooms > 0:
+        raise HTTPException(status_code=400, detail=f"Có {rooms} phòng đang sử dụng loại phòng này")
+
+    rt.is_active = False
+    db.commit()
+
+    return JSONResponse({"message": "Xóa loại phòng thành công"})
+
+
+# ─────────────────────────── API: Rooms ─────────────────────────────
+
+@router.get("/api/pms/admin/rooms", tags=["PMS"])
+def api_admin_get_rooms(
+    request: Request,
+    branch_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Lấy danh sách phòng (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    q = (
+        db.query(HotelRoom)
+        .options(joinedload(HotelRoom.room_type_obj))
+        .filter(HotelRoom.is_active == True)
+    )
+    if branch_id:
+        q = q.filter(HotelRoom.branch_id == branch_id)
+
+    rooms = q.order_by(HotelRoom.floor, HotelRoom.sort_order, HotelRoom.room_number).all()
+    room_ids = [r.id for r in rooms]
+    active_stays = []
+    if room_ids:
+        active_stays = db.query(HotelStay).filter(
+            HotelStay.room_id.in_(room_ids),
+            HotelStay.status == HotelStayStatus.ACTIVE,
+        ).all()
+    stay_by_room = {s.room_id: s for s in active_stays}
+
+    return JSONResponse([
+        {
+            "id": r.id,
+            "room_number": r.room_number,
+            "floor": r.floor,
+            "notes": r.notes,
+            "room_type_id": r.room_type_id,
+            "room_type_name": r.room_type_obj.name if r.room_type_obj else None,
+            "price_per_night": float(r.room_type_obj.price_per_night) if r.room_type_obj and r.room_type_obj.price_per_night else 0,
+            "price_per_hour": float(r.room_type_obj.price_per_hour) if r.room_type_obj and r.room_type_obj.price_per_hour else 0,
+            "price_next_hour": float(r.room_type_obj.price_next_hour) if r.room_type_obj and r.room_type_obj.price_next_hour else 0,
+            "branch_id": r.branch_id,
+            "sort_order": r.sort_order,
+            "is_active": bool(r.is_active),
+            "status": "OCCUPIED" if stay_by_room.get(r.id) else "VACANT",
+            "is_occupied": bool(stay_by_room.get(r.id)),
+            "active_stay_id": stay_by_room[r.id].id if stay_by_room.get(r.id) else None,
+        }
+        for r in rooms
+    ])
+
+
+@router.post("/api/pms/admin/rooms", tags=["PMS"])
+def api_admin_create_room(
+    request: Request,
+    room_number: str = Form(...),
+    branch_id: int = Form(...),
+    room_type_id: Optional[int] = Form(None),
+    floor: int = Form(...),
+    notes: str = Form(""),
+    sort_order: int = Form(0),
+    db: Session = Depends(get_db),
+):
+    """Tạo phòng mới (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    # Validate room type if provided
+    rt = None
+    if room_type_id:
+        rt = db.query(HotelRoomType).filter(HotelRoomType.id == room_type_id).first()
+        if not rt:
+            raise HTTPException(status_code=400, detail="Không tìm thấy loại phòng")
+
+    # Check duplicate
+    existing = db.query(HotelRoom).filter(
+        HotelRoom.branch_id == branch_id,
+        HotelRoom.room_number == room_number,
+        HotelRoom.is_active == True
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Số phòng đã tồn tại")
+
+    room = HotelRoom(
+        branch_id=branch_id,
+        room_type_id=room_type_id,
+        room_number=room_number,
+        floor=floor,
+        notes=notes,
+        sort_order=sort_order,
+    )
+    db.add(room)
+    db.commit()
+
+    return JSONResponse({
+        "message": "Tạo phòng thành công",
+        "room_id": room.id,
+    })
+
+
+@router.put("/api/pms/admin/rooms/{room_id}", tags=["PMS"])
+def api_admin_update_room(
+    request: Request,
+    room_id: int,
+    room_number: Optional[str] = Form(None),
+    room_type_id: Optional[int] = Form(None),
+    floor: Optional[int] = Form(None),
+    notes: Optional[str] = Form(None),
+    sort_order: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Cập nhật phòng (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    room = db.query(HotelRoom).filter(HotelRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phòng")
+
+    active_stay = db.query(HotelStay).filter(
+        HotelStay.room_id == room_id,
+        HotelStay.status == HotelStayStatus.ACTIVE,
+    ).first()
+    if active_stay:
+        raise HTTPException(status_code=400, detail="Phòng đang có khách ở, chỉ được sửa khi phòng trống")
+
+    if room_number is not None:
+        room.room_number = room_number
+    if room_type_id is not None:
+        room.room_type_id = room_type_id
+    if floor is not None:
+        room.floor = floor
+    if notes is not None:
+        room.notes = notes
+    if sort_order is not None:
+        room.sort_order = sort_order
+
+    db.commit()
+
+    return JSONResponse({"message": "Cập nhật thành công"})
+
+
+@router.delete("/api/pms/admin/rooms/{room_id}", tags=["PMS"])
+def api_admin_delete_room(
+    request: Request,
+    room_id: int,
+    db: Session = Depends(get_db),
+):
+    """Xóa phòng (admin)"""
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    room = db.query(HotelRoom).filter(HotelRoom.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Không tìm thấy phòng")
+
+    # Check if room has active stays
+    active_stays = db.query(HotelStay).filter(
+        HotelStay.room_id == room_id,
+        HotelStay.status == HotelStayStatus.ACTIVE
+    ).count()
+    if active_stays > 0:
+        raise HTTPException(status_code=400, detail="Phòng đang có khách ở, chỉ được ngừng dùng khi phòng trống")
+
+    room.is_active = False
+    db.commit()
+
+    return JSONResponse({"message": "Xóa phòng thành công"})
+
+
+# ─────────────────────────── API: Pricing Preview ─────────────────────────
+
+@router.get("/api/pms/admin/room-types/{type_id}/pricing-preview", tags=["PMS"])
+def api_admin_pricing_preview(
+    request: Request,
+    type_id: int,
+    checkin: str,        # ISO format: 2026-04-09T10:00
+    checkout: str,       # ISO format: 2026-04-09T15:00
+    mode: str = "AUTO",  # AUTO | FORCE_HOURLY | FORCE_DAILY | FORCE_OVERNIGHT
+    day_threshold: Optional[int] = None,
+    ppn: Optional[float] = None,
+    pph: Optional[float] = None,
+    pnh: Optional[float] = None,
+    early_fee: Optional[float] = None,
+    late_fee: Optional[float] = None,
+    grace: Optional[int] = None,
+    promo_discount_amount: Optional[float] = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Preview giá phòng cho admin test — không tạo stay, không ghi DB.
+    Trả về breakdown chi tiết theo pricing engine. Hỗ trợ dynamic overrides.
+    """
+    from datetime import datetime as dt_cls
+    from ...services.pricing_engine import PricingEngine
+    from ...core.utils import VN_TZ
+
+    user = _require_login(request)
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Không có quyền")
+
+    rt = db.query(HotelRoomType).filter(HotelRoomType.id == type_id).first()
+    if not rt:
+        raise HTTPException(status_code=404, detail="Không tìm thấy loại phòng")
+
+    # Apply unsaved overrides for live preview
+    if day_threshold is not None: rt.day_threshold_hours = day_threshold
+    if ppn is not None: rt.price_per_night = ppn
+    if pph is not None: rt.price_per_hour = pph
+    if pnh is not None: rt.price_next_hour = pnh
+    if early_fee is not None: rt.early_checkin_fee_per_hour = early_fee
+    if late_fee is not None: rt.late_checkout_fee_per_hour = late_fee
+    if grace is not None: rt.grace_minutes = grace
+    if promo_discount_amount is not None: rt.promo_discount_amount = Decimal(str(promo_discount_amount or 0))
+
+    # Parse ISO timestamps
+    try:
+        ci_dt = dt_cls.fromisoformat(checkin)
+        co_dt = dt_cls.fromisoformat(checkout)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Định dạng thời gian không hợp lệ (ISO 8601)")
+
+    # Localize nếu chưa có timezone
+    if ci_dt.tzinfo is None:
+        ci_dt = VN_TZ.localize(ci_dt)
+    if co_dt.tzinfo is None:
+        co_dt = VN_TZ.localize(co_dt)
+
+    if co_dt <= ci_dt:
+        raise HTTPException(status_code=400, detail="Checkout phải sau Checkin")
+
+    # Run engine
+    engine = PricingEngine(rt)
+    total, breakdown = engine.evaluate(ci_dt, co_dt, mode)
+
+    # Serialize Decimal → float for JSON
+    serialized_breakdown = []
+    for item in breakdown:
+        row = dict(item)
+        if "amount" in row:
+            row["amount"] = float(row["amount"])
+        serialized_breakdown.append(row)
+
+    # Determine selected mode from breakdown
+    mode_selected = "UNKNOWN"
+    for item in breakdown:
+        m = item.get("mode")
+        if m:
+            mode_selected = m
+            break
+    # Fallback: detect from type
+    if mode_selected == "UNKNOWN":
+        for item in breakdown:
+            t = item.get("type")
+            if t == "ROOM_CHARGE":
+                mode_selected = "DAILY"
+                break
+            elif t == "HOURLY_CHARGE":
+                mode_selected = "HOURLY"
+                break
+    # Final fallback: use requested mode
+    if mode_selected == "UNKNOWN":
+        mode_selected = mode.upper().replace("FORCE_", "")
+
+    return JSONResponse({
+        "total": float(total),
+        "mode_selected": mode_selected,
+        "breakdown": serialized_breakdown,
+        "config": {
+            "std_checkin": engine.std_in.strftime("%H:%M"),
+            "std_checkout": engine.std_out.strftime("%H:%M"),
+            "early_fee": float(engine.early_fee),
+            "late_fee": float(engine.late_fee),
+            "grace_minutes": engine.grace,
+            "day_threshold": engine.day_threshold,
+            "ppn": float(engine.ppn),
+            "pph": float(engine.pph),
+            "pnh": float(engine.pnh),
+            "min_hours": engine.min_h,
+            "promo_discount_amount": float(getattr(engine.rt, "promo_discount_amount", 0) or 0),
+        },
+    })

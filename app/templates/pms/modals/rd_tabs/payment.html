@@ -1,0 +1,616 @@
+<div id="rd-tab-payment" class="rd-tab-content" data-display="flex"
+style="flex:1; overflow:hidden; display:none; background:#EBF4F6; flex-direction:column; padding:16px;">
+
+  <!-- DASHBOARD TOP HEADER -->
+  <style>
+    .chk-dash-card {
+      background: #fff;
+      border: 1px solid #c8dcdc;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+    }
+    .chk-dash-item { display: flex; flex-direction: column; gap: 4px; }
+    .chk-dash-label { font-size: 13px; color: #4a5568; font-weight: 500; }
+    .chk-dash-val { font-size: 20px; font-weight: 700; color: #2d3748; }
+    .chk-dash-val.highlight { color: #088395; font-size: 24px; }
+    .chk-dash-val.danger { color: #088395; }
+    .chk-dash-val.success { color: #7ab2b2; }
+    
+    .chk-col-title { font-weight: 700; font-size: 15px; color: #2d3748; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    
+    .chk-ledger-box { background: #fff; border: 1px solid #c8dcdc; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .chk-ledger-box-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #2d3748; }
+    .chk-ledger-box-head .actions { display: flex; gap: 8px; }
+    .chk-ledger-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #EBF4F6; font-size: 13px; color: #4a5568; }
+    .chk-ledger-item:last-child { border-bottom: none; }
+    
+    /* Timeline styles */
+    .chk-tl-container { position: relative; padding-left: 24px; margin-top: 8px; }
+    .chk-tl-container::before { content: ''; position: absolute; left: 7px; top: 0; bottom: 0; width: 2px; background: #c8dcdc; }
+    .chk-tl-item { position: relative; margin-bottom: 16px; }
+    .chk-tl-dot { position: absolute; left: -24px; top: 4px; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid #c8dcdc; z-index: 1; }
+    .chk-tl-dot.room { border-color: #088395; }
+    .chk-tl-dot.service { border-color: #6366f1; background: #eef2ff; box-shadow: 0 0 0 3px rgba(99,102,241,0.10); }
+    .chk-tl-dot.discount { border-color: #c8dcdc; }
+    .chk-tl-dot.payment { border-color: #7ab2b2; }
+    .chk-tl-dot.voided { border-color: #94a3b8; background: #f1f5f9; box-shadow: 0 0 0 3px rgba(148,163,184,0.12); }
+    .chk-tl-item.is-voided .chk-tl-content {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      filter: grayscale(0.35);
+      opacity: 0.58;
+    }
+    .chk-tl-content { background: #fff; border: 1px solid #c8dcdc; border-radius: 8px; padding: 10px 12px; font-size: 13px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+    .chk-tl-head { display: flex; justify-content: space-between; margin-bottom: 4px; color: #4a5568; font-size: 11px; }
+    .chk-tl-body { color: #2d3748; line-height: 1.4; }
+    .chk-tl-amt { font-weight: 600; float: right; }
+    .chk-tl-amt.positive { color: #088395; } /* Cần thu thêm */
+    .chk-tl-amt.negative { color: #38a169; } /* Đã thu / Giảm giá */
+
+    /* Modern Segmented Folio Tabs */
+    .rd-folio-tabs {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 0;
+      border-bottom: none;
+      gap: 12px;
+    }
+    .rd-folio-tab-group {
+      display: flex;
+      background: #c8dcdc;
+      padding: 4px;
+      border-radius: 12px;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .rd-folio-tab {
+      padding: 8px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #4a5568;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .rd-folio-tab:hover {
+      color: #2d3748;
+    }
+    .rd-folio-tab.active {
+      background: #fff;
+      color: #088395;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+    }
+    .rd-folio-tab .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 6px;
+      background: rgba(0,0,0,0.05);
+      border-radius: 4px;
+      opacity: 0.8;
+    }
+    .rd-folio-tab.active .badge {
+      background: rgba(8,131,149,0.1);
+      color: #088395;
+    }
+
+    .rd-folio-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .rd-folio-btn {
+      height: 36px;
+      padding: 0 12px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      border: 1px solid #c8dcdc;
+      background: #fff;
+      color: #4a5568;
+      transition: all 0.2s;
+    }
+    .rd-folio-btn:hover {
+      background: #EBF4F6;
+      border-color: #c8dcdc;
+      color: #2d3748;
+    }
+    .rd-folio-btn.primary {
+      background: #c8dcdc;
+      color: #2d3748;
+      border-color: #7ab2b2;
+    }
+    .rd-folio-btn.primary:hover {
+      background: #7ab2b2;
+      border-color: #7ab2b2;
+    }
+
+    
+    /* Premium Dashboard Overhaul */
+    .chk-dash-grid {
+      display: grid; 
+      grid-template-columns: repeat(3, 1fr); 
+      gap: 16px; 
+      margin-bottom: 24px;
+      flex: 1;
+    }
+    @media (min-width: 1200px) {
+      .chk-dash-grid { grid-template-columns: repeat(6, 1fr); }
+    }
+
+    .chk-dash-card-v3 {
+      background: #fff;
+      border: 1px solid #c8dcdc;
+      border-radius: 16px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01);
+      transition: transform 0.2s, box-shadow 0.2s;
+      min-height: 100px;
+    }
+    .chk-dash-card-v3:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
+    }
+    .chk-dash-card-v3 .lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: #4a5568;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      z-index: 2;
+    }
+    .chk-dash-card-v3 .val {
+      font-size: 22px;
+      font-weight: 800;
+      font-family: 'Courier New', Courier, monospace;
+      color: #2d3748;
+      z-index: 2;
+      letter-spacing: -0.5px;
+    }
+    .chk-dash-card-v3 .watermark {
+      position: absolute;
+      right: -10px;
+      bottom: -10px;
+      opacity: 0.08;
+      color: currentColor;
+      z-index: 1;
+      transform: rotate(-15deg);
+    }
+
+    /* Category Specifics */
+    .dash-room { border-left: 4px solid #088395; color: #088395; }
+    .dash-room .val { color: #088395; }
+    
+    .dash-service { border-left: 4px solid #7ab2b2; color: #4a5568; }
+    
+    .dash-extra { border-left: 4px solid #c8dcdc; color: #4a5568; }
+    
+    .dash-paid { border-left: 4px solid #7ab2b2; color: #4a5568; }
+    .deposit-badge { font-size: 10px; color: #4a5568; font-weight: 600; margin-top: 2px; display: block; }
+    
+    .dash-discount { border-left: 4px solid #c8dcdc; }
+    .dash-discount .val { color: #088395 !important; }
+    
+    .dash-balance { 
+        background: #088395; 
+        border: none; 
+        color: #fff; 
+    }
+    .dash-balance .lbl { color: #EBF4F6; opacity: 0.9; }
+    .dash-balance .val { color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.1); font-size: 24px; }
+    .dash-balance .watermark { opacity: 0.15; color: #fff; }
+
+    
+    /* Modern Ledger V2 - FLATTENED */
+    .chk-ledger-container {
+      background: #fff;
+      border: 1px solid #c8dcdc;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+      overflow: hidden;
+      flex: 1;
+    }
+    .chk-ledger-header {
+      background: #EBF4F6;
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: 1fr 100px 120px 100px;
+      gap: 12px;
+      font-weight: 700;
+      font-size: 13px;
+      color: #088395;
+      border-bottom: 1px solid #c8dcdc;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .chk-ledger-body {
+      flex: 1;
+      overflow-y: auto;
+    }
+    /* Ledger rows */
+    .chk-ledger-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 120px 100px;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #EBF4F6;
+      align-items: center;
+      transition: background 0.2s;
+      position: relative;
+    }
+    .chk-ledger-row:hover { background: #fafaf9; }
+    .chk-ledger-row:last-child { border-bottom: none; }
+
+    .chk-ledger-info { display: flex; align-items: center; gap: 12px; }
+    .chk-ledger-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .chk-ledger-text { display: flex; flex-direction: column; overflow: hidden; }
+    .chk-ledger-name {
+      font-weight: 500; color: #2d3748;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px;
+    }
+    .chk-ledger-sub { font-size: 11px; color: #4a5568; margin-top: 2px; }
+
+    .chk-ledger-qty { color: #4a5568; font-size: 13px; font-weight: 500; text-align: center; }
+    .chk-ledger-type-cell {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .chk-ledger-type {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-align: center;
+      display: inline-block;
+    }
+    .chk-ledger-type.phong { background: rgba(8,131,149,0.12); color: #088395; }
+    .chk-ledger-type.dichvu { background: rgba(122,178,178,0.2); color: #059669; }
+    .chk-ledger-type.phatsinh { background: rgba(200,220,220,0.5); color: #4a5568; }
+    .chk-ledger-type.giamgia { background: rgba(245,158,11,0.12); color: #d97706; }
+    .chk-ledger-type_thanhtoan { background: rgba(16,185,129,0.12); color: #059669; }
+    .chk-ledger-type.deposit { background: rgba(245,158,11,0.15); color: #d97706; }
+    .chk-ledger-amount {
+      font-family: 'SF Mono', 'Courier New', monospace;
+      font-weight: 700; font-size: 15px; color: #2d3748; text-align: right;
+    }
+    .chk-ledger-amount.discount { color: #088395; }
+
+    .chk-ledger-actions {
+      position: absolute; right: 140px; top: 0; bottom: 0;
+      display: flex; align-items: center; gap: 8px;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .chk-ledger-row:hover .chk-ledger-actions { opacity: 1; }
+
+    .chk-ledger-btn {
+      width: 28px; height: 28px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; border: 1px solid #c8dcdc; background: #fff;
+      color: #4a5568; transition: all 0.2s;
+    }
+    .chk-ledger-btn:hover { background: #EBF4F6; color: #2d3748; border-color: #c8dcdc; }
+    .chk-ledger-btn.void:hover { color: #088395; border-color: #088395; background: #fff; }
+
+    .chk-ledger-tools {
+      background: #fafaf9; padding: 12px 16px; border-top: 1px solid #c8dcdc;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .chk-ledger-btn-add {
+      padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 6px;
+      cursor: pointer; border: 1px solid #c8dcdc; background: #fff; display: flex; align-items: center; gap: 6px; color: #4a5568;
+    }
+    .chk-ledger-btn-add:hover { background: #EBF4F6; border-color: #c8dcdc; color: #2d3748; }
+
+    /* --- DARK MODE --- */
+    html.dark #rd-tab-payment { background: #1e293b !important; }
+    
+    html.dark .chk-dash-card-v3 { background: #0f172a; border-color: #334155; box-shadow: none; }
+    html.dark .chk-dash-card-v3 .lbl { color: #94a3b8; }
+    html.dark .chk-dash-card-v3 .val { color: #f1f5f9; }
+    html.dark .chk-dash-card-v3.dash-room { border-left-color: #3b82f6; }
+    html.dark .chk-dash-card-v3.dash-room .val { color: #60a5fa; }
+    html.dark .chk-dash-card-v3.dash-balance { background: #09637e; border: none; }
+    html.dark .chk-dash-card-v3.dash-balance .lbl { color: #cbd5e1; }
+    html.dark .chk-dash-card-v3.dash-balance .val { color: #fff; }
+    
+    html.dark .rd-folio-tab-group { background: #0f172a; }
+    html.dark .rd-folio-tab { color: #94a3b8; }
+    html.dark .rd-folio-tab:hover { color: #f1f5f9; }
+    html.dark .rd-folio-tab.active { background: #1e293b; color: #38bdf8; }
+    html.dark .rd-folio-btn { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    html.dark .rd-folio-btn:hover { background: #1e293b; }
+    
+    html.dark .chk-ledger-container { background: #0f172a; border-color: #334155; }
+    html.dark .chk-ledger-header { background: #1e293b; border-color: #334155; color: #38bdf8; }
+    html.dark .chk-ledger-row { border-color: #334155; }
+    html.dark .chk-ledger-row:hover { background: rgba(255,255,255,0.05); }
+    html.dark .chk-ledger-name { color: #f1f5f9; }
+    html.dark .chk-ledger-sub, html.dark .chk-ledger-qty { color: #94a3b8; }
+    html.dark .chk-ledger-amount { color: #f1f5f9; }
+    html.dark .chk-ledger-amount.discount { color: #38bdf8; }
+    html.dark .chk-ledger-btn { background: #1e293b; border-color: #475569; color: #94a3b8; }
+    html.dark .chk-ledger-btn:hover { background: #334155; color: #f1f5f9; }
+    html.dark .chk-ledger-btn.void:hover { color: #ef4444; border-color: #ef4444; background: #334155; }
+    
+    html.dark .chk-ledger-tools { background: #1e293b; border-color: #334155; }
+    html.dark .chk-ledger-btn-add { background: #1e293b; border-color: #475569; color: #f1f5f9; }
+    html.dark .chk-ledger-btn-add:hover { background: #334155; color: #fff; border-color: #64748b; }
+    
+    html.dark .chk-col-title { color: #f1f5f9 !important; }
+    html.dark .chk-title { color: #f1f5f9; }
+    html.dark .chk-dash-label { color: #94a3b8; }
+    html.dark .chk-dash-val { color: #f1f5f9; }
+    html.dark .chk-ledger-box { background: #0f172a; border-color: #334155; }
+    html.dark .chk-ledger-box-head { color: #f1f5f9; }
+    html.dark .chk-ledger-item { border-color: #334155; color: #94a3b8; }
+    
+    html.dark .chk-ledger-icon { background: #1e293b !important; color: #94a3b8 !important; }
+    html.dark .chk-tl-content { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+    html.dark .chk-tl-head { color: #f1f5f9 !important; }
+    html.dark .chk-tl-head span { color: #f1f5f9 !important; }
+    html.dark .chk-tl-head span:last-child { color: #94a3b8 !important; }
+    html.dark .chk-tl-body { color: #f1f5f9 !important; }
+    html.dark .chk-tl-dot { background: #1e293b; border-color: #475569; }
+    html.dark .chk-tl-dot.room { border-color: #3b82f6; }
+    html.dark .chk-tl-dot.service { border-color: #818cf8; background: rgba(99,102,241,0.18); box-shadow: 0 0 0 3px rgba(129,140,248,0.12); }
+    html.dark .chk-tl-dot.payment { border-color: #10b981; }
+    html.dark .chk-tl-dot.discount { border-color: #eab308; }
+    html.dark .chk-tl-dot.voided { border-color: #64748b; background: #1e293b; box-shadow: 0 0 0 3px rgba(100,116,139,0.16); }
+    html.dark .chk-tl-item.is-voided .chk-tl-content { background: #111827; border-color: #334155; filter: grayscale(0.45); opacity: 0.58; }
+
+    html.dark .chk-ledger-row[style*="f0fdf4"] { background: rgba(5, 150, 105, 0.08) !important; }
+    html.dark .chk-ledger-row[style*="f0fdf4"]:hover { background: rgba(5, 150, 105, 0.12) !important; }
+
+    html.dark .chk-ledger-type.phong { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    html.dark .chk-ledger-type.dichvu { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+    html.dark .chk-ledger-type.phatsinh { background: rgba(148,163,184,0.15); color: #94a3b8; }
+    html.dark .chk-ledger-type.giamgia { background: rgba(234,179,8,0.15); color: #facc15; }
+    html.dark .chk-ledger-type_thanhtoan { background: rgba(16,185,129,0.15); color: #6ee7b7; }
+
+    /* Payment action column */
+    html.dark .rd-pay-action-col { background: #0f172a; border-color: #334155; }
+    html.dark .rd-pay-action-col .v-btn { background: #1e293b; border-color: #334155; color: #94a3b8; }
+    html.dark .rd-pay-action-col .v-btn:hover { background: #334155; color: #f1f5f9; }
+
+    .rd-pay-closed-note {
+      display: none;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 600;
+    }
+    html.dark .rd-pay-closed-note { background:#0f172a; border-color:#334155; color:#cbd5e1; }
+  </style>
+
+  <div class="rd-folio-tabs" id="rd-folio-tabs-container">
+     <!-- Rendered via JS -->
+  </div>
+
+  <div style="display:flex; gap:16px; margin-bottom:20px; align-items: stretch;">
+    <div class="chk-dash-grid">
+      <!-- 1. Tiền phòng -->
+      <div class="chk-dash-card-v3 dash-room">
+        <span class="lbl">Tiền phòng</span>
+        <span class="val" id="rd-pay-dash-room">0</span>
+        <div class="watermark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2M3 19v-7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v7M11 10V7M13 10V7M3 14h18"/></svg></div>
+      </div>
+      <!-- 2. Dịch vụ -->
+      <div class="chk-dash-card-v3 dash-service">
+        <span class="lbl">Dịch vụ</span>
+        <span class="val" id="rd-pay-dash-service">0</span>
+        <div class="watermark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+      </div>
+      <!-- 3. Phát sinh -->
+      <div class="chk-dash-card-v3 dash-extra">
+        <span class="lbl">Phát sinh</span>
+        <span class="val" id="rd-pay-dash-extra">0</span>
+        <div class="watermark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
+      </div>
+      <!-- 4. Đã thu -->
+      <div class="chk-dash-card-v3 dash-paid">
+        <span class="lbl">Đã thu</span>
+        <span class="val" id="rd-pay-dash-paid">0</span>
+        <div class="watermark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+      </div>
+      <!-- 5. Giảm giá -->
+      <div class="chk-dash-card-v3 dash-discount">
+        <span class="lbl">Giảm giá</span>
+        <span class="val" style="color:#d97706;" id="rd-pay-dash-discount">0</span>
+        <div class="watermark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+      </div>
+      <!-- 6. Cần thanh toán -->
+      <div class="chk-dash-card-v3 dash-balance">
+        <span class="lbl">CẦN THANH TOÁN</span>
+        <span class="val" id="rd-pay-dash-balance">0</span>
+        <div class="watermark"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      </div>
+    </div>
+    
+    <div class="rd-pay-action-col" style="display:flex; flex-direction:column; gap:8px; justify-content:center; min-width:210px;">
+      <button class="v-btn" id="rd-pay-open-btn" onclick="rdPayV2OpenFromStay()"
+        style="background:#10b981; color:#fff; height:42px; font-weight:700; border-radius:8px; width:100%; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:-3px;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        Thanh toán
+      </button>
+      <button class="v-btn" id="rd-pay-transfer-bill-btn" style="background:#2563eb; color:#fff; height:42px; font-weight:700; border-radius:8px; width:100%; border:none; cursor:pointer; box-shadow:0 4px 12px rgba(37,99,235,0.22);" onclick="rdOpenBillTransferModal()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:-3px;"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/><path d="M18 4v3"/><path d="M6 20v-3"/></svg>
+        Gộp sang phòng khác
+      </button>
+      <button class="v-btn" style="background:#f59e0b; color:#fff; height:42px; font-weight:700; border-radius:8px; width:100%; border:none; cursor:pointer;" onclick="rdPayPrintFolio()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:-3px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        In Hoá Đơn
+      </button>
+      <button class="v-btn" id="rd-pay-checkout-btn" style="display:none; background:#088395; color:#fff; height:42px; font-weight:700; border-radius:8px; width:100%; border:none; cursor:pointer;" onclick="submitCO()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:8px; vertical-align:-3px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Trả phòng
+      </button>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:16px; flex:1; overflow:hidden;">
+    <!-- LEFT: SỔ CÁI (Folio Ledger) -->
+    <div style="flex:1.4; display:flex; flex-direction:column; overflow:hidden;">
+      <div class="chk-ledger-container">
+        <!-- Table Header -->
+        <div class="chk-ledger-header">
+          <div>Diễn giải dịch vụ</div>
+          <div style="text-align:center">SL</div>
+          <div>Loại GD</div>
+          <div style="text-align:right">Thành tiền</div>
+        </div>
+
+        <!-- Table Body -->
+        <div class="chk-ledger-body" id="rd-pay-ledger-body">
+          <!-- All merged transactions here -->
+        </div>
+
+        <!-- Toolbar / Add buttons at bottom -->
+        <div class="chk-ledger-tools">
+          <div style="display:flex; gap:8px;">
+            <button class="chk-ledger-btn-add" id="rd-pay-add-service-btn" onclick="pmsRdOpenService()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Dịch vụ
+            </button>
+            <button class="chk-ledger-btn-add" id="rd-pay-add-surcharge-btn" onclick="pmsRdOpenSurcharge()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Phát sinh
+            </button>
+          </div>
+          <button class="chk-ledger-btn-add" style="border-color:#c8dcdc; background:#EBF4F6; color:#088395;" onclick="rdPayOpenPopup('rd-sub-modal-discount')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg> Giảm giá
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: TIMELINE -->
+    <div style="flex:1; display:flex; flex-direction:column; overflow-y:auto; padding-left:8px; border-left:1px dashed #c8dcdc;">
+      <div class="chk-col-title" style="color: #4a5568;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Lịch Sử Chọn Lọc
+      </div>
+      <div class="chk-tl-container" id="rd-pay-timeline">
+        <!-- Rendered by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── REFUND MODAL ─────────────────────────────────────────────── -->
+  <div id="rd-sub-modal-refund" style="
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(15,23,42,0.5); backdrop-filter:blur(4px);
+    align-items:center; justify-content:center; padding:16px;">
+    <div style="
+      background:#fff; border-radius:16px; width:100%; max-width:420px;
+      box-shadow:0 24px 40px rgba(0,0,0,0.18); overflow:hidden;
+      animation:scaleIn .22s cubic-bezier(.34,1.56,.64,1) both;">
+      <div style="padding:18px 20px 14px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:12px;">
+        <div style="width:40px; height:40px; border-radius:11px; background:#ecfdf5; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div>
+          <h5 style="font-size:16px; font-weight:800; color:#0f172a; margin:0 0 2px; letter-spacing:-.02em;">Hoàn tiền dư</h5>
+          <p style="font-size:11.5px; color:#94a3b8; margin:0;">Xác nhận số tiền hoàn cho khách</p>
+        </div>
+        <button onclick="document.getElementById('rd-sub-modal-refund').style.display='none'" style="margin-left:auto; width:32px; height:32px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:16px 20px; display:flex; flex-direction:column; gap:12px;">
+        <div class="f-grp">
+          <label class="f-label">Số tiền hoàn</label>
+          <div id="rd-refund-amount-display" style="font-size:22px; font-weight:800; color:#0f172a; font-family:ui-monospace,'Courier New',monospace; padding:8px 12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px;">0 ₫</div>
+        </div>
+        <div class="f-grp">
+          <label class="f-label">Phương thức hoàn</label>
+          <select id="rd-refund-method" class="f-ctrl">
+            <option value="CASH">Tiền mặt</option>
+            <option value="BANK_TRANSFER">Chuyển khoản</option>
+            <option value="CREDIT_CARD">Cà thẻ</option>
+            <option value="OTHER">Khác</option>
+          </select>
+        </div>
+        <div class="f-grp">
+          <label class="f-label">Tài khoản nhận (nếu chuyển khoản)</label>
+          <input id="rd-refund-account" class="f-ctrl" type="text" placeholder="Số tài khoản / STK">
+        </div>
+        <div class="f-grp">
+          <label class="f-label">Ghi chú</label>
+          <input id="rd-refund-note" class="f-ctrl" type="text" placeholder="Lý do hoàn tiền...">
+        </div>
+      </div>
+      <div style="padding:12px 20px 18px; display:flex; gap:10px;">
+        <button onclick="document.getElementById('rd-sub-modal-refund').style.display='none'" style="flex:1; height:40px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; font-size:13px; font-weight:600; color:#475569; cursor:pointer;">Hủy</button>
+        <button onclick="rdPayRequestRefund()" style="flex:2; height:40px; border-radius:8px; border:none; background:#10b981; font-size:13px; font-weight:700; color:#fff; cursor:pointer;">Xác nhận hoàn tiền</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BILL TRANSFER MODAL ───────────────────────────────────────── -->
+  <div id="rd-sub-modal-bill-transfer" style="
+    display:none; position:fixed; inset:0; z-index:20000;
+    background:rgba(15,23,42,0.32); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#fff; border-radius:16px; width:100%; max-width:560px; box-shadow:0 24px 40px rgba(0,0,0,0.18); overflow:hidden; position:relative; z-index:1;">
+      <div style="padding:18px 20px 14px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:12px;">
+        <div style="width:40px; height:40px; border-radius:11px; background:#eff6ff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/><path d="M18 4v3"/><path d="M6 20v-3"/></svg>
+        </div>
+        <div>
+          <h5 style="font-size:16px; font-weight:800; color:#0f172a; margin:0 0 2px; letter-spacing:-.02em;">Gộp hoá đơn sang phòng khác</h5>
+          <p id="rd-transfer-source-summary" style="font-size:11.5px; color:#64748b; margin:0;">Chọn phòng nhận thanh toán</p>
+        </div>
+        <button onclick="rdCloseBillTransferModal()" style="margin-left:auto; width:32px; height:32px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div style="padding:16px 20px; display:flex; flex-direction:column; gap:12px;">
+        <div class="f-grp">
+          <label class="f-label">Tìm phòng nhận</label>
+          <input id="rd-transfer-target-search" class="f-ctrl" type="text" placeholder="Nhập số phòng, tên khách, SĐT..." oninput="rdSearchBillTransferTargets()">
+        </div>
+        <div id="rd-transfer-target-list" style="max-height:180px; overflow:auto; border:1px solid #e2e8f0; border-radius:12px; background:#f8fafc; padding:6px; display:flex; flex-direction:column; gap:6px;"></div>
+        <div class="f-grp">
+          <label class="f-label">Số tiền gộp</label>
+          <input id="rd-transfer-amount" class="f-ctrl" type="number" min="0" step="1000">
+        </div>
+        <div class="f-grp">
+          <label class="f-label">Ghi chú</label>
+          <input id="rd-transfer-note" class="f-ctrl" type="text" placeholder="Ví dụ: Khách đi cùng đoàn, phòng 201 thanh toán chung">
+        </div>
+        <div id="rd-transfer-error" style="display:none; padding:10px 12px; border-radius:10px; background:#fef2f2; color:#b91c1c; font-size:12px; font-weight:600;"></div>
+      </div>
+      <div style="padding:12px 20px 18px; display:flex; gap:10px;">
+        <button onclick="rdCloseBillTransferModal()" style="flex:1; height:40px; border-radius:8px; border:1px solid #e2e8f0; background:#fff; font-size:13px; font-weight:600; color:#475569; cursor:pointer;">Hủy</button>
+        <button id="rd-transfer-submit-btn" onclick="rdSubmitBillTransfer()" style="flex:2; height:40px; border-radius:8px; border:none; background:#2563eb; font-size:13px; font-weight:700; color:#fff; cursor:pointer;">Xác nhận gộp hoá đơn</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>

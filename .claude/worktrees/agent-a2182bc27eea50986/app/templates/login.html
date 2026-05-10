@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng Nhập - Bin Bin Hotel Tết 2026</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap"
+    rel="stylesheet">
+
+  <script>
+    /* Tìm đoạn tailwind.config trong thẻ <head> và BỔ SUNG đoạn có comment bên dưới */
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Quicksand', 'sans-serif'] },
+          colors: {
+            tet: { red: '#D90429', gold: '#FFD60A', dark: '#020617' }
+          },
+          animation: {
+            'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
+            'float-slow': 'float 6s ease-in-out infinite',
+            'pulse-slow': 'pulse 3s infinite',
+
+            // --- THÊM DÒNG NÀY (Định nghĩa tên animation) ---
+            'breath': 'breathing 5s ease-in-out infinite',
+            'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+            'shimmer': 'shimmer 2s ease-in-out infinite',
+            'celebrate': 'celebrate 1s ease-out forwards',
+            'spin-slow': 'spin-slow 3s linear infinite',
+          },
+          keyframes: {
+            shake: {
+              '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+              '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+              '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+              '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+            },
+            fadeInUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-15px)' },
+            },
+
+            // --- THÊM ĐOẠN NÀY (Định nghĩa chuyển động) ---
+            breathing: {
+              '0%, 100%': { transform: 'scale(1)' },   // Trạng thái bình thường
+              '50%': { transform: 'scale(1.05)' },     // Hít vào (Phóng to 5%)
+            },
+            shimmer: {
+              '0%': { backgroundPosition: '-200% center' },
+              '100%': { backgroundPosition: '200% center' }
+            },
+            celebrate: {
+              '0%': { opacity: '0', transform: 'scale(0.8)' },
+              '50%': { transform: 'scale(1.05)' },
+              '100%': { opacity: '1', transform: 'scale(1)' }
+            },
+            'spin-slow': {
+              '0%': { transform: 'rotate(0deg)' },
+              '100%': { transform: 'rotate(360deg)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Nền Gradient mượt mà */
+    body {
+      transition: background 0.5s ease;
+      /* Đã xóa dòng background gradient cũ đi để hiện ảnh */
+      background-color: #1e1b4b;
+      /* Màu nền dự phòng khi ảnh chưa load */
+    }
+
+    .slide-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* Giúp ảnh luôn full màn hình không bị méo */
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out, transform 10s ease;
+      /* Fade 1.5s, Zoom nhẹ 10s */
+      transform: scale(1);
+    }
+
+    .slide-image.active {
+      opacity: 1;
+      transform: scale(1.05);
+      /* Hiệu ứng zoom nhẹ khi ảnh hiện ra */
+    }
+
+    html.dark body {
+      background: radial-gradient(circle at center, #1e1b4b, #020617);
+    }
+
+    html:not(.dark) body {
+      background: radial-gradient(circle at center, #fffbeb, #fef2f2);
+    }
+
+    /* Hiệu ứng Glassmorphism cao cấp */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    }
+
+    .dark .glass-panel {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    }
+
+    /* Input Styling để tránh cắt chữ tiếng Việt */
+    input {
+      line-height: 1.5;
+    }
+
+    /* Animation cho hiệu ứng nền (Mai & Đèn lồng) */
+    .particle {
+      position: absolute;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    /* Hoa mai rơi (Light mode) */
+    @keyframes fall {
+      0% {
+        transform: translateY(-10vh) rotate(0deg);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateY(110vh) rotate(360deg);
+        opacity: 0;
+      }
+    }
+
+    .flower {
+      width: 20px;
+      height: 20px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD60A'%3E%3Cpath d='M12 2L14.5 9H22L16 13.5L18.5 21L12 16.5L5.5 21L8 13.5L2 9H9.5L12 2Z'/%3E%3C/svg%3E");
+      background-size: contain;
+      animation: fall linear infinite;
+    }
+
+    /* Đèn lồng bay lên (Dark mode) */
+    @keyframes rise {
+      0% {
+        transform: translateY(110vh) scale(0.8);
+        opacity: 0;
+      }
+
+      10% {
+        opacity: 0.8;
+      }
+
+      100% {
+        transform: translateY(-10vh) scale(1);
+        opacity: 0;
+      }
+    }
+
+    .lantern {
+      width: 24px;
+      height: 30px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D90429'%3E%3Cpath d='M12 2C16.4183 2 20 5.58172 20 10V18C20 18.5523 19.5523 19 19 19H5C4.44772 19 4 18.5523 4 18V10C4 5.58172 7.58172 2 12 2Z'/%3E%3Crect x='8' y='19' width='8' height='3' fill='%23FFD60A'/%3E%3C/svg%3E");
+      background-size: contain;
+      animation: rise linear infinite;
+      filter: drop-shadow(0 0 5px #D90429);
+    }
+
+    /* New Year Celebration Styles - Readable in Both Modes */
+    .celebration-text {
+      background: linear-gradient(135deg,
+          #B8860B 0%,
+          /* Vàng tối (Dark Golden Rod) */
+          #D4A017 25%,
+          /* Vàng đậm */
+          #B8860B 50%,
+          /* Vàng tối */
+          #D4A017 75%,
+          /* Vàng đậm */
+          #B8860B 100%
+          /* Vàng tối */
+        );
+      background-size: 200% 200%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 3s ease-in-out infinite, gentle-bounce 2s ease-in-out infinite;
+      filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+    }
+
+    /* Dark mode - Brighter golden colors */
+    .dark .celebration-text {
+      background: linear-gradient(135deg,
+          #FFD700 0%,
+          /* Vàng kim sáng */
+          #FFA500 25%,
+          /* Vàng cam */
+          #FFD700 50%,
+          /* Vàng kim sáng */
+          #FFA500 75%,
+          /* Vàng cam */
+          #FFD700 100%
+          /* Vàng kim sáng */
+        );
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+    }
+
+    .celebration-container {
+      animation: celebrate 1s ease-out forwards;
+    }
+
+    /* Bounce animation for text */
+    @keyframes gentle-bounce {
+
+      0%,
+      100% {
+        transform: translateY(0) scale(1);
+      }
+
+      50% {
+        transform: translateY(-8px) scale(1.02);
+      }
+    }
+
+    .firework-emoji {
+      display: inline-block;
+      animation: spin-slow 3s linear infinite;
+    }
+  </style>
+</head>
+
+<body
+  class="h-full w-full overflow-hidden text-slate-800 dark:text-slate-100 selection:bg-tet-red selection:text-white relative">
+  <!-- Video Background (Immediate Autoplay) -->
+  <video autoplay muted loop playsinline preload="auto" id="bg-video"
+    class="fixed inset-0 w-full h-full object-cover z-[-1]">
+    <source src="../static/view_hotel/intro_1.mp4" type="video/mp4" media="(min-width: 768px)">
+    <source src="../static/view_hotel/intro_1.webm" type="video/webm">
+  </video>
+
+  <div class="fixed inset-0 z-[-1] bg-black/10 pointer-events-none transition-colors duration-500 dark:bg-black/40">
+  </div>
+
+  <div id="bg-effects" class="absolute inset-0 z-0 overflow-hidden pointer-events-none"></div>
+
+  <div id="bg-effects" class="absolute inset-0 z-0 overflow-hidden pointer-events-none"></div>
+
+  <audio id="bg-music" loop>
+    <source src="../static/sounds/Tet.mp3" type="audio/mpeg">
+  </audio>
+
+  <div class="relative z-10 w-full h-full flex flex-col md:grid md:grid-cols-5">
+
+    <button id="btn-music"
+      class="absolute top-5 left-5 p-2.5 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-sm transition-all shadow-sm group z-20">
+      <i id="music-icon" class="ph ph-speaker-slash text-white text-xl transition-transform group-hover:scale-110"></i>
+    </button>
+
+    <!-- LEFT: Empty to show video -->
+    <div class="hidden md:flex md:col-span-3 h-full items-center justify-center">
+    </div>
+
+    <!-- RIGHT: Login Form -->
+    <div class="col-span-1 md:col-span-2 flex items-center justify-center p-6 w-full h-full">
+      <div
+        class="glass-panel w-full max-w-[400px] p-8 rounded-3xl animate-fade-in-up shadow-2xl relative transition-all duration-300 backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-white/40">
+
+        <button id="btn-theme"
+          class="absolute top-5 right-5 p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors group">
+          <i class="ph ph-sun text-orange-600 text-lg hidden dark:block group-hover:rotate-90 transition-transform"></i>
+          <i
+            class="ph ph-moon text-slate-600 text-lg block dark:hidden group-hover:-rotate-12 transition-transform"></i>
+        </button>
+
+        <div class="text-center mb-6">
+          <!-- Logo size adjusted -->
+          <img src="/static/logo.png" class="h-12 mx-auto mb-3 drop-shadow-sm object-contain" alt="Logo Bin Bin" />
+          <h2 class="text-xl font-bold text-slate-800 dark:text-white uppercase tracking-wide mb-4">Đăng Nhập</h2>
+
+          <!-- New Year Greeting with Gradient Effect -->
+          <div class="celebration-container flex items-center justify-center py-3 mb-3 px-2">
+            <h3 id="new-year-text"
+              class="celebration-text font-black font-['Playfair_Display'] tracking-tight text-center leading-tight"
+              style="font-size: clamp(1.1rem, 4.5vw, 1.6rem); max-width: 100%; text-transform: capitalize;">
+              Chúc Mừng Năm Mới 2026
+            </h3>
+          </div>
+        </div>
+
+        <!-- Error Notification -->
+        {% if error and error|trim|length > 0 %}
+        <div
+          class="mb-5 p-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-tet-red/30 flex items-center gap-3 animate-shake">
+          <div
+            class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-800/50 text-tet-red flex items-center justify-center shrink-0">
+            <i class="ph ph-warning-circle text-xl"></i>
+          </div>
+          <div class="text-left">
+            <p class="text-xs font-bold text-tet-red uppercase tracking-wider mb-0.5">Đăng nhập thất bại</p>
+            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">{{ error }}</p>
+          </div>
+        </div>
+        {% endif %}
+
+        <form method="post" action="/login" class="space-y-4" id="loginForm">
+
+          <div class="group">
+            <div class="relative">
+              <span class="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-tet-red transition-colors">
+                <i class="ph ph-user text-lg"></i>
+              </span>
+              <input type="text" name="username"
+                class="w-full py-3 pl-11 pr-4 rounded-xl border-0 bg-white/80 dark:bg-black/40 text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-tet-red/50 transition-all shadow-inner font-medium text-sm"
+                placeholder="Mã nhân viên" required />
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="relative">
+              <span class="absolute left-4 top-3.5 text-slate-500 group-focus-within:text-tet-red transition-colors">
+                <i class="ph ph-lock-key text-lg"></i>
+              </span>
+              <input type="password" id="passwordInput" name="password"
+                class="w-full py-3 pl-11 pr-11 rounded-xl border-0 bg-white/80 dark:bg-black/40 text-slate-800 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-tet-red/50 transition-all shadow-inner font-medium text-sm"
+                placeholder="Mật khẩu" required />
+
+              <button type="button" id="togglePassword"
+                class="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none">
+                <i class="ph ph-eye-slash text-lg" id="eyeIcon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="button" onclick="showForgotPass()"
+              class="text-[11px] font-semibold text-slate-600 hover:text-tet-red dark:text-slate-300 dark:hover:text-tet-gold transition-colors">
+              Quên mật khẩu?
+            </button>
+          </div>
+
+          <button type="submit"
+            class="w-full py-3 rounded-xl bg-gradient-to-r from-tet-red to-[#b91c1c] text-white font-bold text-base hover:shadow-lg hover:shadow-tet-red/30 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] transition-all duration-200">
+            Đăng Nhập
+          </button>
+        </form>
+
+        <p class="mt-6 text-[10px] text-center text-slate-500 dark:text-slate-400 font-medium opacity-80">
+          © 2026 Bin Bin Hotel System
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- 1. Logic Dark/Light Mode & Hiệu ứng nền ---
+    const html = document.documentElement;
+    const bgContainer = document.getElementById('bg-effects');
+    let effectInterval;
+
+    // Hàm tạo vật thể bay (Hoa hoặc Đèn lồng)
+    function createParticle(type) {
+      const el = document.createElement('div');
+      // Random vị trí bắt đầu theo chiều ngang
+      const startX = Math.random() * 100;
+      // Random kích thước
+      const scale = 0.5 + Math.random() * 0.8;
+      // Random thời gian bay
+      const duration = (type === 'flower' ? 5 : 8) + Math.random() * 5;
+
+      el.classList.add('particle');
+      el.classList.add(type);
+      el.style.left = `${startX}%`;
+      el.style.animationDuration = `${duration}s`;
+      el.style.transform = `scale(${scale})`;
+
+      bgContainer.appendChild(el);
+
+      // Tự động xóa sau khi animation kết thúc để nhẹ máy
+      setTimeout(() => {
+        el.remove();
+      }, duration * 1000);
+    }
+
+    function startEffects(isDark) {
+      // Xóa hiệu ứng cũ
+      clearInterval(effectInterval);
+      bgContainer.innerHTML = '';
+
+      const particleType = isDark ? 'lantern' : 'flower';
+      const density = 800; // mili-giây tạo ra 1 vật thể
+
+      effectInterval = setInterval(() => {
+        createParticle(particleType);
+      }, density);
+    }
+
+    // Toggle Theme
+    document.getElementById('btn-theme').onclick = () => {
+      html.classList.toggle('dark');
+      const isDark = html.classList.contains('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      startEffects(isDark);
+    };
+
+    // Khởi chạy lần đầu
+    const savedTheme = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    if (savedTheme) html.classList.add('dark');
+    startEffects(html.classList.contains('dark'));
+
+
+    // --- 2. Logic Hiển thị/Ẩn mật khẩu ---
+    const togglePassBtn = document.getElementById('togglePassword');
+    const passInput = document.getElementById('passwordInput');
+    const eyeIcon = document.getElementById('eyeIcon');
+
+    togglePassBtn.onclick = () => {
+      const type = passInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passInput.setAttribute('type', type);
+
+      // Đổi icon
+      if (type === 'text') {
+        eyeIcon.classList.replace('ph-eye-slash', 'ph-eye');
+        eyeIcon.classList.add('text-tet-red');
+      } else {
+        eyeIcon.classList.replace('ph-eye', 'ph-eye-slash');
+        eyeIcon.classList.remove('text-tet-red');
+      }
+    };
+
+
+    // --- 3. Logic Quên mật khẩu ---
+    window.showForgotPass = () => {
+      // Dùng SweetAlert hoặc Alert mặc định (đã style cho đẹp)
+      // Ở đây dùng confirm mặc định để đơn giản nhưng nội dung rõ ràng
+      alert("🔒 CẤP LẠI MẬT KHẨU\n\nVui lòng liên hệ trực tiếp quản lý để xác minh danh tính và cấp lại mật khẩu mới.\n\n📞 Hotline hỗ trợ: 0559 913 929");
+    };
+
+
+    // --- 4. Logic Âm thanh nền (Nâng cao) ---
+    const audio = document.getElementById('bg-music');
+    const btnMusic = document.getElementById('btn-music');
+    const musicIcon = document.getElementById('music-icon');
+    let isPlaying = false;
+
+    // Hàm chuyển đổi trạng thái icon
+    function updateMusicIcon(play) {
+      if (play) {
+        musicIcon.classList.replace('ph-speaker-slash', 'ph-speaker-high');
+        musicIcon.classList.add('text-tet-red'); // Đổi màu đỏ cho nổi
+        musicIcon.classList.add('animate-pulse'); // Hiệu ứng nhịp điệu
+      } else {
+        musicIcon.classList.replace('ph-speaker-high', 'ph-speaker-slash');
+        musicIcon.classList.remove('text-tet-red');
+        musicIcon.classList.remove('animate-pulse');
+      }
+    }
+
+    // Xử lý khi bấm nút Loa
+    btnMusic.onclick = () => {
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.volume = 0.5; // Âm lượng 50%
+        audio.play();
+      }
+      isPlaying = !isPlaying;
+      updateMusicIcon(isPlaying);
+    };
+
+    // Tự động phát nhạc khi người dùng click bất kỳ đâu lần đầu tiên
+    // (Đây là cách "lách" luật chặn autoplay của trình duyệt)
+    function autoPlayOnFirstInteraction() {
+      if (!isPlaying) {
+        audio.volume = 0.5;
+        audio.play().then(() => {
+          isPlaying = true;
+          updateMusicIcon(true);
+        }).catch(error => {
+          console.log("Chờ người dùng tương tác để phát nhạc...");
+        });
+      }
+      // Chỉ chạy 1 lần rồi xóa sự kiện đi cho nhẹ web
+      document.removeEventListener('click', autoPlayOnFirstInteraction);
+      document.removeEventListener('keydown', autoPlayOnFirstInteraction);
+    }
+
+    // Lắng nghe cú click hoặc gõ phím đầu tiên
+    document.addEventListener('click', autoPlayOnFirstInteraction);
+    document.addEventListener('keydown', autoPlayOnFirstInteraction);
+  </script>
+
+
+  <script>
+
+    // OPTIMIZED VIDEO LOADING - REMOVED (Direct Autoplay)
+
+    // CLEAR ERROR PARAMS FROM URL
+    if (window.history.replaceState) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('error')) {
+        url.searchParams.delete('error');
+        url.searchParams.delete('role');
+        window.history.replaceState({}, document.title, url.toString());
+      }
+    }
+  </script>
+</body>
+
+</html>

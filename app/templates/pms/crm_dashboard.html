@@ -1,0 +1,1751 @@
+{% extends "base.html" %}
+{% block title %}CRM - Quản lý Khách hàng{% endblock %}
+{% block page_title %}CRM Khách hàng{% endblock %}
+
+{% block head %}
+<style>
+  :root {
+    --crm-bg: #ffffff;
+    --crm-bg-alt: #f8fafc;
+    --crm-bg-hover: #f1f5f9;
+    --crm-border: #e2e8f0;
+    --crm-text: #0f172a;
+    --crm-text-muted: #64748b;
+    --crm-text-subtle: #94a3b8;
+    --crm-accent: #6366f1;
+    --crm-accent-hover: #4f46e5;
+    --crm-accent-soft: rgba(99, 102, 241, 0.1);
+    --crm-success: #10b981;
+    --crm-warning: #f59e0b;
+    --crm-danger: #ef4444;
+  }
+  
+  html.dark {
+    --crm-bg: #0f172a;
+    --crm-bg-alt: #1e293b;
+    --crm-bg-hover: #334155;
+    --crm-border: #334155;
+    --crm-text: #f1f5f9;
+    --crm-text-muted: #94a3b8;
+    --crm-text-subtle: #64748b;
+  }
+
+  body { background: var(--crm-bg-alt); }
+  main.overflow-y-auto { padding: 0 !important; background: var(--crm-bg-alt); }
+
+  /* ── App Shell ── */
+  .crm-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    background: var(--crm-bg-alt);
+  }
+
+  /* ── Header ── */
+  .crm-header {
+    background: var(--crm-bg);
+    border-bottom: 1px solid var(--crm-border);
+    padding: 20px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  
+  .crm-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .crm-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .crm-logo-icon {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+  
+  .crm-logo-icon svg { width: 24px; height: 24px; stroke: #fff; }
+  
+  .crm-logo-text h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--crm-text);
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+  
+  .crm-logo-text span {
+    font-size: 12px;
+    color: var(--crm-text-muted);
+    font-weight: 500;
+  }
+
+  /* ── Search & Filters ── */
+  .crm-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .crm-search {
+    position: relative;
+    flex: 1;
+    min-width: 280px;
+    max-width: 400px;
+  }
+
+  .crm-search input {
+    width: 100%;
+    padding: 10px 16px 10px 42px;
+    border: 1px solid var(--crm-border);
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--crm-bg-alt);
+    color: var(--crm-text);
+    transition: all 0.2s;
+    outline: none;
+  }
+
+  .crm-search input:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-soft);
+    background: var(--crm-bg);
+  }
+
+  .crm-search input::placeholder { color: var(--crm-text-subtle); }
+
+  .crm-search svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    stroke: var(--crm-text-subtle);
+  }
+
+  .crm-search .clear-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: var(--crm-border);
+    color: var(--crm-text-muted);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .crm-search .clear-btn.show { display: flex; }
+  .crm-search .clear-btn:hover { background: var(--crm-accent); color: #fff; }
+  .crm-search .clear-btn svg { position: static; transform: none; width: 12px; height: 12px; }
+
+  .crm-filter-group {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .crm-filter-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .crm-filter-btn:hover {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+  }
+
+  .crm-filter-btn.active {
+    background: var(--crm-accent);
+    border-color: var(--crm-accent);
+    color: #fff;
+  }
+
+  .crm-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 0 24px 16px;
+    background: var(--crm-bg-alt);
+  }
+  .crm-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text-muted);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .crm-tab-btn.active {
+    background: var(--crm-text);
+    border-color: var(--crm-text);
+    color: var(--crm-bg);
+  }
+  .crm-filter-select {
+    min-width: 150px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text);
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+  }
+  .crm-blacklist-card {
+    margin-bottom: 16px;
+    padding: 16px 20px;
+    border: 1px solid #fecaca;
+    background: #fff7f7;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  html.dark .crm-blacklist-card { background: rgba(127, 29, 29, 0.2); border-color: #7f1d1d; }
+  .crm-blacklist-card h2 { margin: 0 0 4px; font-size: 15px; color: var(--crm-text); }
+  .crm-blacklist-card p { margin: 0; font-size: 12px; color: var(--crm-text-muted); }
+
+  /* ── Stats Cards ── */
+  .crm-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--crm-bg-alt);
+  }
+
+  .crm-stat-card {
+    background: var(--crm-bg);
+    border: 1px solid var(--crm-border);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .crm-stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+
+  .crm-stat-card:nth-child(1)::before { background: linear-gradient(90deg, #6366f1, #8b5cf6); }
+  .crm-stat-card:nth-child(2)::before { background: linear-gradient(90deg, #10b981, #34d399); }
+  .crm-stat-card:nth-child(3)::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .crm-stat-card:nth-child(4)::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+  .crm-stat-card:nth-child(5)::before { background: linear-gradient(90deg, #06b6d4, #22d3ee); }
+  .crm-stat-card:nth-child(6)::before { background: linear-gradient(90deg, #ec4899, #f472b6); }
+
+  .crm-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border-color: transparent;
+  }
+
+  .crm-stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .crm-stat-icon svg { width: 24px; height: 24px; stroke: #fff; }
+  .crm-stat-icon.purple { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+  .crm-stat-icon.green { background: linear-gradient(135deg, #10b981, #34d399); }
+  .crm-stat-icon.amber { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+  .crm-stat-icon.red { background: linear-gradient(135deg, #ef4444, #f87171); }
+  .crm-stat-icon.cyan { background: linear-gradient(135deg, #06b6d4, #22d3ee); }
+  .crm-stat-icon.pink { background: linear-gradient(135deg, #ec4899, #f472b6); }
+
+  .crm-stat-content { flex: 1; }
+  .crm-stat-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--crm-text);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .crm-stat-label {
+    font-size: 12px;
+    color: var(--crm-text-muted);
+    font-weight: 500;
+  }
+
+  /* ── Main Content ── */
+  .crm-content {
+    flex: 1;
+    padding: 0 24px 24px;
+  }
+
+  /* ── Table Card ── */
+  .crm-table-card {
+    background: var(--crm-bg);
+    border: 1px solid var(--crm-border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .crm-table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--crm-border);
+    background: var(--crm-bg-alt);
+  }
+
+  .crm-table-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--crm-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .crm-table-count {
+    background: var(--crm-accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  /* ── Table ── */
+  .crm-table-wrap {
+    overflow-x: auto;
+  }
+
+  .crm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .crm-table thead th {
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--crm-text-muted);
+    background: var(--crm-bg-alt);
+    border-bottom: 1px solid var(--crm-border);
+    white-space: nowrap;
+    position: relative;
+  }
+
+  .crm-table thead th:first-child { padding-left: 20px; }
+  .crm-table thead th:last-child { padding-right: 20px; }
+
+  .crm-table tbody tr {
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+
+  .crm-table tbody tr:hover { background: var(--crm-bg-hover); }
+
+  .crm-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--crm-border);
+    color: var(--crm-text);
+    vertical-align: middle;
+  }
+
+  .crm-table tbody tr:last-child td { border-bottom: none; }
+  .crm-table tbody td:first-child { padding-left: 20px; }
+  .crm-table tbody td:last-child { padding-right: 20px; }
+
+  /* ── Guest Cell ── */
+  .crm-guest {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .crm-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 16px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .crm-guest-info { min-width: 0; }
+  .crm-guest-name {
+    font-weight: 700;
+    color: var(--crm-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 2px;
+  }
+
+  .crm-guest-contact {
+    font-size: 12px;
+    color: var(--crm-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .crm-guest-contact span:not(:first-child)::before {
+    content: '•';
+    margin-right: 6px;
+    color: var(--crm-text-subtle);
+  }
+
+  /* ── Tier Badge ── */
+  .tier-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .tier-BASIC { background: #f1f5f9; color: #64748b; }
+  .tier-SILVER { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); color: #475569; }
+  .tier-GOLD { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+  .tier-PLATINUM { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; }
+  .tier-VIP { background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #6d28d9; }
+
+  html.dark .tier-BASIC { background: #334155; color: #94a3b8; }
+  html.dark .tier-SILVER { background: #475569; color: #cbd5e1; }
+  html.dark .tier-GOLD { background: #78350f; color: #fde68a; }
+  html.dark .tier-PLATINUM { background: #1e3a8a; color: #93c5fd; }
+  html.dark .tier-VIP { background: #4c1d95; color: #c4b5fd; }
+
+  /* ── Blacklist Badge ── */
+  .bl-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    background: #fef2f2;
+    color: #dc2626;
+    text-transform: uppercase;
+  }
+  html.dark .bl-badge { background: #7f1d1d; color: #fca5a5; }
+
+  /* ── Points & Progress ── */
+  .crm-points-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 140px;
+  }
+
+  .crm-points-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .crm-points-icon {
+    width: 18px;
+    height: 18px;
+    color: var(--crm-accent);
+  }
+
+  .crm-points-value {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--crm-accent);
+  }
+
+  .crm-points-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .crm-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--crm-bg-hover);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .crm-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--crm-accent), #8b5cf6);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+
+  .crm-progress-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--crm-text-muted);
+    white-space: nowrap;
+  }
+
+  .crm-progress-label span {
+    color: var(--crm-accent);
+    font-weight: 700;
+  }
+
+  /* ── Stays ── */
+  .crm-stays {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .crm-stays-count {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--crm-text);
+  }
+
+  .crm-stays-label {
+    font-size: 11px;
+    color: var(--crm-text-muted);
+  }
+
+  /* ── Last Stay ── */
+  .crm-last-stay {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .crm-last-room {
+    font-weight: 700;
+    color: var(--crm-text);
+  }
+
+  .crm-last-date {
+    font-size: 11px;
+    color: var(--crm-text-muted);
+  }
+
+  /* ── Actions ── */
+  .crm-actions {
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .crm-table tbody tr:hover .crm-actions { opacity: 1; }
+
+  .crm-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .crm-action-btn:hover {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+    background: var(--crm-accent-soft);
+    transform: scale(1.05);
+  }
+
+  .crm-action-btn svg { width: 16px; height: 16px; }
+  .crm-action-btn.danger:hover {
+    border-color: var(--crm-danger);
+    color: var(--crm-danger);
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .crm-debt-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #92400e;
+    background: #fef3c7;
+  }
+
+  .crm-paid-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #047857;
+    background: #d1fae5;
+  }
+
+  .crm-blacklist-meta {
+    min-width: 220px;
+    font-size: 12px;
+    color: var(--crm-text-muted);
+    line-height: 1.45;
+  }
+  .crm-blacklist-meta strong { color: var(--crm-text); }
+
+  /* ── Membership Settings ── */
+  .crm-settings-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .crm-settings-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border: 1px solid var(--crm-border);
+    border-radius: 16px;
+    background: var(--crm-bg);
+  }
+  .crm-settings-head h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--crm-text);
+  }
+  .crm-settings-head p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--crm-text-muted);
+    line-height: 1.45;
+  }
+  .crm-settings-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .crm-primary-btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--crm-accent);
+    background: var(--crm-accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .crm-primary-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .crm-secondary-btn {
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 8px;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text-muted);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .crm-rule-card {
+    background: var(--crm-bg);
+    border: 1px solid var(--crm-border);
+    border-radius: 16px;
+    padding: 18px 20px;
+  }
+  .crm-rule-title {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--crm-text);
+    margin-bottom: 12px;
+  }
+  .crm-rule-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .crm-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .crm-field label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--crm-text-muted);
+  }
+  .crm-field input {
+    height: 38px;
+    border: 1px solid var(--crm-border);
+    border-radius: 8px;
+    background: var(--crm-bg-alt);
+    color: var(--crm-text);
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 650;
+    outline: none;
+  }
+  .crm-field input:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-soft);
+  }
+  .crm-tier-settings {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(190px, 1fr));
+    gap: 12px;
+  }
+  .crm-tier-card {
+    background: var(--crm-bg);
+    border: 1px solid var(--crm-border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  .crm-tier-card-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--crm-border);
+    background: var(--crm-bg-alt);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .crm-tier-code {
+    font-size: 11px;
+    font-weight: 900;
+    color: var(--crm-text-muted);
+    letter-spacing: 0.08em;
+  }
+  .crm-tier-card-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .crm-benefit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding-top: 4px;
+  }
+  .crm-benefit-list label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--crm-text-muted);
+  }
+  .crm-benefit-list input {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--crm-accent);
+  }
+  .crm-save-state {
+    min-height: 18px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--crm-text-muted);
+  }
+  .crm-save-state.ok { color: var(--crm-success); }
+  .crm-save-state.err { color: var(--crm-danger); }
+
+  /* ── Pagination ── */
+  .crm-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-top: 1px solid var(--crm-border);
+    background: var(--crm-bg-alt);
+  }
+
+  .crm-pagination-info {
+    font-size: 13px;
+    color: var(--crm-text-muted);
+  }
+
+  .crm-pagination-info strong { color: var(--crm-text); }
+
+  .crm-pagination-btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .crm-page-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .crm-page-btn:hover:not(:disabled) {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+  }
+
+  .crm-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .crm-page-btn svg { width: 16px; height: 16px; }
+
+  .crm-page-current {
+    font-size: 13px;
+    color: var(--crm-text-muted);
+    font-weight: 600;
+    padding: 0 12px;
+  }
+
+  /* ── Loading & Empty ── */
+  .crm-loading, .crm-empty {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--crm-text-muted);
+  }
+
+  .crm-spinner {
+    width: 36px;
+    height: 36px;
+    margin: 0 auto 16px;
+    border: 3px solid var(--crm-border);
+    border-top-color: var(--crm-accent);
+    border-radius: 50%;
+    animation: crmSpin 0.7s linear infinite;
+  }
+
+  @keyframes crmSpin { to { transform: rotate(360deg); } }
+
+  .crm-empty-icon {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 16px;
+    background: var(--crm-bg-hover);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .crm-empty-icon svg { width: 32px; height: 32px; stroke: var(--crm-text-subtle); }
+
+  .crm-empty h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--crm-text);
+    margin: 0 0 4px;
+  }
+
+  .crm-empty p {
+    font-size: 13px;
+    margin: 0;
+  }
+
+  /* ── Skeleton Loading ── */
+  .skeleton-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 20px;
+    gap: 16px;
+    border-bottom: 1px solid var(--crm-border);
+  }
+
+  .skeleton-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--crm-bg-hover) 25%, var(--crm-border) 50%, var(--crm-bg-hover) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .skeleton-text {
+    height: 14px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--crm-bg-hover) 25%, var(--crm-border) 50%, var(--crm-bg-hover) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1024px) {
+    .crm-stats { grid-template-columns: repeat(3, 1fr); }
+    .crm-tier-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .crm-rule-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .crm-header { padding: 16px; }
+    .crm-header-top { flex-direction: column; align-items: stretch; }
+    .crm-controls { flex-direction: column; }
+    .crm-search { max-width: none; }
+    .crm-stats { grid-template-columns: repeat(2, 1fr); padding: 16px; }
+    .crm-content { padding: 0 16px 16px; }
+    .crm-table-header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .crm-pagination { flex-direction: column; gap: 12px; }
+    .crm-actions { opacity: 1; }
+  }
+
+  @media (max-width: 480px) {
+    .crm-stats { grid-template-columns: 1fr; }
+    .crm-tier-settings { grid-template-columns: 1fr; }
+    .crm-settings-head { flex-direction: column; }
+    .crm-settings-actions { width: 100%; }
+    .crm-settings-actions button { flex: 1; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="crm-shell" x-data="crmDashboard()" x-init="init()">
+
+  <!-- ── Header ── -->
+  <header class="crm-header">
+    <div class="crm-header-top">
+      <div class="crm-logo">
+        <div class="crm-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="crm-logo-text">
+          <h1>CRM Khách hàng</h1>
+          <span>Hành trình tích điểm &amp; lên hạng</span>
+        </div>
+      </div>
+
+      <div class="crm-controls">
+        <div class="crm-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input type="text"
+                 placeholder="Tìm theo tên, CCCD, SĐT, email..."
+                 x-model="searchQuery"
+                 @keydown.enter="page=1; loadGuests()"
+                 @input.debounce.400ms="page=1; loadGuests()">
+          <button class="clear-btn" :class="{ show: searchQuery.length > 0 }"
+                  @click="searchQuery=''; page=1; loadGuests()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="crm-filter-group">
+          <select class="crm-filter-select" x-model="tierFilter" @change="page=1; loadGuests()">
+            <option value="">Tất cả hạng</option>
+            <option value="VIP">VIP</option>
+            <option value="PLATINUM">Platinum</option>
+            <option value="GOLD">Gold</option>
+            <option value="SILVER">Silver</option>
+            <option value="BASIC">Basic</option>
+          </select>
+          <select class="crm-filter-select" x-model="debtFilter" @change="page=1; loadGuests()">
+            <option value="">Tất cả thanh toán</option>
+            <option value="paid">Đã thanh toán đủ</option>
+            <option value="unpaid">Còn nợ</option>
+          </select>
+          <select class="crm-filter-select" x-model="blacklistFilter" @change="setBlacklistFilter()">
+            <option value="">Tất cả trạng thái</option>
+            <option value="false">Không blacklist</option>
+            <option value="true">Blacklist</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="crm-tabs">
+    <button class="crm-tab-btn" :class="{ active: activeTab === 'guests' }" @click="switchTab('guests')">Khách hàng</button>
+    <button class="crm-tab-btn" :class="{ active: activeTab === 'blacklist' }" @click="switchTab('blacklist')">Danh sách đen</button>
+    <button class="crm-tab-btn" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">Thiết lập hạng</button>
+  </div>
+
+  <!-- ── Stats ── -->
+  <div class="crm-stats">
+    <div class="crm-stat-card">
+      <div class="crm-stat-icon purple">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <div class="crm-stat-content">
+        <div class="crm-stat-value" x-text="stats.total_guests || 0">0</div>
+        <div class="crm-stat-label">Tổng khách hàng</div>
+      </div>
+    </div>
+
+    <div class="crm-stat-card">
+      <div class="crm-stat-icon pink">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+        </svg>
+      </div>
+      <div class="crm-stat-content">
+        <div class="crm-stat-value" x-text="fmtPoints(stats.total_points || 0)">0</div>
+        <div class="crm-stat-label">Tổng điểm tích lũy</div>
+      </div>
+    </div>
+
+    <div class="crm-stat-card">
+      <div class="crm-stat-icon amber">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+      </div>
+      <div class="crm-stat-content">
+        <div class="crm-stat-value" x-text="stats.total_stays || 0">0</div>
+        <div class="crm-stat-label">Tổng lượt ở</div>
+      </div>
+    </div>
+
+    <div class="crm-stat-card">
+      <div class="crm-stat-icon green">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        </svg>
+      </div>
+      <div class="crm-stat-content">
+        <div class="crm-stat-value" x-text="stats.new_guests || 0">0</div>
+        <div class="crm-stat-label">Khách mới</div>
+      </div>
+    </div>
+
+    <div class="crm-stat-card">
+      <div class="crm-stat-icon cyan">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/>
+          <polyline points="17,6 23,6 23,12"/>
+        </svg>
+      </div>
+      <div class="crm-stat-content">
+        <div class="crm-stat-value" x-text="stats.avg_points || 0">0</div>
+        <div class="crm-stat-label">TB điểm/khách</div>
+      </div>
+    </div>
+
+    <div class="crm-stat-card">
+      <div class="crm-stat-icon red">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22,4 12,14.01 9,11.01"/>
+        </svg>
+      </div>
+      <div class="crm-stat-content">
+        <div class="crm-stat-value" x-text="stats.vip_count || 0">0</div>
+        <div class="crm-stat-label">Khách VIP</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main Content ── -->
+  <div class="crm-content">
+    <template x-if="activeTab === 'settings'">
+      <div class="crm-settings-wrap">
+        <div class="crm-settings-head">
+          <div>
+            <h2>Quy tắc điểm, bậc hạng và quyền lợi</h2>
+            <p>Thiết lập tại đây sẽ được dùng cho các lần checkout và tính lại membership về sau. Ngưỡng điểm cần tăng dần từ Basic đến VIP.</p>
+          </div>
+          <div class="crm-settings-actions">
+            <button class="crm-secondary-btn" @click="loadMembershipSettings()" :disabled="settingsLoading">Tải lại</button>
+            <button class="crm-primary-btn" @click="saveMembershipSettings()" :disabled="settingsSaving || settingsLoading" x-text="settingsSaving ? 'Đang lưu...' : 'Lưu thiết lập'"></button>
+          </div>
+        </div>
+
+        <div class="crm-rule-card">
+          <div class="crm-rule-title">Quy tắc tích điểm</div>
+          <div class="crm-rule-grid">
+            <div class="crm-field">
+              <label>Điểm / 1.000đ doanh thu đã thu</label>
+              <input type="number" min="0.01" step="0.01" x-model.number="membershipSettings.points_per_1000_vnd">
+            </div>
+            <div class="crm-field">
+              <label>Ví dụ doanh thu 1.000.000đ</label>
+              <input type="text" :value="fmtPoints(Math.round(1000 * (membershipSettings.points_per_1000_vnd || 0))) + ' điểm gốc'" readonly>
+            </div>
+            <div class="crm-field">
+              <label>Trạng thái</label>
+              <input type="text" :value="settingsUpdatedAt ? 'Cập nhật ' + fmtDateTime(settingsUpdatedAt) : 'Đang dùng mặc định'" readonly>
+            </div>
+          </div>
+        </div>
+
+        <template x-if="settingsLoading">
+          <div class="crm-table-card">
+            <div class="crm-loading">
+              <div class="crm-spinner"></div>
+              Đang tải thiết lập hạng...
+            </div>
+          </div>
+        </template>
+
+        <template x-if="!settingsLoading">
+          <div class="crm-tier-settings">
+            <template x-for="tier in membershipSettings.tiers" :key="tier.tier">
+              <div class="crm-tier-card">
+                <div class="crm-tier-card-head">
+                  <span class="crm-tier-code" x-text="tier.tier"></span>
+                  <span class="tier-badge" :class="'tier-' + tier.tier" x-text="tier.display_name"></span>
+                </div>
+                <div class="crm-tier-card-body">
+                  <div class="crm-field">
+                    <label>Tên hiển thị</label>
+                    <input type="text" x-model="tier.display_name">
+                  </div>
+                  <div class="crm-field">
+                    <label>Ngưỡng điểm</label>
+                    <input type="number" min="0" step="1" x-model.number="tier.threshold">
+                  </div>
+                  <div class="crm-field">
+                    <label>Hệ số điểm</label>
+                    <input type="number" min="0.1" step="0.1" x-model.number="tier.points_multiplier">
+                  </div>
+                  <div class="crm-field">
+                    <label>Giảm giá (%)</label>
+                    <input type="number" min="0" max="100" step="0.1" x-model.number="tier.discount_percent">
+                  </div>
+                  <div class="crm-benefit-list">
+                    <label><input type="checkbox" x-model="tier.benefits.early_checkin"> Nhận phòng sớm</label>
+                    <label><input type="checkbox" x-model="tier.benefits.late_checkout"> Trả phòng muộn</label>
+                    <label><input type="checkbox" x-model="tier.benefits.priority_service"> Ưu tiên phục vụ</label>
+                    <label><input type="checkbox" x-model="tier.benefits.free_upgrade"> Nâng hạng phòng</label>
+                    <label><input type="checkbox" x-model="tier.benefits.dedicated_manager"> Chăm sóc riêng</label>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <div class="crm-save-state" :class="{ ok: settingsMessageType === 'ok', err: settingsMessageType === 'err' }" x-text="settingsMessage"></div>
+      </div>
+    </template>
+
+    <template x-if="activeTab === 'blacklist'">
+      <div class="crm-blacklist-card">
+        <div>
+          <h2>Danh sách đen CRM</h2>
+          <p>Theo dõi khách cần cảnh báo khi check-in, lý do đưa vào danh sách, người thực hiện, chi nhánh và trạng thái công nợ.</p>
+        </div>
+        <button class="crm-page-btn" @click="resetFilters()">Xóa lọc</button>
+      </div>
+    </template>
+    <div class="crm-table-card" x-show="activeTab !== 'settings'">
+
+      <!-- Table Header -->
+      <div class="crm-table-header">
+        <div class="crm-table-title">
+          <svg style="width:18px;height:18px;color:var(--crm-accent);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+          </svg>
+          <span x-text="activeTab === 'blacklist' ? 'Khách trong danh sách đen' : 'Danh sách khách hàng'"></span>
+          <span class="crm-table-count" x-text="total">0</span>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <template x-if="loading">
+        <div>
+          <template x-for="i in 5">
+            <div class="skeleton-row">
+              <div class="skeleton-avatar"></div>
+              <div style="flex:1;">
+                <div class="skeleton-text" style="width:60%;margin-bottom:8px;"></div>
+                <div class="skeleton-text" style="width:40%;"></div>
+              </div>
+              <div class="skeleton-text" style="width:80px;"></div>
+              <div class="skeleton-text" style="width:100px;"></div>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Empty State -->
+      <template x-if="!loading && guests.length === 0">
+        <div class="crm-empty">
+          <div class="crm-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="17" y1="11" x2="23" y2="11"/>
+            </svg>
+          </div>
+          <h3>Không tìm thấy khách hàng</h3>
+          <p>Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc</p>
+        </div>
+      </template>
+
+      <!-- Table -->
+      <template x-if="!loading && guests.length > 0">
+        <div class="crm-table-wrap">
+          <table class="crm-table">
+            <thead>
+              <tr>
+                <th>Khách hàng</th>
+                <th>Hạng</th>
+                <th>Số lần ở</th>
+                <th>Điểm tích lũy</th>
+                <th>Lần cuối ở</th>
+                <th x-show="activeTab === 'blacklist'">Blacklist</th>
+                <th>Thanh toán</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="g in guests" :key="g.id">
+                <tr @click="goDetail(g.id)">
+                  <!-- Guest -->
+                  <td>
+                    <div class="crm-guest">
+                      <div class="crm-avatar" :style="'background:' + avatarColor(g.full_name)" x-text="(g.full_name || '?')[0].toUpperCase()"></div>
+                      <div class="crm-guest-info">
+                        <div class="crm-guest-name">
+                          <span x-text="g.full_name || 'Khách vãng lai'"></span>
+                          <template x-if="g.is_blacklisted">
+                            <span class="bl-badge">
+                              <svg style="width:8px;height:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                                <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                              </svg>
+                              BL
+                            </span>
+                          </template>
+                        </div>
+                        <div class="crm-guest-contact">
+                          <span x-text="g.phone || 'Chưa có SĐT'"></span>
+                          <span x-show="g.cccd" x-text="g.cccd"></span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Tier -->
+                  <td>
+                    <span class="tier-badge" :class="'tier-' + (g.tier || 'BASIC')" x-text="g.tier_display || 'Khách thường'"></span>
+                  </td>
+
+                  <!-- Stays -->
+                  <td>
+                    <div class="crm-stays">
+                      <span class="crm-stays-count" x-text="g.total_stays || 0">0</span>
+                      <span class="crm-stays-label">lần</span>
+                    </div>
+                  </td>
+
+                  <!-- Points & Progress -->
+                  <td>
+                    <div class="crm-points-box">
+                      <div class="crm-points-header">
+                        <svg class="crm-points-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+                        </svg>
+                        <span class="crm-points-value" x-text="fmtPoints(g.loyalty_points || 0)">0</span>
+                      </div>
+                      <div class="crm-points-progress">
+                        <div class="crm-progress-bar">
+                          <div class="crm-progress-fill" :style="'width:' + getProgressPercent(g.loyalty_points || 0, g.tier) + '%'"></div>
+                        </div>
+                        <span class="crm-progress-label" x-text="getNextTierLabel(g.loyalty_points || 0, g.tier)"></span>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Last Stay -->
+                  <td>
+                    <div class="crm-last-stay" x-show="g.last_stay">
+                      <span class="crm-last-room" x-text="'P.' + g.last_stay.room_number" x-show="g.last_stay.room_number">-</span>
+                      <span class="crm-last-date" x-text="fmtDate(g.last_seen_at)">-</span>
+                    </div>
+                    <span x-show="!g.last_stay" style="color:var(--crm-text-subtle);">Chưa có</span>
+                  </td>
+
+                  <td x-show="activeTab === 'blacklist'">
+                    <div class="crm-blacklist-meta" x-show="g.blacklist_info">
+                      <div><strong>Lý do:</strong> <span x-text="g.blacklist_info?.reason || '-'"></span></div>
+                      <div><strong>Thực hiện:</strong> <span x-text="g.blacklist_info?.actor_name || '-'"></span></div>
+                      <div><strong>Chi nhánh:</strong> <span x-text="g.blacklist_info?.branch_name || '-'"></span></div>
+                      <div><strong>Ngày:</strong> <span x-text="fmtDate(g.blacklist_info?.created_at)"></span></div>
+                    </div>
+                    <span x-show="!g.blacklist_info" style="color:var(--crm-text-subtle);">Chưa có log</span>
+                  </td>
+
+                  <td>
+                    <span class="crm-debt-badge" x-show="g.has_unpaid_debt" x-text="'Còn nợ ' + fmtMoney(g.unpaid_debt_amount || 0)"></span>
+                    <span class="crm-paid-badge" x-show="!g.has_unpaid_debt">Đã đủ</span>
+                  </td>
+
+                  <!-- Actions -->
+                  <td @click.stop>
+                    <div class="crm-actions">
+                      <a :href="'/pms/crm/guest/' + g.id" class="crm-action-btn" title="Xem chi tiết">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                          <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      </a>
+                      <button class="crm-action-btn" title="Gọi điện" @click="window.open('tel:' + g.phone)" x-show="g.phone">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                      </button>
+                      <button class="crm-action-btn" title="SMS" @click="window.open('sms:' + g.phone)" x-show="g.phone">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                      </button>
+                      <button class="crm-action-btn danger"
+                              :title="g.is_blacklisted ? 'Gỡ khỏi danh sách đen' : 'Đưa vào danh sách đen'"
+                              @click="toggleGuestBlacklist(g)">
+                        <svg x-show="!g.is_blacklisted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                        </svg>
+                        <svg x-show="g.is_blacklisted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M20 6 9 17l-5-5"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <!-- Pagination -->
+      <div class="crm-pagination" x-show="totalPages > 0">
+        <div class="crm-pagination-info">
+          Hiển thị <strong x-text="((page - 1) * pageSize) + 1">1</strong> - 
+          <strong x-text="Math.min(page * pageSize, total)">20</strong> của 
+          <strong x-text="total">0</strong> khách hàng
+        </div>
+        <div class="crm-pagination-btns">
+          <button class="crm-page-btn" :disabled="page <= 1" @click="page--; loadGuests()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="15,18 9,12 15,6"/>
+            </svg>
+            Trước
+          </button>
+          <span class="crm-page-current">
+            Trang <strong x-text="page">1</strong> / <strong x-text="totalPages">1</strong>
+          </span>
+          <button class="crm-page-btn" :disabled="page >= totalPages" @click="page++; loadGuests()">
+            Sau
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="9,18 15,12 9,6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tier thresholds (points)
+const TIER_THRESHOLDS = {
+  'BASIC': 0,
+  'SILVER': 5000,
+  'GOLD': 15000,
+  'PLATINUM': 40000,
+  'VIP': 100000,
+};
+
+const TIER_ORDER = ['BASIC', 'SILVER', 'GOLD', 'PLATINUM', 'VIP'];
+
+function crmDashboard() {
+  return {
+    searchQuery: '',
+    activeTab: 'guests',
+    tierFilter: '',
+    debtFilter: '',
+    blacklistFilter: '',
+    page: 1,
+    pageSize: 20,
+    total: 0,
+    totalPages: 0,
+    guests: [],
+    stats: {},
+    loading: false,
+    settingsLoading: false,
+    settingsSaving: false,
+    settingsMessage: '',
+    settingsMessageType: '',
+    settingsUpdatedAt: '',
+    membershipSettings: {
+      points_per_1000_vnd: 1,
+      tiers: [],
+    },
+
+    async init() {
+      await Promise.all([this.loadGuests(), this.loadStats(), this.loadMembershipSettings()]);
+    },
+
+    async loadGuests() {
+      this.loading = true;
+      try {
+        const params = new URLSearchParams({
+          page: this.page,
+          page_size: this.pageSize,
+        });
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        if (this.tierFilter) params.set('tier', this.tierFilter);
+        if (this.debtFilter) params.set('debt', this.debtFilter);
+        if (this.activeTab === 'blacklist') params.set('blacklist', 'true');
+        else if (this.blacklistFilter) params.set('blacklist', this.blacklistFilter);
+
+        const res = await fetch('/api/pms/crm/guests/search?' + params, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+
+        this.guests = data.items || [];
+        this.total = data.total || 0;
+        this.totalPages = data.pages || 1;
+      } catch (e) {
+        console.error('Load guests error:', e);
+        this.guests = [];
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async loadStats() {
+      try {
+        const params = new URLSearchParams();
+        if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
+        
+        const res = await fetch('/api/pms/crm/stats?' + params, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        this.stats = data;
+      } catch (e) {
+        console.error('Load stats error:', e);
+      }
+    },
+
+    goDetail(id) {
+      window.location.href = '/pms/crm/guest/' + id;
+    },
+
+    switchTab(tab) {
+      this.activeTab = tab;
+      this.page = 1;
+      if (tab === 'settings') {
+        this.loadMembershipSettings();
+        return;
+      }
+      if (tab === 'blacklist') this.blacklistFilter = 'true';
+      else if (this.blacklistFilter === 'true') this.blacklistFilter = '';
+      this.loadGuests();
+    },
+
+    setBlacklistFilter() {
+      if (this.blacklistFilter === 'true') this.activeTab = 'blacklist';
+      else if (this.activeTab === 'blacklist') this.activeTab = 'guests';
+      this.page = 1;
+      this.loadGuests();
+    },
+
+    resetFilters() {
+      this.searchQuery = '';
+      this.tierFilter = '';
+      this.debtFilter = '';
+      this.blacklistFilter = this.activeTab === 'blacklist' ? 'true' : '';
+      this.page = 1;
+      this.loadGuests();
+    },
+
+    async toggleGuestBlacklist(guest) {
+      const next = !guest.is_blacklisted;
+      const reason = window.prompt(next ? 'Lý do đưa khách vào danh sách đen?' : 'Lý do gỡ khỏi danh sách đen?', '');
+      if (reason === null) return;
+      try {
+        const res = await fetch('/api/pms/crm/guests/' + guest.id + '/blacklist', {
+          method: 'PATCH',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_blacklisted: next, reason }),
+        });
+        if (!res.ok) throw new Error('Không cập nhật được blacklist');
+        await this.loadGuests();
+        await this.loadStats();
+      } catch (e) {
+        console.error(e);
+        alert(e.message || 'Không cập nhật được blacklist');
+      }
+    },
+
+    async loadMembershipSettings() {
+      this.settingsLoading = true;
+      this.settingsMessage = '';
+      this.settingsMessageType = '';
+      try {
+        const res = await fetch('/api/pms/crm/settings/membership', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('Không tải được thiết lập hạng');
+        const data = await res.json();
+        this.membershipSettings = {
+          points_per_1000_vnd: Number(data.points_per_1000_vnd || 1),
+          tiers: (data.tiers || []).map(t => ({
+            tier: t.tier,
+            display_name: t.display_name || t.tier,
+            threshold: Number(t.threshold || 0),
+            points_multiplier: Number(t.points_multiplier || 1),
+            discount_percent: Number(t.discount_percent || 0),
+            benefits: {
+              early_checkin: !!t.benefits?.early_checkin,
+              late_checkout: !!t.benefits?.late_checkout,
+              priority_service: !!t.benefits?.priority_service,
+              free_upgrade: !!t.benefits?.free_upgrade,
+              dedicated_manager: !!t.benefits?.dedicated_manager,
+            },
+          })),
+        };
+        this.settingsUpdatedAt = data.updated_at || '';
+        this.syncTierThresholds();
+      } catch (e) {
+        console.error(e);
+        this.settingsMessage = e.message || 'Không tải được thiết lập hạng';
+        this.settingsMessageType = 'err';
+      } finally {
+        this.settingsLoading = false;
+      }
+    },
+
+    syncTierThresholds() {
+      (this.membershipSettings.tiers || []).forEach(t => {
+        if (TIER_THRESHOLDS[t.tier] !== undefined) TIER_THRESHOLDS[t.tier] = Number(t.threshold || 0);
+      });
+    },
+
+    validateMembershipSettings() {
+      if (!this.membershipSettings.points_per_1000_vnd || this.membershipSettings.points_per_1000_vnd <= 0) {
+        return 'Điểm / 1.000đ phải lớn hơn 0';
+      }
+      let prev = -1;
+      for (const tier of this.membershipSettings.tiers || []) {
+        const threshold = Number(tier.threshold || 0);
+        if (threshold < 0) return 'Ngưỡng điểm không được âm';
+        if (threshold < prev) return 'Ngưỡng điểm phải tăng dần từ Basic đến VIP';
+        if (!tier.points_multiplier || Number(tier.points_multiplier) <= 0) return 'Hệ số điểm phải lớn hơn 0';
+        const discount = Number(tier.discount_percent || 0);
+        if (discount < 0 || discount > 100) return 'Giảm giá phải nằm trong khoảng 0-100%';
+        prev = threshold;
+      }
+      return '';
+    },
+
+    async saveMembershipSettings() {
+      const validation = this.validateMembershipSettings();
+      if (validation) {
+        this.settingsMessage = validation;
+        this.settingsMessageType = 'err';
+        return;
+      }
+      this.settingsSaving = true;
+      this.settingsMessage = '';
+      this.settingsMessageType = '';
+      try {
+        const res = await fetch('/api/pms/crm/settings/membership', {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.membershipSettings),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'Không lưu được thiết lập hạng');
+        const settings = data.settings || data;
+        this.membershipSettings = {
+          points_per_1000_vnd: Number(settings.points_per_1000_vnd || 1),
+          tiers: (settings.tiers || []).map(t => ({
+            ...t,
+            threshold: Number(t.threshold || 0),
+            points_multiplier: Number(t.points_multiplier || 1),
+            discount_percent: Number(t.discount_percent || 0),
+            benefits: t.benefits || {},
+          })),
+        };
+        this.settingsUpdatedAt = settings.updated_at || new Date().toISOString();
+        this.syncTierThresholds();
+        this.settingsMessage = 'Đã lưu thiết lập CRM membership';
+        this.settingsMessageType = 'ok';
+        await this.loadGuests();
+      } catch (e) {
+        console.error(e);
+        this.settingsMessage = e.message || 'Không lưu được thiết lập hạng';
+        this.settingsMessageType = 'err';
+      } finally {
+        this.settingsSaving = false;
+      }
+    },
+
+    fmtPoints(val) {
+      if (!val) return '0';
+      return new Intl.NumberFormat('vi-VN').format(Math.round(val));
+    },
+
+    fmtMoney(val) {
+      if (!val) return '0đ';
+      return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(val);
+    },
+
+    fmtDate(iso) {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    },
+
+    fmtDateTime(iso) {
+      if (!iso) return '-';
+      const d = new Date(iso);
+      return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    },
+
+    avatarColor(name) {
+      const colors = [
+        'linear-gradient(135deg, #667eea, #764ba2)',
+        'linear-gradient(135deg, #f093fb, #f5576c)',
+        'linear-gradient(135deg, #4facfe, #00f2fe)',
+        'linear-gradient(135deg, #43e97b, #38f9d7)',
+        'linear-gradient(135deg, #fa709a, #fee140)',
+        'linear-gradient(135deg, #a18cd1, #fbc2eb)',
+        'linear-gradient(135deg, #ff9a9e, #fecfef)',
+        'linear-gradient(135deg, #ffecd2, #fcb69f)',
+        'linear-gradient(135deg, #a1c4fd, #c2e9fb)',
+        'linear-gradient(135deg, #d4fc79, #96e6a1)',
+      ];
+      if (!name) return colors[0];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return colors[Math.abs(hash) % colors.length];
+    },
+
+    getNextTierLabel(points, currentTier) {
+      const tier = currentTier || 'BASIC';
+      const currentIdx = TIER_ORDER.indexOf(tier);
+      
+      if (currentIdx >= TIER_ORDER.length - 1) {
+        return 'MAX';
+      }
+      
+      const nextTier = TIER_ORDER[currentIdx + 1];
+      const nextThreshold = TIER_THRESHOLDS[nextTier];
+      const remaining = nextThreshold - points;
+      
+      if (remaining <= 0) {
+        return nextTier;
+      }
+      
+      return this.fmtPoints(remaining) + ' → ' + nextTier;
+    },
+
+    getProgressPercent(points, currentTier) {
+      const tier = currentTier || 'BASIC';
+      const currentIdx = TIER_ORDER.indexOf(tier);
+      const currentThreshold = TIER_THRESHOLDS[tier];
+      
+      if (currentIdx >= TIER_ORDER.length - 1) {
+        return 100;
+      }
+      
+      const nextTier = TIER_ORDER[currentIdx + 1];
+      const nextThreshold = TIER_THRESHOLDS[nextTier];
+      const range = nextThreshold - currentThreshold;
+      const progress = points - currentThreshold;
+      
+      return Math.min(100, Math.max(0, (progress / range) * 100));
+    },
+  };
+}
+</script>
+{% endblock %}

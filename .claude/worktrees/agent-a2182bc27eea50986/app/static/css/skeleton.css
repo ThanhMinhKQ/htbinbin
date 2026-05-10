@@ -1,0 +1,402 @@
+/**
+ * Skeleton Loading System
+ * Compatible với Alpine.js và Jinja2 templates
+ * 
+ * Sử dụng:
+ * 1. Import file này vào base.html
+ * 2. Thêm class "skeleton", "skeleton-text", "skeleton-card" vào HTML
+ */
+
+ /* ══════════════════════════════════════════════════════════════
+    CSS VARIABLES - THAY ĐỔI Ở ĐÂY ĐỂ CUSTOMIZE
+    ══════════════════════════════════════════════════════════════ */
+:root {
+  /* Skeleton base colors */
+  --skeleton-base: #e2e8f0;
+  --skeleton-highlight: #f1f5f9;
+  --skeleton-dark-base: #1e293b;
+  --skeleton-dark-highlight: #334155;
+  
+  /* Animation timing */
+  --skeleton-duration: 1.5s;
+  --skeleton-stagger: 50ms;
+}
+
+/* ══════════════════════════════════════════════════════════════
+    BASE SKELETON
+    ══════════════════════════════════════════════════════════════ */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer var(--skeleton-duration) ease-in-out infinite;
+  border-radius: 6px;
+  display: block;
+}
+
+/* Dark mode support */
+html.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-dark-base) 25%,
+    var(--skeleton-dark-highlight) 50%,
+    var(--skeleton-dark-base) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════
+    SKELETON ANIMATIONS
+    ══════════════════════════════════════════════════════════════ */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+    SKELETON VARIANTS
+    ══════════════════════════════════════════════════════════════ */
+
+/* Text lines */
+.skeleton-text {
+  height: 12px;
+  margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+  margin-bottom: 0;
+}
+
+.skeleton-text-sm {
+  height: 10px;
+}
+
+.skeleton-text-lg {
+  height: 20px;
+  margin-bottom: 12px;
+}
+
+.skeleton-text-xl {
+  height: 28px;
+  margin-bottom: 16px;
+}
+
+/* Avatar */
+.skeleton-avatar {
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-avatar-sm {
+  width: 32px;
+  height: 32px;
+}
+
+.skeleton-avatar-md {
+  width: 48px;
+  height: 48px;
+}
+
+.skeleton-avatar-lg {
+  width: 64px;
+  height: 64px;
+}
+
+.skeleton-avatar-xl {
+  width: 96px;
+  height: 96px;
+}
+
+/* Card skeleton */
+.skeleton-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px;
+}
+
+html.dark .skeleton-card {
+  background: #15151d;
+  border-color: #1e1e28;
+}
+
+/* Table skeleton */
+.skeleton-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.skeleton-table th {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+html.dark .skeleton-table th {
+  border-bottom-color: #1e1e28;
+}
+
+.skeleton-table td {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+html.dark .skeleton-table td {
+  border-bottom-color: #1e1e28;
+}
+
+/* Button skeleton */
+.skeleton-btn {
+  height: 40px;
+  width: 120px;
+  border-radius: 10px;
+}
+
+/* Badge skeleton */
+.skeleton-badge {
+  height: 24px;
+  width: 80px;
+  border-radius: 20px;
+}
+
+/* Icon skeleton */
+.skeleton-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+}
+
+/* Progress bar skeleton */
+.skeleton-progress {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.skeleton-progress-lg {
+  height: 12px;
+  border-radius: 6px;
+}
+
+/* Circle skeleton (for stats) */
+.skeleton-circle {
+  border-radius: 50%;
+}
+
+/* List item skeleton */
+.skeleton-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.skeleton-list-item:not(:last-child) {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+html.dark .skeleton-list-item:not(:last-child) {
+  border-bottom-color: #1e1e28;
+}
+
+/* ══════════════════════════════════════════════════════════════
+    COMPOSITE SKELETONS - DÙNG CHO COMMON PATTERNS
+    ══════════════════════════════════════════════════════════════ */
+
+/* Profile skeleton */
+.skeleton-profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px;
+}
+
+.skeleton-profile .skeleton-avatar {
+  margin-bottom: 16px;
+}
+
+.skeleton-profile .skeleton-text {
+  width: 60%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Stats row skeleton */
+.skeleton-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-stats .skeleton-stat {
+  text-align: center;
+  padding: 16px;
+}
+
+.skeleton-stats .skeleton-stat-value {
+  height: 28px;
+  width: 60%;
+  margin: 0 auto 8px;
+}
+
+.skeleton-stats .skeleton-stat-label {
+  height: 12px;
+  width: 80%;
+  margin: 0 auto;
+}
+
+/* Grid skeleton */
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.skeleton-grid-item {
+  height: 200px;
+  border-radius: 16px;
+}
+
+/* Timeline skeleton */
+.skeleton-timeline {
+  position: relative;
+  padding-left: 32px;
+}
+
+.skeleton-timeline::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+html.dark .skeleton-timeline::before {
+  background: #1e1e28;
+}
+
+.skeleton-timeline-item {
+  position: relative;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+html.dark .skeleton-timeline-item {
+  background: #15151d;
+  border-color: #1e1e28;
+}
+
+.skeleton-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -26px;
+  top: 20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--skeleton-base);
+}
+
+html.dark .skeleton-timeline-item::before {
+  background: var(--skeleton-dark-base);
+}
+
+/* ══════════════════════════════════════════════════════════════
+    STAGGERED ANIMATIONS
+    ══════════════════════════════════════════════════════════════ */
+
+/* Stagger delays cho items trong list/grid */
+.skeleton-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.skeleton-stagger > *:nth-child(2) { animation-delay: var(--skeleton-stagger); }
+.skeleton-stagger > *:nth-child(3) { animation-delay: calc(var(--skeleton-stagger) * 2); }
+.skeleton-stagger > *:nth-child(4) { animation-delay: calc(var(--skeleton-stagger) * 3); }
+.skeleton-stagger > *:nth-child(5) { animation-delay: calc(var(--skeleton-stagger) * 4); }
+.skeleton-stagger > *:nth-child(6) { animation-delay: calc(var(--skeleton-stagger) * 5); }
+
+/* ══════════════════════════════════════════════════════════════
+    FADE TRANSITIONS
+    ══════════════════════════════════════════════════════════════ */
+
+/* Smooth transition từ skeleton → content */
+.skeleton-fade-enter {
+  animation: skeleton-fade-in 0.3s ease-out forwards;
+}
+
+.skeleton-fade-leave {
+  animation: skeleton-fade-out 0.3s ease-in forwards;
+}
+
+@keyframes skeleton-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeleton-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+    UTILITY CLASSES
+    ══════════════════════════════════════════════════════════════ */
+
+/* Width variants */
+.skeleton-w-25 { width: 25%; }
+.skeleton-w-50 { width: 50%; }
+.skeleton-w-75 { width: 75%; }
+.skeleton-w-100 { width: 100%; }
+
+/* Height variants */
+.skeleton-h-sm { height: 8px; }
+.skeleton-h-md { height: 16px; }
+.skeleton-h-lg { height: 24px; }
+.skeleton-h-full { height: 100%; }
+
+/* Margin utilities */
+.skeleton-mt-1 { margin-top: 4px; }
+.skeleton-mt-2 { margin-top: 8px; }
+.skeleton-mt-3 { margin-top: 12px; }
+.skeleton-mt-4 { margin-top: 16px; }
+
+/* Flex utilities */
+.skeleton-flex { display: flex; }
+.skeleton-flex-col { flex-direction: column; }
+.skeleton-items-center { align-items: center; }
+.skeleton-justify-center { justify-content: center; }
+.skeleton-gap-2 { gap: 8px; }
+.skeleton-gap-3 { gap: 12px; }
+.skeleton-gap-4 { gap: 16px; }

@@ -1,0 +1,461 @@
+/* Reservation Hub dark mode consolidation. Loaded last for scoped overrides. */
+@media (prefers-color-scheme: dark) {
+  #pms-booking-page {
+    background: var(--bk-bg);
+    color: var(--bk-text);
+  }
+
+  #pms-booking-page .bk-ops-panel,
+  #pms-booking-page .bk-avail-bar,
+  #pms-booking-page .bk-card,
+  #pms-booking-page .bk-ota-strip,
+  #pms-booking-page .bk-dialog,
+  #pms-booking-page .bk-form-section,
+  #pms-booking-page .bk-block-card,
+  #pms-booking-page .bk-timeline-room,
+  #pms-booking-page .bk-day,
+  #pms-booking-page .bk-room-option,
+  #pms-booking-page .bk-crm-search,
+  #pms-booking-page .bk-crm-results,
+  #pms-booking-page .bk-payment-method-card,
+  #pms-booking-page .bk-stat,
+  #pms-booking-page .bk-stat-card,
+  #pms-booking-page .bk-table-wrap,
+  #pms-booking-page .bk-table td,
+  #pms-booking-page .bk-avail-card,
+  #pms-booking-page .bk-booking-summary,
+  #pms-booking-page .bk-room-planner,
+  #pms-booking-page .bk-stay-card,
+  #pms-booking-page .bk-room-time-row,
+  #pms-booking-page .bk-room-cart,
+  #pms-booking-page .bk-payment-room-summary,
+  #pms-booking-page .bk-payment-kpis > div,
+  #pms-booking-page .bk-ota-summary,
+  #pms-booking-page .bk-ota-logs,
+  #pms-booking-page .bk-ota-log-table-wrap,
+  #pms-toast {
+    background: var(--bk-surface) !important;
+    color: var(--bk-text) !important;
+    border-color: var(--bk-line) !important;
+  }
+
+  #pms-booking-page .bk-card-head,
+  #pms-booking-page .bk-avail-head,
+  #pms-booking-page .bk-avail-dates,
+  #pms-booking-page .bk-ops-note,
+  #pms-booking-page .bk-empty,
+  #pms-booking-page .bk-avail-empty,
+  #pms-booking-page .bk-skeleton,
+  #pms-booking-page .bk-dialog-foot,
+  #pms-booking-page .bk-dialog-body,
+  #pms-booking-page .bk-payment-kpis,
+  #pms-booking-page .bk-payment-note,
+  #pms-booking-page .bk-room-cart-head {
+    background: var(--bk-surface-muted) !important;
+    border-color: var(--bk-line) !important;
+    color: var(--bk-text) !important;
+  }
+
+  #pms-booking-page .bk-table th,
+  #pms-booking-page .bk-ota-log-table th {
+    background: var(--bk-surface-muted) !important;
+    color: var(--bk-ink) !important;
+    border-color: var(--bk-line) !important;
+  }
+
+  #pms-booking-page .bk-table tbody tr:hover td,
+  #pms-booking-page .bk-search-box:focus-within,
+  #pms-booking-page .bk-room-option:hover,
+  #pms-booking-page .bk-crm-item:hover,
+  #pms-booking-page .bk-avail-card:hover:not(.sold-out) {
+    background: var(--bk-primary-soft) !important;
+  }
+
+  #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-warning-bg) !important; }
+  #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-success-bg) !important; }
+
+  #pms-booking-page .bk-input,
+  #pms-booking-page .bk-select,
+  #pms-booking-page .bk-textarea,
+  #pms-booking-page .bk-search-box,
+  #pms-booking-page .bk-shad-dt-wrap .ci-shad-dt-input,
+  #pms-booking-page .bk-btn,
+  #pms-booking-page .bk-mini-btn,
+  #pms-booking-page .bk-icon-btn,
+  #pms-booking-page .bk-room-cart-qty button {
+    background: var(--bk-surface) !important;
+    color: var(--bk-text) !important;
+    border-color: var(--bk-line) !important;
+  }
+
+  #pms-booking-page .bk-title h1,
+  #pms-booking-page .bk-ota-strip-main strong,
+  #pms-booking-page .bk-stat-info strong,
+  #pms-booking-page .bk-avail-title strong,
+  #pms-booking-page .bk-main-cell strong,
+  #pms-booking-page .bk-branch-room-cell strong,
+  #pms-booking-page .bk-stay-cell strong,
+  #pms-booking-page .bk-guest-info strong,
+  #pms-booking-page .bk-room-cart-main strong,
+  #pms-booking-page .bk-room-cart-qty span,
+  #pms-booking-page .bk-room-cart-money,
+  #pms-booking-page .bk-payment-kpis strong,
+  #pms-booking-page .bk-payment-room-row strong,
+  #pms-booking-page .bk-payment-room-name strong,
+  #pms-booking-page .bk-avail-card strong,
+  #pms-booking-page .bk-ota-summary h3,
+  #pms-booking-page .bk-ota-logs h3,
+  #pms-booking-page .bk-ota-log-subject strong,
+  #pms-toast .toast-title {
+    color: var(--bk-ink) !important;
+  }
+
+  #pms-booking-page .bk-title p,
+  #pms-booking-page .bk-avail-title span,
+  #pms-booking-page .bk-ops-note,
+  #pms-booking-page .bk-ota-hint,
+  #pms-booking-page .bk-main-cell span,
+  #pms-booking-page .bk-row-muted,
+  #pms-booking-page .bk-subline span,
+  #pms-booking-page .bk-price-line span,
+  #pms-booking-page .bk-order-date,
+  #pms-booking-page .bk-ota-id,
+  #pms-booking-page .bk-stay-nights,
+  #pms-booking-page .bk-room-extra,
+  #pms-booking-page .bk-branch-room-cell span,
+  #pms-booking-page .bk-stay-cell span,
+  #pms-booking-page .bk-guest-info span,
+  #pms-booking-page .bk-request-cell,
+  #pms-booking-page .bk-room-cart-main span,
+  #pms-booking-page .bk-payment-kpis span,
+  #pms-booking-page .bk-payment-kpis small,
+  #pms-booking-page .bk-payment-room-name span,
+  #pms-booking-page .bk-payment-note,
+  #pms-booking-page .bk-avail-meta,
+  #pms-toast .toast-msg {
+    color: var(--bk-muted) !important;
+  }
+
+  #pms-booking-page .bk-btn.primary,
+  #pms-booking-page .bk-mini-btn.primary,
+  #pms-booking-page .bk-icon-btn.primary {
+    background: var(--bk-primary) !important;
+    color: #ffffff !important;
+    border-color: var(--bk-primary) !important;
+  }
+
+  #pms-booking-page .bk-btn.success,
+  #pms-booking-page .bk-mini-btn.success { background: var(--bk-success) !important; color: #052e2b !important; }
+  #pms-booking-page .bk-btn.warning,
+  #pms-booking-page .bk-mini-btn.warning { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; border-color: var(--bk-warning-border) !important; }
+  #pms-booking-page .bk-btn.danger,
+  #pms-booking-page .bk-mini-btn.danger,
+  #pms-booking-page .bk-icon-btn.danger { background: var(--bk-danger-bg) !important; color: var(--bk-danger-text) !important; border-color: var(--bk-danger-border) !important; }
+
+  #pms-booking-page .bk-status.PENDING { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; border-color: var(--bk-warning-border) !important; }
+  #pms-booking-page .bk-status.CONFIRMED { background: var(--bk-info-bg) !important; color: var(--bk-info-text) !important; border-color: var(--bk-info-border) !important; }
+  #pms-booking-page .bk-status.CHECKED_IN { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
+  #pms-booking-page .bk-status.CHECKED_OUT { background: var(--bk-surface-soft) !important; color: var(--bk-muted) !important; border-color: var(--bk-line-strong) !important; }
+  #pms-booking-page .bk-status.CANCELLED,
+  #pms-booking-page .bk-status.NO_SHOW { background: var(--bk-danger-bg) !important; color: var(--bk-danger-text) !important; border-color: var(--bk-danger-border) !important; }
+
+  #pms-booking-page .bk-source-pill,
+  #pms-booking-page .bk-room-badge,
+  #pms-booking-page .bk-method-pill { background: var(--bk-surface-soft) !important; color: var(--bk-text) !important; border-color: var(--bk-line) !important; }
+  #pms-booking-page .bk-room-badge.assigned { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
+  #pms-booking-page .bk-room-badge.unassigned { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; border-color: var(--bk-warning-border) !important; }
+  #pms-booking-page .bk-avail-card.low-inventory { background: var(--bk-warning-bg) !important; border-color: var(--bk-warning-border) !important; }
+  #pms-booking-page .bk-avail-card.selected { background: var(--bk-primary-soft) !important; border-color: var(--bk-primary) !important; }
+  #pms-booking-page .bk-avail-progress,
+  #pms-booking-page .bk-payment-progress { background: var(--bk-surface-soft) !important; }
+  #pms-booking-page .bk-wizard-step { background: var(--bk-surface-muted) !important; color: var(--bk-muted) !important; }
+  #pms-booking-page .bk-wizard-step.active { background: var(--bk-primary) !important; color: #ffffff !important; }
+  #pms-booking-page .bk-wizard-step.done { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
+  #pms-booking-page .bk-skeleton {
+    background: linear-gradient(90deg, var(--bk-skeleton-a) 25%, var(--bk-skeleton-b) 37%, var(--bk-skeleton-a) 63%) !important;
+    background-size: 400% 100% !important;
+  }
+  #pms-booking-page .bk-ota-log-table td {
+    background: var(--bk-surface) !important;
+    color: var(--bk-text) !important;
+    border-color: var(--bk-line) !important;
+  }
+  #pms-booking-page .bk-ota-log-table tr.failed td { background: var(--bk-danger-bg) !important; }
+  #pms-toast .toast-icon-badge { background: var(--bk-primary-soft) !important; color: var(--bk-primary-strong) !important; }
+  #pms-toast.ok .toast-icon-badge { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; }
+  #pms-toast.err .toast-icon-badge { background: var(--bk-danger-bg) !important; color: var(--bk-danger-text) !important; }
+  #pms-toast.warn .toast-icon-badge { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; }
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page {
+  background: var(--bk-bg);
+  color: var(--bk-text);
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ops-panel,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-bar,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-strip,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-form-section,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-block-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-timeline-room,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-day,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-option,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-crm-search,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-crm-results,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-payment-method-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table-wrap,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table td,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-booking-summary,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-planner,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stay-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-time-row,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-cart,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-payment-room-summary,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-payment-kpis > div,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-summary,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-logs,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-log-table-wrap,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-toast {
+  background: var(--bk-surface) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-card-head,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-head,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-dates,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ops-note,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-empty,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-empty,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-skeleton,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-foot,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-body,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-payment-kpis,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-payment-note,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-cart-head {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+  color: var(--bk-text) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table th,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-log-table th {
+  background: var(--bk-surface-muted) !important;
+  color: var(--bk-ink) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover td,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-search-box:focus-within,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-option:hover,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-crm-item:hover,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card:hover:not(.sold-out) {
+  background: var(--bk-primary-soft) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-warning-bg) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-success-bg) !important; }
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-input,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-select,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-textarea,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-search-box,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-shad-dt-wrap .ci-shad-dt-input,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-btn,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-mini-btn,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-icon-btn,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-cart-qty button {
+  background: var(--bk-surface) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-btn.primary,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-mini-btn.primary,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-icon-btn.primary {
+  background: var(--bk-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--bk-primary) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-status.PENDING { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; border-color: var(--bk-warning-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-status.CONFIRMED { background: var(--bk-info-bg) !important; color: var(--bk-info-text) !important; border-color: var(--bk-info-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-status.CHECKED_IN { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-status.CHECKED_OUT { background: var(--bk-surface-soft) !important; color: var(--bk-muted) !important; border-color: var(--bk-line-strong) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-status.CANCELLED,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-status.NO_SHOW { background: var(--bk-danger-bg) !important; color: var(--bk-danger-text) !important; border-color: var(--bk-danger-border) !important; }
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-source-pill,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-badge,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-method-pill { background: var(--bk-surface-soft) !important; color: var(--bk-text) !important; border-color: var(--bk-line) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-badge.assigned { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-badge.unassigned { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; border-color: var(--bk-warning-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card.low-inventory { background: var(--bk-warning-bg) !important; border-color: var(--bk-warning-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card.selected { background: var(--bk-primary-soft) !important; border-color: var(--bk-primary) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-progress,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-payment-progress { background: var(--bk-surface-soft) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-wizard-step { background: var(--bk-surface-muted) !important; color: var(--bk-muted) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-wizard-step.active { background: var(--bk-primary) !important; color: #ffffff !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-wizard-step.done { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-log-table td {
+  background: var(--bk-surface) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-log-table tr.failed td { background: var(--bk-danger-bg) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-toast .toast-icon-badge { background: var(--bk-primary-soft) !important; color: var(--bk-primary-strong) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-toast.ok .toast-icon-badge { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-toast.err .toast-icon-badge { background: var(--bk-danger-bg) !important; color: var(--bk-danger-text) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-toast.warn .toast-icon-badge { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; }
+
+/* Explicit dark-mode fixes for PMS booking dialogs, popups, logo/icon contrast. */
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-modal,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-modal {
+  background: rgba(2, 6, 23, 0.72) !important;
+  backdrop-filter: blur(10px) saturate(125%);
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-dialog,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-dialog,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dialog {
+  background: var(--bk-surface) !important;
+  color: var(--bk-text) !important;
+  border: 1px solid var(--bk-line) !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.6) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-head,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-foot,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-foot,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dialog-head,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dialog-foot {
+  background: var(--bk-surface-muted) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-body,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-body,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dialog-body {
+  background: var(--bk-bg) !important;
+  color: var(--bk-text) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-summary > div,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-list > * {
+  background: var(--bk-surface) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-card:hover,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-card.selected {
+  background: var(--bk-primary-soft) !important;
+  border-color: var(--bk-primary) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-summary label,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-card label,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-meta,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-card span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-price span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-no-actions {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-head h2,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-summary strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-card strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-card strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-price strong {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-summary span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-card p {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card {
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.96)) !important;
+  border: 1px solid var(--bk-line) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-icon,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.arrival .bk-stat-icon,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.departure .bk-stat-icon,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.pending .bk-stat-icon,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.revenue .bk-stat-icon {
+  background: rgba(96, 165, 250, 0.16) !important;
+  color: var(--bk-primary-strong) !important;
+  border: 1px solid rgba(147, 197, 253, 0.22) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.arrival .bk-stat-icon { color: var(--bk-success-text) !important; background: var(--bk-success-bg) !important; border-color: var(--bk-success-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.departure .bk-stat-icon { color: var(--bk-warning-text) !important; background: var(--bk-warning-bg) !important; border-color: var(--bk-warning-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.pending .bk-stat-icon { color: var(--bk-danger-text) !important; background: var(--bk-danger-bg) !important; border-color: var(--bk-danger-border) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.revenue .bk-stat-icon { color: #c4b5fd !important; background: rgba(139, 92, 246, 0.18) !important; border-color: rgba(196, 181, 253, 0.34) !important; }
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-strip-metrics {
+  background: rgba(2, 6, 23, 0.28) !important;
+  border: 1px solid var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-metric-card::after {
+  background: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-metric-card strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-money,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-price-line strong {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-metric-card.danger strong { color: var(--bk-danger-text) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-metric-card.ai strong { color: var(--bk-primary-strong) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-metric-card.rule strong { color: var(--bk-accent) !important; }
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-toast svg,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-modal svg {
+  stroke: currentColor;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-icon-btn svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-icon svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-tool svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-copy-inline svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-hero-icon svg {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-icon-btn:hover {
+  background: var(--bk-primary-soft) !important;
+  color: var(--bk-primary-strong) !important;
+  border-color: var(--bk-primary) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-tool,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-close,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-copy-inline {
+  background: rgba(15, 23, 42, 0.24) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #ffffff !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-tool svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-copy-inline svg,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-hero-icon {
+  color: #a7f3d0 !important;
+}

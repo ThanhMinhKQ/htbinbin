@@ -1,0 +1,1083 @@
+{% extends "base.html" %}
+{% block title %}PMS - Thiết lập{% endblock %}
+{% block page_title %}{% if pms_setup_tab == 'rooms' %}Thiết lập Sơ đồ Lưu trú{% else %}Thiết lập Loại Phòng{% endif %}{% endblock %}
+
+{% block head %}
+<style>
+/* ── Layout ── */
+#setup-page { padding: 16px 20px; background: #f5f6fa; min-height: calc(100vh - 60px); }
+
+/* ── Branch Strip ── */
+#branch-bar { display:flex; flex-wrap:wrap; gap:8px; padding:14px 18px; }
+.b-pill {
+  padding: 5px 16px; border-radius: 99px; border: 1.5px solid #d1d5db;
+  font-size: 13px; font-weight: 500; color: #374151; cursor: pointer;
+  background: #fff; transition: all .14s; user-select: none;
+}
+.b-pill:hover { border-color: #2563eb; color: #2563eb; }
+.b-pill.active { background: #2563eb; border-color: #2563eb; color: #fff; font-weight: 600; }
+
+/* ── Branch Summary Card ── */
+.branch-summary {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px; margin-bottom: 16px;
+}
+.bs-card {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-radius: 12px; padding: 16px;
+  border: 1px solid #e2e8f0;
+}
+.bs-card .bs-icon {
+  width: 40px; height: 40px; border-radius: 10px; display: flex;
+  align-items: center; justify-content: center; margin-bottom: 10px;
+}
+.bs-card.rooms .bs-icon { background: #dbeafe; }
+.bs-card.rooms .bs-icon svg { stroke: #1d4ed8; }
+.bs-card.types .bs-icon { background: #dcfce7; }
+.bs-card.types .bs-icon svg { stroke: #15803d; }
+.bs-card .bs-label { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.bs-card .bs-value { font-size: 26px; font-weight: 800; color: #1e293b; margin-top: 4px; }
+.bs-card .bs-sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* ── Card ── */
+.s-card {
+  background: #fff; border-radius: 10px; margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07); overflow: hidden; border: 1px solid #e5e7eb;
+}
+.s-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 13px 18px; border-bottom: 1px solid #f1f3f5;
+}
+.s-card-title { font-size: 14px; font-weight: 700; color: #111827; display:flex; align-items:center; gap:7px; }
+.s-card-title svg { width:18px; height:18px; stroke:#2563eb; }
+.s-card-sub { font-size: 12px; color: #9ca3af; font-weight: 400; margin-left: 4px; }
+
+/* ── Tabs ── */
+.s-tabs { display:flex; gap:2px; padding: 0 18px; border-bottom: 1.5px solid #e5e7eb; margin-bottom: 16px; }
+.s-tab {
+  padding: 10px 20px; border-radius: 6px 6px 0 0; font-size: 13.5px;
+  font-weight: 600; cursor:pointer; border:none;background:transparent;
+  color: #6b7280; transition:all .14s; display:flex; align-items:center; gap:6px;
+}
+.s-tab svg { width:15px; height:15px; }
+.s-tab:hover { color: #1f2937; background: #f9fafb; }
+.s-tab.active { color: #2563eb; border-bottom: 2.5px solid #2563eb; margin-bottom: -1.5px; background:#fff; }
+.tab-pane { display:none; } .tab-pane.active { display:block; }
+
+/* ── Type Cards Grid ── */
+.type-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); 
+  gap: 16px; 
+  padding: 20px; 
+}
+.type-card-item {
+  border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px;
+  cursor:pointer; position:relative; transition: all .2s ease; background:#fff;
+  display: flex; flex-direction: column;
+}
+.type-card-item:hover { 
+  border-color:#3b82f6; 
+  box-shadow: 0 8px 24px rgba(59,130,246,.12), 0 2px 8px rgba(0,0,0,.04); 
+  transform: translateY(-2px);
+}
+.tc-name { font-size: 16px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+.tc-cap  { font-size: 12.5px; color: #6b7280; display:flex; align-items:center; gap:4px; }
+.tc-cap svg { width:13px; height:13px; }
+.tc-prices {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-top: 14px; flex-grow: 1;
+}
+.tc-prices .p-row { display:flex; justify-content:space-between; font-size:13px; margin-bottom: 8px; align-items:center; }
+.tc-prices .p-row:last-child { margin-bottom: 0; }
+.tc-prices .p-label { color: #4b5563; font-weight: 500; }
+.tc-prices .p-val   { font-weight:700; color:#1f2937; }
+.tc-edit-btn {
+  width:32px; height:32px; border-radius:8px; border:none;
+  background:#f1f5f9; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition: all .2s; margin-left: 10px;
+}
+.tc-edit-btn:hover { background:#dbeafe; transform: scale(1.05); }
+.tc-edit-btn svg { width:15px; height:15px; stroke:#374151; }
+.tc-add-btn {
+  border-radius:12px; border: 2px dashed #cbd5e1; background: #f8fafc;
+  cursor:pointer; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:8px; color:#64748b; font-size:14px; font-weight:600;
+  transition: all .2s ease; min-height: 180px;
+}
+.tc-add-btn:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+.tc-add-btn svg { width:28px; height:28px; }
+
+/* ── Table ── */
+.s-table { font-size:13px; width:100%; border-collapse:collapse; text-align:left; }
+.s-table thead th {
+  background: #f9fafb; font-size:11.5px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.06em; color:#6b7280; padding:10px 14px;
+  border-bottom:1px solid #e5e7eb;
+}
+.s-table tbody td { padding: 10px 14px; vertical-align: middle; border-bottom:1px solid #f1f3f5; }
+.s-table tbody tr:hover { background: #f9fafb; }
+.rtype-badge { border-radius:6px; padding:3px 10px; font-size:11.5px; font-weight:600; display:inline-block; }
+.rtype-badge.blue { background:#dbeafe; color:#1d4ed8; }
+.rtype-badge.green { background:#dcfce7; color:#15803d; }
+.rtype-badge.gray  { background:#f1f3f5; color:#6b7280; }
+
+/* ── Action buttons in table ── */
+.tbl-btn {
+  width:30px; height:30px; border-radius:6px; border:none; cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; transition:opacity .14s; margin-right:4px;
+}
+.tbl-btn:hover { opacity:.75; }
+.tbl-btn svg { width:14px; height:14px; }
+.tbl-btn.edit { background:#dbeafe; } .tbl-btn.edit svg { stroke:#1d4ed8; }
+.tbl-btn.del  { background:#fee2e2; } .tbl-btn.del  svg { stroke:#dc2626; }
+.tbl-btn.tog  { background:#fef3c7; } .tbl-btn.tog  svg { stroke:#d97706; }
+
+/* ── Empty state ── */
+.s-empty { text-align:center; padding:36px 20px; color:#9ca3af; }
+.s-empty svg { width:48px; height:48px; stroke:#e5e7eb; display:block; margin:0 auto 10px; }
+.s-empty p { margin:0; font-size:13.5px; }
+
+/* ── Vanilla Modal ── */
+.v-modal {
+  display:none; position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.4); backdrop-filter:blur(2px);
+  align-items:center; justify-content:center; padding:16px;
+  opacity:0; transition:opacity .2s;
+}
+.v-modal.show { display:flex; opacity:1; }
+.v-dialog {
+  background:#fff; width:100%; max-width:540px; border-radius:16px;
+  box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 10px 10px -5px rgba(0,0,0,.04);
+  transform:scale(.97); transition:transform .2s;
+  display:flex; flex-direction:column; max-height:calc(100vh - 32px);
+}
+.v-modal.show .v-dialog { transform:scale(1); }
+.v-header { padding:24px 24px 16px; display:flex; gap:16px; align-items:center; }
+.v-title { font-size:18px; font-weight:700; color:#111827; margin:0; }
+.v-close { background:none; border:none; color:#9ca3af; cursor:pointer; padding:6px; border-radius:8px; margin-left:auto; }
+.v-close:hover { background:#f3f4f6; color:#111827; }
+.v-close svg { width:20px; height:20px; }
+.v-body { padding:0 24px 24px; overflow-y:auto; flex:1; }
+.v-footer { padding:16px 24px; border-top:1px solid #e5e7eb; display:flex; justify-content:flex-end; gap:12px; border-radius:0 0 16px 16px; background:#f9fafb; }
+
+/* ── Form Styles ── */
+.f-grp { margin-bottom:16px; display:flex; flex-direction:column; }
+.f-grp label { font-size:13.5px; font-weight:600; color:#374151; margin-bottom:6px; }
+.f-req { color:#ef4444; }
+.f-ctrl { 
+  width:100%; border:1px solid #d1d5db; border-radius:8px; padding:9px 12px; font-size:14px;
+  transition:border-color .15s, box-shadow .15s; outline:none; background:#fff; color:#111827;
+}
+.f-ctrl:focus { border-color:#3b82f6; box-shadow:0 0 0 3px rgba(59,130,246,.15); }
+.f-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
+.f-grid-full { grid-column: 1 / -1; }
+.v-btn { padding:9px 20px; border-radius:99px; font-size:14px; font-weight:600; cursor:pointer; border:none; transition:all .15s; display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.v-btn.sm { padding:6px 14px; font-size:13px; }
+.v-btn.light { background:#f3f4f6; color:#374151; }
+.v-btn.light:hover { background:#e5e7eb; }
+.v-btn.primary { background:#2563eb; color:#fff; }
+.v-btn.primary:hover { background:#1d4ed8; }
+.v-btn.success { background:#16a34a; color:#fff; }
+.v-btn.success:hover { background:#15803d; }
+/* ── Modal Section Tabs ── */
+.m-tabs { display:flex; gap:0; border-bottom:2px solid #e5e7eb; margin:0 -24px 20px; padding:0 24px; }
+.m-tab {
+  padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer;
+  border:none; background:transparent; color:#6b7280; transition:all .15s;
+  border-bottom:2.5px solid transparent; margin-bottom:-2px; display:flex; align-items:center; gap:5px;
+}
+.m-tab:hover { color:#1f2937; }
+.m-tab.active { color:#2563eb; border-bottom-color:#2563eb; }
+.m-tab svg { width:14px; height:14px; }
+.m-section { display:none; } .m-section.active { display:block; }
+
+/* ── Section Header ── */
+.sec-header {
+  font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;
+  letter-spacing:.06em; padding-bottom:8px; margin-bottom:14px;
+  border-bottom:1px dashed #e2e8f0; display:flex; align-items:center; gap:6px;
+}
+.sec-header svg { width:14px; height:14px; stroke:#94a3b8; }
+
+/* ── Rule Card (visual pricing rule) ── */
+.rule-card {
+  background:linear-gradient(135deg,#f8fafc,#f1f5f9); border:1px solid #e2e8f0;
+  border-radius:10px; padding:14px; margin-bottom:12px;
+}
+.rule-card .rc-title { font-size:12.5px; font-weight:700; color:#334155; margin-bottom:6px; display:flex; align-items:center; gap:6px; }
+.rule-card .rc-title .rc-icon { width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.rule-card .rc-body { font-size:12px; color:#475569; line-height:1.6; }
+.rule-card .rc-badge {
+  display:inline-block; padding:2px 8px; border-radius:4px;
+  font-size:11px; font-weight:700; margin:0 2px;
+}
+.rc-badge.blue { background:#dbeafe; color:#1d4ed8; }
+.rc-badge.green { background:#dcfce7; color:#15803d; }
+.rc-badge.amber { background:#fef3c7; color:#d97706; }
+.rc-badge.red { background:#fee2e2; color:#dc2626; }
+
+/* ── Price Preview Panel ── */
+.preview-panel {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  border-radius:12px; padding:20px; margin-top:16px; color:#fff;
+}
+.preview-panel .pp-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.preview-panel .pp-title { font-size:13px; font-weight:700; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; }
+.preview-panel .pp-mode {
+  font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px;
+}
+.pp-mode.hourly { background:#0ea5e9; color:#fff; }
+.pp-mode.daily { background:#8b5cf6; color:#fff; }
+.pp-mode.overnight { background:#f59e0b; color:#1e293b; }
+
+.pp-inputs { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:16px; }
+.pp-inputs label { font-size:11px; color:#94a3b8; font-weight:600; display:block; margin-bottom:4px; }
+.pp-inputs input, .pp-inputs select {
+  width:100%; background:#1e293b; border:1px solid #334155; border-radius:8px;
+  padding:8px 10px; color:#f1f5f9; font-size:13px; outline:none;
+}
+.pp-inputs input:focus, .pp-inputs select:focus { border-color:#3b82f6; }
+.pp-btn {
+  align-self:flex-end; background:#3b82f6; border:none; border-radius:8px;
+  padding:8px 16px; color:#fff; font-size:13px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; gap:5px; white-space:nowrap; height:38px;
+}
+.pp-btn:hover { background:#2563eb; }
+.pp-btn svg { width:14px; height:14px; }
+
+/* ── Breakdown Timeline ── */
+.pp-breakdown { margin-top:12px; }
+.pp-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; border-bottom:1px solid rgba(255,255,255,.08);
+  font-size:13px;
+}
+.pp-row:last-child { border-bottom:none; }
+.pp-row .pp-desc { color:#cbd5e1; display:flex; align-items:center; gap:6px; }
+.pp-row .pp-desc .pp-dot {
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+}
+.pp-dot.early { background:#f59e0b; }
+.pp-dot.core { background:#3b82f6; }
+.pp-dot.late { background:#ef4444; }
+.pp-dot.rollover { background:#8b5cf6; }
+.pp-row .pp-amt { font-weight:700; color:#f1f5f9; font-variant-numeric:tabular-nums; }
+.pp-row.free .pp-amt { color:#4ade80; }
+
+.pp-total {
+  display:flex; justify-content:space-between; align-items:center;
+  margin-top:12px; padding-top:12px; border-top:2px solid rgba(255,255,255,.15);
+}
+.pp-total .pp-total-label { font-size:14px; font-weight:600; color:#94a3b8; }
+.pp-total .pp-total-val { font-size:22px; font-weight:800; color:#fff; }
+.pp-empty { text-align:center; padding:20px; color:#64748b; font-size:13px; }
+
+/* Wider dialog for type modal */
+.v-dialog.wide { max-width:680px; }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="setup-page">
+
+  <!-- Branch selector -->
+  <div class="s-card mb-4">
+    <div class="s-card-head" style="margin-bottom:0; display:flex; justify-content:space-between; align-items:center;">
+      <span class="s-card-title" style="display:flex; align-items:center;">
+        <svg style="margin-right:8px;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Chọn chi nhánh cấu hình
+      </span>
+      <select id="branch-select" class="v-input" style="width: auto; min-width: 250px; font-weight: 500;">
+        <option value="">-- Vui lòng chọn chi nhánh --</option>
+        {% for b in branches %}
+        <option value="{{ b.id }}" data-bname="{{ b.name }}">{{ b.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Branch Summary (hidden initially) -->
+  <div id="branch-summary" style="display:none;">
+    <div class="branch-summary">
+      <div class="bs-card rooms">
+        <div class="bs-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+        </div>
+        <div class="bs-label">Tổng phòng</div>
+        <div class="bs-value" id="bs-total-rooms">0</div>
+        <div class="bs-sub">phòng</div>
+      </div>
+      <div class="bs-card types">
+        <div class="bs-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>
+        </div>
+        <div class="bs-label">Hạng phòng</div>
+        <div class="bs-value" id="bs-total-types">0</div>
+        <div class="bs-sub">loại</div>
+      </div>
+      <div class="bs-card" style="background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);">
+        <div class="bs-icon" style="background: #bbf7d0;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div class="bs-label" style="color:#15803d;">Phòng hoạt động</div>
+        <div class="bs-value" style="color:#15803d;" id="bs-active-rooms">0</div>
+        <div class="bs-sub">phòng</div>
+      </div>
+      <div class="bs-card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);">
+        <div class="bs-icon" style="background: #fde68a;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="bs-label" style="color:#d97706;">Giá TB</div>
+        <div class="bs-value" style="color:#d97706;" id="bs-avg-price">0</div>
+        <div class="bs-sub">VNĐ/đêm</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div id="main-content" style="display:none;">
+    <!-- Tabs -->
+    <div class="s-tabs">
+      <button class="s-tab active" data-tab="types" onclick="showTab('types',this)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+        Hạng phòng &amp; Giá
+      </button>
+      <button class="s-tab" data-tab="rooms" onclick="showTab('rooms',this)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+        Danh sách phòng
+      </button>
+    </div>
+
+    <!-- Tab: Types -->
+    <div class="tab-pane active" id="tab-types">
+      <div class="s-card">
+        <div class="s-card-head">
+          <span class="s-card-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            Hạng phòng
+            <span class="s-card-sub" id="types-count"></span>
+          </span>
+        </div>
+        <div class="type-grid" id="types-grid">
+          <div class="s-empty" style="width:100%;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg><p>Chọn chi nhánh để xem hạng phòng</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Rooms -->
+    <div class="tab-pane" id="tab-rooms">
+      <div class="s-card">
+        <div class="s-card-head">
+          <span class="s-card-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+            Danh sách phòng
+            <span class="s-card-sub" id="rooms-count"></span>
+          </span>
+          <button class="v-btn primary sm" onclick="openAddRoom()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm phòng
+          </button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="s-table">
+            <thead>
+              <tr>
+                <th style="padding-left:24px;">Số phòng</th>
+                <th>Tầng</th>
+                <th>Hạng phòng</th>
+                <th>Giá / đêm</th>
+                <th>Giá / giờ đầu</th>
+                <th>Giá các giờ sau</th>
+                <th>Ghi chú</th>
+                <th>Trạng thái</th>
+                <th style="width:90px;"></th>
+              </tr>
+            </thead>
+            <tbody id="rooms-tbody">
+              <tr><td colspan="8"><div class="s-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+                <p>Chọn chi nhánh và thêm phòng</p>
+              </div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Room Type (3-Section) ═══ -->
+<div class="v-modal" id="typeModal">
+  <div class="v-dialog wide">
+    <div class="v-header">
+      <div style="width:42px;height:42px;border-radius:10px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      </div>
+      <h5 class="v-title" id="tm-title">Thêm hạng phòng</h5>
+      <button class="v-close" onclick="closeModal('typeModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="v-body">
+      <input type="hidden" id="tm-id">
+      <input type="hidden" id="tm-sort" value="0">
+
+      <!-- ── Section Tabs ── -->
+      <div class="m-tabs">
+        <button class="m-tab active" onclick="showMTab('basic',this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
+          Cơ bản
+        </button>
+        <button class="m-tab" onclick="showMTab('pricing',this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Bảng giá
+        </button>
+        <button class="m-tab" onclick="showMTab('rules',this)">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Quy tắc
+        </button>
+      </div>
+
+      <!-- ═══ Section 1: Cơ bản ═══ -->
+      <div class="m-section active" id="ms-basic">
+        <div class="f-grid">
+          <div class="f-grp f-grid-full">
+            <label>Tên hạng phòng <span class="f-req">*</span></label>
+            <input type="text" class="f-ctrl" id="tm-name" placeholder="Standard, Deluxe, Suite…">
+          </div>
+          <div class="f-grp">
+            <label>Sức chứa tối đa</label>
+            <input type="number" class="f-ctrl" id="tm-guests" value="2" min="1" max="20">
+          </div>
+          <div class="f-grp">
+            <label>Số giờ đầu tối thiểu</label>
+            <input type="number" class="f-ctrl" id="tm-minhours" value="1" min="1" max="24">
+          </div>
+          <div class="f-grp f-grid-full" style="margin-bottom:0;">
+            <label>Mô tả ngắn</label>
+            <input type="text" class="f-ctrl" id="tm-desc" placeholder="Ban công, view biển…">
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section 2: Bảng giá ═══ -->
+      <div class="m-section" id="ms-pricing">
+        <div class="sec-header">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/></svg>
+          Giá phòng theo loại hình
+        </div>
+        <div class="f-grid">
+          <div class="f-grp f-grid-full" style="margin-bottom:10px;">
+            <label style="font-size:12px;color:#6366f1;font-weight:700;">🌙 Giá qua đêm</label>
+            <input type="number" class="f-ctrl" id="tm-night" value="0" min="0" step="10000" style="font-size:16px;font-weight:700;">
+          </div>
+          <div class="f-grp">
+            <label>⏱️ Giá giờ đầu (VND)</label>
+            <input type="number" class="f-ctrl" id="tm-hour" value="0" min="0" step="5000">
+          </div>
+          <div class="f-grp">
+            <label>⏭️ Giá các giờ sau (VND)</label>
+            <input type="number" class="f-ctrl" id="tm-next-hour" value="0" min="0" step="5000">
+          </div>
+        </div>
+        <div style="height:1px;background:#e2e8f0;margin:8px 0 16px;"></div>
+        <div class="sec-header">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>
+          Ưu đãi ban đêm
+        </div>
+        <div class="f-grid" style="grid-template-columns:1fr 1fr 1fr;gap:10px;">
+          <div class="f-grp">
+            <label>Từ giờ</label>
+            <input type="time" class="f-ctrl" id="tm-promo-start">
+          </div>
+          <div class="f-grp">
+            <label>Đến giờ</label>
+            <input type="time" class="f-ctrl" id="tm-promo-end">
+          </div>
+          <div class="f-grp">
+            <label>% Giảm giá</label>
+            <input type="number" class="f-ctrl" id="tm-promo-pct" value="0" min="0" max="100">
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Section 3: Quy tắc tính giá ═══ -->
+      <div class="m-section" id="ms-rules">
+        <div class="sec-header">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Khung giờ chuẩn & Phí phụ thu
+        </div>
+        <div class="f-grid">
+          <div class="f-grp">
+            <label>Giờ nhận phòng chuẩn</label>
+            <input type="time" class="f-ctrl" id="tm-std-checkin" value="14:00">
+          </div>
+          <div class="f-grp">
+            <label>Giờ trả phòng chuẩn</label>
+            <input type="time" class="f-ctrl" id="tm-std-checkout" value="12:00">
+          </div>
+          <div class="f-grp">
+            <label>Phí nhận phòng sớm (₫/giờ)</label>
+            <input type="number" class="f-ctrl" id="tm-early-fee" value="50000" min="0" step="10000">
+          </div>
+          <div class="f-grp">
+            <label>Phí trả phòng muộn (₫/giờ)</label>
+            <input type="number" class="f-ctrl" id="tm-late-fee" value="50000" min="0" step="10000">
+          </div>
+          <div class="f-grp">
+            <label>Ngưỡng tính ngày (giờ)</label>
+            <input type="number" class="f-ctrl" id="tm-day-threshold" value="8" min="1" max="24">
+          </div>
+          <div class="f-grp">
+            <label>Grace phút (châm chước)</label>
+            <input type="number" class="f-ctrl" id="tm-grace" value="10" min="0" max="60">
+          </div>
+        </div>
+
+        <!-- Visual Rule Explanation Cards -->
+        <div style="margin-top:12px;">
+          <div class="rule-card">
+            <div class="rc-title">
+              <div class="rc-icon" style="background:#dcfce7;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="2.5"><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+              Miễn phí nhận sớm
+            </div>
+            <div class="rc-body">Khách vào <span class="rc-badge green">12:00 → 13:59</span> → Không tính phí sớm.</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-title">
+              <div class="rc-icon" style="background:#fef3c7;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              Ép tính ngày
+            </div>
+            <div class="rc-body">Ở <span class="rc-badge amber" id="rc-threshold">≥ 8h</span> hoặc lấn qua giờ chuẩn → Tự động chuyển sang <span class="rc-badge blue">Giá Ngày</span> + truy thu phí sớm.</div>
+          </div>
+          <div class="rule-card">
+            <div class="rc-title">
+              <div class="rc-icon" style="background:#fee2e2;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
+              Rollover ngày mới
+            </div>
+            <div class="rc-body">Trả muộn <span class="rc-badge red" id="rc-rollover">≥ 8h</span> (sau 12:00) → Hủy phí muộn, cộng thêm <span class="rc-badge blue">1 ngày mới</span>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ Live Preview Panel ═══ -->
+      <div class="preview-panel" id="pp-panel" style="display:none;">
+        <div class="pp-header">
+          <span class="pp-title">🧪 Test Giá Trực Tiếp</span>
+          <span class="pp-mode" id="pp-mode-badge"></span>
+        </div>
+        <div class="pp-inputs">
+          <div>
+            <label>Check-in</label>
+            <input type="datetime-local" id="pp-checkin">
+          </div>
+          <div>
+            <label>Check-out</label>
+            <input type="datetime-local" id="pp-checkout">
+          </div>
+          <div style="display:flex;flex-direction:column;">
+            <label>Mode</label>
+            <select id="pp-mode-sel">
+              <option value="AUTO">Auto</option>
+              <option value="FORCE_HOURLY">Giờ</option>
+              <option value="FORCE_DAILY">Ngày</option>
+              <option value="FORCE_OVERNIGHT">Qua đêm</option>
+            </select>
+          </div>
+        </div>
+        <button class="pp-btn" onclick="runPreview()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Tính giá
+        </button>
+        <div id="pp-result">
+          <div class="pp-empty">Nhập giờ checkin/checkout rồi nhấn "Tính giá"</div>
+        </div>
+      </div>
+    </div>
+    <div class="v-footer">
+      <button class="v-btn light" onclick="closeModal('typeModal')">Huỷ</button>
+      <button class="v-btn success" onclick="saveType()">Lưu hạng phòng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Room ═══ -->
+<div class="v-modal" id="roomModal">
+  <div class="v-dialog">
+    <div class="v-header">
+      <div style="width:42px;height:42px;border-radius:10px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+      </div>
+      <h5 class="v-title" id="rm-title">Thêm phòng</h5>
+      <button class="v-close" onclick="closeModal('roomModal')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="v-body">
+      <input type="hidden" id="rm-id">
+      <div class="f-grid">
+        <div class="f-grp">
+          <label>Số phòng <span class="f-req">*</span></label>
+          <input type="text" class="f-ctrl" id="rm-number" placeholder="101, A01…">
+        </div>
+        <div class="f-grp">
+          <label>Tầng <span class="f-req">*</span></label>
+          <input type="number" class="f-ctrl" id="rm-floor" value="1" min="B2" max="50">
+        </div>
+        <div class="f-grp f-grid-full">
+          <label>Hạng phòng</label>
+          <select class="f-ctrl" id="rm-type">
+            <option value="">— Không phân loại —</option>
+          </select>
+        </div>
+        <input type="hidden" id="rm-sort" value="0">
+        <div class="f-grp f-grid-full" style="margin-bottom:0;">
+          <label>Ghi chú phòng</label>
+          <input type="text" class="f-ctrl" id="rm-notes" placeholder="Ban công, hướng biển…">
+        </div>
+      </div>
+    </div>
+    <div class="v-footer">
+      <button class="v-btn light" onclick="closeModal('roomModal')">Huỷ</button>
+      <button class="v-btn primary" onclick="saveRoom()">Lưu phòng</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="s-toast" style="position:fixed;bottom:20px;right:24px;z-index:9999;padding:12px 24px;
+  border-radius:9px;color:#fff;font-weight:600;font-size:14px;box-shadow:0 10px 25px rgba(0,0,0,.15);
+  opacity:0;pointer-events:none;transition:opacity .25s; max-width:340px;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+'use strict';
+
+const S = { bid: null, bname: '', types: [], rooms: [] };
+
+const SVGI = {
+    edit: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+    del:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+    toggle: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3"/></svg>`,
+    user: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+    plus: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+    bed:  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>`,
+};
+
+function fmt(n){ return new Intl.NumberFormat('vi-VN').format(n||0)+'đ'; }
+function toast(msg, ok=true) {
+    const el=document.getElementById('s-toast');
+    el.textContent=msg; el.style.background=ok?'#16a34a':'#dc2626'; el.style.opacity='1';
+    clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',3500);
+}
+
+// ── Modal Toggle ───────────────────────────────────────────────────────
+function openModal(id) {
+    const el = document.getElementById(id);
+    el.style.display='flex';
+    setTimeout(()=>el.classList.add('show'), 10);
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    el.classList.remove('show');
+    setTimeout(()=>el.style.display='none', 200);
+}
+// Close on backdrop click
+document.querySelectorAll('.v-modal').forEach(m => {
+    m.addEventListener('click', e => { if (e.target === m) closeModal(m.id); });
+});
+
+
+// ── Branch Selector ────────────────────────────────────────────────────
+document.getElementById('branch-select').addEventListener('change', function(e) {
+    const sel = e.target;
+    if (!sel.value) {
+        document.getElementById('main-content').style.display = 'none';
+        document.getElementById('branch-summary').style.display = 'none';
+        return;
+    }
+    S.bid = Number(sel.value);
+    S.bname = sel.options[sel.selectedIndex].dataset.bname;
+    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('branch-summary').style.display = 'block';
+    loadAll();
+});
+
+function updateBranchSummary() {
+    // Update summary cards
+    document.getElementById('bs-total-rooms').textContent = S.rooms.length;
+    document.getElementById('bs-total-types').textContent = S.types.length;
+    document.getElementById('bs-active-rooms').textContent = S.rooms.filter(r => r.is_active).length;
+    
+    // Calculate average price
+    if (S.types.length > 0) {
+        const totalPrice = S.types.reduce((sum, t) => sum + (t.price_per_night || 0), 0);
+        const avg = Math.round(totalPrice / S.types.length);
+        document.getElementById('bs-avg-price').textContent = new Intl.NumberFormat('vi-VN').format(avg);
+    }
+}
+
+function showTab(name, btn) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.s-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${name}`).classList.add('active');
+    btn.classList.add('active');
+}
+
+async function loadAll() { 
+    await Promise.all([loadTypes(), loadRooms()]);
+    updateBranchSummary();
+}
+
+// ── Room Types ─────────────────────────────────────────────────────────
+async function loadTypes() {
+    const r = await fetch(`/api/pms/admin/room-types?branch_id=${S.bid}`, {credentials:'same-origin'});
+    if (!r.ok) { toast('Lỗi tải hạng phòng', false); return; }
+    S.types = await r.json();
+    document.getElementById('types-count').textContent = `(${S.types.length})`;
+    const grid = document.getElementById('types-grid');
+
+    if (!S.types.length) {
+        grid.innerHTML = `<div class="s-empty" style="width:100%;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+            <p>Chưa có hạng phòng nào.</p>
+        </div>
+        <button class="tc-add-btn" onclick="openAddType()">
+            <span style="width:24px;height:24px;display:block;">${SVGI.plus}</span>
+            Thêm hạng phòng đầu tiên
+        </button>`;
+        return;
+    }
+
+    grid.innerHTML = S.types.map(t => `
+        <div class="type-card-item" onclick="editType(${t.id})">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                <div>
+                    <div class="tc-name">${t.name}</div>
+                    <div class="tc-cap">
+                        <span style="width:14px;height:14px;display:inline-block;margin-right:2px;vertical-align:middle;">${SVGI.user}</span>
+                        Tối đa ${t.max_guests} khách &nbsp;&bull;&nbsp; Tối thiểu ${t.min_hours}h
+                    </div>
+                </div>
+                <button class="tc-edit-btn" onclick="event.stopPropagation(); editType(${t.id})">${SVGI.edit}</button>
+            </div>
+            
+                <div class="tc-prices">
+                <div class="p-row"><span class="p-label" style="font-size:14px;">Giá / đêm</span><span class="p-val" style="font-size: 16px;">${fmt(t.price_per_night)}</span></div>
+                ${t.promo_discount_percent > 0 ? `<div class="p-row"><span class="p-label" style="color:#16a34a; font-size:11.5px; background:#dcfce7; padding:2px 6px; border-radius:4px;">Giảm đêm (${t.promo_start_time ? t.promo_start_time.substring(0,5) : ''} - ${t.promo_end_time ? t.promo_end_time.substring(0,5) : ''})</span><span class="p-val" style="color:#16a34a;">-${t.promo_discount_percent}%</span></div>` : ''}
+                <div style="height: 1px; background: #e2e8f0; margin: 10px 0;"></div>
+                <div class="p-row"><span class="p-label" style="font-size:12px;">Giá / giờ đầu</span><span class="p-val" style="font-size:13.5px; color:#334155;">${fmt(t.price_per_hour)}</span></div>
+                <div class="p-row"><span class="p-label" style="font-size:12px;">Giá các giờ sau</span><span class="p-val" style="font-size:13.5px; color:#334155;">${fmt(t.price_next_hour)}</span></div>
+                <div style="height: 1px; background: #e2e8f0; margin: 10px 0;"></div>
+                <div class="p-row"><span class="p-label" style="font-size:11px; color:#64748b;">Khung giờ</span><span class="p-val" style="font-size:12px; color:#475569;">${t.standard_checkin_time ? t.standard_checkin_time.substring(0,5) : '14:00'} → ${t.standard_checkout_time ? t.standard_checkout_time.substring(0,5) : '12:00'}</span></div>
+                <div class="p-row"><span class="p-label" style="font-size:11px; color:#64748b;">Phí sớm / muộn</span><span class="p-val" style="font-size:12px; color:#475569;">${fmt(t.early_checkin_fee_per_hour||50000)} / ${fmt(t.late_checkout_fee_per_hour||50000)}</span></div>
+            </div>
+            ${t.description ? `<div class="mt-3" style="font-size:12.5px;color:#64748b;line-height:1.4;background:#f8fafc;padding:10px;border-radius:6px;border:1px solid #f1f5f9;">${t.description}</div>` : ''}
+        </div>`).join('') + `
+        <button class="tc-add-btn" onclick="openAddType()">
+            <span style="width:24px;height:24px;display:block;">${SVGI.plus}</span>
+            Thêm hạng phòng
+        </button>`;
+}
+
+function openAddType() {
+    document.getElementById('tm-id').value='';
+    document.getElementById('tm-title').textContent='Thêm hạng phòng mới';
+    document.getElementById('tm-name').value='';
+    document.getElementById('tm-desc').value='';
+    document.getElementById('tm-night').value='0';
+    document.getElementById('tm-hour').value='0';
+    document.getElementById('tm-next-hour').value='0';
+    document.getElementById('tm-promo-start').value='';
+    document.getElementById('tm-promo-end').value='';
+    document.getElementById('tm-promo-pct').value='0';
+    document.getElementById('tm-guests').value='2';
+    document.getElementById('tm-minhours').value='1';
+    document.getElementById('tm-std-checkin').value='14:00';
+    document.getElementById('tm-std-checkout').value='12:00';
+    document.getElementById('tm-early-fee').value='50000';
+    document.getElementById('tm-late-fee').value='50000';
+    document.getElementById('tm-day-threshold').value='8';
+    document.getElementById('tm-grace').value='10';
+    document.getElementById('tm-sort').value = S.types.length;
+    // Reset to first tab, hide preview
+    showMTab('basic', document.querySelector('.m-tab'));
+    document.getElementById('pp-panel').style.display='none';
+    updateRuleCards();
+    openModal('typeModal');
+}
+
+function editType(id) {
+    const t = S.types.find(x => x.id === id); if (!t) return;
+    document.getElementById('tm-id').value = t.id;
+    document.getElementById('tm-title').textContent = `Sửa hạng: ${t.name}`;
+    document.getElementById('tm-name').value = t.name||'';
+    document.getElementById('tm-night').value = t.price_per_night||0;
+    document.getElementById('tm-hour').value  = t.price_per_hour||0;
+    document.getElementById('tm-next-hour').value  = t.price_next_hour||0;
+    document.getElementById('tm-promo-start').value = t.promo_start_time ? t.promo_start_time.substring(0,5) : '';
+    document.getElementById('tm-promo-end').value = t.promo_end_time ? t.promo_end_time.substring(0,5) : '';
+    document.getElementById('tm-promo-pct').value = t.promo_discount_percent||0;
+    document.getElementById('tm-guests').value= t.max_guests||2;
+    document.getElementById('tm-minhours').value = t.min_hours||1;
+    document.getElementById('tm-sort').value  = t.sort_order||0;
+    document.getElementById('tm-desc').value  = t.description||'';
+    document.getElementById('tm-std-checkin').value = t.standard_checkin_time ? t.standard_checkin_time.substring(0,5) : '14:00';
+    document.getElementById('tm-std-checkout').value = t.standard_checkout_time ? t.standard_checkout_time.substring(0,5) : '12:00';
+    document.getElementById('tm-early-fee').value = t.early_checkin_fee_per_hour||50000;
+    document.getElementById('tm-late-fee').value = t.late_checkout_fee_per_hour||50000;
+    document.getElementById('tm-day-threshold').value = t.day_threshold_hours||8;
+    document.getElementById('tm-grace').value = t.grace_minutes||10;
+    // Reset to first tab, show preview for existing types
+    showMTab('basic', document.querySelector('.m-tab'));
+    document.getElementById('pp-panel').style.display='block';
+    // Set default preview times
+    const now = new Date();
+    const ci = new Date(now); ci.setHours(10,0,0,0);
+    const co = new Date(now); co.setHours(15,0,0,0);
+    document.getElementById('pp-checkin').value = ci.toISOString().slice(0,16);
+    document.getElementById('pp-checkout').value = co.toISOString().slice(0,16);
+    document.getElementById('pp-result').innerHTML = '<div class="pp-empty">Nhấn "Tính giá" để xem kết quả</div>';
+    updateRuleCards();
+    openModal('typeModal');
+}
+
+async function saveType() {
+    const id   = document.getElementById('tm-id').value;
+    const name = document.getElementById('tm-name').value.trim();
+    if (!name) { toast('Nhập tên hạng phòng', false); return; }
+
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('price_per_night', document.getElementById('tm-night').value||0);
+    fd.append('price_per_hour',  document.getElementById('tm-hour').value||0);
+    fd.append('price_next_hour', document.getElementById('tm-next-hour').value||0);
+    fd.append('promo_start_time', document.getElementById('tm-promo-start').value||'');
+    fd.append('promo_end_time',   document.getElementById('tm-promo-end').value||'');
+    fd.append('promo_discount_percent', document.getElementById('tm-promo-pct').value||0);
+    fd.append('max_guests',      document.getElementById('tm-guests').value||2);
+    fd.append('min_hours',       document.getElementById('tm-minhours').value||1);
+    fd.append('sort_order',      document.getElementById('tm-sort').value||0);
+    fd.append('description',     document.getElementById('tm-desc').value||'');
+    // Pricing config (Standard Time Frame)
+    fd.append('standard_checkin_time',  document.getElementById('tm-std-checkin').value||'14:00');
+    fd.append('standard_checkout_time',  document.getElementById('tm-std-checkout').value||'12:00');
+    fd.append('early_checkin_fee_per_hour',  document.getElementById('tm-early-fee').value||50000);
+    fd.append('late_checkout_fee_per_hour',  document.getElementById('tm-late-fee').value||50000);
+    fd.append('grace_minutes',       document.getElementById('tm-grace').value||10);
+    fd.append('day_threshold_hours', document.getElementById('tm-day-threshold').value||8);
+    if (!id) fd.append('branch_id', S.bid);
+
+    const url = id ? `/api/pms/admin/room-types/${id}` : '/api/pms/admin/room-types';
+    const r = await fetch(url, { method: id ? 'PUT' : 'POST', body: fd, credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) {
+        closeModal('typeModal');
+        toast(d.message || 'Đã lưu'); await loadTypes();
+    } else { toast(d.detail || 'Lỗi', false); }
+}
+
+// ── Rooms ──────────────────────────────────────────────────────────────
+async function loadRooms() {
+    const r = await fetch(`/api/pms/admin/rooms?branch_id=${S.bid}`, {credentials:'same-origin'});
+    if (!r.ok) { toast('Lỗi tải danh sách phòng', false); return; }
+    S.rooms = await r.json();
+    document.getElementById('rooms-count').textContent = `(${S.rooms.length})`;
+    const tbody = document.getElementById('rooms-tbody');
+
+    if (!S.rooms.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="s-empty">${SVGI.bed}<p>Chưa có phòng nào</p></div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = S.rooms.map(rm => `
+        <tr>
+            <td style="padding-left:24px;font-weight:700;">${rm.room_number}</td>
+            <td style="white-space:nowrap;">Tầng ${rm.floor}</td>
+            <td><span class="rtype-badge blue">${rm.room_type_name||'—'}</span></td>
+            <td>${rm.price_per_night ? fmt(rm.price_per_night) : '—'}</td>
+            <td>${rm.price_per_hour  ? fmt(rm.price_per_hour)  : '—'}</td>
+            <td>${rm.price_next_hour  ? fmt(rm.price_next_hour)  : '—'}</td>
+            <td style="color:#6b7280;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${rm.notes||'—'}</td>
+            <td><span class="rtype-badge ${rm.is_active?'green':'gray'}">${rm.is_active?'Hoạt động':'Tắt'}</span></td>
+            <td>
+                <button class="tbl-btn edit" onclick="editRoom(${rm.id})" title="Sửa">${SVGI.edit}</button>
+                <button class="tbl-btn tog" onclick="toggleRoom(${rm.id}, ${!rm.is_active})" title="${rm.is_active ? 'Vô hiệu hoá' : 'Kích hoạt'}">${SVGI.toggle}</button>
+                <button class="tbl-btn del" onclick="delRoom(${rm.id})" title="Xoá vĩnh viễn">${SVGI.del}</button>
+            </td>
+        </tr>`).join('');
+}
+
+function populateTypeSelect(selId) {
+    const sel = document.getElementById('rm-type');
+    sel.innerHTML = '<option value="">— Không phân loại —</option>' +
+        S.types.map(t => `<option value="${t.id}"${t.id==selId?' selected':''}>${t.name}</option>`).join('');
+}
+
+function openAddRoom() {
+    if (!S.types.length) {
+        toast('Hãy thêm hạng phòng trước!', false);
+        showTab('types', document.querySelector('.s-tab[data-tab="types"]'));
+        return;
+    }
+    document.getElementById('rm-id').value='';
+    document.getElementById('rm-title').textContent='Thêm phòng mới';
+    document.getElementById('rm-number').value='';
+    document.getElementById('rm-floor').value='1';
+    document.getElementById('rm-notes').value='';
+    document.getElementById('rm-sort').value = S.rooms.length; // Auto sort_order
+    populateTypeSelect(null);
+    openModal('roomModal');
+}
+
+function editRoom(id) {
+    const rm = S.rooms.find(x => x.id === id); if (!rm) return;
+    document.getElementById('rm-id').value    = rm.id;
+    document.getElementById('rm-title').textContent = `Sửa phòng ${rm.room_number}`;
+    document.getElementById('rm-number').value = rm.room_number;
+    document.getElementById('rm-floor').value  = rm.floor;
+    document.getElementById('rm-notes').value  = rm.notes||'';
+    document.getElementById('rm-sort').value   = rm.sort_order||0;
+    populateTypeSelect(rm.room_type_id);
+    openModal('roomModal');
+}
+
+async function saveRoom() {
+    const id  = document.getElementById('rm-id').value;
+    const num = document.getElementById('rm-number').value.trim();
+    if (!num) { toast('Nhập số phòng', false); return; }
+
+    const fd = new FormData();
+    fd.append('room_number', num);
+    fd.append('floor',       document.getElementById('rm-floor').value||1);
+    fd.append('notes',       document.getElementById('rm-notes').value||'');
+    fd.append('sort_order',  document.getElementById('rm-sort').value||0);
+    const tid = document.getElementById('rm-type').value;
+    if (tid) fd.append('room_type_id', tid);
+    if (!id) fd.append('branch_id', S.bid);
+
+    const url = id ? `/api/pms/admin/rooms/${id}` : '/api/pms/admin/rooms';
+    const r = await fetch(url, { method: id ? 'PUT' : 'POST', body: fd, credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) {
+        closeModal('roomModal');
+        toast(d.message||'Đã lưu'); await loadRooms();
+    } else { toast(d.detail||'Lỗi', false); }
+}
+
+async function toggleRoom(id, activate) {
+    const rm = S.rooms.find(x => x.id === id);
+    const roomNum = rm ? rm.room_number : id;
+    const label = activate ? 'kích hoạt' : 'vô hiệu hoá';
+    if (!confirm(`${activate ? 'Kích hoạt' : 'Vô hiệu hoá'} phòng ${roomNum}?`)) return;
+    const fd = new FormData();
+    fd.append('is_active', activate);
+    const r = await fetch(`/api/pms/admin/rooms/${id}`, { method: 'PUT', body: fd, credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) { toast(`Đã ${label} phòng ${roomNum}`); await loadRooms(); }
+    else { toast(d.detail||'Lỗi', false); }
+}
+
+async function delRoom(id) {
+    const rm = S.rooms.find(x => x.id === id);
+    const roomNum = rm ? rm.room_number : id;
+    if (!confirm(`Xoá vĩnh viễn phòng ${roomNum}? Hành động này không thể hoàn tác!`)) return;
+    const r = await fetch(`/api/pms/admin/rooms/${id}`, { method: 'DELETE', credentials:'same-origin' });
+    const d = await r.json();
+    if (r.ok) { toast(d.message); await loadRooms(); }
+    else { toast(d.detail||'Lỗi', false); }
+}
+
+// ── Modal Section Tabs ────────────────────────────────────────────────
+function showMTab(name, btn) {
+    document.querySelectorAll('.m-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.m-tab').forEach(el => el.classList.remove('active'));
+    const sec = document.getElementById(`ms-${name}`);
+    if (sec) sec.classList.add('active');
+    if (btn) btn.classList.add('active');
+}
+
+// ── Update Rule Card badges dynamically ───────────────────────────────
+function updateRuleCards() {
+    const thr = document.getElementById('tm-day-threshold').value || 8;
+    const el1 = document.getElementById('rc-threshold');
+    const el2 = document.getElementById('rc-rollover');
+    if (el1) el1.textContent = `≥ ${thr}h`;
+    if (el2) el2.textContent = `≥ ${thr}h`;
+}
+// Wire threshold input to update rule cards
+document.getElementById('tm-day-threshold')?.addEventListener('input', updateRuleCards);
+
+// ── Live Pricing Preview ──────────────────────────────────────────────
+async function runPreview() {
+    const typeId = document.getElementById('tm-id').value;
+    if (!typeId) { toast('Lưu hạng phòng trước khi test giá', false); return; }
+
+    const ci = document.getElementById('pp-checkin').value;
+    const co = document.getElementById('pp-checkout').value;
+    const mode = document.getElementById('pp-mode-sel').value;
+    if (!ci || !co) { toast('Nhập thời gian check-in/check-out', false); return; }
+
+    const ppn = document.getElementById('tm-night').value || 0;
+    const pph = document.getElementById('tm-hour').value || 0;
+    const pnh = document.getElementById('tm-next-hour').value || 0;
+    const eFee = document.getElementById('tm-early-fee').value || 0;
+    const lFee = document.getElementById('tm-late-fee').value || 0;
+    const grace = document.getElementById('tm-grace').value || 10;
+    const thr = document.getElementById('tm-day-threshold').value || 8;
+
+    const params = new URLSearchParams({
+        checkin: ci, checkout: co, mode: mode,
+        day_threshold: thr,
+        ppn: ppn, pph: pph, pnh: pnh, early_fee: eFee, late_fee: lFee, grace: grace
+    });
+    const url = `/api/pms/admin/room-types/${typeId}/pricing-preview?${params.toString()}`;
+    try {
+        const r = await fetch(url, { credentials: 'same-origin' });
+        const d = await r.json();
+        if (!r.ok) { toast(d.detail || 'Lỗi', false); return; }
+        renderPreview(d);
+    } catch (e) {
+        toast('Lỗi kết nối', false);
+    }
+}
+
+function renderPreview(data) {
+    // Mode badge
+    const badge = document.getElementById('pp-mode-badge');
+    const modeMap = { HOURLY: 'hourly', DAILY: 'daily', OVERNIGHT: 'overnight' };
+    const modeLabel = { HOURLY: '⏱ Giờ', DAILY: '🌙 Ngày', OVERNIGHT: '🌃 Qua đêm' };
+    const cls = modeMap[data.mode_selected] || 'daily';
+    badge.className = `pp-mode ${cls}`;
+    badge.textContent = modeLabel[data.mode_selected] || data.mode_selected;
+
+    // Breakdown rows
+    let html = '<div class="pp-breakdown">';
+    for (const item of data.breakdown) {
+        const st = item.slice_type || 'core';
+        const dotCls = item.day_rollover ? 'rollover' : st;
+        const isFree = item.free_buffer || item.amount === 0;
+        html += `<div class="pp-row${isFree ? ' free' : ''}">`;
+        html += `<span class="pp-desc"><span class="pp-dot ${dotCls}"></span>${item.description}</span>`;
+        html += `<span class="pp-amt">${isFree ? 'Miễn phí' : fmt(item.amount)}</span>`;
+        html += `</div>`;
+    }
+    html += '</div>';
+
+    // Total
+    html += `<div class="pp-total">`;
+    html += `<span class="pp-total-label">Tổng cộng</span>`;
+    html += `<span class="pp-total-val">${fmt(data.total)}</span>`;
+    html += `</div>`;
+
+    document.getElementById('pp-result').innerHTML = html;
+}
+
+// ── Init Tab from URL ─────────────────────────────────────────────────
+(function(){
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'rooms') {
+        const btn = document.querySelector('.s-tab[data-tab="rooms"]');
+        if (btn) showTab('rooms', btn);
+    }
+})();
+</script>
+{% endblock %}

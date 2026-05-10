@@ -1,0 +1,1246 @@
+<!-- =========================================================================
+     POPUP MODALS (Surcharge, Service, Extension)
+     ========================================================================= -->
+<style>
+  :root {
+    --rd-bg-primary: rgb(235, 244, 246);
+    --rd-bg-secondary: rgba(122, 178, 178, 0.4);
+    --rd-accent-soft: rgb(8, 131, 149);
+    --rd-accent-bold: rgb(9, 99, 126);
+    --rd-text-main: rgb(9, 99, 126);
+    --rd-text-muted: rgb(122, 178, 178);
+    --rd-card-shadow: 0 10px 30px -10px rgba(9, 99, 126, 0.15);
+  }
+
+  /* ───── Sub-Modal Overlay & Base ───── */
+  .rd-sub-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(9, 99, 126, 0.25);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s ease;
+  }
+
+  .rd-sub-modal {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 30px 60px -12px rgba(9, 99, 126, 0.25);
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(122, 178, 178, 0.2);
+    animation: rdModalPop 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    max-width: 900px;
+    width: 95%;
+  }
+
+  @keyframes rdModalPop {
+    from { transform: scale(0.95) translateY(30px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  /* ───── Headers ───── */
+  .rd-sm-header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--rd-bg-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+  }
+
+  .rd-sm-title {
+    font-weight: 850;
+    color: var(--rd-accent-bold);
+    font-size: 18px;
+    letter-spacing: -0.02em;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rd-sm-close {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: var(--rd-bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--rd-accent-bold);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 20px;
+  }
+
+  .rd-sm-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    transform: rotate(90deg) scale(1.1);
+  }
+
+  /* ───── Body Layout ───── */
+  .rd-sm-body {
+    padding: 0;
+    display: flex;
+    min-height: 0;
+  }
+
+  .rd-sm-left {
+    flex: 1.8;
+    padding: 28px;
+    background: #fff;
+    overflow-y: auto;
+    max-height: 75vh;
+  }
+
+  .rd-sm-right {
+    flex: 1;
+    background: var(--rd-bg-primary);
+    border-left: 1px solid var(--rd-bg-secondary);
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    max-height: 75vh;
+  }
+
+  /* ───── Sidebar (Category Select) ───── */
+  .rd-sm-sidebar {
+    width: 210px;
+    border-right: 1px solid var(--rd-bg-secondary);
+    background: rgb(248, 252, 253);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+
+  .rd-sm-cat-item {
+    padding: 16px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--rd-text-muted);
+    transition: all 0.2s;
+    border-left: 4px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rd-sm-cat-item:hover {
+    background: rgba(122, 178, 178, 0.1);
+    color: var(--rd-accent-soft);
+  }
+
+  .rd-sm-cat-item.active {
+    background: #fff;
+    color: var(--rd-accent-bold);
+    font-weight: 850;
+    border-left-color: var(--rd-accent-soft);
+    box-shadow: 2px 0 10px rgba(9, 99, 126, 0.05);
+  }
+
+  /* ───── Service/Bill Items ───── */
+  .rd-sm-bill-list {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 20px;
+    padding-right: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .rd-sm-bill-item {
+    background: #fff;
+    border-radius: 16px;
+    border: 1px solid var(--rd-bg-secondary);
+    padding: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px -2px rgba(9, 99, 126, 0.04);
+    transition: all 0.2s;
+  }
+
+  .rd-sm-bill-item:hover {
+    transform: translateX(4px);
+    border-color: var(--rd-accent-soft);
+  }
+
+  .rd-sv-grid-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px -12px rgba(9, 99, 126, 0.2);
+    border-color: var(--rd-accent-soft);
+  }
+
+  .rd-sm-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-weight: 900;
+    color: var(--rd-accent-bold);
+    padding-top: 20px;
+    border-top: 2px solid var(--rd-bg-secondary);
+    margin-top: auto;
+  }
+
+  /* ───── Input Styles ───── */
+  .rd-sm-input-grp {
+    margin-bottom: 18px;
+  }
+
+  .rd-sm-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 850;
+    color: var(--rd-text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .rd-sm-input {
+    width: 100%;
+    border: 1.5px solid var(--rd-bg-secondary);
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--rd-accent-bold);
+    outline: none;
+    transition: all 0.2s;
+    background: #fff;
+  }
+
+  .rd-sm-input:focus {
+    border-color: var(--rd-accent-soft);
+    box-shadow: 0 0 0 4px rgba(8, 131, 149, 0.1);
+  }
+
+  /* Plus/Minus Field */
+  .rd-sm-pm-field {
+    display: flex;
+    align-items: stretch;
+    border: 1.5px solid var(--rd-bg-secondary);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .rd-sm-pm-btn {
+    background: var(--rd-bg-primary);
+    border: none;
+    width: 44px;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--rd-accent-bold);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .rd-sm-pm-btn:hover {
+    background: var(--rd-bg-secondary);
+    color: var(--rd-accent-soft);
+  }
+
+  .rd-sm-pm-input {
+    border: none;
+    border-left: 1px solid var(--rd-bg-secondary);
+    border-right: 1px solid var(--rd-bg-secondary);
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 850;
+    width: 100%;
+    outline: none;
+    color: var(--rd-accent-bold);
+    font-family: 'Outfit', sans-serif;
+  }
+
+  /* Chips */
+  .rd-sm-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .rd-sm-chip {
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: #fff;
+    color: var(--rd-accent-bold);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid var(--rd-bg-secondary);
+  }
+
+  .rd-sm-chip:hover {
+    border-color: var(--rd-accent-soft);
+    background: var(--rd-bg-primary);
+    transform: translateY(-1px);
+  }
+
+  /* ───── Animations & Dark Mode ───── */
+  html.dark :root {
+    --rd-bg-primary: #111b1d;
+    --rd-bg-secondary: rgba(122, 178, 178, 0.15);
+    --rd-text-main: #f0e6d2;
+    --rd-text-muted: #5e8484;
+  }
+
+  html.dark .rd-sm-header,
+  html.dark .rd-sm-left,
+  html.dark .rd-sm-cat-item.active {
+    background: #111b1d;
+  }
+
+  html.dark .rd-sm-sidebar {
+    background: #0d1415;
+  }
+
+  html.dark .rd-sm-bill-item,
+  html.dark .rd-sm-input,
+  html.dark .rd-sm-pm-field,
+  html.dark .rd-sm-chip {
+    background: rgba(0,0,0,0.2);
+    border-color: #2a3a3c;
+  }
+
+  html.dark .rd-sm-close {
+    background: #2a3a3c;
+  }
+</style>
+
+<!-- Surcharge Modal -->
+<div id="rd-sub-modal-surcharge" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 1100px;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
+        </svg>
+        Phát sinh lưu trú
+      </div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'; window.isCiMode=false;">&times;</div>
+    </div>
+    <div class="rd-sm-body">
+      <!-- Panel 1: Surcharge Categories -->
+      <div class="rd-sm-sidebar">
+        <div style="padding: 20px 24px; font-weight: 850; font-size: 10px; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--rd-bg-secondary);">
+          Phân loại
+        </div>
+        <div id="rd-sm-sur-cats" style="flex: 1; overflow-y: auto;">
+          <div class="rd-sm-cat-item active" onclick="pmsRdSwitchSurCat(this, 'DAMAGE')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            Đồ hỏng hóc
+          </div>
+          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSurCat(this, 'GUESTS')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="19" cy="11" r="2"/></svg>
+            Khách thêm
+          </div>
+          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSurCat(this, 'OTHER')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            Khác
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Items & Manual Entry -->
+      <div class="rd-sm-left" style="padding: 0; display: flex; flex-direction: column; background: #fff;">
+        <div style="padding: 24px; flex: 1; overflow-y: auto;">
+          <!-- Item Grid (Populated by JS) -->
+          <div id="rd-sm-sur-item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px;">
+            <!-- Category items go here -->
+          </div>
+
+          <!-- Manual Form -->
+          <div style="border-top: 2px dashed var(--rd-bg-secondary); padding-top: 24px;">
+            <div style="font-weight: 850; font-size: 11px; margin-bottom: 16px; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em;">Hoặc Nhập Thủ Công</div>
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
+              <div class="rd-sm-input-grp">
+                <label class="rd-sm-label">Nội dung chi phí</label>
+                <input type="text" class="rd-sm-input" id="rd-sm-sur-content" placeholder="Vd: Dọn phòng gấp, Giặt mền..." style="height: 50px;">
+              </div>
+              <div class="rd-sm-input-grp">
+                <label class="rd-sm-label">Số tiền (VND)</label>
+                <div class="rd-sm-pm-field" style="height: 50px;">
+                  <button class="rd-sm-pm-btn" onclick="rdIncr('rd-sm-sur-amount', -10000)">-</button>
+                  <input type="number" class="rd-sm-pm-input" id="rd-sm-sur-amount" value="0">
+                  <button class="rd-sm-pm-btn" onclick="rdIncr('rd-sm-sur-amount', 10000)">+</button>
+                </div>
+              </div>
+            </div>
+            <button class="v-btn primary" onclick="pmsRdAddTempSurcharge()"
+              style="margin-top: 12px; height: 50px; border-radius: 14px; font-weight: 850; width: 100%; border:none; background: var(--rd-bg-primary); color:var(--rd-accent-bold); display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer; transition:all 0.2s;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              Ghi vào phiếu tạm
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Bill Preview -->
+      <div class="rd-sm-right">
+        <div style="font-weight: 850; font-size: 11px; margin-bottom: 20px; color: var(--rd-text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><path d="M7 7h10"/><path d="M7 11h10"/><path d="M7 15h10"/></svg>
+          Hoá đơn tạm tính
+        </div>
+        <div class="rd-sm-bill-list" id="rd-sm-sur-bill-list" style="display: flex; flex-direction: column; min-height: 200px;">
+          <div class="rd-sv-empty" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--rd-text-muted); opacity:0.6; padding: 40px 20px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px; display: block;">
+              <rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
+            </svg>
+            <p style="margin:0; font-size:14px; font-weight:700; text-align: center; width: 100%;">Trống</p>
+          </div>
+        </div>
+        <div class="rd-sm-total-row">
+          <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--rd-text-muted);">Tổng phát sinh</span>
+          <span style="color: var(--rd-accent-bold); font-size: 24px; font-family: 'Outfit', sans-serif;" id="rd-sm-sur-total">0</span>
+        </div>
+        <button class="v-btn primary" onclick="pmsRdApplySurcharge()"
+          style="width: 100%; margin-top: 24px; height: 56px; border-radius: 16px; border:none; background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-weight:850; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.3); cursor:pointer;">
+          Lưu vào phòng
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="rd-sub-modal-service" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 1280px; width: 95%;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>
+        </svg>
+        Dịch vụ phòng
+      </div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'; window.isCiMode=false;">&times;</div>
+    </div>
+    <div class="rd-sm-body">
+      <!-- Sidebar Categories -->
+      <div class="rd-sm-sidebar">
+        <div style="padding: 20px 24px; font-weight: 850; font-size: 10px; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--rd-bg-secondary);">
+          Danh mục
+        </div>
+        <div id="rd-sm-sv-cats" style="flex: 1; overflow-y: auto;">
+          <div class="rd-sm-cat-item active" onclick="pmsRdSwitchSvCat(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M15 2h2a2 2 0 0 1 2 2v2"/><path d="M12 18v.01"/><path d="M8 18v.01"/><path d="M12 14v.01"/><path d="M8 14v.01"/><path d="M12 10v.01"/><path d="M8 10v.01"/></svg>
+            Đồ uống
+          </div>
+          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>
+            Đồ ăn nhanh
+          </div>
+          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m14 21-3-3 3-3"/><path d="m10 21 3-3-3-3"/><path d="M12 2v2"/><path d="m16.2 4.2 1.4 1.4"/><path d="M22 8h-2"/><path d="M12 10V8"/><path d="m7.8 4.2-1.4 1.4"/><path d="M2 8h2"/><path d="m12 14-2.5 2.5"/><path d="M12 14 9.5 11.5"/></svg>
+            Giặt là
+          </div>
+          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            Khác
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Interaction Area -->
+      <div class="rd-sm-left" style="padding: 0; display: flex; flex-direction: column;">
+        <div style="padding: 24px; border-bottom: 1px solid var(--rd-bg-secondary); background: #fff; position: sticky; top: 0; z-index: 10;">
+          <div style="position: relative;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+              stroke="var(--rd-text-muted)" stroke-width="3"
+              style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); pointer-events: none;">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input type="text" class="rd-sm-input" placeholder="Tìm tên dịch vụ..." oninput="pmsRdSearchService(this)"
+              style="padding-left: 48px; height: 50px; background: var(--rd-bg-primary); border-color: transparent;">
+          </div>
+        </div>
+        <div id="rd-sm-sv-list"
+          style="padding: 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; overflow-y: auto; max-height: 500px;">
+          <!-- Service Cards will be injected here -->
+        </div>
+      </div>
+
+      <!-- Bill Review Panel -->
+      <div class="rd-sm-right">
+        <div style="font-weight: 850; font-size: 11px; margin-bottom: 20px; color: var(--rd-text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="3">
+            <path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" />
+            <path d="M7 7h10" /><path d="M7 11h10" /><path d="M7 15h10" />
+          </svg>
+          Hoá đơn tạm tính
+        </div>
+        <div class="rd-sm-bill-list" id="rd-sm-sv-bill-list">
+          <!-- Items will appear here -->
+        </div>
+        <div class="rd-sm-total-row">
+          <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--rd-text-muted);">Tổng thành tiền</span>
+          <span style="color: var(--rd-accent-soft); font-size: 24px; font-family: 'Outfit', sans-serif;" id="rd-sm-sv-total">0</span>
+        </div>
+        <button class="v-btn primary" onclick="pmsRdApplyService()"
+          style="width: 100%; margin-top: 24px; height: 56px; border-radius: 16px; border:none; background: linear-gradient(135deg, var(--rd-accent-soft), var(--rd-accent-bold)); color:#fff; font-weight:850; box-shadow: 0 10px 20px -5px rgba(9, 99, 126, 0.3); cursor:pointer;">
+          Xác nhận dịch vụ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Extension Modal UI 2025 -->
+<div id="rd-sub-modal-extension" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal"
+    style="max-width: 580px; border-radius: 24px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); border: none;">
+    <div class="rd-sm-header"
+      style="margin-bottom: 24px; border: none; padding: 0; display: flex; justify-content: space-between; align-items: flex-start; background: transparent;">
+      <div>
+        <div class="rd-sm-title" style="font-size: 20px; font-weight: 800; color: #1e293b; margin-bottom: 4px;">Gia hạn
+          phòng</div>
+        <div style="font-size: 13px; color: #64748b;">Điều chỉnh thời gian lưu trú</div>
+      </div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'"
+        style="width: 32px; height: 32px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #64748b; font-size: 20px; transition: all 0.2s;">
+        &times;</div>
+    </div>
+
+    <div class="rd-sm-body" style="flex-direction: column; gap: 24px; padding: 0;">
+      <!-- Dual Preview Section -->
+      <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+        <!-- Current Checkout (Old) -->
+        <div style="background: #f1f5f9; padding: 16px; border-radius: 16px; border: 1px solid #e2e8f0; opacity: 0.8;">
+          <div
+            style="font-size: 10px; color: #64748b; text-transform: uppercase; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 6px;">
+            Thời gian trả phòng hiện tại</div>
+          <div id="rd-sm-ext-current"
+            style="font-size: 18px; font-weight: 700; color: #475569; letter-spacing: -0.01em; white-space: nowrap;">
+            ---</div>
+        </div>
+        <!-- New Checkout Preview -->
+        <div style="background: #f8fafc; padding: 20px; border-radius: 20px; border: 2px dashed #3b82f6;">
+          <div
+            style="font-size: 11px; color: #3b82f6; text-transform: uppercase; font-weight: 800; letter-spacing: 0.1em; margin-bottom: 8px;">
+            Thời gian trả phòng mới</div>
+          <div id="rd-sm-ext-preview"
+            style="font-size: 22px; font-weight: 900; color: #1e293b; letter-spacing: -0.01em; white-space: nowrap;">
+            ---</div>
+        </div>
+      </div>
+
+      <!-- Controls Container -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <label
+          style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-left: 4px;">Chọn
+          ngày & giờ trả</label>
+        <div
+          style="background: #fff; border-radius: 16px; border: 2px solid #f1f5f9; overflow: hidden; display: flex; align-items: stretch; transition: border-color 0.2s; height: 60px;">
+          <div
+            style="flex: 1.3; position: relative; border-right: 2px solid #f1f5f9; display: flex; align-items: center; padding: 0 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="#94a3b8" stroke-width="2" style="margin-right: 10px;">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            <input type="date" class="rd-sm-input" id="rd-sm-ext-date" onchange="rdUpdateExtPreview()"
+              style="flex: 1; border: none; background: transparent; font-size: 14px; font-weight: 600; color: #1e293b; outline: none; cursor: pointer; padding: 0;">
+          </div>
+          <div style="flex: 1; position: relative; display: flex; align-items: center; padding: 0 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="#94a3b8" stroke-width="2" style="margin-right: 10px;">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <input type="time" class="rd-sm-input" id="rd-sm-ext-time" onchange="rdUpdateExtPreview()"
+              style="flex: 1; border: none; background: transparent; font-size: 14px; font-weight: 600; color: #1e293b; outline: none; cursor: pointer; padding: 0;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="margin-top: 8px;">
+        <button class="v-btn primary" onclick="pmsRdSaveExtension()"
+          style="width: 100%; height: 56px; border-radius: 16px; font-weight: 700; font-size: 16px; background: #2563eb; color: #fff; border: none; box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4); cursor: pointer; transition: transform 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Xác nhận gia hạn
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Discount Modal -->
+<div id="rd-sub-modal-discount" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 450px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+    <div class="rd-sm-header" style="background:#fef3c7; border-bottom:1px solid #fde68a;">
+      <div class="rd-sm-title" style="color:#b45309; display:flex; align-items:center; gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+        Thêm Giảm Giá
+      </div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'" style="background:#fde68a; color:#b45309;">&times;</div>
+    </div>
+    <div class="rd-sm-body" style="flex-direction: column; gap: 16px; padding: 24px;">
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Số tiền giảm (VND) <span class="f-req">*</span></label>
+        <input type="text" class="rd-sm-input" id="rd-pay-discount-input" placeholder="0" oninput="if(typeof pmsPayFormatCurrency === 'function') pmsPayFormatCurrency(this)" style="font-size: 20px; font-weight: 700; height: 52px; color: #b45309;">
+      </div>
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Lý do giảm giá (tuỳ chọn)</label>
+        <input type="text" class="rd-sm-input" id="rd-pay-discount-reason" placeholder="Vd: Khách thân thiết, lỗi dịch vụ..." style="height: 48px;">
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top: 8px;">
+        <button class="v-btn outline" onclick="document.getElementById('rd-sub-modal-discount').style.display='none'" style="flex:1; height:48px; border-radius:12px;">Huỷ bỏ</button>
+        <button class="v-btn primary" onclick="rdPaySubmitDiscount()" style="flex:2; height:48px; border-radius:12px; font-weight:700; background:#d97706; border-color:#d97706; box-shadow:0 10px 15px -3px rgba(217, 119, 6, 0.3);">
+          Xác nhận giảm giá
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================================================
+     PAYMENT RECORD MODAL V4 (Fintech Premium Horizontal Redesign)
+     ========================================================================= -->
+<style>
+  /* Layout chính: Cột trái (Thông tin & Nhập tiền) | Cột phải (Phương thức & Ghi chú) */
+  #rd-sub-modal-payment-v2 .rd-payment-body {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr; /* Tăng độ rộng cột phải để dàn hàng ngang 5 nút */
+    min-height: 420px;
+    background: #fff;
+  }
+
+  /* Cột trái - Trạng thái tài chính */
+  #rd-sub-modal-payment-v2 .rd-pay-left {
+    padding: 32px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* Ô nhập tiền khổng lồ - Trọng tâm thị giác */
+  .rd-pay-amount-input-group {
+    background: #fff;
+    border: 2px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 20px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  }
+
+  .rd-pay-amount-input-group:focus-within {
+    border-color: #0d9488;
+    box-shadow: 0 10px 15px -3px rgba(13, 148, 136, 0.1);
+    transform: translateY(-2px);
+  }
+
+  /* Dãy ngang 5 phương thức thanh toán */
+  .rd-pay-methods-horizontal {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+
+  .rd-pay-method-item {
+    flex: 1;
+    cursor: pointer;
+  }
+
+  .rd-pay-method-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 8px;
+    border-radius: 16px;
+    border: 2px solid #f1f5f9;
+    background: #fff;
+    transition: all 0.25s ease;
+    height: 100%;
+    min-width: 80px;
+  }
+
+  .rd-pay-method-item input:checked + .rd-pay-method-card {
+    border-color: #0d9488;
+    background: #f0fdfa;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+  }
+
+  .rd-pay-method-item input:checked + .rd-pay-method-card svg {
+    color: #0d9488;
+    transform: scale(1.1);
+  }
+
+  .rd-pay-method-label {
+    font-size: 11px;
+    font-weight: 800;
+    margin-top: 8px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .rd-pay-method-item input:checked + .rd-pay-method-card .rd-pay-method-label {
+    color: #0d9488;
+  }
+
+  /* Note area tối giản */
+  .rd-pay-note-minimal {
+    width: 100%;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px;
+    font-size: 14px;
+    resize: none;
+    min-height: 120px;
+    outline: none;
+    transition: 0.2s;
+  }
+
+  .rd-pay-note-minimal:focus {
+    border-color: #0d9488;
+    background: #fff;
+  }
+</style>
+
+<div id="rd-sub-modal-payment-v2" class="rd-sub-modal-overlay" style="display:none; position:fixed; inset:0; z-index:9999; align-items:center; justify-content:center; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(4px);">
+  <div class="rd-sub-modal" style="max-width: 960px; overflow:hidden; border-radius:32px; animation: rdModalPop 0.4s cubic-bezier(0.19, 1, 0.22, 1); box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.5);">
+    <div class="rd-sm-header" style="padding: 24px 32px; background: transparent; border-bottom: 1px solid rgba(0,0,0,0.05);">
+       <div class="rd-sm-title flex items-center gap-3 text-2xl font-black text-slate-800 tracking-tight">
+          <div class="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+      </div>
+          Xác nhận thanh toán
+    </div>
+       <div class="rd-sm-close" onclick="document.getElementById('rd-sub-modal-payment-v2').style.display='none'" style="cursor:pointer; color:#64748b;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+       </div>
+    </div>
+
+    <div class="rd-payment-body">
+      <div class="rd-pay-left">
+        <div id="rd-pay-v2-balance-wrap" class="rd-pay-balance-display positive" style="padding: 24px; border-radius: 20px; box-shadow: 0 10px 30px -10px rgba(13, 148, 136, 0.3);">
+            <div class="text-[10px] font-black uppercase opacity-70 mb-1" id="rd-pay-v2-balance-label">Cần thanh toán</div>
+            <div class="flex items-baseline gap-2">
+                <span class="text-4xl font-black" id="rd-pay-v2-balance">0</span>
+                <span class="text-xs font-bold opacity-60">VND</span>
+            </div>
+        </div>
+
+        <div class="rd-pay-amount-section">
+            <label class="rd-sm-label block text-[11px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-2" style="margin-left: 4px;">Số tiền khách trả</label>
+            <div class="rd-pay-amount-input-group">
+                <div class="flex items-center gap-3">
+                    <div class="text-teal-600">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <input type="text" id="rd-pay-v2-amount" oninput="rdPayV2Format(this)" class="rd-pay-main-input" placeholder="0" style="text-align: left; font-size: 32px; width:100%; border:none; outline:none; font-family: ui-monospace, monospace; font-weight:900; background:transparent;">
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div class="rd-pay-right" style="padding: 32px;">
+        <label class="rd-sm-label block text-[11px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-2" style="margin-bottom: 12px;">Phương thức thanh toán</label>
+        <div class="rd-pay-methods-horizontal">
+          <label class="rd-pay-method-item">
+            <input type="radio" name="rd-pay-m" value="CASH" checked class="sr-only" onchange="rdToggleOtaBlock()">
+            <div class="rd-pay-method-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/></svg>
+              <span class="rd-pay-method-label">Tiền mặt</span>
+            </div>
+          </label>
+          <label class="rd-pay-method-item">
+            <input type="radio" name="rd-pay-m" value="BRANCH" class="sr-only" onchange="rdToggleOtaBlock()">
+            <div class="rd-pay-method-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/></svg>
+              <span class="rd-pay-method-label">Banking</span>
+            </div>
+          </label>
+          <label class="rd-pay-method-item">
+            <input type="radio" name="rd-pay-m" value="CARD" class="sr-only" onchange="rdToggleOtaBlock()">
+            <div class="rd-pay-method-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              <span class="rd-pay-method-label">Quẹt thẻ</span>
+            </div>
+          </label>
+          <label class="rd-pay-method-item">
+            <input type="radio" name="rd-pay-m" value="OTA" class="sr-only" onchange="rdToggleOtaBlock()">
+            <div class="rd-pay-method-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v14"/></svg>
+              <span class="rd-pay-method-label">OTA</span>
+        </div>
+          </label>
+          <label class="rd-pay-method-item">
+            <input type="radio" name="rd-pay-m" value="COMPANY" class="sr-only" onchange="rdToggleOtaBlock()">
+            <div class="rd-pay-method-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>
+              <span class="rd-pay-method-label">Công ty</span>
+            </div>
+          </label>
+      </div>
+
+        <div id="rd-pay-ota-details" style="display:none; margin-bottom: 24px; padding: 20px; background: rgba(241,245,249,0.5); border: 2px dashed #e2e8f0; border-radius: 20px;">
+          <div style="display: flex; gap: 16px;">
+            <div style="flex: 1;">
+              <label class="rd-sm-label block text-[11px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-2">Kênh OTA</label>
+              <select id="rd-pay-ota-channel" style="width: 100%; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; font-weight: 600; font-size: 14px; outline: none; transition: all 0.2s; background: #fff; cursor: pointer; color: #0f172a;">
+                <option value="Agoda">Agoda</option>
+                <option value="Booking.com">Booking.com</option>
+                <option value="Traveloka">Traveloka</option>
+                <option value="Expedia">Expedia</option>
+                <option value="Trip.com">Trip.com</option>
+                <option value="Khác">Khác</option>
+              </select>
+            </div>
+            <div style="flex: 1.5;">
+              <label class="rd-sm-label block text-[11px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-2">Mã OTA (Booking ID, VCC...)</label>
+              <input type="text" id="rd-pay-ota-code" placeholder="Nhập mã tham chiếu..." style="width: 100%; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; font-weight: 600; font-size: 14px; outline: none; transition: all 0.2s; background: #fff; color: #0f172a;">
+            </div>
+          </div>
+      </div>
+
+        <label class="rd-sm-label block text-[11px] font-black text-slate-500 uppercase tracking-widest pl-1 mb-2" style="margin-bottom: 8px;">Ghi chú giao dịch</label>
+        <textarea id="rd-pay-v2-note" class="rd-pay-note-minimal" placeholder="Nhập ghi chú hoặc nội dung chuyển khoản..."></textarea>
+      </div>
+      </div>
+
+    <div class="rd-pay-final-bar" style="padding: 24px 32px; display:flex; justify-content:flex-end; gap:16px; background:#f8fafc; border-top:1px solid rgba(0,0,0,0.05);">
+      <button class="rd-pay-btn-close" onclick="document.getElementById('rd-sub-modal-payment-v2').style.display='none'" style="background:transparent; color:#64748b; font-weight:800; border:none; cursor:pointer;">Huỷ bỏ</button>
+      <button id="rd-pay-v2-submit-btn" onclick="rdPayV2Submit()" class="rd-pay-btn-main" style="background:linear-gradient(135deg, #0d9488, #0f766e); color:#fff; padding:16px 36px; border-radius:18px; font-weight:900; border:none; cursor:pointer; display:flex; gap:12px; align-items:center;">
+        Xác nhận giao dịch
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+
+    <!-- Hidden Controllers -->
+    <input type="hidden" id="rd-pay-v2-folio-id">
+    <input type="hidden" id="rd-pay-v2-stay-id">
+    <input type="hidden" id="rd-pay-v2-room">
+    <input type="hidden" id="rd-pay-v2-branch">
+  </div>
+</div>
+
+
+<script>
+function rdPayReadDashboardBalance() {
+  const balEl = document.getElementById('rd-pay-dash-balance');
+  if (!balEl) return null;
+  const card = balEl.closest('.chk-dash-card-v3');
+  const label = (card?.querySelector('.lbl')?.textContent || '').toUpperCase();
+  const amount = typeof pmsParseCurrency === 'function'
+    ? pmsParseCurrency(balEl.textContent || '0')
+    : (parseInt(String(balEl.textContent || '0').replace(/[^0-9]/g, ''), 10) || 0);
+
+  if (label.includes('THU THÊM') || label.includes('NỢ') || label.includes('THANH TOÁN')) return amount;
+  if (label.includes('DƯ')) return -amount;
+  if (label.includes('TẤT TOÁN')) return 0;
+  return null;
+}
+
+async function rdPayV2OpenFromStay() {
+  const btn = document.getElementById('rd-pay-open-btn');
+  if (typeof rdPayTabLoaded !== 'undefined' && !rdPayTabLoaded) {
+    pmsToast('Đang tải dữ liệu, vui lòng đợi...', false);
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.65'; }
+
+  try {
+    if (!rdStayData?.id) { pmsToast('Chưa có thông tin lưu trú.', false); return; }
+    if (!rdFolioLoaded || rdCurrentFolios.length === 0) { await fetchFolio(rdStayData.id); }
+
+    const activeIdx = typeof rdActiveFolioIndex !== 'undefined' ? rdActiveFolioIndex : 0;
+    const folio = rdCurrentFolios[activeIdx] || rdCurrentFolio || rdCurrentFolios[0];
+    if (!folio) { pmsToast('Chưa có hóa đơn.', false); return; }
+
+    let balance = 0;
+    const dashboardBalance = rdPayReadDashboardBalance();
+    if (dashboardBalance !== null) {
+        balance = dashboardBalance;
+    } else if (typeof rdCalculateFolioBalance === 'function') {
+        balance = rdCalculateFolioBalance(folio);
+    } else {
+        try {
+            const balData = await rdPayFetchBalance(folio.id);
+            balance = parseFloat(balData?.balance) || parseFloat(rdPaymentState?.balance) || parseFloat(folio.balance) || 0;
+        } catch(e) { balance = parseFloat(rdPaymentState?.balance) || parseFloat(folio.balance) || 0; }
+    }
+
+    rdPayV2Open({
+      id: folio.id,
+      stay_id: rdStayData.id,
+      room_number: rdStayData.room_number || folio.room_number || '',
+      branch_code: rdStayData.branch_code || '',
+      folio_num: activeIdx + 1,
+      balance: balance,
+      is_checked_out: rdIsCheckedOut,
+      isDebtCollection: rdIsCheckedOut && balance > 0,
+    });
+  } catch(e) { pmsToast('Lỗi: ' + e.message, false); }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; } }
+}
+
+function rdPayV2Open(data) {
+  const modal = document.getElementById('rd-sub-modal-payment-v2');
+  modal.style.display = 'flex';
+
+  const balance = parseFloat(data.balance || 0);
+  const isDebtCollection = data.is_checked_out === true || data.isDebtCollection === true;
+  const isOverpaid = balance < 0;  // Khách dư
+  const absBalance = Math.abs(balance);
+  const wrap = document.getElementById('rd-pay-v2-balance-wrap');
+  const label = document.getElementById('rd-pay-v2-balance-label');
+  const amountEl = document.getElementById('rd-pay-v2-balance');
+  const roomTag = document.getElementById('rd-pay-v2-room-tag');
+  const folioName = document.getElementById('rd-pay-v2-folio-name');
+  const headerTitle = document.querySelector('#rd-sub-modal-payment-v2 .rd-sm-title');
+
+  if (roomTag) roomTag.textContent = `Room ${data.room_number || ''}`;
+  if (folioName) folioName.textContent = `Folio #${data.folio_num || '1'}`;
+
+  // Dynamic title: "Thu nợ" / "Nạp thêm" / "Thanh toán"
+  if (headerTitle) {
+    if (isDebtCollection && balance > 0) {
+      headerTitle.innerHTML = `
+        <div class="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600" style="background: rgba(245,158,11,0.15);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        Thu nợ cho phòng đã trả`;
+      headerTitle.style.color = '#92400e';
+    } else if (isOverpaid) {
+      headerTitle.innerHTML = `
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background: rgba(59,130,246,0.15);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        Nạp thêm cho khách`;
+      headerTitle.style.color = '#1e40af';
+    } else {
+      headerTitle.innerHTML = `
+        <div class="w-12 h-12 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        </div>
+        Xác nhận thanh toán`;
+      headerTitle.style.color = '';
+    }
+  }
+
+  // Premium State Coloring
+  if (balance > 0) {
+    wrap.className = 'rd-pay-balance-display positive';
+    label.textContent = isDebtCollection ? 'CẦN THU NỢ' : 'CẦN THANH TOÁN';
+    amountEl.textContent = rdPayV2FormatCurrency(balance);
+  } else if (balance < 0) {
+    wrap.className = 'rd-pay-balance-display negative';
+    label.textContent = 'KHÁCH DƯ';
+    amountEl.textContent = rdPayV2FormatCurrency(absBalance);
+  } else {
+    wrap.className = 'rd-pay-balance-display zero';
+    label.textContent = 'ĐÃ TẤT TOÁN';
+    amountEl.textContent = '0';
+  }
+
+  document.getElementById('rd-pay-v2-folio-id').value = data.id || '';
+  document.getElementById('rd-pay-v2-stay-id').value = data.stay_id || '';
+  document.getElementById('rd-pay-v2-room').value = data.room_number || '';
+  document.getElementById('rd-pay-v2-branch').value = data.branch_code || '';
+  
+  // Amount: pre-fill với số dư tuyệt đối (luôn dương)
+  const amountInput = document.getElementById('rd-pay-v2-amount');
+  amountInput.value = balance !== 0 ? rdPayV2FormatCurrency(absBalance) : '';
+  document.getElementById('rd-pay-v2-note').value = '';
+  
+  // Auto focus field
+  setTimeout(() => amountInput.focus(), 300);
+
+  document.querySelectorAll('input[name="rd-pay-m"]').forEach(el => el.checked = el.value === 'CASH');
+  
+  // Reset OTA Details Fields & Hide it
+  document.getElementById('rd-pay-ota-channel').value = 'Agoda';
+  document.getElementById('rd-pay-ota-code').value = '';
+  rdToggleOtaBlock();
+}
+
+function rdToggleOtaBlock() {
+  const otaRadio = document.querySelector('input[name="rd-pay-m"][value="OTA"]');
+  const otaBlock = document.getElementById('rd-pay-ota-details');
+  if (otaRadio && otaRadio.checked) {
+    otaBlock.style.display = 'block';
+  } else {
+    otaBlock.style.display = 'none';
+  }
+}
+
+function rdPayV2Format(el) {
+  let val = el.value.replace(/[^0-9]/g, '');
+  el.value = val ? parseInt(val).toLocaleString('vi-VN') : '';
+}
+
+function rdPayV2FormatCurrency(num) {
+  return (Math.round(num)).toLocaleString('vi-VN');
+}
+
+async function rdPayV2Submit() {
+  const btn = document.getElementById('rd-pay-v2-submit-btn');
+  const folioId = document.getElementById('rd-pay-v2-folio-id').value;
+  const stayId = document.getElementById('rd-pay-v2-stay-id').value;
+  const amountStr = document.getElementById('rd-pay-v2-amount').value || '0';
+  const amount = parseInt(amountStr.replace(/[^0-9]/g, '')) || 0;
+
+  if (amount <= 0) { pmsToast('Vui lòng nhập số tiền.', false); return; }
+
+  let method = 'CASH';
+  document.querySelectorAll('input[name="rd-pay-m"]').forEach(el => { if (el.checked) method = el.value; });
+
+  let finalNote = document.getElementById('rd-pay-v2-note').value.trim();
+  if (method === 'OTA') {
+    const otaChan = document.getElementById('rd-pay-ota-channel').value;
+    const otaCode = document.getElementById('rd-pay-ota-code').value.trim();
+    if (otaCode) {
+      finalNote = `[OTA: ${otaChan} | ${otaCode}] ${finalNote}`.trim();
+    } else {
+      finalNote = `[OTA: ${otaChan}] ${finalNote}`.trim();
+    }
+  }
+
+  btn.disabled = true;
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '<span>Đang xử lý...</span>';
+  if (typeof rdSetBusy === 'function') rdSetBusy(true, 'Đang thanh toán...');
+
+  try {
+    const res = await fetch(`/api/pms/folio/${folioId}/payment-with-shift`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: amount.toString(),
+        method: method,
+        note: finalNote,
+        room_number: document.getElementById('rd-pay-v2-room').value,
+        chi_nhanh: document.getElementById('rd-pay-v2-branch').value,
+      }),
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Lỗi thanh toán');
+    }
+
+    document.getElementById('rd-sub-modal-payment-v2').style.display = 'none';
+    pmsToast('Thanh toán thành công', true);
+
+    if (stayId) {
+      // Hiệu ứng overlay cho thẻ phòng ở background
+      const cardEl = document.querySelector(`.rc-wrap[data-stay-id="${stayId}"]`);
+      if (cardEl) {
+          cardEl.style.position = 'relative';
+          if (!cardEl.querySelector('.room-loading-overlay')) {
+              cardEl.insertAdjacentHTML('beforeend', `
+                  <div class="room-loading-overlay" style="position: absolute; inset: 0; background:rgba(255,255,255,0.7); display:flex; align-items:center; justify-content:center; border-radius:12px; z-index:10; backdrop-filter:blur(1px);">
+                      <svg class="pms-spinner" viewBox="0 0 50 50" style="width:24px; height:24px; animation: pms-rotate 2s linear infinite;">
+                          <circle cx="25" cy="25" r="20" fill="none" stroke="#2563eb" stroke-width="5" stroke-linecap="round" style="animation: pms-dash 1.5s ease-in-out infinite;"></circle>
+                      </svg>
+                  </div>
+              `);
+          }
+      }
+
+      if (typeof fetchFolio === 'function') await fetchFolio(parseInt(stayId));
+      if (typeof rdLoadPayment === 'function') rdLoadPayment();
+
+      // Refresh lại danh sách ở background (Sơ đồ phòng hoặc Lịch sử)
+      if (typeof pmsLoadRooms === 'function') pmsLoadRooms(undefined, true);
+      if (typeof rhLoad === 'function') {
+          if (typeof rhState !== 'undefined' && rhState.page) rhLoad(rhState.page, true);
+          else rhLoad(1, true);
+      }
+    }
+  } catch(e) { pmsToast(e.message, false); }
+  finally {
+    if (typeof rdSetBusy === 'function') rdSetBusy(false);
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+}
+</script>
+
+
+
+<!-- Folio Create Modal -->
+<div id="rd-sub-modal-folio-create" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 780px; border-radius: 20px;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">Tách Hóa Đơn Mới</div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+    <style>
+      .rd-split-grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+      .rd-split-tx-list { display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto; padding-right:4px; }
+      .rd-split-tx-row {
+        display:grid; grid-template-columns: 22px 1fr auto; gap:10px; align-items:center;
+        padding:10px 12px; border:1px solid var(--rd-bg-secondary); border-radius:12px; background:#fff;
+        cursor:pointer; transition: all .18s ease;
+      }
+      .rd-split-tx-row:hover { border-color: var(--rd-accent-soft); background: var(--rd-bg-primary); }
+      .rd-split-tx-row input { width:16px; height:16px; accent-color: var(--rd-accent-soft); }
+      .rd-split-tx-row strong { display:block; font-size:12px; color:var(--rd-accent-bold); font-weight:850; line-height:1.25; }
+      .rd-split-tx-row small { display:block; margin-top:3px; font-size:10px; color:#64748b; font-weight:700; }
+      .rd-split-tx-row b { font-size:12px; color:var(--rd-accent-bold); font-family:ui-monospace,'Courier New',monospace; }
+      .rd-split-summary { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:12px; background:var(--rd-bg-primary); color:var(--rd-accent-bold); font-size:12px; font-weight:850; }
+      @media (max-width: 760px) { .rd-split-grid { grid-template-columns:1fr; } }
+    </style>
+    <div class="rd-sm-body" style="flex-direction: column; gap: 16px; padding: 24px;">
+      <div class="rd-split-grid">
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Khách / người nhận hóa đơn</label>
+          <select class="rd-sm-input" id="rd-folio-create-guest" onchange="rdPaySyncSplitBillGuest()"></select>
+        </div>
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Tên hóa đơn phụ</label>
+          <input type="text" class="rd-sm-input" id="rd-folio-create-name" placeholder="VD: Hóa đơn Công ty, Ăn uống...">
+        </div>
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Đơn vị / người nộp thuế</label>
+          <input type="text" class="rd-sm-input" id="rd-folio-create-invoice-name" placeholder="Tên công ty hoặc cá nhân">
+        </div>
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Mã số thuế</label>
+          <input type="text" class="rd-sm-input" id="rd-folio-create-tax-code" placeholder="MST nếu có">
+        </div>
+      </div>
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Liên hệ xuất hóa đơn</label>
+        <input type="text" class="rd-sm-input" id="rd-folio-create-invoice-contact" placeholder="Email, SĐT hoặc người liên hệ">
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div class="rd-split-summary">
+          <span>Dòng phí chuyển sang hóa đơn mới: <b id="rd-folio-create-selected-count">0</b></span>
+          <span id="rd-folio-create-transfer-total">0&nbsp;₫</span>
+        </div>
+        <div id="rd-folio-create-tx-list" class="rd-split-tx-list"></div>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:12px; margin-top: 8px;">
+        <button class="v-btn outline" onclick="document.getElementById('rd-sub-modal-folio-create').style.display='none'" style="flex:1; height:48px; border-radius:12px;">Huỷ</button>
+        <button class="v-btn primary" onclick="rdPaySubmitAddFolio()" style="flex:2; height:48px; border-radius:12px; font-weight:700;">
+          Xác nhận tách
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Folio Merge Modal -->
+<div id="rd-sub-modal-folio-merge" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 450px; border-radius: 20px;">
+    <div class="rd-sm-header" style="background:#f1f5f9;">
+      <div class="rd-sm-title">Gộp Hóa Đơn</div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+    <div class="rd-sm-body" style="flex-direction: column; gap: 20px; padding: 24px;">
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Hóa đơn nguồn (Sẽ bị xóa)</label>
+        <select class="rd-sm-input" id="rd-folio-merge-source" style="height:48px;"></select>
+        <p style="font-size:11px; color:#ef4444; margin-top:4px;">* Toàn bộ giao dịch sẽ được chuyển đi và hóa đơn này sẽ bị xóa.</p>
+      </div>
+      <div style="text-align:center; color:#94a3b8;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+      </div>
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Hóa đơn đích (Hóa đơn nhận)</label>
+        <select class="rd-sm-input" id="rd-folio-merge-target" style="height:48px;"></select>
+      </div>
+      <button class="v-btn primary" onclick="rdPaySubmitMergeFolio()" style="width:100%; height:52px; border-radius:12px; font-weight:700; background:#475569; border-color:#475569;">
+        Xác nhận gộp Hóa đơn
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Folio Transfer Modal -->
+<div id="rd-sub-modal-folio-transfer" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 400px; border-radius: 20px;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">Chuyển Giao Dịch</div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+    <div class="rd-sm-body" style="flex-direction: column; gap: 16px; padding: 24px;">
+      <input type="hidden" id="rd-folio-transfer-tx-id">
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Chuyển đến hóa đơn:</label>
+        <select class="rd-sm-input" id="rd-folio-transfer-target" style="height:48px;"></select>
+      </div>
+      <button class="v-btn primary" onclick="rdPaySubmitTransferTx()" style="width:100%; height:48px; border-radius:12px; font-weight:700;">
+        Xác nhận chuyển
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Price Breakdown Modal (Redesigned Horizontal 2026) -->
+<div id="rd-sub-modal-breakdown" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 860px; border-radius: 28px; border: 1px solid var(--rd-bg-secondary); box-shadow: 0 40px 80px -12px rgba(9, 99, 126, 0.35);">
+    <!-- Glassmorphism Header -->
+    <div class="rd-sm-header" style="background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(235, 244, 246, 0.5)); backdrop-filter: blur(20px); padding: 24px 28px;">
+      <div class="rd-sm-title" style="font-size: 20px; font-weight: 900;">
+        <div style="width: 40px; height: 40px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--rd-accent-soft); box-shadow: 0 4px 12px rgba(8, 131, 149, 0.15); border: 1px solid var(--rd-bg-secondary);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </div>
+        Chi Tiết Giá
+      </div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+
+    <div class="rd-sm-body" style="padding: 24px 28px 28px; flex-direction: column; background: #fff;">
+      <!-- Table Headers -->
+      <div style="display: grid; grid-template-columns: 2fr 2.5fr 1fr 1.5fr; gap: 20px; padding: 0 18px 12px; border-bottom: 1.5px solid var(--rd-bg-secondary); margin-bottom: 16px; white-space: nowrap;">
+        <div style="font-size: 10px; font-weight: 850; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em;">Loại lưu trú</div>
+        <div style="font-size: 10px; font-weight: 850; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em;">Khoảng thời gian</div>
+        <div style="font-size: 10px; font-weight: 850; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em; text-align: right;">Thời lượng</div>
+        <div style="font-size: 10px; font-weight: 850; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em; text-align: right;">Thành tiền</div>
+      </div>
+
+      <!-- Row Container -->
+      <div id="rd-ri-bd-rows" style="display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; padding-right: 8px;">
+        <!-- Dynamically populated -->
+      </div>
+
+      <!-- Footer Summary -->
+      <div style="margin-top: 24px; padding-top: 24px; border-top: 2px dashed var(--rd-bg-secondary); display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="font-size: 11px; font-weight: 850; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em;">Tổng giá cộng dồn</span>
+          <span style="font-size: 14px; font-weight: 850; color: var(--rd-accent-bold);">Tổng thanh toán</span>
+        </div>
+        <div style="text-align: right;">
+          <span id="rd-bd-modal-total" style="font-size: 28px; font-weight: 900; color: var(--rd-accent-bold); font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function rdIncr(id, amount) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = parseInt(el.value || 0) + amount;
+  }
+</script>

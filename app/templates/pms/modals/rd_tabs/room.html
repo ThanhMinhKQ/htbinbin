@@ -1,0 +1,1118 @@
+<div id="rd-tab-room" class="rd-tab-content" data-display="flex"
+  style="flex:1; overflow:hidden; display:none; padding:16px; min-height:0;">
+  <style>
+    /* ── Room Info Card 2026 Premium ───────────────────────────── */
+    :root {
+      --rd-bg-primary: rgb(235, 244, 246);
+      --rd-bg-secondary: rgba(122, 178, 178, 0.4);
+      --rd-accent-soft: rgb(8, 131, 149);
+      --rd-accent-bold: rgb(9, 99, 126);
+      --rd-text-main: rgb(9, 99, 126);
+      --rd-text-muted: rgb(122, 178, 178);
+      --rd-card-shadow: 0 10px 30px -10px rgba(9, 99, 126, 0.15);
+    }
+
+    .rd-ri-card {
+      position: relative;
+    }
+
+    .rd-price-card {
+      position: relative;
+    }
+
+    .rd-price-card-updating {
+      position: absolute;
+      inset: 0;
+      z-index: 6;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(9, 99, 126, 0.74);
+      backdrop-filter: blur(10px);
+    }
+
+    .rd-price-card.is-updating > :not(.rd-price-card-updating) {
+      opacity: 0.08;
+    }
+
+    .rd-price-card.is-updating .rd-price-card-updating {
+      display: flex;
+    }
+
+    .rd-price-card-loader {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .rd-price-card-loader::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-top-color: #fff;
+      animation: rd-price-spin 0.7s linear infinite;
+    }
+
+    @keyframes rd-price-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .rd-ri-watermark {
+      position: absolute;
+      bottom: -20px;
+      right: 20px;
+      width: 200px;
+      height: 200px;
+      opacity: 0.03;
+      pointer-events: none;
+      z-index: 0;
+      transform: rotate(-10deg);
+      color: var(--rd-accent-bold);
+    }
+
+    /* Hero Price - Modern Glassmorphism */
+    .rd-ri-hero {
+      background: linear-gradient(135deg, var(--rd-accent-soft) 0%, var(--rd-accent-bold) 100%);
+      padding: 24px 28px;
+      position: relative;
+      color: #fff;
+    }
+
+    .rd-ri-hero::before {
+      content: '';
+      position: absolute;
+      top: -30px;
+      right: -30px;
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.15);
+      filter: blur(20px);
+      pointer-events: none;
+    }
+
+    .rd-ri-hero-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rd-ri-hero-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 4px;
+    }
+
+    .rd-ri-hero-amount {
+      font-size: 38px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -1px;
+      font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+      line-height: 1;
+      text-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .rd-ri-hero-std {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Stay-type badge */
+    .rd-ri-type-badge {
+      background: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 16px;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    /* LIVE Pulsating Dot Custom Style */
+    @keyframes rd-live-pulse {
+      0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+      }
+
+      70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
+      }
+
+      100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+      }
+    }
+
+    .rd-live-dot {
+      width: 6px;
+      height: 6px;
+      background: #22c55e;
+      border-radius: 50%;
+      animation: rd-live-pulse 2s infinite;
+      display: inline-block;
+    }
+
+    .rd-overdue-dot {
+      width: 6px;
+      height: 6px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: rd-overdue-pulse 1.5s infinite;
+      display: inline-block;
+    }
+
+    @keyframes rd-live-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.85);
+      }
+    }
+
+    @keyframes rd-overdue-pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+      }
+
+      50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+        box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+      }
+    }
+
+    .rd-ri-co-card.overdue {
+      border-color: rgba(239, 68, 68, 0.4) !important;
+      background: rgba(239, 68, 68, 0.03) !important;
+      animation: rd-card-overdue 2s infinite;
+    }
+
+    .rd-ri-co-card.overdue #rd-ri-co {
+      color: #ef4444 !important;
+      animation: rd-val-overdue 1.5s infinite;
+    }
+
+    @keyframes rd-card-overdue {
+
+      0%,
+      100% {
+        border-color: rgba(239, 68, 68, 0.4);
+      }
+
+      50% {
+        border-color: rgba(239, 68, 68, 0.15);
+      }
+    }
+
+    @keyframes rd-val-overdue {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.55;
+      }
+    }
+
+    /* Timeline strip - Floating Pill Style */
+    .rd-ri-tl {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: #fff;
+      margin: 12px;
+      border-radius: 18px;
+      border: 1px solid var(--rd-bg-secondary);
+    }
+
+    .rd-ri-tl-cell {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 4px 8px;
+    }
+
+    .rd-ri-tl-cell+.rd-ri-tl-cell {
+      border-left: 1px solid var(--rd-bg-secondary);
+    }
+
+    .rd-ri-tl-lbl {
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--rd-text-muted);
+    }
+
+    .rd-ri-tl-val {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--rd-text-main);
+    }
+
+    .rd-ri-tl-val--green {
+      color: #16a34a;
+    }
+
+    /* Unified Service/Surcharge Dashboard */
+    .rd-folio-mini-dash {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .rd-folio-stat-card {
+      background: white;
+      border: 1px solid var(--rd-bg-secondary);
+      border-radius: 20px;
+      padding: 16px;
+      text-align: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+    }
+
+    .rd-folio-stat-card:hover {
+      border-color: var(--rd-accent-soft);
+      transform: translateY(-2px);
+    }
+
+    .rd-folio-stat-lbl {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--rd-text-muted);
+      margin-bottom: 6px;
+      letter-spacing: 0.1em;
+    }
+
+    .rd-folio-stat-val {
+      font-size: 20px;
+      font-weight: 950;
+      color: var(--rd-accent-bold);
+      font-family: 'Courier New', monospace;
+    }
+
+    .rd-action-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .rd-action-btn {
+      background: white;
+      color: var(--rd-text-main);
+      border: 1px solid var(--rd-bg-secondary);
+      padding: 14px 18px;
+      border-radius: 18px;
+      font-weight: 800;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+
+    .rd-action-btn:hover {
+      background: var(--rd-bg-secondary);
+      border-color: var(--rd-accent-soft);
+      transform: scale(1.01);
+    }
+
+    .rd-action-btn svg {
+      color: var(--rd-accent-bold);
+      transition: transform 0.2s;
+    }
+
+    .rd-action-btn:hover svg {
+      transform: rotate(90deg);
+    }
+
+    /* Highlighted buttons (Matching Add Guest style) */
+    #rd-add-service-btn,
+    #rd-add-surcharge-btn {
+      background: linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126));
+      border: none;
+      color: white;
+      box-shadow: 0 4px 12px rgba(9, 99, 126, 0.3);
+    }
+
+    #rd-add-service-btn svg,
+    #rd-add-surcharge-btn svg {
+      color: white;
+    }
+
+    #rd-add-service-btn:hover,
+    #rd-add-surcharge-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    /* Style for modern room selector */
+    #rd-room-selector-dropdown {
+      background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E") no-repeat right 12px center / 14px,
+        linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126)) !important;
+      color: white !important;
+      border: none !important;
+      box-shadow: 0 4px 10px rgba(9, 99, 126, 0.2);
+      border-radius: 14px !important;
+      padding-right: 36px !important;
+      font-weight: 800 !important;
+      cursor: pointer;
+    }
+
+    /* Hide the old CSS triangle for this modern select */
+    .rd-room-select-wrap:has(#rd-room-selector-dropdown)::after {
+      display: none !important;
+    }
+
+    .rd-mini-list {
+      margin: 8px 4px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rd-mini-list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 10px;
+      font-size: 12px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .rd-mini-list-item:hover {
+      background: #fff;
+      border-color: var(--rd-bg-secondary);
+    }
+
+    .rd-mini-list-clickable {
+      cursor: pointer;
+    }
+    .rd-mini-list-clickable:hover {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+    .rd-mini-list-clickable:active {
+      transform: scale(0.98);
+    }
+
+    .rd-mini-list-item:hover .rd-mini-delete-btn {
+      opacity: 1;
+    }
+
+    .rd-mini-list-name {
+      color: var(--rd-text-main);
+      font-weight: 600;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+
+    .rd-mini-list-val {
+      font-weight: 800;
+      color: var(--rd-accent-bold);
+      font-family: 'Courier New', monospace;
+      flex-shrink: 0;
+      margin-right: 6px;
+    }
+
+    .rd-mini-delete-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      padding: 0;
+    }
+
+    .rd-mini-delete-btn:hover {
+      background: #ef4444;
+      color: #fff;
+      transform: scale(1.1);
+    }
+
+    html.dark .rd-mini-delete-btn {
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    html.dark .rd-mini-delete-btn:hover {
+      background: #dc2626;
+    }
+
+    /* Dark mode adjustments */
+    html.dark {
+      --rd-bg-primary: #1e293b;
+      --rd-bg-secondary: #334155;
+      --rd-accent-soft: #38bdf8;
+      --rd-accent-bold: #f1f5f9;
+      --rd-text-main: #f1f5f9;
+      --rd-text-muted: #94a3b8;
+    }
+
+    html.dark .rd-ri-tl {
+      background: #111;
+      border-color: #333;
+    }
+
+
+    /* Dark mode adjustments for info rows and search */
+    .rd-info-row {
+      background: white;
+      border-radius: 16px;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--rd-bg-secondary);
+      box-shadow: 0 4px 12px rgba(8, 131, 149, 0.02);
+    }
+
+    html.dark .rd-info-row {
+      background: #111 !important;
+      border-color: #333 !important;
+    }
+
+    html.dark .rd-search-bar {
+      background: #111;
+      border-color: #333;
+    }
+
+    html.dark .rd-search-group {
+      background: #111;
+      border-color: #333;
+    }
+
+    html.dark .rd-search-group:focus-within {
+      background: #111;
+      border-color: var(--rd-accent-soft);
+    }
+
+    html.dark #rd-notes-room {
+      background: #111 !important;
+      color: #f0e6d2 !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    }
+
+    html.dark .rd-room-selector-bar {
+      background: #1a1a14;
+      border-bottom: none;
+    }
+
+    /* Breakdown Card — Dark Mode */
+    html.dark #rd-ri-bd-card {
+      background: #1e1e14 !important;
+    }
+
+    html.dark .rd-ri-bd-row-note {
+      background: rgba(255, 255, 255, 0.06) !important;
+    }
+
+    html.dark .rd-folio-stat-card {
+      background: #111;
+      border-color: #333;
+    }
+
+    html.dark .rd-action-btn {
+      background: #111;
+      border-color: #333;
+    }
+
+    html.dark .rd-mini-list-item {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    html.dark .rd-mini-list-item:hover {
+      background: #000;
+    }
+
+    /* ── Room Selector Dropdown ───────────────────────────────── */
+    .rd-room-selector-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .rd-room-select-wrap {
+      position: relative;
+      flex: 1;
+    }
+
+    .rd-room-select-wrap::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--rd-accent-bold);
+      pointer-events: none;
+    }
+
+    .rd-room-selector {
+      width: 100%;
+      appearance: none;
+      -webkit-appearance: none;
+      background: transparent;
+      border: 1.5px solid var(--rd-bg-secondary);
+      border-radius: 12px;
+      padding: 9px 36px 9px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--rd-text-main);
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .rd-room-selector:focus {
+      border-color: var(--rd-accent-bold);
+      box-shadow: 0 0 0 3px rgba(227, 106, 106, 0.12);
+      background: #fff;
+    }
+
+    .rd-room-selector:hover {
+      border-color: var(--rd-accent-soft);
+      background: #fff;
+    }
+
+    /* ── Search & Sidebar Refinements ───────────────── */
+    .rd-search-bar {
+      display: flex;
+      gap: 12px;
+      background: white;
+      padding: 6px;
+      border-radius: 20px;
+      border: 1px solid var(--rd-bg-secondary);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
+      margin-bottom: 16px;
+      align-items: stretch;
+    }
+
+    .rd-search-group {
+      background: #fff;
+      border-radius: 14px;
+      padding: 8px 14px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .rd-search-group:focus-within {
+      background: #fff;
+      border-color: var(--rd-accent-soft);
+      box-shadow: 0 0 0 4px rgba(255, 178, 178, 0.1);
+    }
+
+    .rd-search-lbl {
+      color: var(--rd-text-muted);
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+      letter-spacing: 0.05em;
+    }
+
+    .rd-search-input {
+      border: none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--rd-text-main);
+      outline: none;
+      height: 24px;
+      width: 100%;
+    }
+
+    .rd-search-input::placeholder {
+      color: var(--rd-text-muted);
+      opacity: 0.5;
+    }
+
+    .rd-reset-btn {
+      background: transparent;
+      border: 1px solid var(--rd-bg-secondary);
+      border-radius: 14px;
+      width: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--rd-text-muted);
+      transition: all 0.2s;
+    }
+
+    .rd-reset-btn:hover {
+      background: var(--rd-accent-soft);
+      color: white;
+      border-color: var(--rd-accent-soft);
+    }
+
+    .rd-guest-count-bar.over {
+      background: #eab308 !important;
+      color: #fff !important;
+      border-color: #ca8a04 !important;
+      box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.3) !important;
+    }
+
+    .rd-gcb-status-pill.over {
+      background: #dc2626 !important;
+      color: #fff !important;
+      border-color: #dc2626 !important;
+      animation: pulse-warn 1.5s infinite alternate;
+    }
+
+    .rd-guest-count-bar.checked-out {
+      background: rgba(255, 255, 255, 0.18) !important;
+      color: #fff !important;
+      border-color: rgba(255, 255, 255, 0.28) !important;
+      box-shadow: none !important;
+    }
+
+    @keyframes pulse-warn {
+      from {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+      }
+
+      to {
+        box-shadow: 0 0 0 4px rgba(220, 38, 38, 0);
+      }
+    }
+
+    /* ── Disabled state for checked-out rooms ── */
+    .rd-checked-out .rd-checked-out-disabled {
+      opacity: 0.4 !important;
+      pointer-events: none !important;
+      cursor: not-allowed !important;
+    }
+
+    .rd-checked-out .rd-checked-out-hidden {
+      display: none !important;
+    }
+  </style>
+
+  <div class="rd-room-grid" style="grid-template-columns: minmax(0,1fr) minmax(240px,320px);">
+    <div class="rd-room-main" style="grid-column: 1;">
+
+      <!-- Room Selector Dropdown Bar -->
+      <div class="rd-room-selector-bar"
+        style="padding: 16px 16px 8px 16px; border-bottom: none; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <div class="rd-room-select-wrap" style="flex: 0 1 200px;">
+            <select id="rd-room-selector-dropdown" class="rd-room-selector">
+              <option id="rd-room-selector-option" style="color: #000;" value="">Phòng — <span
+                  id="rd-room-num-display-sel"></span></option>
+            </select>
+          </div>
+          <span id="rd-debt-badge"
+            style="display:none; padding:3px 10px; border-radius:99px; font-size:10px; font-weight:800; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; white-space:nowrap; text-transform:uppercase; letter-spacing:0.05em;">Còn
+            nợ</span>
+
+        </div>
+
+        <style>
+          #rd-extend-btn:hover {
+            background: rgb(254, 243, 199) !important;
+            border-color: rgba(217, 119, 6, 0.4) !important;
+            transform: translateY(-1px);
+          }
+
+          #rd-checkout-btn:hover {
+            background: rgb(185, 28, 28) !important;
+            box-shadow: 0 4px 12px rgba(206, 38, 38, 0.3) !important;
+            transform: translateY(-1px);
+          }
+        </style>
+        <div style="display:flex; gap:8px; flex-shrink: 0; margin-right: 12px;">
+          <button class="v-btn outline" id="rd-extend-btn" onclick="pmsRdOpenExtension()"
+            style="background: rgb(255, 253, 235); border: 1px solid rgba(217, 119, 6, 0.2); color: rgb(180, 83, 9); height: 34px; padding: 0 14px; font-size: 12px; border-radius: 12px; font-weight: 800; transition: all 0.2s; box-shadow: 0 2px 4px rgba(217, 119, 6, 0.05);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Gia hạn
+          </button>
+
+          <button class="v-btn outline" id="rd-checkout-btn"
+            onclick="openCO(document.getElementById('rd-stay-id').value, document.getElementById('rd-room-num')?.textContent || '')"
+            style="background: rgb(206, 38, 38); border: 1px solid rgb(206, 38, 38); color: #fff; height: 34px; padding: 0 14px; font-size: 12px; border-radius: 12px; font-weight: 800; transition: all 0.2s; box-shadow: 0 4px 12px rgba(206, 38, 38, 0.2);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            Trả phòng
+          </button>
+        </div>
+      </div>
+
+      <div class="rd-room-main-inner">
+
+        <!-- Room Info Card 2026 -->
+        <div class="rd-ri-card" id="rd-ri-card"
+          style="background: transparent; border: none; box-shadow: none; border-radius: 0; padding: 0; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; overflow: visible;">
+
+          <!-- Top Row: Price Card | Details Column -->
+          <div style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; align-items: stretch;">
+
+            <!-- Price Card -->
+            <div id="rd-price-card" class="rd-price-card"
+              style="background: linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126)); border-radius: 20px; padding: 28px; color: white; position: relative; overflow: hidden; box-shadow: 0 16px 32px -8px rgba(9, 99, 126, 0.3); border: none; display: flex; flex-direction: column; justify-content: center; min-height: 220px;">
+              <div class="rd-price-card-updating">
+                <div class="rd-price-card-loader" id="rd-price-card-loader-text">Đang cập nhật giá</div>
+              </div>
+
+              <!-- Decoration Circles (Matching the provided example) -->
+              <div
+                style="position: absolute; width: 280px; height: 280px; border-radius: 50%; background: rgba(255,255,255,0.04); top: -80px; right: -60px; pointer-events: none;">
+              </div>
+              <div
+                style="position: absolute; width: 200px; height: 200px; border-radius: 50%; background: rgba(255,255,255,0.06); bottom: -60px; right: -20px; pointer-events: none;">
+              </div>
+              <div
+                style="position: absolute; width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,0.03); top: 20px; right: 40px; pointer-events: none;">
+              </div>
+
+              <!-- Top Right Badge Group -->
+              <div
+                style="position: absolute; top: 20px; right: 24px; display: flex; align-items: center; gap: 10px; z-index: 2;">
+                <!-- LIVE Badge -->
+                <div id="rd-ri-std-label"
+                  style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.2); font-size: 10px; font-weight: 850; color: #fff; letter-spacing: 0.05em;">
+                  <span class="rd-live-dot"></span>
+                  LIVE
+                </div>
+
+                <!-- Guest Capacity Badge (Integrated) -->
+                <div class="rd-guest-count-bar" id="rd-guest-count-bar"
+                  style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); padding: 6px 14px; border-radius: 100px; border: 1px solid rgba(255,255,255,0.2); font-size: 11px; font-weight: 850; color: #fff;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2.5">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                  <div style="display:flex; align-items:baseline; gap:2px;">
+                    <span class="rd-gcb-count" id="rd-guest-count-display">0</span>
+                    <span style="opacity:0.6; font-size:10px;">/</span>
+                    <span id="rd-max-guests-display">2</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="rd-ri-hero" style="background: transparent; padding: 0; position: relative; z-index: 1;">
+                <div class="rd-ri-hero-label"
+                  style="color: rgba(235, 244, 246, 0.85); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="3">
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                  Tổng giá dự kiến
+                </div>
+                <div id="rd-ri-amount-row" style="display: flex; align-items: baseline; gap: 12px; margin-top: 10px;">
+                  <div class="rd-ri-hero-amount" id="rd-ri-hero-amount"
+                    style="font-size: 38px; font-weight: 900; font-family: 'Outfit', sans-serif; letter-spacing: -1px;">
+                    —</div>
+                  <button onclick="pmsRdOpenBreakdown()"
+                    style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 100px; color: white; font-size: 11px; font-weight: 850; cursor: pointer; backdrop-filter: blur(8px); transition: all 0.2s;">
+                    Chi tiết giá
+                  </button>
+                </div>
+                <div class="rd-ri-type-badge" id="rd-ri-type-badge"
+                  style="margin-top: 14px; display: inline-block; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.25); padding: 5px 16px; border-radius: 12px; font-size: 11px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em;">
+                </div>
+                <div id="rd-ri-need-row" style="margin-top: 10px; display: flex; flex-direction: column; gap: 4px;">
+                  <!-- Cần thu thêm (dynamic) -->
+                  <div id="rd-ri-need"
+                    style="display: flex; align-items: center; gap: 6px; opacity: 0; transition: opacity 0.2s;">
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: #fbbf24; flex-shrink: 0;">
+                    </div>
+                    <span
+                      style="font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.05em;">Cần
+                      thu thêm</span>
+                    <span id="rd-ri-need-amount"
+                      style="font-size: 13px; font-weight: 800; color: #fbbf24; font-family: 'Outfit', sans-serif;"></span>
+                  </div>
+                  <!-- Khách dư (dynamic) -->
+                  <div id="rd-ri-excess-row"
+                    style="display: flex; align-items: center; gap: 6px; opacity: 0; transition: opacity 0.2s;">
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: #6ee7b7; flex-shrink: 0;">
+                    </div>
+                    <span
+                      style="font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.7); text-transform: uppercase; letter-spacing: 0.05em;">Khách
+                      dư</span>
+                    <span id="rd-ri-excess-amount"
+                      style="font-size: 13px; font-weight: 800; color: #6ee7b7; font-family: 'Outfit', sans-serif;"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Details Column -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Nhận phòng -->
+              <div class="rd-info-row" style="flex: 1;">
+                <div
+                  style="color: var(--rd-accent-bold); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Nhận phòng</div>
+                <div id="rd-ri-ci" style="font-size: 14px; font-weight: 850; color: var(--rd-accent-bold);">—</div>
+              </div>
+
+              <!-- Trả dự kiến -->
+              <div class="rd-info-row" id="rd-ri-co-card" style="flex: 1;">
+                <div
+                  style="color: var(--rd-accent-bold); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Trả dự kiến</div>
+                <div id="rd-ri-co-wrapper"
+                  style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px;">
+                  <div id="rd-ri-co" style="font-size: 14px; font-weight: 850; color: var(--rd-accent-bold);">—</div>
+                  <div id="rd-ri-co-now" style="display:none; font-size: 11px; font-weight: 700; color: #ef4444;"></div>
+                </div>
+              </div>
+              <!-- Đã thu -->
+              <div class="rd-info-row" style="flex: 1;">
+                <div
+                  style="color: var(--rd-accent-bold); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Đã thu</div>
+                <div class="rd-ri-tl-val--green" id="rd-ri-deposit"
+                  style="font-size: 14px; font-weight: 850; color: #10b981; font-family: 'Outfit', sans-serif;">—</div>
+              </div>
+              <div class="rd-info-row" id="rd-ri-vehicle-pill" style="flex: 1; display:flex;">
+                <div
+                  style="color: var(--rd-accent-bold); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em;">
+                  Phương tiện</div>
+                <div id="rd-ri-vehicle"
+                  style="font-size: 14px; font-weight: 850; color: var(--rd-accent-bold); max-width: 150px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">—</div>
+              </div>
+            </div>
+
+          </div>
+
+          <div style="margin-top:16px;">
+            <label
+              style="color:var(--rd-text-muted); font-size:11px; margin-bottom:6px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:6px;">
+              Ghi chú phòng
+            </label>
+            <textarea id="rd-notes-room" class="f-ctrl" placeholder="Ghi chú quan trọng về phòng này..."
+              style="width:100%; height:72px; font-size:13px; padding:12px; border-radius:12px; background:var(--bg-surface,#fff); border:1.5px solid var(--rd-bg-secondary,rgba(122,178,178,0.4)); box-shadow:0 4px 12px rgba(8,131,149,0.04); resize:vertical; transition:all 0.2s; display:block;"
+              oninput="pmsRdQueueNotesAutosave(this.value)"></textarea>
+            <div id="rd-notes-save-state"
+              style="min-height:16px; margin-top:4px; font-size:10px; font-weight:800; color:var(--rd-text-muted); text-transform:uppercase; letter-spacing:0.05em;"></div>
+          </div>
+
+          <!-- Hidden elements needed for modal JS -->
+          <span id="rd-gcb-status-pill" style="display:none;"></span>
+          <div id="rd-capacity-warn-svg" style="display:none !important;"></div>
+        </div>
+
+        <!-- Search Bar immediately above guest list -->
+        <div style="display:flex; gap:10px; margin-bottom:6px; align-items:stretch;">
+          <div
+            style="flex:1; display:flex; align-items:center;  border-radius:14px; border:none; box-shadow:0 2px 8px rgba(8, 131, 149, 0.05); padding:4px 8px;">
+            <!-- Status Select -->
+            <div style="min-width:120px; padding:4px 12px; border-right:1px solid rgba(122, 178, 178, 0.1);">
+              <select id="rd-filter-status" onchange="pmsRdSearchGuest()"
+                style="font-size:12px; height:24px; width:100%; border:none; outline:none; background:transparent; font-weight:700; color:rgb(9, 99, 126); cursor:pointer;">
+                <option value="all">Tất cả khách</option>
+                <option value="staying">Đang ở</option>
+                <option value="out">Đã trả</option>
+              </select>
+            </div>
+
+            <!-- Search Input -->
+            <div style="flex:1; padding:4px 12px; display:flex; align-items:center; gap:8px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="rgba(122, 178, 178, 0.8)" stroke-width="2.5">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+              <input type="text" id="rd-search-guest" placeholder="Tìm tên / giấy tờ..." oninput="pmsRdSearchGuest()"
+                style="font-size:12px; height:24px; border:none; outline:none; background:transparent; width:100%; color:rgb(9, 99, 126);">
+            </div>
+
+            <!-- Reset Button -->
+            <button onclick="pmsRdResetFilter()" title="Đặt lại"
+              style="width:28px; height:28px; border-radius:8px; border:none; background:rgba(239, 68, 68, 0.08); color:#ef4444; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; transition:all 0.2s;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5">
+                <path d="M23 4v6h-6" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Right: Add Guest -->
+          <button class="v-btn primary rd-checked-out-disabled"
+            onclick="openAG(document.getElementById('rd-stay-id').value, document.getElementById('rd-room-num')?.textContent || '')"
+            style="padding:0 16px; font-size:12px; background:linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126)); border:none; color:#fff; display:flex; align-items:center; gap:6px; border-radius:14px; font-weight:800; box-shadow:0 4px 10px rgba(9, 99, 126, 0.2); transition: all 0.2s;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="3">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            Thêm khách
+          </button>
+        </div>
+
+        <!-- Guest List -->
+        <div id="rd-guest-list-panel"
+          style="display:flex; flex-direction:column; gap:8px; padding-right: 8px; padding-bottom: 24px;">
+          <!-- Cards will be rendered here via JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="rd-room-right">
+      <div id="rd-room-right-checkedout-summary"
+        style="display:none; margin-bottom:16px; padding:14px 16px; border-radius:14px; background:#f8fafc; border:1px solid #cbd5e1;">
+        <div style="display:flex; align-items:center; gap:8px; color:#334155; font-size:12px; font-weight:900; text-transform:uppercase; letter-spacing:0.06em;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2.5">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
+          </svg>
+          Hoá đơn đã checkout
+        </div>
+        <div id="rd-room-right-checkedout-text" style="font-size:12px; color:#64748b; margin-top:6px; line-height:1.4;">
+          Chỉ xem lại dữ liệu đã chốt. Các thao tác ghi thêm đã được khoá.
+        </div>
+      </div>
+      {# ── Folio Mini Dashboard ── #}
+      <div class="rd-folio-mini-dash" style="gap:12px; margin-bottom:16px;">
+        <div class="rd-folio-stat-card" style="padding:12px 16px;">
+          <div class="rd-folio-stat-lbl" style="font-size:10px;">Dịch vụ</div>
+          <div id="rd-pay-dash-service-mirror" class="rd-folio-stat-val" style="font-size:16px;">0</div>
+        </div>
+        <div class="rd-folio-stat-card" style="padding:12px 16px;">
+          <div class="rd-folio-stat-lbl" style="font-size:10px;">Phát sinh</div>
+          <div id="rd-pay-dash-surcharge-mirror" class="rd-folio-stat-val" style="font-size:16px;">0</div>
+        </div>
+      </div>
+
+      <div class="rd-action-group" style="display: flex; flex-direction: column; gap: 12px;">
+        {# ── Service Action ── #}
+        <div class="rd-action-container">
+          <div id="rd-add-service-btn" class="rd-action-btn-blue" onclick="pmsRdOpenService()"
+            style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126)); color: white; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(9, 99, 126, 0.2); transition: all 0.2s ease;">
+            <div style="display:flex; align-items:center; gap:10px; font-weight: 850; font-size: 13px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="white" stroke-width="3" style="opacity:0.8; transition:transform 0.2s ease;"
+                class="rd-action-plus-icon">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Ghi dịch vụ
+            </div>
+          </div>
+          <div id="rd-services-active-list" class="rd-mini-list" style="margin-top: 8px;"></div>
+        </div>
+
+        {# ── Surcharge Action ── #}
+        <div class="rd-action-container">
+          <div id="rd-add-surcharge-btn" class="rd-action-btn-blue" onclick="pmsRdOpenSurcharge()"
+            style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126)); color: white; border-radius: 12px; cursor: pointer; box-shadow: 0 4px 10px rgba(9, 99, 126, 0.2); transition: all 0.2s ease;">
+            <div style="display:flex; align-items:center; gap:10px; font-weight: 850; font-size: 13px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="white" stroke-width="3" style="opacity:0.8; transition:transform 0.2s ease;"
+                class="rd-action-plus-icon">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Ghi phát sinh
+            </div>
+          </div>
+          <div id="rd-surcharges-active-list" class="rd-mini-list" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+      <style>
+        .rd-action-btn-blue:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 14px rgba(9, 99, 126, 0.3) !important;
+          background: linear-gradient(135deg, rgb(9, 145, 165), rgb(11, 115, 146)) !important;
+        }
+
+        .rd-action-btn-blue:hover .rd-action-plus-icon {
+          transform: scale(1.2) rotate(90deg);
+          opacity: 1 !important;
+        }
+      </style>
+    </div>
+  </div>
+</div>

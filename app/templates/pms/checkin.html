@@ -1,0 +1,725 @@
+<div class="v-modal" id="ciModal">
+  <div class="v-dialog" id="ci-dialog">
+    <div class="v-header"
+      style="background:#fff; border-bottom:1px solid #e2e8f0; padding:12px 20px; min-height: 60px;">
+      <div
+        style="width:36px; height:36px; border-radius:10px; background:#dcfce7; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <polyline points="10 17 15 12 10 7" />
+          <line x1="15" y1="12" x2="3" y2="12" />
+        </svg>
+      </div>
+      <div style="flex: 1; margin-left: 14px;">
+        <h5 class="v-title" id="ci-title" style="margin:0; font-weight:700; font-size: 15px; line-height: 1.2;">Nhận
+          phòng nhanh</h5>
+        <div class="v-sub" id="ci-sub" style="color:#64748b; font-size:12px; margin-top:2px;"></div>
+      </div>
+      <button class="v-close" onclick="typeof pmsCiCloseModal === 'function' ? pmsCiCloseModal() : closeModal('ciModal')"
+        style="padding:8px; background:none; border:none; color:#64748b; cursor:pointer;"><svg viewBox="0 0 24 24"
+          fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg></button>
+    </div>
+    <div class="v-body" id="ci-body">
+      
+      <input type="hidden" id="ci-room-id">
+      <div id="ci-reservation-notice" class="ci-reservation-notice"></div>
+ 
+      <!-- ROW 1: Lưu trú & Thanh toán -->
+      <div class="ci-row-split" style="display:flex; gap:20px; align-items:stretch; flex-shrink:0;">
+ 
+        <!-- ❶ Thông tin phòng & Thời gian -->
+        <div class="ci-section" style="flex:1; display:flex; flex-direction:column;">
+          <div class="ci-section-header">
+            <div class="ci-section-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+            <h6 class="ci-section-title">Thông tin lưu trú</h6>
+          </div>
+          <div class="ci-section-body" style="flex:1; padding: 16px;">
+            <div class="ci-radio-group" style="display: none; margin-bottom:16px;">
+              <label><input type="radio" name="st" id="st-night" value="night" checked></label>
+              <label><input type="radio" name="st" id="st-hour" value="hour"></label>
+            </div>
+ 
+            <!-- Prettier Room Strip -->
+            <div class="ci-room-strip">
+              <div class="ci-room-strip-item">
+                <label>Số phòng</label>
+                <input type="text" class="strip-val" id="ci-room-num" readonly
+                  style="border:none; background:transparent; padding:0; outline:none; font-family: 'JetBrains Mono', monospace; color: #1e293b;">
+              </div>
+              <div class="ci-room-strip-item">
+                <label>Hạng phòng</label>
+                <select class="strip-val" id="ci-room-type" disabled
+                  style="border:none; background:transparent; padding:0; appearance:none; outline:none; cursor:default; color: #64748b; font-size: 14px;">
+                  <option id="ci-room-type-opt">—</option>
+                </select>
+              </div>
+            </div>
+            <div class="ci-stay-card">
+              <!-- Time fields -->
+              <div class="ci-time-grid">
+                <div class="ci-time-field">
+                  <label
+                    style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#64748b; margin-bottom:8px;">
+                    Nhận phòng <span class="f-req">*</span>
+                  </label>
+                  <div style="position: relative;" class="ci-shad-dt-wrap" data-target="ci-in">
+                    <input type="text" class="f-ctrl ci-shad-dt-input" id="ci-in-display"
+                      style="padding-left:12px; cursor: pointer; background: #fff; color: #1e293b; border-radius:8px;"
+                      placeholder="DD/MM/YYYY, HH:mm" autocomplete="off">
+                    <input type="hidden" id="ci-in" onchange="pmsCalcPrice()">
+                  </div>
+                </div>
+                <div class="ci-time-field">
+                  <label
+                    style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#64748b; margin-bottom:8px;">
+                    Trả phòng dự kiến
+                  </label>
+                  <div style="position: relative;" class="ci-shad-dt-wrap" data-target="ci-out">
+                    <input type="text" class="f-ctrl ci-shad-dt-input" id="ci-out-display"
+                      style="padding-left:12px; cursor: pointer; background: #fff; color: #1e293b; border-radius:8px;"
+                      placeholder="DD/MM/YYYY, HH:mm" autocomplete="off">
+                    <input type="hidden" id="ci-out" onchange="pmsCalcPrice()">
+                  </div>
+                </div>
+              </div>
+ 
+              <!-- Vehicle & Notes row -->
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom: 16px;">
+                <div class="f-grp" style="margin-bottom:0;">
+                  <label
+                    style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#64748b; margin-bottom:8px;">
+                    Phương tiện
+                  </label>
+                  <input type="text" class="f-ctrl" id="ci-vehicle" placeholder="Biển số, loại xe..."
+                    style="border-radius:8px;">
+                </div>
+                <div class="f-grp" style="margin-bottom:0;">
+                  <label
+                    style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#64748b; margin-bottom:8px;">
+                    Ghi chú
+                  </label>
+                  <input type="text" class="f-ctrl" id="ci-notes" placeholder="Ghi chú nhận phòng"
+                    style="border-radius:8px;" onblur="pmsCiFormatSentence(this)">
+                </div>
+              </div>
+ 
+              <!-- Dịch vụ & Phát sinh (Refined UI) -->
+              <div class="ci-services-container" style="margin-top: 20px;">
+                <!-- Mini Dashboard (Smaller) -->
+                <div class="rd-folio-mini-dash" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                  <div class="rd-folio-stat-card" style="padding: 8px 12px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <div class="rd-folio-stat-lbl" style="font-size: 9px; font-weight: 850; text-transform: uppercase; color: #64748b; margin-bottom: 2px; letter-spacing: 0.05em;">Dịch vụ</div>
+                    <div id="ci-svc-total" class="rd-folio-stat-val" style="font-size: 15px; font-weight: 900; color: #1e293b; font-family: 'JetBrains Mono', monospace;">0</div>
+                  </div>
+                  <div class="rd-folio-stat-card" style="padding: 8px 12px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <div class="rd-folio-stat-lbl" style="font-size: 9px; font-weight: 850; text-transform: uppercase; color: #64748b; margin-bottom: 2px; letter-spacing: 0.05em;">Phát sinh</div>
+                    <div id="ci-sur-total" class="rd-folio-stat-val" style="font-size: 15px; font-weight: 900; color: #1e293b; font-family: 'JetBrains Mono', monospace;">0</div>
+                  </div>
+                </div>
+ 
+                <!-- Action Group -->
+                <div class="rd-action-group" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <!-- Service Action -->
+                  <div class="rd-action-container">
+                    <div class="ci-action-btn-blue" onclick="pmsCiOpenPopup('SERVICE')">
+                      <div style="display:flex; align-items:center; gap:8px; font-weight: 850; font-size: 13px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+                          <path d="M3 6h18" />
+                          <path d="M16 10a4 4 0 0 1-8 0" />
+                        </svg>
+                        Ghi dịch vụ
+                      </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="opacity:0.8; transition:transform 0.2s ease;" class="ci-action-plus-icon">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                    <div id="ci-svc-list" class="rd-mini-list" style="margin-top: 10px; max-height: 120px; overflow-y: auto;"></div>
+                  </div>
+ 
+                  <!-- Surcharge Action -->
+                  <div class="rd-action-container">
+                    <div class="ci-action-btn-blue" onclick="pmsCiOpenPopup('SURCHARGE')">
+                      <div style="display:flex; align-items:center; gap:8px; font-weight: 850; font-size: 13px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z" />
+                          <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8" />
+                          <path d="M12 17.5v-11" />
+                        </svg>
+                        Ghi phát sinh
+                      </div>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" style="opacity:0.8; transition:transform 0.2s ease;" class="ci-action-plus-icon">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+                    <div id="ci-sur-list" class="rd-mini-list" style="margin-top: 10px; max-height: 120px; overflow-y: auto;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ❷ Thanh toán -->
+        <div class="ci-section" style="flex:1; display:flex; flex-direction:column;">
+          <div class="ci-section-header">
+            <div class="ci-section-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <rect x="2" y="5" width="20" height="14" rx="2" />
+                <line x1="2" y1="10" x2="22" y2="10" />
+              </svg>
+            </div>
+            <h6 class="ci-section-title">Thanh toán</h6>
+          </div>
+          <div class="ci-section-body ci-pay-body" style="flex:1; padding:16px;">
+            <div class="ci-pay-card-wrapper"
+              style="border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+
+              <!-- Hero Price Strip -->
+              <div class="ci-hero-price" id="ci-hero-price" style="background: linear-gradient(135deg, rgb(8, 131, 149), rgb(9, 99, 126)); border-radius: 16px; padding: 20px 24px; color: white; position: relative; overflow: hidden; box-shadow: 0 12px 24px -8px rgba(9, 99, 126, 0.3); border: none; display: flex; flex-direction: column; justify-content: center; min-height: 140px; margin-bottom: 0px;">
+              
+                <!-- Decoration Circles -->
+                <div style="position: absolute; width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,0.04); top: -60px; right: -50px; pointer-events: none;"></div>
+                <div style="position: absolute; width: 160px; height: 160px; border-radius: 50%; background: rgba(255,255,255,0.06); bottom: -50px; right: -20px; pointer-events: none;"></div>
+                <div style="position: absolute; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.03); top: 10px; right: 30px; pointer-events: none;"></div>
+              
+                <div style="position: relative; z-index: 1;">
+                  <div class="ci-hero-label" style="color: rgba(235, 244, 246, 0.85); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Tổng giá dự kiến
+                  </div>
+                  <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 8px;">
+                    <div class="ci-hero-amount" id="ci-hero-amount" style="font-size: 32px; font-weight: 900; font-family: 'Outfit', sans-serif; letter-spacing: -1px; color: #fff; line-height: 1;">—</div>
+                    <button type="button" onclick="document.getElementById('ciBreakdownModal').classList.add('show')"
+                      style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); padding: 4px 12px; border-radius: 100px; color: white; font-size: 11px; font-weight: 850; cursor: pointer; backdrop-filter: blur(8px); transition: all 0.2s;">
+                      Chi tiết giá
+                    </button>
+                  </div>
+                  <div class="ci-hero-std" id="ci-bd-std-label" style="margin-top: 10px; display: inline-block; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.25); padding: 4px 12px; border-radius: 10px; font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em; color: #fff;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Deposit -->
+              <div class="ci-deposit-strip" style="border: none; border-radius: 0; padding: 16px;">
+                <div class="ci-dep-grid" style="grid-template-columns: 1fr;">
+                  <div class="ci-dep-cell" style="border: none; padding: 0;">
+                    <label style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 8px; letter-spacing: 0.1em; display: block;">Khách trả trước (VND)</label>
+                    <input type="text" class="ci-dep-input" id="ci-deposit" value="0"
+                      oninput="pmsCiFormatCurrency(this)" placeholder="0"
+                      style="width: 100%; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; font-size: 28px; font-weight: 900; color: #1e293b; font-family: 'JetBrains Mono', monospace; outline: none; transition: all 0.2s; background: #f8fafc;">
+                    <span class="ci-dep-sublabel" id="ci-deposit-help"
+                      style="display:block; margin-top:8px; font-size:11px; color:#94a3b8; font-weight: 600;">Tổng số tiền khách thanh toán trước khi nhận phòng</span>
+                  </div>
+                </div>
+                <div class="ci-dep-method-section">
+                  <div class="ci-dep-method-label">Phương thức thanh toán</div>
+                  <div class="ci-dep-methods-grid">
+                    <label class="ci-dep-method-item selected" data-method="Chi nhánh" data-value="Chi nhánh"
+                      onclick="ciDepSelectMethod(this, 'Chi nhánh')">
+                      <div class="ci-dep-method-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+                          <rect x="2" y="6" width="20" height="12" rx="2" />
+                          <circle cx="12" cy="12" r="2" />
+                        </svg>
+                      </div>
+                      <span class="ci-dep-method-name">Tiền mặt</span>
+                    </label>
+                    <label class="ci-dep-method-item" data-method="Chuyển khoản" data-value="Chuyển khoản"
+                      onclick="ciDepSelectMethod(this, 'Chuyển khoản')">
+                      <div class="ci-dep-method-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+                          <polyline points="17 1 21 5 17 9" />
+                          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                          <polyline points="7 23 3 19 7 15" />
+                          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                        </svg>
+                      </div>
+                      <span class="ci-dep-method-name">CK</span>
+                    </label>
+                    <label class="ci-dep-method-item" data-method="Công ty" data-value="Công ty"
+                      onclick="ciDepSelectMethod(this, 'Công ty')">
+                      <div class="ci-dep-method-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <line x1="3" y1="9" x2="21" y2="9" />
+                          <line x1="9" y1="21" x2="9" y2="9" />
+                        </svg>
+                      </div>
+                      <span class="ci-dep-method-name">Công ty</span>
+                    </label>
+                    <label class="ci-dep-method-item" data-method="OTA" data-value="OTA"
+                      onclick="ciDepSelectMethod(this, 'OTA')">
+                      <div class="ci-dep-method-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="2" y1="12" x2="22" y2="12" />
+                          <path
+                            d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg>
+                      </div>
+                      <span class="ci-dep-method-name">OTA</span>
+                    </label>
+                    <label class="ci-dep-method-item" data-method="Quẹt thẻ" data-value="Quẹt thẻ"
+                      onclick="ciDepSelectMethod(this, 'Quẹt thẻ')">
+                      <div class="ci-dep-method-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2">
+                          <rect x="2" y="5" width="20" height="14" rx="2" />
+                          <line x1="2" y1="10" x2="22" y2="10" />
+                        </svg>
+                      </div>
+                      <span class="ci-dep-method-name">Quẹt thẻ</span>
+                    </label>
+                  </div>
+                </div>
+                <div id="ci-deposit-meta-grp" class="ci-dep-meta" style="display:none;">
+                  <div id="ci-meta-company" style="display:none;">
+                    <label>Tài khoản thụ hưởng</label>
+                    <input type="text" class="ci-dep-input" id="ci-deposit-beneficiary" placeholder="Số TK / Tên TK">
+                  </div>
+                  <div id="ci-meta-ota" style="display:none;">
+                    <div>
+                      <div>
+                        <label>Kênh OTA</label>
+                        <select class="ci-dep-select" id="ci-deposit-ota">
+                          <option value="Agoda">Agoda</option>
+                          <option value="Booking">Booking</option>
+                          <option value="Ctrip">Ctrip</option>
+                          <option value="Go2Joy">Go2Joy</option>
+                          <option value="Traveloka">Traveloka</option>
+                          <option value="Expedia">Expedia</option>
+                          <option value="Mytour">Mytour</option>
+                          <option value="Website">Website</option>
+                          <option value="AirBnB">AirBnB</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label>Mã tham chiếu</label>
+                        <input type="text" class="ci-dep-input" id="ci-deposit-ref" placeholder="Mã booking / Ref ID">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROW 2: Thông tin khách -->
+      <div class="ci-section" style="width:100%; flex-shrink:0; margin-top: 20px;">
+        <div class="ci-section-header" style="flex-shrink:0;">
+          <div class="ci-section-badge">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+            </svg>
+          </div>
+          <h6 class="ci-section-title">Thông tin khách</h6>
+        </div>
+
+        <div class="ci-section-body" style="padding: 16px;">
+          <div id="ci-capacity-warn" class="ci-capacity-warn"></div>
+
+          <!-- Toolbar -->
+          <div class="ci-guest-toolbar">
+            <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; width: 100%;">
+              <button type="button" class="v-btn primary" onclick="ciAddGuest()" id="ci-add-guest-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="8.5" cy="7" r="4" />
+                  <line x1="20" y1="8" x2="20" y2="14" />
+                  <line x1="23" y1="11" x2="17" y2="11" />
+                </svg>
+                Thêm khách
+              </button>
+              <button type="button" class="v-btn success" onclick="ciUpdateGuest()" id="ci-update-guest-btn"
+                style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Cập nhật
+              </button>
+              <button type="button" class="v-btn outline" onclick="ciCancelEdit()" id="ci-cancel-edit-btn"
+                style="display:none;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+                Huỷ
+              </button>
+              <button type="button" class="v-btn primary" onclick="ciScanCode()" title="F1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                  <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                  <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                  <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                  <path d="M7 12h10" />
+                </svg>
+                Quét mã (F1)
+              </button>
+              <button type="button" class="v-btn outline" id="ci-toggle-list-btn" onclick="ciToggleGuestList()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                  <line x1="3" y1="6" x2="3.01" y2="6" />
+                  <line x1="3" y1="12" x2="3.01" y2="12" />
+                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                </svg>
+                Danh sách khách (<span id="ci-guest-count">0</span>)
+              </button>
+
+              <!-- Spacer to push next item to right -->
+              <div style="flex-grow: 1;"></div>
+
+              <button type="button" class="v-btn outline" onclick="ciRefreshGuestForm()" id="ci-refresh-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                Làm mới
+              </button>
+            </div>
+          </div>
+          <div id="ci-guest-list-panel" class="ci-guest-list-panel" style="margin-bottom: 24px;"></div>
+
+          <!-- Horizontal Form Split -->
+          <div class="ci-row-split" style="display: flex; gap: 32px; align-items: flex-start;">
+            <!-- Column L: Form Info -->
+            <div style="flex:1; display:flex; flex-direction:column; gap:20px;">
+              <div class="ci-id-section" style="margin: 0;">
+                <div class="f-grid" id="ci-id-grid"
+                  style="grid-template-columns: 2fr 1fr 1fr; align-items: flex-end; gap: 16px 20px;">
+                  <div class="f-grp">
+                    <label>Số giấy tờ <span class="f-req">*</span></label>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <input type="text" class="f-ctrl" id="ci-cccd" placeholder="Nhập số giấy tờ"
+                        oninput="pmsCiFormatID(this)" style="flex:1;">
+                      <button type="button" onclick="pmsCiSearchOldGuest()" title="Tìm khách cũ"
+                        style="padding:8px 12px; background:#fff; border:1px solid #bfdbfe; border-radius:8px; cursor:pointer; color:#2563eb; display:flex; align-items:center; gap:4px; font-size:13px; white-space:nowrap; font-weight:600; transition:all .15s;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2">
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        Tìm
+                      </button>
+                    </div>
+                  </div>
+                  <div class="f-grp">
+                    <label>Loại giấy <span class="f-req">*</span></label>
+                    <select class="f-ctrl" id="ci-id-type"
+                      onchange="pmsCiToggleIdFields(this); pmsCiFormatID(document.getElementById('ci-cccd'));">
+                      <option value="cccd">CCCD</option>
+                      <option value="cmnd">CMND</option>
+                      <option value="passport">Passport</option>
+                      <option value="visa">Visa</option>
+                      <option value="gplx">GPLX</option>
+                    </select>
+                  </div>
+                  <div class="f-grp" id="ci-grp-expire">
+                    <label>Hết hạn <span class="f-req">*</span></label>
+                    <input type="date" class="f-ctrl" id="ci-id-expire" onblur="pmsCiCheckIdExpire(this)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Personal Info -->
+              <div class="ci-personal-section">
+                <div class="f-grp">
+                  <label>Họ và tên <span class="f-req">*</span></label>
+                  <input type="text" class="f-ctrl" id="ci-name" placeholder="Họ và tên"
+                    onblur="pmsCiFormatCapitalize(this)">
+                </div>
+                <div class="f-grp">
+                  <label>Giới tính <span class="f-req">*</span></label>
+                  <select class="f-ctrl" id="ci-gender">
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+                <div class="f-grp">
+                  <label>Ngày sinh <span class="f-req">*</span></label>
+                  <input type="date" class="f-ctrl" id="ci-birth" onblur="pmsCiCheckBirth(this)">
+                </div>
+                <div class="f-grp">
+                  <label>Quốc tịch <span class="f-req">*</span></label>
+                  <input list="dl-nationality" class="f-ctrl" id="ci-nationality" placeholder="Chọn hoặc gõ Quốc tịch"
+                    value="VNM - Việt Nam">
+                  <datalist id="dl-nationality">
+                  </datalist>
+                </div>
+                <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px 24px;">
+                  <div class="f-grp">
+                    <label>Số điện thoại</label>
+                    <input type="text" class="f-ctrl" id="ci-phone" placeholder="Số điện thoại"
+                      oninput="pmsCiFormatBasicNumeric(this)">
+                  </div>
+                  <div class="f-grp">
+                    <label>Ghi chú khách</label>
+                    <input type="text" class="f-ctrl" id="ci-guest-notes" placeholder="Sở thích, yêu cầu..."
+                      onblur="pmsCiFormatSentence(this)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Anchor for Invoice in Left Column (Old mode) -->
+              <div id="ci-invoice-anchor-left"></div>
+            </div>
+
+            <!-- Column R: Address & Invoice -->
+            <div style="flex:1; display:flex; flex-direction:column; gap:20px;">
+
+              <!-- Address Section -->
+              <div class="ci-address-section" id="ci-addr-section" style="margin: 0;">
+                <div class="f-grid" style="grid-template-columns: repeat(2, 1fr);">
+                  <div class="f-grp f-grid-full" id="ci-grp-area" style="margin-bottom:4px;">
+                    <div class="ci-radio-group" style="display:flex; gap:20px; align-items:center;">
+                      <label><input type="radio" name="ci-area" value="new" checked onchange="vnSwitchMode('new');"> Địa
+                        bàn mới (2025)</label>
+                      <label><input type="radio" name="ci-area" value="old" onchange="vnSwitchMode('old');"> Địa bàn
+                        cũ</label>
+                    </div>
+                  </div>
+                  <div class="f-grp" id="ci-grp-province">
+                    <label id="ci-lbl-province">Tỉnh/Thành phố <span class="f-req">*</span></label>
+                    <input list="dl-province" class="f-ctrl" id="ci-province" placeholder="Chọn Tỉnh/Thành"
+                      data-dl="dl-province" oninput="vnOnProvinceChange(this)" onchange="vnOnProvinceChange(this)"
+                      onblur="vnValidateDatalist(this)">
+                    <datalist id="dl-province"></datalist>
+                  </div>
+                  <div class="f-grp" id="ci-grp-district" style="display:none;">
+                    <label id="ci-lbl-district">Quận/Huyện <span class="f-req">*</span></label>
+                    <input list="dl-district" class="f-ctrl" id="ci-district" placeholder="Chọn Quận/Huyện"
+                      data-dl="dl-district" oninput="vnOnDistrictChange(this)" onchange="vnOnDistrictChange(this)"
+                      onblur="vnValidateDatalist(this)">
+                    <datalist id="dl-district"></datalist>
+                  </div>
+                  <div class="f-grp" id="ci-grp-ward">
+                    <label id="ci-lbl-ward">Phường/Xã <span class="f-req">*</span></label>
+                    <input list="dl-ward" class="f-ctrl" id="ci-ward" placeholder="Chọn Phường/Xã" data-dl="dl-ward"
+                      oninput="vnOnWardChange(this)" onchange="vnOnWardChange(this)" onblur="vnValidateDatalist(this)">
+                    <datalist id="dl-ward"></datalist>
+                  </div>
+                  <div class="f-grp" id="ci-conversion-grp" style="display:none; grid-column: span 2;">
+                    <div
+                      style="background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1px solid #86efac; border-radius:8px; padding:10px 14px;">
+                      <div
+                        style="display:flex; align-items:center; gap:6px; margin-bottom:8px; color:#15803d; font-weight:600; font-size:12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2">
+                          <path d="M17 1l4 4-4 4" />
+                          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                          <path d="M7 23l-4-4 4-4" />
+                          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                        </svg>
+                        Chuyển đổi sang địa bàn mới:
+                      </div>
+                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div>
+                          <label style="font-size:11px; color:#64748b; margin-bottom:2px; display:block;">Tỉnh/TP
+                            (mới)</label>
+                          <input type="text" class="f-ctrl" id="ci-new-province" readonly
+                            style="background:#fff; border:1px solid #86efac; color:#15803d; font-weight:600; cursor:default;">
+                        </div>
+                        <div>
+                          <label style="font-size:11px; color:#64748b; margin-bottom:2px; display:block;">Phường/Xã
+                            (mới)</label>
+                          <input type="text" class="f-ctrl" id="ci-new-ward" readonly
+                            style="background:#fff; border:1px solid #86efac; color:#15803d; font-weight:600; cursor:default;">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Static warnings removed, now using pmsToast -->
+                  <div class="f-grp f-grid-full" id="ci-grp-address">
+                    <label>Địa chỉ chi tiết <span class="f-req">*</span></label>
+                    <input type="text" class="f-ctrl" id="ci-address" placeholder="Số nhà, ngách, hẻm, đường"
+                      onblur="pmsCiFormatCapitalize(this)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Anchor for Invoice in Right Column (New mode) -->
+              <div id="ci-invoice-anchor-right">
+                <!-- Invoice Section inside Guest -->
+                <div id="ci-invoice-section" style="margin-top: 12px; padding: 18px 24px; background: linear-gradient(135deg, #f0f9ff, #eff6ff); border: 1px solid #bfdbfe; border-radius: 12px;">
+                  <h6 style="font-size: 13px; font-weight: 700; color: #1e40af; margin: 0 0 12px 0;">Thiết lập xuất hóa đơn</h6>
+                  <div class="ci-invoice-toggle" style="margin-bottom:0;">
+                    <label><input type="radio" name="ci-invoice" value="0" checked onchange="pmsCiToggleInvoice(this)">
+                      <span>Không xuất</span></label>
+                    <label><input type="radio" name="ci-invoice" value="1" onchange="pmsCiToggleInvoice(this)">
+                      <span>Có xuất</span></label>
+                  </div>
+                  <div id="ci-invoice-fields" style="display: none; margin-top: 14px;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                      <div class="f-grp" id="ci-grp-tax" style="margin-bottom: 0px; display: none;">
+                        <label>Mã số thuế <span class="f-req">*</span></label>
+                        <input type="text" class="f-ctrl" id="ci-tax-code" placeholder="Mã số thuế"
+                          oninput="pmsCiFormatBasicNumeric(this)">
+                      </div>
+                      <div class="f-grp" id="ci-grp-tax-contact" style="margin-bottom: 0px; display: none;">
+                        <label>Liên hệ hoá đơn <span class="f-req">*</span></label>
+                        <input type="text" class="f-ctrl" id="ci-tax-contact" placeholder="Email hoặc SĐT">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="v-footer"
+      style="padding: 10px 24px; min-height: 54px; display: flex; align-items: center; justify-content: flex-end; background: #fafbfc; border-top: 1px solid #e2e8f0;">
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button class="v-btn outline" onclick="typeof pmsCiCloseModal === 'function' ? pmsCiCloseModal() : closeModal('ciModal')" style="padding: 8px 18px; font-size: 13px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+          Đóng
+        </button>
+        <button class="v-btn success" onclick="submitCI()"
+          style="padding: 8px 24px; font-size: 13px; font-weight: 700;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+            <polyline points="10 17 15 12 10 7" />
+            <line x1="15" y1="12" x2="3" y2="12" />
+          </svg>
+          Nhận phòng
+        </button>
+      </div>
+    </div>
+    <div class="ci-busy-overlay" aria-live="polite" aria-busy="true">
+      <div class="ci-busy-panel">
+        <span class="ci-busy-spinner"></span>
+        <span id="ci-busy-text">Đang nhận phòng...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pricing Breakdown cho Check-in -->
+<div class="v-modal" id="ciBreakdownModal" style="z-index: 100001;">
+  <div class="v-dialog"
+    style="max-width: 450px; margin: 10vh auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.15);">
+    <div
+      style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
+      <div style="font-weight: 800; font-size: 15px; color: #1e293b;">Chi tiết giá tạm tính</div>
+      <button type="button" onclick="document.getElementById('ciBreakdownModal').classList.remove('show')"
+        style="background: none; border: none; cursor: pointer; color: #64748b; padding: 4px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+    <div style="padding: 0;">
+      <div class="ci-bd-card" id="ci-bd-card" style="border: none; border-radius: 0; box-shadow: none;">
+        <div class="ci-bd-rows" id="ci-bd-rows"></div>
+        <div class="ci-bd-row ci-bd-row--total" style="padding: 16px 20px; border-top: 1px dashed #cbd5e1;">
+          <span>Tổng cộng</span>
+          <span id="ci-bd-total" style="font-size: 18px; color: #dc2626; font-weight: 800;">—</span>
+        </div>
+      </div>
+      <div id="ci-bd-empty" style="padding: 30px 20px; text-align: center; color: #94a3b8; display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin: 0 auto 10px auto;">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <div style="font-size: 13px; font-weight: 500;">Chưa có dữ liệu giá.</div>
+        <div style="font-size: 12px;">Vui lòng chọn thời gian hoặc loại phòng hợp lệ.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Unified vnSwitchMode in Template ──
+  async function vnSwitchMode(mode, keepValues = true) {
+    // Dynamic Invoice Section Movement
+    const invSection = document.getElementById('ci-invoice-section');
+    const anchorLeft = document.getElementById('ci-invoice-anchor-left');
+    const anchorRight = document.getElementById('ci-invoice-anchor-right');
+    if (invSection && anchorLeft && anchorRight) {
+      if (mode === 'old') {
+        anchorLeft.appendChild(invSection);
+        invSection.style.marginTop = '20px';
+      } else {
+        anchorRight.appendChild(invSection);
+        invSection.style.marginTop = '12px';
+      }
+    }
+
+    if (!keepValues) {
+      ['ci-province', 'ci-district', 'ci-ward'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    }
+    vnPopulateDatalist('dl-district', []);
+    vnPopulateDatalist('dl-ward', []);
+    vnClearConversion();
+
+    // ── FIX: Luôn set checked state cho radio trước khi gọi handlers ──
+    const radioNew = document.querySelector('input[name="ci-area"][value="new"]');
+    const radioOld = document.querySelector('input[name="ci-area"][value="old"]');
+    if (mode === 'new') {
+      if (radioNew) radioNew.checked = true;
+    } else {
+      if (radioOld) radioOld.checked = true;
+    }
+
+    const distGrp = document.getElementById('ci-grp-district');
+    const convGrp = document.getElementById('ci-conversion-grp');
+    const lblProv = document.getElementById('ci-lbl-province');
+    const lblWard = document.getElementById('ci-lbl-ward');
+
+    if (mode === 'new') {
+      if (distGrp) distGrp.style.display = 'none';
+      if (convGrp) convGrp.style.display = 'none';
+      if (lblProv) lblProv.innerHTML = 'Tỉnh/Thành phố <span class="f-req">*</span>';
+      if (lblWard) lblWard.innerHTML = 'Phường/Xã <span class="f-req">*</span>';
+      const provinces = await vnLoadNewProvinces();
+      vnPopulateDatalist('dl-province', provinces.map(p => ({ name: p.name, short: p.short })));
+    } else {
+      if (distGrp) distGrp.style.display = '';
+      if (convGrp) convGrp.style.display = '';
+      if (lblProv) lblProv.innerHTML = 'Tỉnh/Thành phố <span class="f-req">*</span>';
+      if (lblWard) lblWard.innerHTML = 'Phường/Xã <span class="f-req">*</span>';
+      const provinces = await vnLoadOldProvinces();
+      vnPopulateDatalist('dl-province', provinces);
+    }
+
+    const pEl = document.getElementById('ci-province');
+    if (pEl && pEl.value) {
+      vnOnProvinceChange(pEl);
+    }
+  }
+</script>

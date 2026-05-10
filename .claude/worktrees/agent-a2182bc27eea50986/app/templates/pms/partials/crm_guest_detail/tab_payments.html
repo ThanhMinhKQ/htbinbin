@@ -1,0 +1,85 @@
+{# CRM Guest Detail - Tab Payments #}
+
+<!-- ── TAB: Payments ── -->
+<div class="gd-panel gd-panel-enter" x-show="activeTab === 'payments'" x-cloak>
+  <template x-if="paymentsLoading">
+    <div class="gd-loading">
+      <div class="gd-spinner"></div> Đang tải...
+    </div>
+  </template>
+  <template x-if="!paymentsLoading">
+    <div>
+      <!-- Payment stats -->
+      <template x-if="paymentStats">
+        <div class="gd-pay-stat">
+          <div class="gd-pay-stat-card">
+            <div class="gd-pay-stat-val" style="color:#10b981;"
+              x-text="fmtMoney(paymentStats.total_payment||0)"></div>
+            <div class="gd-pay-stat-lbl">Đã thanh toán</div>
+          </div>
+          <div class="gd-pay-stat-card">
+            <div class="gd-pay-stat-val" style="color:#f59e0b;"
+              x-text="fmtMoney(paymentStats.total_deposit||0)"></div>
+            <div class="gd-pay-stat-lbl">Đặt cọc</div>
+          </div>
+          <div class="gd-pay-stat-card">
+            <div class="gd-pay-stat-val" style="color:#ef4444;" x-text="fmtMoney(paymentStats.total_refund||0)">
+            </div>
+            <div class="gd-pay-stat-lbl">Hoàn tiền</div>
+          </div>
+          <div class="gd-pay-stat-card">
+            <div class="gd-pay-stat-val" style="color:#dc2626;" x-text="fmtMoney(paymentStats.total_debt||0)">
+            </div>
+            <div class="gd-pay-stat-lbl">Còn nợ</div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Payment table -->
+      <template x-if="payments.length > 0">
+        <div class="gd-card" style="padding:0;overflow:hidden;">
+          <table class="gd-table">
+            <thead>
+              <tr>
+                <th>Loại</th>
+                <th>Phương thức</th>
+                <th style="text-align:right">Số tiền</th>
+                <th>Mã GD</th>
+                <th>Phòng</th>
+                <th>Chi nhánh</th>
+                <th>Ngày</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="p in payments" :key="p.id">
+                <tr :style="p.is_voided ? 'opacity:0.5;' : ''">
+                  <td><span style="font-weight:700;" x-text="p.type"></span></td>
+                  <td x-text="fmtPaymentMethod(p.method)"></td>
+                  <td style="text-align:right" class="gd-money" x-text="fmtMoney(p.amount)"></td>
+                  <td style="font-size:11px;font-variant-numeric:tabular-nums;"
+                    x-text="p.transaction_code || '-'"></td>
+                  <td x-text="p.room_number || '-'"></td>
+                  <td x-text="p.branch_name || '-'"></td>
+                  <td style="font-size:11px;" x-text="fmtDateTime(p.paid_at)"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </template>
+      <template x-if="payments.length === 0 && !paymentsLoading">
+        <div class="gd-card">
+          <div class="gd-empty">
+            <div class="gd-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                <line x1="1" y1="10" x2="23" y2="10" />
+              </svg>
+            </div>
+            <div class="gd-empty-text">Chưa có giao dịch thanh toán</div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+</div>

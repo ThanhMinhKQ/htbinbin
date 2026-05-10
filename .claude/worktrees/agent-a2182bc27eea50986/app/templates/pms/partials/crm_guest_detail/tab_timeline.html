@@ -1,0 +1,53 @@
+{# CRM Guest Detail - Tab Timeline #}
+
+<!-- ── TAB: Timeline ── -->
+<div class="gd-panel gd-panel-enter" x-show="activeTab === 'timeline'" x-cloak>
+  <template x-if="timelineLoading">
+    <div class="gd-loading">
+      <div class="gd-spinner"></div> Đang tải...
+    </div>
+  </template>
+  <template x-if="!timelineLoading && timeline.length === 0">
+    <div class="gd-card">
+      <div class="gd-empty">
+        <div class="gd-empty-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+        </div>
+        <div class="gd-empty-text">Chưa có hoạt động nào</div>
+      </div>
+    </div>
+  </template>
+  <template x-if="!timelineLoading && timeline.length > 0">
+    <div class="gd-timeline">
+      <template x-for="a in timeline" :key="a.id">
+        <div class="gd-tl-item">
+          <div class="gd-tl-dot" :class="a.activity_group || 'system'"></div>
+          <div class="gd-tl-title" x-text="a.title"></div>
+          <div class="gd-tl-desc" x-text="a.description"></div>
+          <div class="gd-tl-meta">
+            <span x-text="fmtDateTime(a.created_at)"></span>
+            <template x-if="a.amount">
+              <span class="gd-tl-amount" x-text="fmtMoney(a.amount)"></span>
+            </template>
+            <template x-if="a.source">
+              <span class="gd-tag" x-text="a.source"></span>
+            </template>
+          </div>
+        </div>
+      </template>
+      <!-- Load more -->
+      <template x-if="timeline.length >= timelineLimit">
+        <button class="gd-back-btn" style="margin-top:12px;width:100%;"
+          @click="timelineLimit += 50; loadTimeline()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            style="width:14px;height:14px;">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          Xem thêm hoạt động
+        </button>
+      </template>
+    </div>
+  </template>
+</div>

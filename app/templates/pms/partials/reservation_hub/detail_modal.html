@@ -1,0 +1,64 @@
+<div class="bk-modal bk-detail-modal" id="bk-detail-modal">
+  <div class="bk-dialog bk-detail-dialog" id="bk-detail-dialog">
+    <!-- Redesigned content will be injected here by BookingHub.openDetail -->
+    <div class="bk-loading" style="display:flex; justify-content: center; align-items: center; min-height: 400px; background: #fff; border-radius: 28px;">
+      <div class="bk-skeleton" style="width: 80%; height: 300px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="bk-modal" id="bk-transfer-modal">
+  <div class="bk-dialog bk-transfer-dialog">
+    <div class="bk-dialog-head">
+      <div>
+        <h2>Chuyển chi nhánh</h2>
+        <p id="bk-transfer-subtitle">Chọn chi nhánh và loại phòng đích cho booking.</p>
+      </div>
+      <button class="bk-close" type="button" onclick="BookingHub.closeTransferModal()" aria-label="Đóng">×</button>
+    </div>
+    <div class="bk-dialog-body">
+      <div class="bk-field-row">
+        <div class="bk-field col-6">
+          <label>Chi nhánh đích</label>
+          <select class="bk-select" id="bk-transfer-branch" onchange="BookingHub.onTransferBranchChange(this.value)"></select>
+        </div>
+        <div class="bk-field col-6">
+          <label>Loại phòng đích</label>
+          <select class="bk-select" id="bk-transfer-room-type"></select>
+        </div>
+        <div class="bk-field col-12">
+          <label>Lý do chuyển</label>
+          <textarea class="bk-textarea" id="bk-transfer-reason" rows="3" placeholder="Khách đặt nhầm chi nhánh..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="bk-dialog-foot">
+      <button class="bk-btn" type="button" onclick="BookingHub.closeTransferModal()">Hủy</button>
+      <button class="bk-btn primary" id="bk-transfer-submit" type="button" onclick="BookingHub.submitBranchTransfer()">Chuyển chi nhánh</button>
+    </div>
+  </div>
+</div>
+
+<div class="bk-modal" id="bk-ota-confirm-modal">
+  <div class="bk-dialog bk-ota-confirm-dialog">
+    <div class="bk-dialog-head">
+      <div>
+        <h2>Chọn loại phòng nội bộ để xác nhận OTA</h2>
+        <p id="bk-ota-confirm-title">Booking OTA</p>
+      </div>
+      <button type="button" onclick="BookingHub.closeOtaConfirm()" aria-label="Đóng">×</button>
+    </div>
+    <div class="bk-dialog-body">
+      <div class="bk-ota-confirm-meta" id="bk-ota-confirm-meta"></div>
+      <div class="bk-loading" id="bk-ota-confirm-loading" style="display:none;">
+        <div class="bk-skeleton"></div>
+        <div class="bk-skeleton"></div>
+      </div>
+      <div class="bk-ota-confirm-list" id="bk-ota-confirm-list"></div>
+    </div>
+    <div class="bk-dialog-foot">
+      <button class="bk-btn" type="button" onclick="BookingHub.closeOtaConfirm()">Đóng</button>
+      <button class="bk-btn primary" id="bk-ota-confirm-submit" type="button" onclick="BookingHub.confirmOtaWithRoomType()" disabled>Xác nhận đặt phòng</button>
+    </div>
+  </div>
+</div>

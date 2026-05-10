@@ -1,0 +1,57 @@
+<div x-show="!isLoading && currentTab === 'warehouses'" x-cloak class="space-y-4">
+    <div
+        class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden max-w-4xl mx-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="text-xs text-slate-500 uppercase bg-slate-50 dark:bg-slate-700/50 border-b">
+                <tr>
+                    <th class="w-10"></th> <!-- Drag Handle -->
+                    <th class="px-6 py-3">Tên Kho</th>
+                    <th class="px-6 py-3 text-center">Loại Kho</th>
+                    <th class="px-6 py-3">Thuộc Chi nhánh</th>
+                    <th class="px-6 py-3 text-center">Trạng thái</th>
+                    <th class="px-6 py-3 text-right">Hành động</th>
+                </tr>
+            </thead>
+            <tbody x-ref="warehouseList" class="divide-y divide-slate-200 dark:divide-slate-700">
+                <template x-for="w in warehouses" :key="w.id">
+                    <tr :data-id="w.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50 bg-white dark:bg-slate-800">
+                        <td class="pl-4 py-4 cursor-move drag-handle group">
+                            <svg class="w-5 h-5 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none"
+                                viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 8h16M4 16h16" />
+                            </svg>
+                        </td>
+                        <td class="px-6 py-4 font-bold text-slate-900 dark:text-white" x-text="w.name"></td>
+                        <td class="px-6 py-4 text-center">
+                            <span class="px-2 py-1 rounded text-xs font-bold"
+                                :class="w.type === 'MAIN' ? 'bg-red-100 text-red-800' : (w.branch_id ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800')"
+                                x-text="w.type === 'MAIN' ? 'KHO TỔNG' : (w.branch_id ? 'KHO NHÁNH' : 'KHO VẬN CHUYỂN')"></span>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 dark:text-slate-400" x-text="w.branch_name"></td>
+                        <td class="px-6 py-4 text-center">
+                            <div
+                                class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" :id="'toggle_wh_' + w.id" x-model="w.is_active"
+                                    @change="toggleWarehouseStatus(w)"
+                                    class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer duration-200 ease-in-out" />
+                                <label :for="'toggle_wh_' + w.id"
+                                    class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer"></label>
+                            </div>
+                            <span class="text-xs font-medium" :class="w.is_active ? 'text-green-600' : 'text-gray-500'"
+                                x-text="w.is_active ? 'Bật' : 'Tắt'"></span>
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <button @click="deleteWarehouse(w)"
+                                class="text-red-600 hover:text-red-900 text-xs font-medium border border-red-200 rounded px-2 py-1 hover:bg-red-50">Xóa</button>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="warehouses.length === 0">
+                    <td colspan="6" class="px-6 py-8 text-center text-slate-500">Chưa có kho nào. Vui lòng tạo
+                        mới.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

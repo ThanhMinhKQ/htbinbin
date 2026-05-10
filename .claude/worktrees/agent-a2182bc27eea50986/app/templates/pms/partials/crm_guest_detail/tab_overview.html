@@ -1,0 +1,155 @@
+{# CRM Guest Detail - Tab Overview #}
+
+<!-- ── TAB: Overview ── -->
+<div class="gd-panel gd-panel-enter" x-show="activeTab === 'overview'" x-cloak>
+  
+  <div class="gd-ov-layout">
+    
+    <!-- Row 1: Tier Journey Progress (full width) -->
+    <div class="gd-ov-section gd-tier-journey-section">
+      <div class="gd-tier-journey">
+        <div class="gd-tier-progress-line" :style="'width: calc(' + (profile?.membership?.current_tier_index || 0) * (100 / ((profile?.membership?.tier_journey?.length || 5) - 1)) + '% - 0px)'"></div>
+        <template x-for="(tier, idx) in (profile?.membership?.tier_journey || [])" :key="tier.tier">
+          <div class="gd-tier-step" :class="{ 'active': tier.is_current, 'completed': tier.is_unlocked && !tier.is_current }">
+            <div class="gd-tier-step-icon" :style="tier.is_current ? 'background:linear-gradient(135deg, var(--crm-accent), #818cf8);' : (tier.is_unlocked ? 'background:linear-gradient(135deg, var(--crm-success), #34d399);' : 'background:linear-gradient(135deg, var(--crm-bg-soft), var(--crm-border));')">
+              <span x-html="journeyTierIcon(tier.tier)"></span>
+              <div class="gd-tier-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+            </div>
+            <div class="gd-tier-step-info">
+              <span class="gd-tier-step-name" x-text="tier.tier_display"></span>
+              <span class="gd-tier-step-points" x-text="tier.threshold_display + ' pts'"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+      <template x-if="profile?.membership?.next_tier">
+        <div class="gd-current-progress-inline">
+          <span class="gd-cpi-label">Tiến đến <strong x-text="profile?.membership?.next_tier?.tier_display"></strong></span>
+          <div class="gd-cpi-bar"><div class="gd-cpi-fill" :style="'width:' + (profile?.membership?.next_tier?.progress_percent || 0) + '%'"></div></div>
+          <span class="gd-cpi-pct" x-text="(profile?.membership?.next_tier?.progress_percent || 0).toFixed(0) + '%'"></span>
+        </div>
+      </template>
+      <template x-if="!profile?.membership?.next_tier && profile?.membership?.tier === 'VIP'">
+        <div class="gd-vip-max">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;stroke:var(--crm-warning);">
+            <path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span>Đạt hạng cao nhất - VIP!</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- Row 2: Benefits + Preferences (2 columns) -->
+    <div class="gd-ov-section-row">
+      
+      <!-- Benefits Quick View -->
+      <div class="gd-ov-card">
+        <div class="gd-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--crm-accent);">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          Quyền lợi hạng <span x-text="profile?.membership?.tier_display || 'thường'"></span>
+        </div>
+        <div class="gd-ov-benefits-list">
+          <!-- Fixed order: Nhân điểm, Giảm giá, Nhận phòng sớm, Trả phòng trễ, các quyền lợi khác -->
+          <template x-for="key in ['points_multiplier', 'discount_percent', 'early_checkin', 'late_checkout', 'priority_service', 'free_upgrade', 'dedicated_manager']" :key="key">
+            <template x-if="profile?.membership?.benefits?.[key] !== undefined">
+              <div class="gd-ov-benefit-row" :class="isBenefitActive(profile?.membership?.benefits?.[key]) ? 'active' : 'inactive'">
+                <div class="gd-ov-benefit-icon" x-html="benefitIcon(key, profile?.membership?.benefits?.[key])"></div>
+                <span class="gd-ov-benefit-label" x-text="benefitLabel(key)"></span>
+                <span class="gd-ov-benefit-value" x-text="benefitDisplayValue(key, profile?.membership?.benefits?.[key])"></span>
+              </div>
+            </template>
+          </template>
+        </div>
+      </div>
+
+      <!-- Preferences & Notes -->
+      <div class="gd-ov-card">
+        <div class="gd-section-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--crm-accent);">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          Sở thích & Ưu tiên
+        </div>
+        <div class="gd-ov-pref-list">
+          <div class="gd-ov-pref-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;stroke:var(--crm-accent);">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            <span class="gd-ov-pref-label">Chi nhánh yêu thích</span>
+            <span class="gd-ov-pref-value" x-text="profile?.profile?.favorite?.branch || '-'">-</span>
+          </div>
+          <div class="gd-ov-pref-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;stroke:var(--crm-accent);">
+              <rect x="2" y="7" width="20" height="14" rx="2"/>
+              <path d="M16 7V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3"/>
+            </svg>
+            <span class="gd-ov-pref-label">Loại phòng</span>
+            <span class="gd-ov-pref-value" x-text="profile?.profile?.favorite?.room_type || '-'">-</span>
+          </div>
+          <div class="gd-ov-pref-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;stroke:var(--crm-accent);">
+              <rect x="1" y="4" width="22" height="16" rx="2"/>
+              <line x1="1" y1="10" x2="23" y2="10"/>
+            </svg>
+            <span class="gd-ov-pref-label">Thanh toán</span>
+            <span class="gd-ov-pref-value" x-text="fmtPaymentMethod(profile?.profile?.favorite?.payment_method)">-</span>
+          </div>
+          <template x-for="pref in (profile?.profile?.preferences || [])" :key="pref.type">
+            <div class="gd-ov-pref-row">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;stroke:var(--crm-accent);">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+              <span class="gd-ov-pref-label" x-text="preferenceLabel(pref.type)"></span>
+              <span class="gd-ov-pref-value" x-text="pref.value || '-'">-</span>
+            </div>
+          </template>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- Row 3: Recent Stays (full width) -->
+    <div class="gd-ov-section">
+      <div class="gd-section-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;color:var(--crm-accent);">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Lưu trú gần đây
+      </div>
+      <template x-if="stays && stays.length > 0">
+        <div class="gd-ov-stays-preview">
+          <template x-for="s in stays.slice(0,3)" :key="s.id">
+            <div class="gd-ov-stay-row">
+              <div class="gd-ov-stay-room">
+                <strong x-text="'P.' + (s.room_number || '-')"></strong>
+                <span x-text="s.branch_name || ''"></span>
+              </div>
+              <div class="gd-ov-stay-dates">
+                <span x-text="fmtDate(s.check_in_at)"></span> → <span x-text="fmtDate(s.check_out_at)"></span>
+              </div>
+              <div class="gd-ov-stay-amount" x-text="fmtMoneyFull(s.final_amount || 0)"></div>
+            </div>
+          </template>
+          <button class="gd-view-more-btn" @click="activeTab='stays'; loadStays()">
+            Xem tất cả lưu trú
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+              <polyline points="9,18 15,12 9,6"/>
+            </svg>
+          </button>
+        </div>
+      </template>
+      <template x-if="!stays || stays.length === 0">
+        <div style="padding:20px;text-align:center;color:var(--crm-text-muted);font-size:12px;">Chưa có dữ liệu lưu trú</div>
+      </template>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<div id="rd-tab-timeline" class="rd-tab-content"
+        style="flex:1; min-height:0; overflow:hidden; display:none; background:#f8fafc; flex-direction:column;">
+        <div class="rd-timeline-wrap">
+          <div class="rd-tl-toolbar">
+            <div class="rd-tl-filters">
+              <button type="button" class="rd-tl-filter-btn active" data-filter="all" onclick="rdTlFilter('all')">Tất cả</button>
+              <button type="button" class="rd-tl-filter-btn" data-filter="stay" onclick="rdTlFilter('stay')">Lưu trú</button>
+              <button type="button" class="rd-tl-filter-btn" data-filter="system" onclick="rdTlFilter('system')">Hệ thống</button>
+            </div>
+          </div>
+
+          <div class="rd-tl-scroll" id="rd-tl-scroll">
+            <!-- Loading state -->
+            <div class="rd-tl-loading" id="rd-tl-loading">
+              <div class="rd-tl-spinner"></div>
+              <span style="font-size:12px;">Đang tải lịch sử...</span>
+            </div>
+            <!-- Timeline list -->
+            <div class="rd-tl-list" id="rd-tl-list" style="display:none;"></div>
+            <!-- Empty state -->
+            <div class="rd-tl-empty" id="rd-tl-empty" style="display:none;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+              <p>Chưa có hoạt động nào được ghi nhận</p>
+            </div>
+          </div>
+        </div>
+      </div>

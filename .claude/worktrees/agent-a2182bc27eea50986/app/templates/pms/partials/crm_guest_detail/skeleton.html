@@ -1,0 +1,92 @@
+{# CRM Guest Detail - Skeleton Loading #}
+
+<!-- ── Loading Skeleton ── -->
+<template x-if="loading">
+  <div class="gd-skeleton-shell">
+
+    <!-- Sidebar Skeleton -->
+    <div class="gd-skeleton-sidebar">
+      <!-- Avatar -->
+      <div style="text-align:center;padding:20px 0;">
+        <div class="gd-skeleton-avatar-lg"></div>
+        <div class="skeleton" style="width:60%;height:22px;margin:16px auto 8px;border-radius:6px;"></div>
+        <div class="skeleton" style="width:40%;height:14px;margin:0 auto;border-radius:6px;"></div>
+      </div>
+
+      <!-- Tier Card -->
+      <div class="gd-skeleton-card" style="height:120px;"></div>
+
+      <!-- Stats Grid -->
+      <div class="gd-skeleton-stats">
+        <div class="gd-skeleton-stat"></div>
+        <div class="gd-skeleton-stat"></div>
+        <div class="gd-skeleton-stat"></div>
+        <div class="gd-skeleton-stat"></div>
+      </div>
+
+      <!-- Info Section -->
+      <div>
+        <div class="skeleton" style="width:100px;height:11px;margin-bottom:12px;border-radius:4px;"></div>
+        <div class="gd-skeleton-info-row">
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;"></div>
+          <div class="skeleton" style="width:80px;height:12px;border-radius:4px;"></div>
+        </div>
+        <div class="gd-skeleton-info-row">
+          <div class="skeleton" style="width:40px;height:12px;border-radius:4px;"></div>
+          <div class="skeleton" style="width:100px;height:12px;border-radius:4px;"></div>
+        </div>
+        <div class="gd-skeleton-info-row">
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;"></div>
+          <div class="skeleton" style="width:70px;height:12px;border-radius:4px;"></div>
+        </div>
+        <div class="gd-skeleton-info-row">
+          <div class="skeleton" style="width:60px;height:12px;border-radius:4px;"></div>
+          <div class="skeleton" style="width:90px;height:12px;border-radius:4px;"></div>
+        </div>
+      </div>
+
+      <!-- More Info -->
+      <div>
+        <div class="skeleton" style="width:80px;height:11px;margin-bottom:12px;border-radius:4px;"></div>
+        <div class="gd-skeleton-info-row">
+          <div class="skeleton" style="width:60px;height:12px;border-radius:4px;"></div>
+          <div class="skeleton" style="width:80px;height:12px;border-radius:4px;"></div>
+        </div>
+        <div class="gd-skeleton-info-row">
+          <div class="skeleton" style="width:50px;height:12px;border-radius:4px;"></div>
+          <div class="skeleton" style="width:90px;height:12px;border-radius:4px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Content Skeleton -->
+    <div class="gd-skeleton-content">
+      <!-- Tabs -->
+      <div class="gd-skeleton-tabs">
+        <div class="gd-skeleton-tab"></div>
+        <div class="gd-skeleton-tab" style="animation-delay:50ms;"></div>
+        <div class="gd-skeleton-tab" style="animation-delay:100ms;"></div>
+        <div class="gd-skeleton-tab" style="animation-delay:150ms;"></div>
+        <div class="gd-skeleton-tab" style="animation-delay:200ms;"></div>
+      </div>
+
+      <!-- KPI Grid -->
+      <div class="gd-skeleton-kpi-grid">
+        <div class="gd-skeleton-kpi"></div>
+        <div class="gd-skeleton-kpi" style="animation-delay:100ms;"></div>
+        <div class="gd-skeleton-kpi" style="animation-delay:200ms;"></div>
+      </div>
+
+      <!-- Cards -->
+      <div class="gd-skeleton-card-row">
+        <div class="gd-skeleton-card-sm"></div>
+        <div class="gd-skeleton-card-sm" style="animation-delay:100ms;"></div>
+      </div>
+      <div class="gd-skeleton-card-row">
+        <div class="gd-skeleton-card-sm"></div>
+        <div class="gd-skeleton-card-sm" style="animation-delay:100ms;"></div>
+      </div>
+    </div>
+
+  </div>
+</template>
