@@ -109,6 +109,8 @@ export default function (totalRecords, currentPage, totalPages, config = {}) {
         createForm: {
             source_warehouse_id: '',
             dest_warehouse_id: '',
+            product_search: '',
+            is_search_open: false,
             notes: '',
             itemGroups: []
         },

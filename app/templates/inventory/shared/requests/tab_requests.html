@@ -1,16 +1,165 @@
 <!-- TAB 1: REQUEST LIST (New Style) -->
+<style>
+  html.dark .inventory-request-table {
+    background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 34%), #0b1120;
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 22px 70px rgba(2, 6, 23, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  html.dark .inventory-request-toolbar,
+  html.dark .inventory-request-pagination {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(15, 23, 42, 0.72));
+    border-color: rgba(148, 163, 184, 0.16);
+  }
+
+  html.dark .inventory-request-input,
+  html.dark .inventory-request-select {
+    background: rgba(15, 23, 42, 0.86);
+    border-color: rgba(100, 116, 139, 0.55);
+    color: #e2e8f0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  html.dark .inventory-request-input::placeholder {
+    color: #64748b;
+  }
+
+  html.dark .inventory-request-input:focus,
+  html.dark .inventory-request-select:focus {
+    border-color: rgba(96, 165, 250, 0.9);
+    background: rgba(15, 23, 42, 0.98);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+  }
+
+  html.dark .inventory-request-secondary-btn {
+    background: rgba(30, 41, 59, 0.82);
+    border: 1px solid rgba(100, 116, 139, 0.35);
+    color: #cbd5e1;
+  }
+
+  html.dark .inventory-request-secondary-btn:hover {
+    background: rgba(51, 65, 85, 0.96);
+    color: #f8fafc;
+    border-color: rgba(148, 163, 184, 0.45);
+  }
+
+  html.dark .inventory-request-reset-btn {
+    background: rgba(15, 23, 42, 0.78);
+    border: 1px solid rgba(100, 116, 139, 0.28);
+    color: #94a3b8;
+  }
+
+  html.dark .inventory-request-reset-btn:hover {
+    background: rgba(30, 41, 59, 0.92);
+    color: #e2e8f0;
+  }
+
+  html.dark .inventory-request-table-wrap {
+    background: rgba(2, 6, 23, 0.24);
+  }
+
+  html.dark .inventory-request-head {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.96));
+    color: #a5b4fc;
+    border-color: rgba(148, 163, 184, 0.2);
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+  }
+
+  html.dark .inventory-request-body {
+    background: rgba(15, 23, 42, 0.72);
+  }
+
+  html.dark .inventory-request-row {
+    border-color: rgba(51, 65, 85, 0.78);
+  }
+
+  html.dark .inventory-request-row:hover {
+    background: rgba(30, 41, 59, 0.88) !important;
+  }
+
+  html.dark .inventory-request-row.is-shortage {
+    background: linear-gradient(90deg, rgba(146, 64, 14, 0.28), rgba(15, 23, 42, 0.72)) !important;
+    box-shadow: inset 3px 0 0 #f59e0b;
+  }
+
+  html.dark .inventory-request-row.is-selected {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.34), rgba(15, 23, 42, 0.72)) !important;
+    box-shadow: inset 3px 0 0 #60a5fa;
+  }
+
+  html.dark .inventory-request-code {
+    color: #93c5fd;
+  }
+
+  html.dark .inventory-request-muted {
+    color: #94a3b8;
+  }
+
+  html.dark .inventory-request-strong {
+    color: #e5e7eb;
+  }
+
+  html.dark .inventory-request-count {
+    color: #cbd5e1;
+  }
+
+  html.dark .inventory-request-empty {
+    color: #94a3b8;
+  }
+
+  html.dark .inventory-request-table .bg-amber-100 {
+    background: rgba(245, 158, 11, 0.16) !important;
+    color: #fcd34d !important;
+    border-color: rgba(245, 158, 11, 0.35) !important;
+  }
+
+  html.dark .inventory-request-table .bg-sky-100,
+  html.dark .inventory-request-table .bg-blue-100 {
+    background: rgba(14, 165, 233, 0.16) !important;
+    color: #7dd3fc !important;
+    border-color: rgba(14, 165, 233, 0.35) !important;
+  }
+
+  html.dark .inventory-request-table .bg-red-100 {
+    background: rgba(239, 68, 68, 0.16) !important;
+    color: #fca5a5 !important;
+    border-color: rgba(239, 68, 68, 0.35) !important;
+  }
+
+  html.dark .inventory-request-table .bg-green-100 {
+    background: rgba(34, 197, 94, 0.16) !important;
+    color: #86efac !important;
+    border-color: rgba(34, 197, 94, 0.35) !important;
+  }
+
+  html.dark .inventory-request-table .text-blue-600 {
+    color: #60a5fa !important;
+  }
+
+  html.dark .inventory-request-table .text-red-600 {
+    color: #f87171 !important;
+  }
+
+  html.dark .inventory-request-table .hover\:bg-blue-100:hover {
+    background: rgba(37, 99, 235, 0.22) !important;
+  }
+
+  html.dark .inventory-request-table .hover\:bg-red-100:hover {
+    background: rgba(239, 68, 68, 0.22) !important;
+  }
+</style>
 <div x-show="currentTab === 'requests'" class="p-4 flex-1 overflow-auto animate-fade-in-up">
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+    <div class="inventory-request-table bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
 
         <!-- Filters & Actions -->
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+        <div class="inventory-request-toolbar p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
             <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
 
                 <!-- Search & Filter Group -->
                 <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1 flex-wrap">
                     <div class="relative w-full sm:w-64">
                         <input type="text" x-model="filters.search" @keydown.enter="fetchHistory(1)"
-                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500"
+                            class="inventory-request-input w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500"
                             placeholder="Tìm mã phiếu, ghi chú...">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -21,7 +170,7 @@
                     </div>
 
                     <select x-model="filters.status" @change="fetchHistory(1)"
-                        class="w-full sm:w-40 py-2 pl-3 pr-8 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500">
+                        class="inventory-request-select w-full sm:w-40 py-2 pl-3 pr-8 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500">
                         <option value="">Tất cả trạng thái</option>
                         <option value="COMPLETED">Đã nhận</option>
                         <option value="PENDING">Chờ duyệt</option>
@@ -29,20 +178,20 @@
                     </select>
 
                     <input type="date" x-model="filters.date_from" @change="fetchHistory(1)"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500"
+                        class="inventory-request-input w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500"
                         placeholder="Từ ngày">
 
                     <input type="date" x-model="filters.date_to" @change="fetchHistory(1)"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500"
+                        class="inventory-request-input w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-primary-500"
                         placeholder="Đến ngày">
 
                     <button @click="fetchHistory(1)"
-                        class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm font-medium transition">
+                        class="inventory-request-secondary-btn px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm font-medium transition">
                         Tìm kiếm
                     </button>
 
                     <button @click="resetDateFilter()"
-                        class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium transition"
+                        class="inventory-request-reset-btn px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium transition"
                         title="Reset về tháng hiện tại">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -75,7 +224,7 @@
         </div>
 
         <!-- Table -->
-        <div class="overflow-x-auto relative min-h-[400px]">
+        <div class="inventory-request-table-wrap overflow-x-auto relative min-h-[400px]">
             <div x-show="loading"
                 class="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-20 flex items-center justify-center backdrop-blur-sm">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
@@ -83,7 +232,7 @@
 
             <table class="w-full text-sm text-left border-collapse">
                 <thead
-                    class="sticky top-0 z-10 text-xs text-slate-700 uppercase dark:text-slate-400 bg-gradient-to-b from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+                    class="inventory-request-head sticky top-0 z-10 text-xs text-slate-700 uppercase dark:text-slate-400 bg-gradient-to-b from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700 shadow-sm">
                     <tr>
                         <th scope="col" class="w-12 px-4 py-3 text-center">
                             <input type="checkbox" id="select-all-checkbox" @click="toggleSelectAll"
@@ -117,10 +266,10 @@
                         <th scope="col" class="px-4 py-3 text-right">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                <tbody class="inventory-request-body divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
                     <template x-for="(t, index) in historyList" :key="t.id">
-                        <tr class="transition-colors cursor-pointer group border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                            :class="{'bg-amber-50 dark:bg-amber-900/20': t.has_shortage, 'bg-blue-50 dark:bg-blue-900/10': selectedIds.includes(t.id)}"
+                        <tr class="inventory-request-row transition-colors cursor-pointer group border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                            :class="{'bg-amber-50 dark:bg-amber-900/20 is-shortage': t.has_shortage, 'bg-blue-50 dark:bg-blue-900/10 is-selected': selectedIds.includes(t.id)}"
                             @click="openRequestDetailModal(t)">
                             <td class="px-4 py-3 text-center" @click.stop>
                                 <input type="checkbox" x-show="t.status === 'PENDING'"
@@ -128,7 +277,7 @@
                                     :checked="selectedIds.includes(t.id)"
                                     class="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-700 row-checkbox cursor-pointer">
                             </td>
-                            <td class="px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-medium">
+                            <td class="inventory-request-code px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-medium">
                                 <span x-text="t.code"></span>
                             </td>
                             <td class="px-4 py-3 text-center">
@@ -173,16 +322,16 @@
                                 </div>
                             </td>
                             <td class="px-4 py-3">
-                                <span class="font-medium text-slate-800 dark:text-slate-200"
+                                <span class="inventory-request-strong font-medium text-slate-800 dark:text-slate-200"
                                     x-text="t.source_warehouse_name"></span>
                             </td>
-                            <td class="px-4 py-3 text-slate-500" x-text="formatDate(t.created_at)"></td>
+                            <td class="inventory-request-muted px-4 py-3 text-slate-500" x-text="formatDate(t.created_at)"></td>
                             <td class="px-4 py-3 text-center">
                                 <span class="px-2.5 py-1 rounded-full text-xs font-bold border"
                                     :class="getStatusClass(t.status)" x-text="getStatusLabel(t.status)">
                                 </span>
                             </td>
-                            <td class="px-4 py-3 text-center font-bold text-slate-600" x-text="t.items.length"></td>
+                            <td class="inventory-request-count px-4 py-3 text-center font-bold text-slate-600" x-text="t.items.length"></td>
                             <td class="px-4 py-3 text-right" @click.stop>
                                 <div class="flex items-center justify-end gap-2">
                                     <button x-show="t.status === 'SHIPPING'" @click="openReceiptModal(t)"
@@ -212,7 +361,7 @@
                         </tr>
                     </template>
                     <tr x-show="historyList.length === 0 && !loading">
-                        <td colspan="8" class="p-12 text-center text-slate-400">
+                        <td colspan="8" class="inventory-request-empty p-12 text-center text-slate-400">
                             <span
                                 x-text="filters.search ? 'Không tìm thấy kết quả phù hợp.' : 'Chưa có dữ liệu.'"></span>
                         </td>
@@ -223,11 +372,11 @@
 
         <!-- Pagination -->
         <div
-            class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+            class="inventory-request-pagination p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-4">
-                <div class="text-sm text-slate-500" id="request-record-count"></div>
+                <div class="inventory-request-muted text-sm text-slate-500" id="request-record-count"></div>
                 <select x-model="perPage" @change="fetchHistory(1)"
-                    class="ml-2 text-sm border-slate-200 dark:border-slate-700 rounded-lg focus:ring-blue-500 bg-white dark:bg-slate-800">
+                    class="inventory-request-select ml-2 text-sm border-slate-200 dark:border-slate-700 rounded-lg focus:ring-blue-500 bg-white dark:bg-slate-800">
                     <option value="10">10 / trang</option>
                     <option value="50">50 / trang</option>
                     <option value="100">100 / trang</option>

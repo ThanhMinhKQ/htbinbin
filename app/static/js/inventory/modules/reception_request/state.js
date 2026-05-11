@@ -117,6 +117,8 @@ export default function (totalRecords, currentPage, totalPages) {
         // Forms
         createForm: {
             source_warehouse_id: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: [],
             notes: ''
         },

@@ -88,7 +88,7 @@ export default {
     },
 
     updateItemUnit(item) {
-        const product = this.normalizedProducts.find(p => p.id === item.product_id);
+        const product = this.normalizedProducts.find(p => String(p.id) === String(item.product_id));
         if (product) {
             item.available_units = [product.base_unit];
             if (product.packing_unit && product.conversion_rate > 1) {

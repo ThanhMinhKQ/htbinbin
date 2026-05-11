@@ -207,7 +207,9 @@ export default {
     openCreateModal() {
         this.createForm = {
             source_warehouse_id: '',
-            itemGroups: [this.createEmptyGroup()],
+            product_search: '',
+            is_search_open: false,
+            itemGroups: [],
             notes: ''
         };
         this.isCreateModalOpen = true;
@@ -230,6 +232,50 @@ export default {
         const group = this.createForm.itemGroups[groupIndex];
         const item = group.items[itemIndex];
         this.updateItemUnit(item);
+    },
+
+    getCreateProductSearchResults() {
+        const query = (this.createForm.product_search || '').toLowerCase().trim();
+        const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
+
+        return this.normalizedProducts
+            .filter(product => {
+                const categoryName = categoriesById.get(String(product.category_id)) || '';
+                const haystack = `${product.name || ''} ${categoryName}`.toLowerCase();
+                return !query || haystack.includes(query);
+            })
+            .slice(0, 10);
+    },
+
+    addCreateProductQuick(product) {
+        const categoryId = product.category_id ? String(product.category_id) : '';
+        let group = this.createForm.itemGroups.find(g => String(g.category_id) === categoryId);
+
+        if (!group) {
+            group = {
+                id: Date.now() + Math.random(),
+                category_id: categoryId,
+                items: []
+            };
+            this.createForm.itemGroups.push(group);
+        }
+
+        const item = this.createEmptyItem();
+        item.product_id = String(product.id);
+        this.updateItemUnit(item);
+        group.items.push(item);
+        this.createForm.product_search = '';
+        this.createForm.is_search_open = false;
+    },
+
+    clearCreateProductSearch() {
+        this.createForm.product_search = '';
+        this.createForm.is_search_open = false;
+    },
+
+    getCreateProductName(productId) {
+        const product = this.normalizedProducts.find(p => String(p.id) === String(productId));
+        return product ? product.name : 'Vật tư đã chọn';
     },
 
     async submitCreateRequest() {

@@ -13,6 +13,7 @@ from .core import jinja2_patch
 
 import os
 import atexit
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
@@ -58,11 +59,19 @@ from .services.reservation_jobs import (
     release_expired_inventory_holds,
 )
 
+# --- LIFESPAN ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await startup_event()
+    yield
+
+
 # --- KHỞI TẠO APP ---
 app = FastAPI(
     title="Bin Bin Hotel Management System",
     description="Hệ thống quản lý nội bộ khách sạn Bin Bin.",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # --- MIDDLEWARE ---
@@ -130,7 +139,6 @@ if not os.path.exists(uploads_dir):
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 # --- STARTUP EVENT ---
-@app.on_event("startup")
 async def startup_event():
     """
     Khởi tạo DB và Scheduler khi ứng dụng bắt đầu.
