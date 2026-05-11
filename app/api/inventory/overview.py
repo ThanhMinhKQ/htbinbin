@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, case, desc
+from sqlalchemy import func, case, desc, text
 from datetime import datetime
 
 from ...db.session import get_db
@@ -72,10 +72,7 @@ async def get_stock_summary(
     date_to: str = None,
     db: Session = Depends(get_db)
 ):
-    """
-    Lấy thống kê tồn kho theo tháng với tồn đầu, nhập, xuất, tồn cuối
-    """
-    # Parse date range
+    """Tồn kho theo kỳ: tồn đầu, nhập, xuất, tồn cuối — batch query, không N+1."""
     start_time = None
     end_time = None
     try:
@@ -91,90 +88,96 @@ async def get_stock_summary(
     if not warehouse_id:
         return {"data": []}
 
-    # Get current inventory levels (closing balance)
-    query = db.query(InventoryLevel).options(
+    # 1. Batch: current inventory levels
+    stocks = db.query(InventoryLevel).options(
         joinedload(InventoryLevel.product)
-    ).filter(InventoryLevel.warehouse_id == warehouse_id)
-    
-    stocks = query.all()
-    
+    ).filter(InventoryLevel.warehouse_id == warehouse_id).all()
+
+    active_stocks = [s for s in stocks if s.product.is_active or s.quantity > 0]
+    if not active_stocks:
+        return {"data": []}
+
+    product_ids = [s.product_id for s in active_stocks]
+
+    # 2. Batch: all movements for this warehouse + period in ONE query
+    mv_query = db.query(
+        StockMovement.product_id,
+        StockMovement.transaction_type,
+        func.sum(StockMovement.quantity_change).label("total_change")
+    ).filter(
+        StockMovement.warehouse_id == warehouse_id,
+        StockMovement.product_id.in_(product_ids)
+    )
+
+    if start_time:
+        mv_query = mv_query.filter(StockMovement.created_at >= start_time)
+    if end_time:
+        mv_query = mv_query.filter(StockMovement.created_at <= end_time)
+
+    mv_rows = mv_query.group_by(
+        StockMovement.product_id,
+        StockMovement.transaction_type
+    ).all()
+
+    # 3. Build movement map: {product_id: {tx_type: total_change}}
+    mv_map: dict = {}
+    for row in mv_rows:
+        pid = row.product_id
+        if pid not in mv_map:
+            mv_map[pid] = {}
+        mv_map[pid][row.transaction_type] = float(row.total_change)
+
+    # 4. Compute per-product stats
     result = []
-    for stock in stocks:
-        if not stock.product.is_active and stock.quantity <= 0:
-            continue
-        
-        product_id = stock.product_id
-        closing_balance = float(stock.quantity)
-        
-        # Calculate imports and exports in the period from StockMovement
-        movements_query = db.query(StockMovement).filter(
-            StockMovement.product_id == product_id,
-            StockMovement.warehouse_id == warehouse_id
-        )
-        
-        if start_time:
-            movements_query = movements_query.filter(StockMovement.created_at >= start_time)
-        if end_time:
-            movements_query = movements_query.filter(StockMovement.created_at <= end_time)
-        
-        movements = movements_query.all()
-        
+    for stock in active_stocks:
+        pid = stock.product_id
+        closing = float(stock.quantity)
+        txs = mv_map.get(pid, {})
+
         total_import = 0.0
         total_export = 0.0
-        
-        for m in movements:
-            tx_type = m.transaction_type
-            change = float(m.quantity_change)
-            
-            if tx_type == 'VOID_SERVICE':
-                # Hoàn kho khi void dịch vụ → giảm xuất, KHÔNG tăng nhập
+
+        for tx_type, change in txs.items():
+            if tx_type == TransactionTypeWMS.VOID_SERVICE:
                 total_export -= abs(change)
             elif change > 0:
                 total_import += change
             else:
                 total_export += abs(change)
-        
-        # Đảm bảo export không âm (trường hợp void nhiều hơn export thực tế)
+
         if total_export < 0:
             total_export = 0.0
-        
-        # Calculate opening balance: closing - (imports - exports)
-        opening_balance = closing_balance - (total_import - total_export)
-        
+
+        opening = closing - (total_import - total_export)
+
         result.append({
-            "product_id": product_id,
+            "product_id": pid,
             "product_name": stock.product.name,
             "product_code": stock.product.code,
             "base_unit": stock.product.base_unit,
             "packing_unit": stock.product.packing_unit,
             "conversion_rate": stock.product.conversion_rate,
             "category_id": stock.product.category_id,
-            "opening_balance": round(opening_balance, 2),
+            "opening_balance": round(opening, 2),
             "total_import": round(total_import, 2),
             "total_export": round(total_export, 2),
-            "closing_balance": round(closing_balance, 2),
+            "closing_balance": round(closing, 2),
             "min_stock": stock.min_stock,
             "status": "Cảnh báo" if stock.quantity <= stock.min_stock else "Ổn định"
         })
-    
+
     return {"data": result}
 
 
 @router.get("/dashboard-stats")
 async def get_dashboard_stats(
-
-    branch_id: int = None, # Deprecated
-    warehouse_id: int = None, # [NEW]
-    date_from: str = None, 
+    branch_id: int = None,
+    warehouse_id: int = None,
+    date_from: str = None,
     date_to: str = None,
     db: Session = Depends(get_db)
 ):
-    """
-    Optimized endpoint for dashboard statistics.
-    Aggregates request counts and import totals in a single response.
-    """
-    
-    # 1. Date Range Filter
+    """Dashboard stats — single raw SQL query for all aggregations."""
     start_time = None
     end_time = None
     try:
@@ -187,165 +190,119 @@ async def get_dashboard_stats(
     except ValueError:
         pass
 
-    # 2. Requests Stats (Aggregation)
-    # Filter by branch (destination warehouse) if branch_id is provided
-    # Only count requests related to this branch (inbound)
-    req_query = db.query(
-        func.count(InventoryTransfer.id).label("total"),
-        func.sum(case((InventoryTransfer.status == TicketStatus.PENDING, 1), else_=0)).label("pending"),
-        func.sum(case((InventoryTransfer.status == TicketStatus.SHIPPING, 1), else_=0)).label("shipping"),
-        func.sum(case((InventoryTransfer.status == TicketStatus.COMPLETED, 1), else_=0)).label("completed")
-    )
+    params: dict = {}
 
+    # Build warehouse filter clause
     if warehouse_id:
-        # Filter requests where destination is this warehouse
-        req_query = req_query.filter(InventoryTransfer.dest_warehouse_id == warehouse_id)
-        # Hide compensation tickets from owned list logic (same as list API)
-        req_query = req_query.filter(InventoryTransfer.related_transfer_id.is_(None))
+        wh_dest_filter = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL"
+        wh_src_filter = "it.source_warehouse_id = :wh_id AND it.related_transfer_id IS NULL"
+        wh_imp_filter = "ir.warehouse_id = :wh_id"
+        wh_sm_filter = "sm.warehouse_id = :wh_id"
+        params["wh_id"] = warehouse_id
     elif branch_id:
-        req_query = req_query.join(Warehouse, InventoryTransfer.dest_warehouse_id == Warehouse.id)\
-                             .filter(Warehouse.branch_id == branch_id)
-        # Hide compensation tickets from owned list logic (same as list API)
-        req_query = req_query.filter(InventoryTransfer.related_transfer_id.is_(None))
+        wh_dest_filter = "dw.branch_id = :br_id AND it.related_transfer_id IS NULL"
+        wh_src_filter = "sw.branch_id = :br_id AND it.related_transfer_id IS NULL"
+        wh_imp_filter = "iw.branch_id = :br_id"
+        wh_sm_filter = "smw.branch_id = :br_id"
+        params["br_id"] = branch_id
+    else:
+        wh_dest_filter = "1=1"
+        wh_src_filter = "1=1"
+        wh_imp_filter = "1=1"
+        wh_sm_filter = "1=1"
 
+    date_filter_it = ""
+    date_filter_ir = ""
+    date_filter_sm = ""
     if start_time:
-        req_query = req_query.filter(InventoryTransfer.created_at >= start_time)
+        date_filter_it += " AND it.created_at >= :start_time"
+        date_filter_ir += " AND ir.created_at >= :start_time"
+        date_filter_sm += " AND sm.created_at >= :start_time"
+        params["start_time"] = start_time
     if end_time:
-        req_query = req_query.filter(InventoryTransfer.created_at <= end_time)
+        date_filter_it += " AND it.created_at <= :end_time"
+        date_filter_ir += " AND ir.created_at <= :end_time"
+        date_filter_sm += " AND sm.created_at <= :end_time"
+        params["end_time"] = end_time
 
-    req_stats = req_query.first()
+    dest_join = "LEFT JOIN warehouses dw ON it.dest_warehouse_id = dw.id" if branch_id else ""
+    src_join = "LEFT JOIN warehouses sw ON it.source_warehouse_id = sw.id" if branch_id else ""
+    imp_join = "LEFT JOIN warehouses iw ON ir.warehouse_id = iw.id" if branch_id else ""
+    sm_join = "LEFT JOIN warehouses smw ON sm.warehouse_id = smw.id" if branch_id else ""
 
-    # 3. Import Stats
-    # Filter by branch (warehouse)
-    imp_query = db.query(
-        func.count(InventoryReceipt.id).label("total_count"),
-        func.sum(InventoryReceipt.total_amount).label("total_amount")
-    )
+    sql = text(f"""
+        SELECT
+            -- requests
+            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
+             WHERE {wh_dest_filter} {date_filter_it}) AS req_total,
+            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
+             WHERE {wh_dest_filter} AND it.status = 'PENDING' {date_filter_it}) AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
+             WHERE {wh_dest_filter} AND it.status = 'SHIPPING' {date_filter_it}) AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
+             WHERE {wh_dest_filter} AND it.status = 'COMPLETED' {date_filter_it}) AS req_completed,
+            -- imports
+            (SELECT COUNT(*) FROM inventory_receipts ir {imp_join}
+             WHERE {wh_imp_filter} {date_filter_ir}) AS imp_count,
+            (SELECT COALESCE(SUM(ir.total_amount), 0) FROM inventory_receipts ir {imp_join}
+             WHERE {wh_imp_filter} {date_filter_ir}) AS imp_amount,
+            -- incoming transfer value
+            (SELECT COALESCE(SUM(iti.received_quantity * p.cost_price), 0)
+             FROM inventory_transfer_items iti
+             JOIN inventory_transfers it ON iti.transfer_id = it.id {dest_join}
+             JOIN products p ON iti.product_id = p.id
+             WHERE {wh_dest_filter} AND it.status = 'COMPLETED' {date_filter_it}) AS incoming_val,
+            -- export count
+            (SELECT COUNT(*) FROM inventory_transfers it {src_join}
+             WHERE {wh_src_filter} AND it.status = 'COMPLETED' {date_filter_it}) AS exp_count,
+            -- sales
+            (SELECT COALESCE(ABS(SUM(sm.quantity_change * p.sell_price)), 0)
+             FROM stock_movements sm
+             JOIN products p ON sm.product_id = p.id {sm_join}
+             WHERE sm.transaction_type IN ('EXPORT_SERVICE', 'VOID_SERVICE')
+             AND {wh_sm_filter} {date_filter_sm}) AS sales_amount
+    """)
 
-    if warehouse_id:
-        imp_query = imp_query.filter(InventoryReceipt.warehouse_id == warehouse_id)
-    elif branch_id:
-        imp_query = imp_query.join(Warehouse, InventoryReceipt.warehouse_id == Warehouse.id)\
-                             .filter(Warehouse.branch_id == branch_id)
-
-    if start_time:
-        imp_query = imp_query.filter(InventoryReceipt.created_at >= start_time)
-    if end_time:
-        imp_query = imp_query.filter(InventoryReceipt.created_at <= end_time)
-
-    imp_stats = imp_query.first()
-    
-    # 3.1 Calculate Transfer Values (Received & Sent)
-    # Incoming Transfers (Received Value)
-    incoming_val_query = db.query(
-        func.sum(InventoryTransferItem.received_quantity * Product.cost_price).label("total_value")
-    ).join(InventoryTransferItem.transfer)\
-     .join(InventoryTransferItem.product)\
-     .filter(InventoryTransfer.status == TicketStatus.COMPLETED)
-
-    # Outgoing Transfers (Sent Value)
-    outgoing_val_query = db.query(
-        func.sum(InventoryTransferItem.approved_quantity * Product.cost_price).label("total_value")
-    ).join(InventoryTransferItem.transfer)\
-     .join(InventoryTransferItem.product)\
-     .filter(InventoryTransfer.status == TicketStatus.COMPLETED)
-
-    if warehouse_id:
-        incoming_val_query = incoming_val_query.filter(InventoryTransfer.dest_warehouse_id == warehouse_id)
-        outgoing_val_query = outgoing_val_query.filter(InventoryTransfer.source_warehouse_id == warehouse_id)
-        # Exclude compensations
-        incoming_val_query = incoming_val_query.filter(InventoryTransfer.related_transfer_id.is_(None))
-        outgoing_val_query = outgoing_val_query.filter(InventoryTransfer.related_transfer_id.is_(None))
-    elif branch_id:
-        incoming_val_query = incoming_val_query.join(Warehouse, InventoryTransfer.dest_warehouse_id == Warehouse.id)\
-                                               .filter(Warehouse.branch_id == branch_id)
-        outgoing_val_query = outgoing_val_query.join(Warehouse, InventoryTransfer.source_warehouse_id == Warehouse.id)\
-                                               .filter(Warehouse.branch_id == branch_id)
-        # Exclude compensations
-        incoming_val_query = incoming_val_query.filter(InventoryTransfer.related_transfer_id.is_(None))
-        outgoing_val_query = outgoing_val_query.filter(InventoryTransfer.related_transfer_id.is_(None))
-
-    if start_time:
-        incoming_val_query = incoming_val_query.filter(InventoryTransfer.created_at >= start_time)
-        outgoing_val_query = outgoing_val_query.filter(InventoryTransfer.created_at >= start_time)
-    if end_time:
-        incoming_val_query = incoming_val_query.filter(InventoryTransfer.created_at <= end_time)
-        outgoing_val_query = outgoing_val_query.filter(InventoryTransfer.created_at <= end_time)
-
-    incoming_val = incoming_val_query.scalar() or 0
-    outgoing_val = outgoing_val_query.scalar() or 0
-    
-    total_transaction_value = float(imp_stats.total_amount or 0) + float(incoming_val)
-    # NOTE: User requested to EXCLUDE outgoing value (Sent Transfers) from "Import Value" for Main Warehouse accuracy.
-    # logical: Import Value = Direct Imports + Received Transfers. 
-
-
-    # 4. Export Stats (Completed exports from this warehouse)
-    exp_query = db.query(
-        func.count(InventoryTransfer.id).label("total_count")
-    ).filter(InventoryTransfer.status == TicketStatus.COMPLETED)
-
-    if warehouse_id:
-        # Filter exports where source is this warehouse
-        exp_query = exp_query.filter(InventoryTransfer.source_warehouse_id == warehouse_id)
-        # Exclude compensation tickets
-        exp_query = exp_query.filter(InventoryTransfer.related_transfer_id.is_(None))
-    elif branch_id:
-        exp_query = exp_query.join(Warehouse, InventoryTransfer.source_warehouse_id == Warehouse.id)\
-                             .filter(Warehouse.branch_id == branch_id)
-        # Exclude compensation tickets
-        exp_query = exp_query.filter(InventoryTransfer.related_transfer_id.is_(None))
-
-    if start_time:
-        exp_query = exp_query.filter(InventoryTransfer.created_at >= start_time)
-    if end_time:
-        exp_query = exp_query.filter(InventoryTransfer.created_at <= end_time)
-
-    exp_stats = exp_query.first()
-
-    # 5. Sales Stats (EXPORT_SERVICE + VOID_SERVICE from this warehouse)
-    # EXPORT_SERVICE has negative qty (xuất kho), VOID_SERVICE has positive qty (hoàn kho)
-    # Sum of (qty * sell_price) → net sales amount
-    sales_query = db.query(
-        func.sum(StockMovement.quantity_change * Product.sell_price).label("total_sales")
-    ).join(Product, StockMovement.product_id == Product.id)\
-     .filter(StockMovement.transaction_type.in_([
-         TransactionTypeWMS.EXPORT_SERVICE,
-         TransactionTypeWMS.VOID_SERVICE,
-     ]))
-
-    if warehouse_id:
-        sales_query = sales_query.filter(StockMovement.warehouse_id == warehouse_id)
-    elif branch_id:
-        sales_query = sales_query.join(Warehouse, StockMovement.warehouse_id == Warehouse.id)\
-                                 .filter(Warehouse.branch_id == branch_id)
-
-    if start_time:
-        sales_query = sales_query.filter(StockMovement.created_at >= start_time)
-    if end_time:
-        sales_query = sales_query.filter(StockMovement.created_at <= end_time)
-
-    total_sales = sales_query.scalar() or 0
-    total_sales_amount = abs(float(total_sales))
+    row = db.execute(sql, params).fetchone()
 
     return {
         "requests": {
-            "total": req_stats.total or 0,
-            "pending": req_stats.pending or 0,
-            "shipping": req_stats.shipping or 0,
-            "completed": req_stats.completed or 0
+            "total": row.req_total or 0,
+            "pending": row.req_pending or 0,
+            "shipping": row.req_shipping or 0,
+            "completed": row.req_completed or 0
         },
         "imports": {
-            "total": imp_stats.total_count or 0,
-            "total_amount": total_transaction_value
+            "total": row.imp_count or 0,
+            "total_amount": float(row.imp_amount or 0) + float(row.incoming_val or 0)
         },
         "exports": {
-            "total": exp_stats.total_count or 0
+            "total": row.exp_count or 0
         },
         "sales": {
-            "total_amount": total_sales_amount
+            "total_amount": float(row.sales_amount or 0)
         }
     }
+
+
+@router.get("/overview-combined")
+async def get_overview_combined(
+    warehouse_id: int = None,
+    branch_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+    db: Session = Depends(get_db)
+):
+    """Single endpoint combining stock-summary + dashboard-stats — 1 round-trip."""
+    stock_data = await get_stock_summary(
+        warehouse_id=warehouse_id, date_from=date_from, date_to=date_to, db=db
+    )
+    stats_data = await get_dashboard_stats(
+        warehouse_id=warehouse_id, branch_id=branch_id,
+        date_from=date_from, date_to=date_to, db=db
+    )
+    return {"stock": stock_data, "stats": stats_data}
+
 
 @router.get("/product-history")
 async def get_product_history(

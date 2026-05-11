@@ -267,7 +267,7 @@ class InventoryService:
 
         bookings = self.db.query(Booking).filter(
             Booking.branch_id == branch_id,
-            Booking.reservation_status.in_(["PENDING", "CONFIRMED"]),
+            Booking.reservation_status == "CONFIRMED",
             Booking.check_in < end_date,
             Booking.check_out > start_date,
         ).all()
@@ -878,7 +878,7 @@ class InventoryService:
         unavailable_room_ids: Dict[date, set[int]] = defaultdict(set)
         assigned_bookings = self.db.query(Booking.assigned_room_id, Booking.check_in, Booking.check_out).filter(
             Booking.branch_id == branch_id,
-            Booking.reservation_status.in_(["PENDING", "CONFIRMED"]),
+            Booking.reservation_status == "CONFIRMED",
             Booking.assigned_room_id.isnot(None),
             Booking.check_in < end_date,
             Booking.check_out > start_date,

@@ -228,7 +228,7 @@ async def startup_event():
             )
             scheduler.add_job(
                 mark_reservation_no_shows,
-                'cron', hour=18, minute=30,
+                'cron', hour=12, minute=5,
                 misfire_grace_time=1800,
                 id="reservation_auto_no_show",
             )

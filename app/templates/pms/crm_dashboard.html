@@ -5,10 +5,13 @@
 {% block head %}
 <style>
   :root {
-    --crm-bg: #ffffff;
-    --crm-bg-alt: #f8fafc;
-    --crm-bg-hover: #f1f5f9;
-    --crm-border: #e2e8f0;
+    --crm-bg: var(--surface, rgba(255, 255, 255, 0.88));
+    --crm-bg-solid: var(--surface-solid, #ffffff);
+    --crm-bg-alt: transparent;
+    --crm-bg-muted: var(--surface-muted, #f8fafc);
+    --crm-bg-hover: rgba(99, 102, 241, 0.08);
+    --crm-border: var(--surface-border, #e2e8f0);
+    --crm-shadow: var(--surface-shadow, 0 18px 45px rgba(15, 23, 42, 0.08));
     --crm-text: #0f172a;
     --crm-text-muted: #64748b;
     --crm-text-subtle: #94a3b8;
@@ -19,36 +22,44 @@
     --crm-warning: #f59e0b;
     --crm-danger: #ef4444;
   }
-  
+
   html.dark {
-    --crm-bg: #0f172a;
-    --crm-bg-alt: #1e293b;
-    --crm-bg-hover: #334155;
-    --crm-border: #334155;
-    --crm-text: #f1f5f9;
-    --crm-text-muted: #94a3b8;
-    --crm-text-subtle: #64748b;
+    --crm-bg: var(--surface, rgba(15, 23, 42, 0.84));
+    --crm-bg-solid: var(--surface-solid, #0f172a);
+    --crm-bg-alt: transparent;
+    --crm-bg-muted: var(--surface-muted, rgba(30, 41, 59, 0.74));
+    --crm-bg-hover: rgba(99, 102, 241, 0.14);
+    --crm-border: var(--surface-border, rgba(148, 163, 184, 0.24));
+    --crm-shadow: var(--surface-shadow, 0 22px 55px rgba(0, 0, 0, 0.34));
+    --crm-text: #f8fafc;
+    --crm-text-muted: #cbd5e1;
+    --crm-text-subtle: #94a3b8;
   }
 
-  body { background: var(--crm-bg-alt); }
-  main.overflow-y-auto { padding: 0 !important; background: var(--crm-bg-alt); }
+  body { background: var(--app-bg); }
+  main.overflow-y-auto { padding: 0 !important; background: transparent; }
 
   /* ── App Shell ── */
   .crm-shell {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
-    background: var(--crm-bg-alt);
+    background: transparent;
   }
 
   /* ── Header ── */
   .crm-header {
     background: var(--crm-bg);
-    border-bottom: 1px solid var(--crm-border);
+    border: 1px solid var(--crm-border);
+    border-radius: 22px;
     padding: 20px 24px;
+    margin: 16px 24px 0;
     position: sticky;
-    top: 0;
+    top: 16px;
     z-index: 100;
+    box-shadow: var(--crm-shadow);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
   
   .crm-header-top {
@@ -111,9 +122,9 @@
     width: 100%;
     padding: 10px 16px 10px 42px;
     border: 1px solid var(--crm-border);
-    border-radius: 10px;
+    border-radius: 14px;
     font-size: 13px;
-    background: var(--crm-bg-alt);
+    background: var(--crm-bg-muted);
     color: var(--crm-text);
     transition: all 0.2s;
     outline: none;
@@ -192,21 +203,22 @@
   .crm-tabs {
     display: flex;
     gap: 8px;
-    padding: 0 24px 16px;
-    background: var(--crm-bg-alt);
+    padding: 16px 24px;
+    background: transparent;
   }
   .crm-tab-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    border-radius: 8px;
+    border-radius: 999px;
     border: 1px solid var(--crm-border);
     background: var(--crm-bg);
     color: var(--crm-text-muted);
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
   }
   .crm-tab-btn.active {
     background: var(--crm-text);
@@ -216,9 +228,9 @@
   .crm-filter-select {
     min-width: 150px;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 12px;
     border: 1px solid var(--crm-border);
-    background: var(--crm-bg);
+    background: var(--crm-bg-muted);
     color: var(--crm-text);
     font-size: 12px;
     font-weight: 600;
@@ -244,14 +256,14 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
-    padding: 20px 24px;
-    background: var(--crm-bg-alt);
+    padding: 0 24px 20px;
+    background: transparent;
   }
 
   .crm-stat-card {
     background: var(--crm-bg);
     border: 1px solid var(--crm-border);
-    border-radius: 16px;
+    border-radius: 20px;
     padding: 20px;
     display: flex;
     align-items: flex-start;
@@ -259,6 +271,9 @@
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--crm-shadow);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .crm-stat-card::before {
@@ -325,9 +340,11 @@
   .crm-table-card {
     background: var(--crm-bg);
     border: 1px solid var(--crm-border);
-    border-radius: 16px;
+    border-radius: 22px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: var(--crm-shadow);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
   .crm-table-header {
@@ -336,7 +353,7 @@
     justify-content: space-between;
     padding: 16px 20px;
     border-bottom: 1px solid var(--crm-border);
-    background: var(--crm-bg-alt);
+    background: transparent;
   }
 
   .crm-table-title {
@@ -376,7 +393,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--crm-text-muted);
-    background: var(--crm-bg-alt);
+    background: var(--crm-bg-muted);
     border-bottom: 1px solid var(--crm-border);
     white-space: nowrap;
     position: relative;
@@ -663,8 +680,9 @@
     gap: 16px;
     padding: 18px 20px;
     border: 1px solid var(--crm-border);
-    border-radius: 16px;
+    border-radius: 20px;
     background: var(--crm-bg);
+    box-shadow: var(--crm-shadow);
   }
   .crm-settings-head h2 {
     margin: 0 0 4px;
@@ -709,8 +727,9 @@
   .crm-rule-card {
     background: var(--crm-bg);
     border: 1px solid var(--crm-border);
-    border-radius: 16px;
+    border-radius: 20px;
     padding: 18px 20px;
+    box-shadow: var(--crm-shadow);
   }
   .crm-rule-title {
     font-size: 13px;
@@ -738,8 +757,8 @@
   .crm-field input {
     height: 38px;
     border: 1px solid var(--crm-border);
-    border-radius: 8px;
-    background: var(--crm-bg-alt);
+    border-radius: 12px;
+    background: var(--crm-bg-muted);
     color: var(--crm-text);
     padding: 0 10px;
     font-size: 13px;
@@ -750,6 +769,68 @@
     border-color: var(--crm-accent);
     box-shadow: 0 0 0 3px var(--crm-accent-soft);
   }
+
+  html.dark .crm-stat-card,
+  html.dark .crm-table-card,
+  html.dark .crm-settings-head,
+  html.dark .crm-rule-card,
+  html.dark .crm-tier-card,
+  html.dark .crm-header,
+  html.dark .crm-tab-btn,
+  html.dark .crm-filter-btn,
+  html.dark .crm-secondary-btn,
+  html.dark .crm-page-btn,
+  html.dark .crm-action-btn {
+    background: var(--crm-bg) !important;
+    border-color: var(--crm-border) !important;
+    color: var(--crm-text) !important;
+  }
+
+  html.dark .crm-search input,
+  html.dark .crm-filter-select,
+  html.dark .crm-table thead th,
+  html.dark .crm-tier-card-head,
+  html.dark .crm-field input,
+  html.dark .crm-progress-bar,
+  html.dark .crm-empty-icon {
+    background: var(--crm-bg-muted) !important;
+    border-color: var(--crm-border) !important;
+    color: var(--crm-text) !important;
+  }
+
+  html.dark .crm-table tbody tr:hover {
+    background: var(--crm-bg-hover) !important;
+  }
+
+  html.dark .crm-logo-text span,
+  html.dark .crm-stat-label,
+  html.dark .crm-table thead th,
+  html.dark .crm-guest-contact,
+  html.dark .crm-stays-label,
+  html.dark .crm-last-date,
+  html.dark .crm-pagination-info,
+  html.dark .crm-page-current,
+  html.dark .crm-benefit-list label,
+  html.dark .crm-field label,
+  html.dark .crm-tier-code,
+  html.dark .crm-progress-label,
+  html.dark .crm-empty,
+  html.dark .crm-blacklist-meta {
+    color: var(--crm-text-muted) !important;
+  }
+
+  html.dark .crm-stat-value,
+  html.dark .crm-table-title,
+  html.dark .crm-guest-name,
+  html.dark .crm-stays-count,
+  html.dark .crm-last-room,
+  html.dark .crm-settings-head h2,
+  html.dark .crm-rule-title,
+  html.dark .crm-empty h3,
+  html.dark .crm-pagination-info strong,
+  html.dark .crm-blacklist-meta strong {
+    color: var(--crm-text) !important;
+  }
   .crm-tier-settings {
     display: grid;
     grid-template-columns: repeat(5, minmax(190px, 1fr));
@@ -758,8 +839,9 @@
   .crm-tier-card {
     background: var(--crm-bg);
     border: 1px solid var(--crm-border);
-    border-radius: 16px;
+    border-radius: 20px;
     overflow: hidden;
+    box-shadow: var(--crm-shadow);
   }
   .crm-tier-card-head {
     padding: 12px 14px;
@@ -817,7 +899,7 @@
     justify-content: space-between;
     padding: 16px 20px;
     border-top: 1px solid var(--crm-border);
-    background: var(--crm-bg-alt);
+    background: transparent;
   }
 
   .crm-pagination-info {

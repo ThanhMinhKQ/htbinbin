@@ -14,68 +14,16 @@ from ...db.models import (
 )
 from ...core.image_optimizer import ImageOptimizer
 
+from .schemas import (
+    RequestItemSchema, RequestTicketSchema, UpdateRequestTicketSchema,
+    ApproveItemSchema, ApproveTicketSchema,
+    DirectTransferItemSchema, DirectTransferSchema,
+    UpdateDirectExportItemSchema, UpdateDirectExportSchema,
+    ReceiveItemSchema, ReceiveTicketSchema,
+)
+
 router = APIRouter()
 
-# ====================================================================
-# SCHEMAS (Export/Transfer)
-# ====================================================================
-
-class RequestItemSchema(BaseModel):
-    product_id: int
-    quantity: float
-    unit: str
-
-class RequestTicketSchema(BaseModel):
-    source_warehouse_id: Optional[int] = None # [NEW] Cho phép chọn kho nguồn
-    dest_warehouse_id: int 
-    items: List[RequestItemSchema]
-    notes: Optional[str] = None
-    
-class UpdateRequestTicketSchema(BaseModel):
-    items: List[RequestItemSchema]
-    notes: Optional[str] = None
-    source_warehouse_id: Optional[int] = None
-
-class ApproveItemSchema(BaseModel):
-    id: Optional[int] = None 
-    product_id: int
-    approved_quantity: float 
-
-class ApproveTicketSchema(BaseModel):
-    items: List[ApproveItemSchema]
-    approver_notes: Optional[str] = None
-
-class DirectTransferItemSchema(BaseModel):
-    product_id: int
-    quantity: float
-    unit: str
-
-class DirectTransferSchema(BaseModel):
-    source_warehouse_id: Optional[int] = None 
-    dest_warehouse_id: int 
-    items: List[DirectTransferItemSchema]
-    notes: Optional[str] = None
-
-class UpdateDirectExportItemSchema(BaseModel):
-    product_id: int
-    quantity: float
-    unit: str
-
-class UpdateDirectExportSchema(BaseModel):
-    items: List[UpdateDirectExportItemSchema]
-    notes: Optional[str] = None
-
-class ReceiveItemSchema(BaseModel):
-    id: Optional[int] = None 
-    product_id: int
-    received_quantity: float
-    loss_quantity: float = 0.0
-    loss_reason: Optional[str] = None
-
-class ReceiveTicketSchema(BaseModel):
-    items: List[ReceiveItemSchema]
-    notes: Optional[str] = None
-    compensation_mode: str = "none" # "none", "loss", "full"
 @router.post("/request")
 async def create_request_ticket(
     payload: RequestTicketSchema,
@@ -159,319 +107,6 @@ async def create_request_ticket(
     
     db.commit()
     return {"status": "success", "message": "Đã gửi yêu cầu thành công!"}
-
-@router.post("/direct-export")
-async def create_direct_export_ticket(
-    payload: DirectTransferSchema,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """
-    Xuất kho trực tiếp từ Kho Admin -> Kho Con (Bỏ qua bước Duyệt)
-    Tạo phiếu với trạng thái SHIPPING (Đang giao) và trừ kho nguồn ngay lập tức.
-    """
-    user_data = request.session.get("user")
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Chưa đăng nhập")
-
-    # 1. Xác định Kho Nguồn (Thường là ADMIN/MAIN)
-    if payload.source_warehouse_id:
-        source_warehouse = db.query(Warehouse).get(payload.source_warehouse_id)
-        if not source_warehouse:
-            raise HTTPException(status_code=404, detail="Kho nguồn không tồn tại")
-    else:
-        # Mặc định lấy kho hiện tại của user (Admin)
-        active_branch_code = request.session.get("active_branch")
-        branch_obj = db.query(Branch).filter(Branch.branch_code == active_branch_code).first()
-        if branch_obj:
-            source_warehouse = db.query(Warehouse).filter(Warehouse.branch_id == branch_obj.id).first()
-        else:
-            source_warehouse = None
-            
-    if not source_warehouse:
-        raise HTTPException(status_code=400, detail="Không xác định được Kho nguồn.")
-
-    # 2. Xác định Kho Đích (Bắt buộc)
-    dest_warehouse = db.query(Warehouse).get(payload.dest_warehouse_id)
-    if not dest_warehouse:
-        raise HTTPException(status_code=404, detail="Kho đích không tồn tại")
-    
-    if source_warehouse.id == dest_warehouse.id:
-        raise HTTPException(status_code=400, detail="Kho nguồn và kho đích không được trùng nhau.")
-
-    # 3. Tạo phiếu với trạng thái SHIPPING (Đang giao)
-    code = f"EXP_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-    ticket = InventoryTransfer(
-        code=code,
-        source_warehouse_id=source_warehouse.id,
-        dest_warehouse_id=dest_warehouse.id,
-        requester_id=user_data['id'],
-        approver_id=user_data['id'], # Auto approved by creator
-        approved_at=datetime.now(timezone.utc),
-        status=TicketStatus.SHIPPING,
-        notes=payload.notes
-    )
-    db.add(ticket)
-    db.flush()
-
-    # 4. Xử lý Items & Trừ kho nguồn
-    transit_wh = db.query(Warehouse).filter(Warehouse.type == 'TRANSIT').first()
-    if not transit_wh:
-        transit_wh = Warehouse(name="Kho Đang Vận Chuyển", type="TRANSIT", branch_id=None)
-        db.add(transit_wh)
-        db.flush()
-
-    for item in payload.items:
-        # Deduct Source Stock & Calculate Base Qty
-        product = db.query(Product).get(item.product_id)
-        qty_base = Decimal(str(item.quantity))
-        
-        # Convert to base unit if necessary
-        if item.unit == product.packing_unit and product.conversion_rate > 1:
-            qty_base = qty_base * Decimal(product.conversion_rate)
-
-        # Add Item to Ticket (Stored in Base Unit for consistency with approved_qty logic)
-        t_item = InventoryTransferItem(
-            transfer_id=ticket.id,
-            product_id=item.product_id,
-            request_quantity=item.quantity,
-            request_unit=item.unit,
-            approved_quantity=qty_base # [FIX] Auto approve using BASE quantity
-        )
-        db.add(t_item)
-            
-        source_stock = db.query(InventoryLevel).filter(
-            InventoryLevel.warehouse_id == source_warehouse.id,
-            InventoryLevel.product_id == product.id
-        ).first()
-        
-        current_source_qty = source_stock.quantity if source_stock else Decimal(0)
-        
-        # Create/Update Source Stock Record (Allow negative if needed, but warning if strictly implemented)
-        if not source_stock:
-             # [STRICT] Block if product doesn't exist in stock
-             raise HTTPException(status_code=400, detail=f"Sản phẩm {product.name} chưa có trong kho nguồn (Tồn: 0)")
-        
-        if source_stock.quantity < qty_base:
-             # [STRICT] Block negative stock
-             raise HTTPException(status_code=400, detail=f"Kho không đủ hàng: {product.name} (Tồn: {source_stock.quantity}, Cần: {qty_base})")
-
-        source_stock.quantity -= qty_base
-        
-        # Log Transaction Out
-        trans_out = StockMovement(
-            warehouse_id=source_warehouse.id,
-            product_id=product.id,
-            transaction_type=TransactionTypeWMS.EXPORT_TRANSFER,
-            quantity_change=-qty_base,
-            balance_after=source_stock.quantity,
-            ref_ticket_id=ticket.id,
-            ref_ticket_type="DIRECT_EXPORT_OUT",
-            actor_id=user_data['id']
-        )
-        db.add(trans_out)
-        
-        # Add to Transit Warehouse
-        transit_stock = db.query(InventoryLevel).filter(
-            InventoryLevel.warehouse_id == transit_wh.id,
-            InventoryLevel.product_id == product.id
-        ).with_for_update().first()
-        
-        if not transit_stock:
-            # Double check to avoid race condition or stale session state
-            # If with_for_update returned None, it should be safe to create, 
-            # BUT to be absolutely safe against parallel requests within same transaction block issues:
-            transit_stock = InventoryLevel(warehouse_id=transit_wh.id, product_id=product.id, quantity=0, min_stock=0)
-            db.add(transit_stock)
-            db.flush() # Flush immediately to ensure ID availability for subsequent items if same product
-            
-        transit_stock.quantity += qty_base
-        
-        # Log Transaction Transit
-        trans_transit = StockMovement(
-            warehouse_id=transit_wh.id,
-            product_id=product.id,
-            transaction_type=TransactionTypeWMS.IMPORT_TRANSFER,
-            quantity_change=qty_base,
-            balance_after=transit_stock.quantity,
-            ref_ticket_id=ticket.id,
-            ref_ticket_type="DIRECT_EXPORT_TRANSIT",
-            actor_id=user_data['id']
-        )
-        db.add(trans_transit)
-    
-    db.commit()
-    return {"status": "success", "message": "Đã tạo phiếu xuất kho thành công! Hàng đang được giao."}
-
-@router.put("/direct-export/{ticket_id}")
-async def update_direct_export_ticket(
-    ticket_id: int,
-    payload: UpdateDirectExportSchema,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """
-    Cập nhật phiếu xuất kho trực tiếp (chỉ khi đang ở trạng thái SHIPPING - trước khi nhận hàng)
-    - Reverse stock movements cũ
-    - Cập nhật danh sách items và số lượng
-    - Re-apply stock movements mới
-    """
-    user_data = request.session.get("user")
-    if not user_data:
-        raise HTTPException(status_code=403, detail="Chưa đăng nhập")
-
-    # 1. Validate ticket
-    ticket = db.query(InventoryTransfer).get(ticket_id)
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Phiếu xuất không tồn tại")
-
-    if ticket.status != TicketStatus.SHIPPING:
-        raise HTTPException(
-            status_code=400, 
-            detail="Chỉ có thể chỉnh sửa phiếu khi đang ở trạng thái 'Đang giao hàng' (SHIPPING). Phiếu đã hoàn thành không thể sửa."
-        )
-
-    # 2. Check permissions
-    if ticket.requester_id != user_data['id'] and user_data.get('role') not in ['admin', 'manager', 'quanly', 'boss']:
-        raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa phiếu này")
-
-    try:
-        # 3. Get warehouses
-        source_warehouse = db.query(Warehouse).get(ticket.source_warehouse_id)
-        if not source_warehouse:
-            raise HTTPException(status_code=404, detail="Kho nguồn không tồn tại")
-        
-        transit_wh = db.query(Warehouse).filter(Warehouse.type == 'TRANSIT').first()
-        if not transit_wh:
-            raise HTTPException(status_code=500, detail="Kho transit không tồn tại")
-
-        # 4. Reverse previous stock movements
-        # Find all stock movements related to this ticket
-        old_movements = db.query(StockMovement).filter(
-            StockMovement.ref_ticket_id == ticket.id,
-            StockMovement.ref_ticket_type.in_(['DIRECT_EXPORT_OUT', 'DIRECT_EXPORT_TRANSIT'])
-        ).all()
-
-        for movement in old_movements:
-            # Reverse the movement
-            stock = db.query(InventoryLevel).filter(
-                InventoryLevel.warehouse_id == movement.warehouse_id,
-                InventoryLevel.product_id == movement.product_id
-            ).first()
-            
-            if stock:
-                # Reverse: if it was -100, add back +100
-                stock.quantity -= movement.quantity_change
-            
-            # Delete the movement record
-            db.delete(movement)
-
-        # 5. Delete old items
-        for item in ticket.items:
-            db.delete(item)
-        
-        db.flush()
-
-        # 6. Create new items and apply new stock movements
-        for item in payload.items:
-            product = db.query(Product).get(item.product_id)
-            if not product:
-                raise HTTPException(status_code=404, detail=f"Sản phẩm ID {item.product_id} không tồn tại")
-            
-            qty_base = Decimal(str(item.quantity))
-            
-            # Convert to base unit if necessary
-            if item.unit == product.packing_unit and product.conversion_rate > 1:
-                qty_base = qty_base * Decimal(product.conversion_rate)
-
-            # Add new item to ticket
-            t_item = InventoryTransferItem(
-                transfer_id=ticket.id,
-                product_id=item.product_id,
-                request_quantity=item.quantity,
-                request_unit=item.unit,
-                approved_quantity=qty_base
-            )
-            db.add(t_item)
-            
-            # Deduct from source warehouse
-            source_stock = db.query(InventoryLevel).filter(
-                InventoryLevel.warehouse_id == source_warehouse.id,
-                InventoryLevel.product_id == product.id
-            ).first()
-            
-            if not source_stock:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Sản phẩm {product.name} chưa có trong kho nguồn (Tồn: 0)"
-                )
-            
-            if source_stock.quantity < qty_base:
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Kho không đủ hàng: {product.name} (Tồn: {source_stock.quantity}, Cần: {qty_base})"
-                )
-
-            source_stock.quantity -= qty_base
-            
-            # Log transaction out
-            trans_out = StockMovement(
-                warehouse_id=source_warehouse.id,
-                product_id=product.id,
-                transaction_type=TransactionTypeWMS.EXPORT_TRANSFER,
-                quantity_change=-qty_base,
-                balance_after=source_stock.quantity,
-                ref_ticket_id=ticket.id,
-                ref_ticket_type="DIRECT_EXPORT_OUT",
-                actor_id=user_data['id']
-            )
-            db.add(trans_out)
-            
-            # Add to transit warehouse
-            transit_stock = db.query(InventoryLevel).filter(
-                InventoryLevel.warehouse_id == transit_wh.id,
-                InventoryLevel.product_id == product.id
-            ).with_for_update().first()
-            
-            if not transit_stock:
-                transit_stock = InventoryLevel(
-                    warehouse_id=transit_wh.id, 
-                    product_id=product.id, 
-                    quantity=0,
-                    min_stock=0
-                )
-                db.add(transit_stock)
-                db.flush()
-            
-            transit_stock.quantity += qty_base
-            
-            # Log transaction transit
-            trans_transit = StockMovement(
-                warehouse_id=transit_wh.id,
-                product_id=product.id,
-                transaction_type=TransactionTypeWMS.IMPORT_TRANSFER,
-                quantity_change=qty_base,
-                balance_after=transit_stock.quantity,
-                ref_ticket_id=ticket.id,
-                ref_ticket_type="DIRECT_EXPORT_TRANSIT",
-                actor_id=user_data['id']
-            )
-            db.add(trans_transit)
-
-        # 7. Update notes if provided
-        if payload.notes is not None:
-            ticket.notes = payload.notes
-
-        db.commit()
-        return {"status": "success", "message": "Đã cập nhật phiếu xuất kho thành công!"}
-        
-    except HTTPException:
-        db.rollback()
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Lỗi khi cập nhật phiếu: {str(e)}")
-
 
 @router.get("/request/{ticket_id}")
 async def get_request_detail(
@@ -1752,95 +1387,230 @@ async def update_request_ticket(
         raise HTTPException(status_code=500, detail=f"Lỗi khi cập nhật phiếu: {str(e)}")
 
 # ====================================================================
-# API: IMAGE UPLOAD FOR TRANSFERS (RECEIPTS)
-# ====================================================================
 
-@router.post("/transfer/{ticket_id}/images")
-async def upload_transfer_images(
-    ticket_id: int,
-    files: List[UploadFile] = File(...),
+
+@router.get("/page-init")
+async def get_page_init(
+    request: Request,
+    warehouse_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+    page: int = 1,
+    per_page: int = 10,
     db: Session = Depends(get_db)
 ):
-    """
-    Upload multiple images for a transfer ticket (reception proof).
-    """
-    try:
-        ticket = db.query(InventoryTransfer).get(ticket_id)
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Phiếu không tồn tại")
-        
-        uploaded_images = []
-        
-        for file in files:
-            if not file.content_type or not file.content_type.startswith('image/'):
-                continue
-            
-            image_bytes = await file.read()
-            if len(image_bytes) > 10 * 1024 * 1024:
-                raise HTTPException(status_code=400, detail=f"File {file.filename} quá lớn (max 10MB)")
-            
-            try:
-                # Use 'transfer' prefix or subfolder logic if supported by ImageOptimizer
-                # Assuming simple save_optimized takes (bytes, id, filename)
-                full_path, thumb_path, width, height = ImageOptimizer.save_optimized(
-                    image_bytes,
-                    f"TR_{ticket_id}", # custom ID prefix to distinguish from receipts? Or just ID. 
-                    file.filename
-                )
-                
-                transfer_image = TransferImage(
-                    transfer_id=ticket_id,
-                    file_path=full_path,
-                    thumbnail_path=thumb_path,
-                    file_size=len(image_bytes),
-                    width=width,
-                    height=height,
-                    display_order=len(uploaded_images)
-                )
-                db.add(transfer_image)
-                uploaded_images.append({
-                    "filename": file.filename
-                })
-                
-            except Exception as e:
-                print(f"Error processing image {file.filename}: {e}")
-                continue
-        
-        db.commit()
-        return {
-            "status": "success",
-            "message": f"Đã upload {len(uploaded_images)} hình ảnh",
-            "images": uploaded_images
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    """Combined init: approvals (PENDING) + imports list. Replaces 2 separate requests."""
+    from ...core.utils import VN_TZ
 
-@router.get("/transfer/{ticket_id}/images")
-async def get_transfer_images(
-    ticket_id: int,
+    start_time = None
+    end_time = None
+    try:
+        if date_from:
+            f_date = datetime.strptime(date_from, "%Y-%m-%d").date()
+            start_time = datetime.combine(f_date, datetime.min.time()).replace(tzinfo=VN_TZ)
+        if date_to:
+            t_date = datetime.strptime(date_to, "%Y-%m-%d").date()
+            end_time = datetime.combine(t_date, datetime.max.time()).replace(tzinfo=VN_TZ)
+    except ValueError:
+        pass
+
+    # 1. Approvals (PENDING)
+    aq = db.query(InventoryTransfer).options(
+        selectinload(InventoryTransfer.items).joinedload(InventoryTransferItem.product),
+        joinedload(InventoryTransfer.dest_warehouse),
+        joinedload(InventoryTransfer.source_warehouse),
+        joinedload(InventoryTransfer.requester),
+        selectinload(InventoryTransfer.compensation_transfers)
+    ).filter(InventoryTransfer.status == TicketStatus.PENDING)
+
+    if warehouse_id:
+        aq = aq.filter(InventoryTransfer.source_warehouse_id == warehouse_id)
+    if start_time:
+        aq = aq.filter(InventoryTransfer.created_at >= start_time)
+    if end_time:
+        aq = aq.filter(InventoryTransfer.created_at <= end_time)
+
+    total_approvals = aq.count()
+    approvals = aq.order_by(desc(InventoryTransfer.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+
+    approvals_data = []
+    for t in approvals:
+        items = [{"id": i.id, "product_id": i.product_id, "product_name": i.product.name,
+                  "category_id": i.product.category_id,
+                  "category_name": i.product.category.name if i.product.category else "Other",
+                  "request_quantity": float(i.request_quantity), "request_unit": i.request_unit,
+                  "approved_quantity": float(i.approved_quantity) if i.approved_quantity else None,
+                  "received_quantity": float(i.received_quantity) if i.received_quantity is not None else 0,
+                  "current_stock": 0, "loss_quantity": 0, "loss_reason": ""} for i in t.items]
+        approvals_data.append({
+            "id": t.id, "code": t.code, "is_comp": False,
+            "branch_name": t.dest_warehouse.name if t.dest_warehouse else "Unknown",
+            "source_warehouse_name": t.source_warehouse.name if t.source_warehouse else "Kho Tổng",
+            "source_warehouse_id": t.source_warehouse_id,
+            "requester_name": t.requester.name if t.requester else "Unknown",
+            "approver_name": "", "created_at": t.created_at.isoformat() if t.created_at else "",
+            "approved_at": "", "approver_notes": t.approver_notes, "status": t.status,
+            "notes": t.notes, "items": items, "has_shortage": False, "has_excess": False,
+            "is_compensated_enough": False, "has_compensation": len(t.compensation_transfers) > 0,
+            "compensation_history": [], "images": []
+        })
+
+    # 2. Imports
+    iq = db.query(InventoryReceipt)
+    if warehouse_id:
+        iq = iq.filter(InventoryReceipt.warehouse_id == warehouse_id)
+    if start_time:
+        iq = iq.filter(InventoryReceipt.created_at >= start_time)
+    if end_time:
+        iq = iq.filter(InventoryReceipt.created_at <= end_time)
+
+    total_imports = iq.count()
+    imports = iq.order_by(desc(InventoryReceipt.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+    imports_data = [{"id": r.id, "code": r.code, "supplier_name": r.supplier_name or "",
+                     "total_amount": float(r.total_amount or 0), "notes": r.notes or "",
+                     "created_at": r.created_at.isoformat() if r.created_at else ""} for r in imports]
+
+    return {
+        "approvals": {"records": approvals_data, "totalRecords": total_approvals,
+                      "totalPages": (total_approvals + per_page - 1) // per_page,
+                      "currentPage": page, "pendingCount": total_approvals},
+        "imports": {"records": imports_data, "totalRecords": total_imports,
+                    "totalPages": (total_imports + per_page - 1) // per_page, "currentPage": page}
+    }
+
+
+@router.get("/page-load")
+async def get_page_load(
+    request: Request,
+    warehouse_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+    overview_date_from: str = None,
+    overview_date_to: str = None,
+    page: int = 1,
+    per_page: int = 10,
     db: Session = Depends(get_db)
 ):
+    """Single endpoint for full page init: approvals + imports + overview stats."""
+    from ...core.utils import VN_TZ
+    from ...db.models import InventoryLevel, InventoryReceipt, Product
+    from sqlalchemy import func, case, text as sa_text
+
+    # Parse dates
+    start_time = end_time = ov_start = ov_end = None
     try:
-        images = db.query(TransferImage).filter(
-            TransferImage.transfer_id == ticket_id
-        ).order_by(TransferImage.display_order).all()
-        
-        return {
-            "images": [
-                {
-                    "id": img.id,
-                    "file_path": "/" + img.file_path if img.file_path and not img.file_path.startswith("/") else img.file_path,
-                    "thumbnail_path": "/" + img.thumbnail_path if img.thumbnail_path and not img.thumbnail_path.startswith("/") else img.thumbnail_path,
-                    "file_size": img.file_size,
-                    "width": img.width,
-                    "height": img.height,
-                    "uploaded_at": img.uploaded_at.isoformat() if img.uploaded_at else ""
-                }
-                for img in images
-            ]
+        if date_from:
+            start_time = datetime.combine(datetime.strptime(date_from, "%Y-%m-%d").date(), datetime.min.time()).replace(tzinfo=VN_TZ)
+        if date_to:
+            end_time = datetime.combine(datetime.strptime(date_to, "%Y-%m-%d").date(), datetime.max.time()).replace(tzinfo=VN_TZ)
+        if overview_date_from:
+            ov_start = datetime.combine(datetime.strptime(overview_date_from, "%Y-%m-%d").date(), datetime.min.time()).replace(tzinfo=VN_TZ)
+        if overview_date_to:
+            ov_end = datetime.combine(datetime.strptime(overview_date_to, "%Y-%m-%d").date(), datetime.max.time()).replace(tzinfo=VN_TZ)
+    except ValueError:
+        pass
+
+    # ── 1. Approvals (PENDING) ──
+    aq = db.query(InventoryTransfer).options(
+        selectinload(InventoryTransfer.items).joinedload(InventoryTransferItem.product),
+        joinedload(InventoryTransfer.dest_warehouse),
+        joinedload(InventoryTransfer.source_warehouse),
+        joinedload(InventoryTransfer.requester),
+        selectinload(InventoryTransfer.compensation_transfers)
+    ).filter(InventoryTransfer.status == TicketStatus.PENDING)
+    if warehouse_id:
+        aq = aq.filter(InventoryTransfer.source_warehouse_id == warehouse_id)
+    if start_time:
+        aq = aq.filter(InventoryTransfer.created_at >= start_time)
+    if end_time:
+        aq = aq.filter(InventoryTransfer.created_at <= end_time)
+
+    total_approvals = aq.count()
+    approvals = aq.order_by(desc(InventoryTransfer.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+    approvals_data = []
+    for t in approvals:
+        items = [{"id": i.id, "product_id": i.product_id, "product_name": i.product.name,
+                  "category_id": i.product.category_id,
+                  "category_name": i.product.category.name if i.product.category else "Other",
+                  "request_quantity": float(i.request_quantity), "request_unit": i.request_unit,
+                  "approved_quantity": float(i.approved_quantity) if i.approved_quantity else None,
+                  "received_quantity": float(i.received_quantity) if i.received_quantity is not None else 0,
+                  "current_stock": 0, "loss_quantity": 0, "loss_reason": ""} for i in t.items]
+        approvals_data.append({
+            "id": t.id, "code": t.code, "is_comp": False,
+            "branch_name": t.dest_warehouse.name if t.dest_warehouse else "Unknown",
+            "source_warehouse_name": t.source_warehouse.name if t.source_warehouse else "Kho Tổng",
+            "source_warehouse_id": t.source_warehouse_id,
+            "requester_name": t.requester.name if t.requester else "Unknown",
+            "approver_name": "", "created_at": t.created_at.isoformat() if t.created_at else "",
+            "approved_at": "", "approver_notes": t.approver_notes, "status": t.status,
+            "notes": t.notes, "items": items, "has_shortage": False, "has_excess": False,
+            "is_compensated_enough": False, "has_compensation": len(t.compensation_transfers) > 0,
+            "compensation_history": [], "images": []
+        })
+
+    # ── 2. Imports ──
+    iq = db.query(InventoryReceipt)
+    if warehouse_id:
+        iq = iq.filter(InventoryReceipt.warehouse_id == warehouse_id)
+    if start_time:
+        iq = iq.filter(InventoryReceipt.created_at >= start_time)
+    if end_time:
+        iq = iq.filter(InventoryReceipt.created_at <= end_time)
+    total_imports = iq.count()
+    imports = iq.order_by(desc(InventoryReceipt.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+    imports_data = [{"id": r.id, "code": r.code, "supplier_name": r.supplier_name or "",
+                     "total_amount": float(r.total_amount or 0), "notes": r.notes or "",
+                     "created_at": r.created_at.isoformat() if r.created_at else ""} for r in imports]
+
+    # ── 3. Overview stats (raw SQL single query) ──
+    ov_params: dict = {}
+    ov_wh = f"it.source_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
+    ov_wh_dest = f"it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
+    ov_wh_ir = f"ir.warehouse_id = :wh_id" if warehouse_id else "1=1"
+    ov_wh_sm = f"sm.warehouse_id = :wh_id" if warehouse_id else "1=1"
+    if warehouse_id:
+        ov_params["wh_id"] = warehouse_id
+    ov_date = ""
+    if ov_start:
+        ov_date += " AND it.created_at >= :ov_start"
+        ov_params["ov_start"] = ov_start
+    if ov_end:
+        ov_date += " AND it.created_at <= :ov_end"
+        ov_params["ov_end"] = ov_end
+
+    from sqlalchemy import text as sa_text
+    stats_sql = sa_text(f"""
+        SELECT
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} {ov_date.replace('it.created_at','it.created_at')}) AS req_total,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING' {ov_date}) AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING' {ov_date}) AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date}) AS req_completed,
+            (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir}) AS imp_count,
+            (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir}) AS imp_amount,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh} AND it.status='COMPLETED' {ov_date}) AS exp_count
+    """)
+    stats_row = db.execute(stats_sql, ov_params).fetchone()
+
+    return {
+        "approvals": {
+            "records": approvals_data,
+            "totalRecords": total_approvals,
+            "totalPages": (total_approvals + per_page - 1) // per_page,
+            "currentPage": page,
+            "pendingCount": total_approvals
+        },
+        "imports": {
+            "records": imports_data,
+            "totalRecords": total_imports,
+            "totalPages": (total_imports + per_page - 1) // per_page,
+            "currentPage": page
+        },
+        "stats": {
+            "requests": {"total": stats_row.req_total or 0, "pending": stats_row.req_pending or 0,
+                         "shipping": stats_row.req_shipping or 0, "completed": stats_row.req_completed or 0},
+            "imports": {"total": stats_row.imp_count or 0, "total_amount": float(stats_row.imp_amount or 0)},
+            "exports": {"total": stats_row.exp_count or 0},
+            "sales": {"total_amount": 0}
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    }

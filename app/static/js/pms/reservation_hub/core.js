@@ -31,7 +31,7 @@ const BookingHub = {
         const requestedTab = params.get('tab');
         const requestedSource = (params.get('source') || '').toUpperCase();
         this.state.branchId = requestedBranchId || boot.branchId || null;
-        this.state.activeTab = requestedTab === 'ota' || requestedSource === 'OTA' ? 'ota' : 'today';
+        this.state.activeTab = requestedTab === 'ota' || requestedSource === 'OTA' ? 'ota' : (requestedTab || 'all');
         this.state.branches = Array.isArray(boot.branches) ? boot.branches : [];
         this.state.transferBranches = Array.isArray(boot.transferBranches) ? boot.transferBranches : this.state.branches;
         this.state.roomTypes = Array.isArray(boot.roomTypes) ? boot.roomTypes : [];

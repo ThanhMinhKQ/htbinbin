@@ -582,6 +582,7 @@ def api_ota_status(
             "cancelled_emails": 0,
             "agent_ai_count": 0,
             "agent_gemini_count": 0,
+            "agent_skipped_count": 0,
             "agent_parse_count": 0,
             "agent_total_count": 0,
             "agent_window_days": days,
@@ -598,8 +599,8 @@ def api_ota_status(
     latest_log = relevant_logs[0] if relevant_logs else None
     success_booking_logs = [log for log in relevant_logs if _is_success_booking_log(log)]
     cancel_booking_logs = [log for log in relevant_logs if _is_cancel_booking_log(log)]
-    ai_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "gemini")
-    rule_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule")
+    ai_count = sum(1 for log in relevant_logs if _log_parser_method(log) in ("gemini", "ai"))
+    skipped_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule_skip" or (log.extracted_data or {}).get("status") == "SKIPPED")
     latest_relevant_log = success_booking_logs[0] if success_booking_logs else None
     latest_relevant_payload = _serialize_ota_log(latest_relevant_log) if latest_relevant_log else None
     latest_cancel_log = cancel_booking_logs[0] if cancel_booking_logs else None
@@ -617,8 +618,9 @@ def api_ota_status(
         "cancelled_emails": len(cancel_booking_logs),
         "agent_ai_count": ai_count,
         "agent_gemini_count": ai_count,
-        "agent_parse_count": rule_count,
-        "agent_total_count": ai_count + rule_count,
+        "agent_skipped_count": skipped_count,
+        "agent_parse_count": 0,
+        "agent_total_count": ai_count + skipped_count,
         "agent_window_days": days,
         "latest_email_at": _iso_vn(latest_log.received_at) if latest_log else None,
         "latest_email_status": latest_log.status.value if latest_log and hasattr(latest_log.status, "value") else None,
@@ -640,13 +642,14 @@ def api_ota_status(
 def api_ota_logs(
     request: Request,
     status: Optional[str] = None,
-    parser_method: Optional[str] = None,
+    booking_source: Optional[str] = None,
     action_type: Optional[str] = None,
     branch_id: Optional[int] = None,
     search: Optional[str] = None,
     from_date: Optional[str] = None,
     to_date: Optional[str] = None,
-    limit: int = Query(50, ge=1, le=100),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
     user = _require_login(request)
@@ -671,8 +674,6 @@ def api_ota_logs(
         failed_review,
     )).order_by(OTAParsingLog.received_at.desc())
 
-    # Giới hạn phạm vi thời gian mặc định 14 ngày khi không có filter ngày
-    # → tránh seq scan toàn bộ bảng ota_parsing_logs, tận dụng index received_at DESC
     if from_date:
         q = q.filter(OTAParsingLog.received_at >= _parse_date(from_date, "from_date"))
     elif not search:
@@ -692,6 +693,11 @@ def api_ota_logs(
             q = q.filter(OTAParsingLog.status == OTAParsingStatus.SUCCESS)
         elif normalized == "FAILED":
             q = q.filter(OTAParsingLog.status == OTAParsingStatus.FAILED)
+    if booking_source:
+        q = q.filter(or_(
+            Booking.booking_source.ilike(booking_source),
+            OTAParsingLog.extracted_data["booking_source"].astext.ilike(booking_source),
+        ))
     if search:
         like = f"%{search.strip()}%"
         q = q.filter(or_(
@@ -702,20 +708,26 @@ def api_ota_logs(
             Booking.booking_source.ilike(like),
         ))
 
-    # Giảm over-fetch: limit*2 thay vì limit*3 — Python filter nhẹ hơn trước
-    raw_logs = q.limit(max(limit * 2, 60)).all()
+    raw_logs = q.limit(max(limit * 3, 80)).all()
     logs = [log for log in raw_logs if _is_relevant_ota_log(log) and _ota_log_matches_branch(log, target_branch)]
-    if parser_method and parser_method.lower() in {"gemini", "rule"}:
-        logs = [log for log in logs if _log_parser_method(log) == parser_method.lower()]
     if action_type and action_type.upper() not in {"ALL", ""}:
         logs = [log for log in logs if _ota_log_action_type(log) == action_type.upper()]
-    logs = logs[:limit]
+
+    total = len(logs)
+    total_pages = max(1, (total + limit - 1) // limit)
+    page = min(page, total_pages)
+    offset = (page - 1) * limit
+    page_logs = logs[offset:offset + limit]
+
     return JSONResponse({
-        "items": [_serialize_ota_log(log) for log in logs],
-        "total": len(logs),
+        "items": [_serialize_ota_log(log) for log in page_logs],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "total_pages": total_pages,
         "filters": {
             "status": status,
-            "parser_method": parser_method,
+            "booking_source": booking_source,
             "action_type": action_type,
             "branch_id": target_branch,
             "from_date": from_date,

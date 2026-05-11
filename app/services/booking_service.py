@@ -486,7 +486,7 @@ class BookingService:
             "assigned_room_number": booking.assigned_room.room_number if booking.assigned_room else None,
             "stay_id": booking.stay_id,
             "estimated_arrival": booking.estimated_arrival.isoformat() if booking.estimated_arrival else None,
-            "special_requests": booking.special_requests or (booking.raw_data or {}).get("special_requests"),
+            "special_requests": booking.special_requests or (booking.raw_data or {}).get("special_requests") or (booking.raw_data or {}).get("notes"),
             "internal_notes": booking.internal_notes,
             "cancel_reason": booking.cancel_reason,
             "guest_email": booking.guest.email if booking.guest else (booking.raw_data or {}).get("guest_email"),

@@ -17,15 +17,12 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
         ...overview,
 
         initApp() {
-            // [NEW] Restore tab from localStorage
             this.initCurrentTab();
 
-            // [NEW] Watch currentTab and save to localStorage
             this.$watch('currentTab', (newTab) => {
                 localStorage.setItem('reception_currentTab', newTab);
             });
 
-            // Initialize data from global variables if available
             try {
                 let rawProducts = [];
                 let rawCategories = [];
@@ -45,9 +42,8 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     }
                 }
 
-                if (window.BRANCH_ID_DATA) this.currentBranchId = window.BRANCH_ID_DATA; // Fallback
+                if (window.BRANCH_ID_DATA) this.currentBranchId = window.BRANCH_ID_DATA;
 
-                // [NEW] Load Warehouses & Branches
                 if (document.getElementById('warehouses-data')) {
                     this.allWarehouses = JSON.parse(document.getElementById('warehouses-data').textContent || '[]');
                 }
@@ -55,7 +51,6 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     this.branches = JSON.parse(document.getElementById('branches-data').textContent || '[]');
                 }
 
-                // [NEW] Determine if Admin
                 if (this.currentBranchId && this.branches.length > 0) {
                     const cb = this.branches.find(b => b.id == this.currentBranchId);
                     if (cb && (cb.code.toLowerCase() === 'admin' || cb.name.toLowerCase().includes('admin'))) {
@@ -63,21 +58,17 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     }
                 }
 
-                // NORMALIZE DATA
-                // 1. Categories
                 this.normalizedCategories = rawCategories.map(c => ({
                     id: String(c.id),
                     name: c.name
                 }));
 
-                // 2. Products
                 this.normalizedProducts = rawProducts.map(p => ({
                     ...p,
                     id: String(p.id),
                     category_id: (p.category_id !== null && p.category_id !== undefined) ? String(p.category_id) : 'OTHER',
                 }));
 
-                // Assign to main lists for compatibility
                 this.categoryList = this.normalizedCategories;
                 this.productList = this.normalizedProducts;
 
@@ -87,25 +78,31 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 this.renderPagination();
                 this.updateSortIndicators();
             }, 0);
-            if (this.currentBranchId) {
-                this.initOverview();
-                this.fetchPendingApprovals();
-                this.fetchImports(1);
 
-                // [NEW] Fetch data for restored tab
+            if (this.currentBranchId || this.currentWarehouseId) {
+                // Priority 1: active tab first
                 if (this.currentTab === 'approvals') {
                     this.fetchApprovals();
+                } else if (this.currentTab === 'import') {
+                    this.fetchImports(1);
+                } else if (this.currentTab === 'overview') {
+                    this.initOverview();
                 }
-                // Note: 'requests' data is already loaded from INITIAL_RECORDS
-                // 'import' is already fetched above
-                // 'overview' is already initialized above
+
+                // Priority 2: background loads staggered
+                setTimeout(() => {
+                    if (this.currentTab !== 'approvals') this.fetchPendingApprovals();
+                }, 100);
+                setTimeout(() => {
+                    if (this.currentTab !== 'import') this.fetchImports(1);
+                }, 200);
+                setTimeout(() => {
+                    if (this.currentTab !== 'overview') this.initOverview();
+                }, 300);
             }
         }
     };
 }
 
-// Export for dynamic import usage
 export { receptionRequestApp };
-
-// Keep window assignment for debugging or fallback
 window.receptionRequestApp = receptionRequestApp;

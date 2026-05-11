@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     IMAP_USER: Optional[str] = None
     IMAP_PASSWORD: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
-    OTA_SENDERS: str = "booking.com,agoda.com,expedia.com,go2joy.vn,g2j" # Comma separated
+    GATECHEAP_API_KEY: Optional[str] = None
+    GATECHEAP_MODEL: str = "gpt-5.4"
+    OTA_SENDERS: str = "agoda.com,expedia.com,traveloka.com,airbnb.com,go2joy.vn,trip.com,binbinhotel.ota@gmail.com,mytour.vn,minhvincent.karma@gmail.com"
 
     # Gmail Push Notification (Pub/Sub) - Thay thế IMAP polling
     GMAIL_CLIENT_ID: Optional[str] = None

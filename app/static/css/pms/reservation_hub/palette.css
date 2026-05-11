@@ -95,16 +95,14 @@ body:has(#pms-booking-page) {
 .bk-method-pill.rule,
 .bk-room-badge.assigned,
 .bk-room-badge.unassigned {
-  background: rgba(111, 209, 215, 0.16) !important;
-  color: #093C5D !important;
-  border-color: rgba(59, 117, 151, 0.24) !important;
+  background: var(--bk-primary-soft) !important;
+  color: var(--bk-primary) !important;
+  border-color: var(--bk-line-strong) !important;
 }
 
-.bk-table tr.needs-confirm td,
-.bk-table tr.ready-checkin td,
-.bk-ota-log-table tr.failed td {
-  background: rgba(111, 209, 215, 0.08) !important;
-}
+.bk-table tr.needs-confirm td { background: var(--bk-row-warning-bg) !important; }
+.bk-table tr.ready-checkin td { background: var(--bk-row-success-bg) !important; }
+.bk-ota-log-table tr.failed td { background: var(--bk-danger-bg) !important; }
 
 .bk-avail-fill,
 .bk-avail-fill.warn,
@@ -125,6 +123,7 @@ html.dark .bk-card,
 html.dark .bk-avail-bar,
 html.dark .bk-ota-strip,
 html.dark .bk-table-wrap,
+html.dark .bk-table th,
 html.dark .bk-table td,
 html.dark .bk-dialog,
 html.dark #pms-toast {
@@ -171,7 +170,7 @@ html.dark #pms-booking-page .bk-skeleton {
   font-size: 12px;
   font-weight: 650;
   white-space: nowrap;
-  background: var(--bk-surface);
+  background: var(--bk-table-head-bg);
   color: var(--bk-ink);
 }
 
@@ -281,11 +280,11 @@ html.dark #pms-booking-page .bk-skeleton {
 #pms-booking-page .bk-deposit-label,
 #pms-booking-page .bk-payment-state {
   font-size: 11.5px;
-  color: #3B7597;
+  color: var(--bk-muted);
 }
 
 #pms-booking-page .bk-payment-state.unpaid {
-  color: #b45309;
+  color: var(--bk-warning-text);
 }
 
 #pms-booking-page .bk-request-cell {
@@ -408,7 +407,7 @@ html.dark #pms-booking-page .bk-skeleton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: inherit;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   color: #2563eb;
@@ -505,6 +504,27 @@ html.dark #pms-booking-page .bk-skeleton {
 .bk-detail-body {
   padding: 22px 28px;
   background: var(--bk-surface);
+}
+
+.bk-detail-loading {
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bk-surface);
+  border-radius: 12px;
+}
+
+.bk-detail-loading .bk-skeleton {
+  width: 80%;
+  height: 300px;
+}
+
+.bk-detail-error {
+  padding: 40px;
+  text-align: center;
+  color: var(--bk-danger-text);
+  font-weight: 700;
 }
 
 .bk-detail-summary {

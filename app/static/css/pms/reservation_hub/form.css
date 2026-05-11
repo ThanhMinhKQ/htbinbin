@@ -37,6 +37,28 @@
     display: block;
   }
 
+  .bk-crm-message {
+    padding: 12px;
+    color: var(--bk-muted);
+  }
+
+  .bk-crm-message.error {
+    color: var(--bk-danger-text);
+    font-weight: 700;
+  }
+
+  .bk-crm-meta {
+    margin-top: 2px;
+    color: var(--bk-muted);
+    font-size: 12px;
+  }
+
+  .bk-crm-tier {
+    color: var(--bk-info-text);
+    font-size: 11px;
+    font-weight: 850;
+  }
+
   .bk-booking-summary {
     background: #ffffff;
     border: 1px solid #dbe8ec;

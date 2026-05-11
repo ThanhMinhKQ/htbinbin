@@ -193,23 +193,23 @@
                 </div>
 
                 <!-- Partials -->
-                {% include "inventory/manager/modules/requests/tab_requests.html" %}
-                {% include "inventory/manager/modules/approvals/tab_approvals.html" %}
+                {% include "inventory/shared/requests/tab_requests.html" %}
+                {% include "inventory/shared/approvals/tab_approvals.html" %}
                 {% include "inventory/manager/modules/overview/tab_overview.html" %}
                 {% include "inventory/manager/modules/overview/modal_product_history.html" %}
-                {% include "inventory/manager/modules/imports/tab_import.html" %}
+                {% include "inventory/shared/imports/tab_import.html" %}
                 {% include "inventory/manager/modules/exports/tab_export.html" %}
 
             </div>
 
             <!-- Modals (Moved outside overflow-hidden for safety) -->
-            {% include "inventory/manager/modules/requests/modal_create.html" %}
-            {% include "inventory/manager/modules/requests/modal_edit_request.html" %}
-            {% include "inventory/manager/modules/requests/modal_request_detail.html" %}
-            {% include "inventory/manager/modules/approvals/modal_approval_detail.html" %}
-            {% include "inventory/manager/modules/requests/modal_child_ticket.html" %}
-            {% include "inventory/manager/modules/approvals/modal_approval.html" %}
-            {% include "inventory/manager/modules/requests/modal_receipt.html" %}
+            {% include "inventory/shared/requests/modal_create.html" %}
+            {% include "inventory/shared/requests/modal_edit_request.html" %}
+            {% include "inventory/shared/requests/modal_request_detail.html" %}
+            {% include "inventory/shared/approvals/modal_approval_detail.html" %}
+            {% include "inventory/shared/requests/modal_child_ticket.html" %}
+            {% include "inventory/shared/approvals/modal_approval.html" %}
+            {% include "inventory/shared/requests/modal_receipt.html" %}
 
             <!-- Global Image Viewer Modal -->
             <div x-show="viewingImage" style="display: none;"
@@ -230,9 +230,9 @@
             </div>
 
             <!-- Import/Export Modals (At root level of Alpine component to avoid nesting issues) -->
-            {% include "inventory/manager/modules/imports/modal_import.html" %}
-            {% include "inventory/manager/modules/imports/modal_edit_import.html" %}
-            {% include "inventory/manager/modules/imports/modal_import_detail.html" %}
+            {% include "inventory/shared/imports/modal_import.html" %}
+            {% include "inventory/shared/imports/modal_edit_import.html" %}
+            {% include "inventory/shared/imports/modal_import_detail.html" %}
             {% include "inventory/manager/modules/exports/modal_export.html" %}
             {% include "inventory/manager/modules/exports/modal_export_edit.html" %}
             {% include "inventory/manager/modules/exports/modal_export_detail.html" %}

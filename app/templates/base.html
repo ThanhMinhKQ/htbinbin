@@ -46,6 +46,11 @@
             --sidebar-width: 15rem;
             --sidebar-collapsed-width: 4.5rem;
             --header-height: 3.5rem;
+            --app-bg: #eef3f9;
+            --app-bg-soft: #f8fafc;
+            --app-bg-muted: #e2e8f0;
+            --app-bg-radial: rgba(59, 130, 246, 0.16);
+            --page-bg: rgba(255, 255, 255, 0.92);
             --surface: rgba(255, 255, 255, 0.82);
             --surface-solid: #ffffff;
             --surface-muted: rgba(248, 250, 252, 0.9);
@@ -54,6 +59,11 @@
         }
 
         .dark {
+            --app-bg: #020617;
+            --app-bg-soft: #0f172a;
+            --app-bg-muted: #111827;
+            --app-bg-radial: rgba(59, 130, 246, 0.22);
+            --page-bg: rgba(15, 23, 42, 0.96);
             --surface: rgba(15, 23, 42, 0.82);
             --surface-solid: #0f172a;
             --surface-muted: rgba(2, 6, 23, 0.74);
@@ -72,23 +82,23 @@
         html {
             font-family: 'Inter', sans-serif;
             scroll-behavior: smooth;
-            background: #e7edf5;
+            background: var(--app-bg);
         }
 
         html.dark {
-            background: #020617;
+            background: var(--app-bg);
         }
 
         body {
             background:
-                radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 34rem),
-                linear-gradient(135deg, #eef3f9 0%, #f8fafc 44%, #e2e8f0 100%);
+                radial-gradient(circle at top left, var(--app-bg-radial), transparent 34rem),
+                linear-gradient(135deg, var(--app-bg) 0%, var(--app-bg-soft) 44%, var(--app-bg-muted) 100%);
         }
 
         html.dark body {
             background:
-                radial-gradient(circle at top left, rgba(59, 130, 246, 0.22), transparent 34rem),
-                linear-gradient(135deg, #020617 0%, #0f172a 52%, #111827 100%);
+                radial-gradient(circle at top left, var(--app-bg-radial), transparent 34rem),
+                linear-gradient(135deg, var(--app-bg) 0%, var(--app-bg-soft) 52%, var(--app-bg-muted) 100%);
         }
         @media (min-width: 1024px) {
             :root {
@@ -184,7 +194,7 @@
             overflow-x: auto;
             border: 1px solid var(--surface-border);
             border-radius: 1.35rem;
-            background: var(--surface-solid);
+            background: var(--page-bg);
             box-shadow: var(--surface-shadow);
             padding: clamp(0.75rem, 1.2vw, 1.25rem);
             padding-bottom: calc(clamp(0.75rem, 1.2vw, 1.25rem) + var(--safe-bottom));
@@ -192,12 +202,6 @@
 
         .app-main > * {
             min-width: 0;
-        }
-
-
-
-        html.dark .app-main {
-            background: rgba(15, 23, 42, 0.96);
         }
 
         [x-cloak] {

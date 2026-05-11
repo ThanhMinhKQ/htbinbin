@@ -135,16 +135,13 @@ class OTADashboardService:
             extracted = self.rule_extractor.extract(email)
             if extracted and extracted.get("status") == "SKIPPED":
                 return {"success": False, "error": "Email không phải booking OTA", "retry_count": log.retry_count}
-            if extracted and is_confident_booking(extracted):
-                extracted["parser_method"] = "rule"
-            else:
-                extracted = self.extractor.extract_data(
-                    html_content=log.raw_content,
-                    sender=log.email_sender,
-                    subject=log.email_subject
-                )
-                if isinstance(extracted, dict):
-                    extracted["parser_method"] = "gemini"
+            extracted = self.extractor.extract_data(
+                html_content=log.raw_content,
+                sender=log.email_sender,
+                subject=log.email_subject
+            )
+            if isinstance(extracted, dict):
+                extracted["parser_method"] = "ai"
             extracted = self._json_safe(extracted)
 
             if extracted.get("status") == "FAILED":
@@ -340,7 +337,7 @@ class OTADashboardService:
             "logs_today": logs_today,
             "recent_failures_24h": recent_failures,
             "warnings": warnings,
-            "gemini_api_configured": self.extractor.client is not None
+            "ai_api_configured": bool(self.extractor.client)
         }
     
     def mark_as_dead_letter(self, db: Session, log_id: int) -> bool:
@@ -441,7 +438,7 @@ class OTADashboardService:
         for log in failed_logs:
             error_msg = (log.error_message or "").lower()
             
-            if "extraction" in error_msg or "ai" in error_msg or "gemini" in error_msg:
+            if "extraction" in error_msg or "ai" in error_msg or "gemini" in error_msg or "gpt" in error_msg:
                 categories["AI Extraction Failed"] += 1
             elif "hotel" in error_msg or "branch" in error_msg or "map" in error_msg:
                 categories["Hotel Mapping Failed"] += 1

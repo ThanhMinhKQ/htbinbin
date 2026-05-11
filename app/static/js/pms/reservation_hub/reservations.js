@@ -115,7 +115,10 @@ Object.assign(BookingHub, {
         const guestName = this.escape(booking.guest_name || 'Khách lẻ');
         const phone = booking.guest_phone ? this.escape(booking.guest_phone) : 'Chưa có SĐT';
         const room = booking.assigned_room_number ? `Phòng ${this.escape(booking.assigned_room_number)}` : 'Chưa gán phòng';
-        const roomType = this.escape(booking.room_type || 'Chưa rõ loại phòng');
+        const roomTypeRaw = booking.room_type || 'Chưa rõ loại phòng';
+        const roomTypeParts = roomTypeRaw.split(/\s*[-–—]\s*/);
+        const roomTypeClean = (roomTypeParts.length >= 2 ? roomTypeParts[1] : roomTypeParts[0]).split(/\s*(?:Hệ thống|Hướng dẫn|Payment)/i)[0].trim();
+        const roomType = this.escape(roomTypeClean.substring(0, 80) || roomTypeParts[0].substring(0, 80));
         const roomSummary = booking.group_summary ? `<div class="bk-room-extra">${this.escape(booking.group_summary)}</div>` : '';
         const groupLabel = booking.group_code
             ? `<span class="bk-source-pill group">Nhóm ${this.escape(booking.group_index || 1)}/${this.escape(booking.group_total || 1)}</span>`
@@ -587,7 +590,7 @@ Object.assign(BookingHub, {
     async openDetail(id) {
         this.state.detailBookingId = id;
         const dialog = document.getElementById('bk-detail-dialog');
-        if (dialog) dialog.innerHTML = '<div class="bk-loading" style="display:flex; justify-content: center; align-items: center; min-height: 400px; background: #fff; border-radius: 12px;"><div class="bk-skeleton" style="width: 80%; height: 300px;"></div></div>';
+        if (dialog) dialog.innerHTML = '<div class="bk-detail-loading"><div class="bk-skeleton"></div></div>';
         this.showModal('bk-detail-modal');
 
         try {
@@ -688,7 +691,7 @@ Object.assign(BookingHub, {
                             <div class="bk-receipt-row">
                                 <div class="bk-receipt-col">
                                     <span class="bk-receipt-label">Loại Phòng / Room Type</span>
-                                    <strong class="bk-receipt-value">${this.escape(booking.room_type || '—')}</strong>
+                                    <strong class="bk-receipt-value">${(() => { const parts = (booking.room_type || '—').split(/\s*[-–—]\s*/); const clean = (parts.length >= 2 ? parts[1] : parts[0]).split(/\s*(?:Hệ thống|Hướng dẫn|Payment)/i)[0].trim(); return this.escape((clean || parts[0]).substring(0, 80)); })()}</strong>
                                 </div>
                                 <div class="bk-receipt-col">
                                     <span class="bk-receipt-label">Số Phòng / Room Number</span>
@@ -714,7 +717,7 @@ Object.assign(BookingHub, {
                             </div>
 
                             <div class="bk-receipt-note">
-                                <strong>Ghi chú:</strong> ${this.escape(booking.special_requests || 'Không có yêu cầu thêm.')}
+                                <strong>Ghi chú:</strong> ${this.escape(booking.special_requests || (booking.raw_data || {}).notes || 'Không có yêu cầu thêm.')}
                             </div>
                         </div>
 
@@ -733,7 +736,7 @@ Object.assign(BookingHub, {
                 `;
             }
         } catch (err) {
-            if (dialog) dialog.innerHTML = `<div style="padding:40px; text-align:center; color:#ef4444;">${this.escape(err.message || 'Lỗi hệ thống')}</div>`;
+            if (dialog) dialog.innerHTML = `<div class="bk-detail-error">${this.escape(err.message || 'Lỗi hệ thống')}</div>`;
         }
     },
 

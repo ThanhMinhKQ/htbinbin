@@ -126,70 +126,51 @@ export default {
         this.selectedMonthInput = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         this.stockSearch = '';
         this.selectedCategory = '';
-        this.stockSearch = '';
-        this.selectedCategory = '';
-        this.fetchDashboardStats();
-        this.fetchStock();
+        this.fetchOverview();
+    },
+
+    async fetchOverview() {
+        if (!this.currentWarehouseId) return;
+        const { dateFrom, dateTo } = this.getMonthDateRange();
+        try {
+            const res = await fetch(`/api/inventory/overview-combined?warehouse_id=${this.currentWarehouseId}&date_from=${dateFrom}&date_to=${dateTo}`);
+            if (!res.ok) return;
+            const json = await res.json();
+
+            // Stock summary
+            this.stocks = (json.stock?.data || []).map(s => ({
+                ...s,
+                quantity: s.closing_balance
+            }));
+            this.groupStocksByCategory();
+            const warningCount = this.stocks.filter(s => s.status === 'Cảnh báo').length;
+            this.stats.stockWarningCount = warningCount;
+            this.stats.stockWarningPercentage = this.stocks.length > 0
+                ? Math.round((warningCount / this.stocks.length) * 100)
+                : 0;
+
+            // Dashboard stats
+            const data = json.stats || {};
+            this.stats.totalRequests = data.requests?.total || 0;
+            this.stats.pendingRequests = data.requests?.pending || 0;
+            this.stats.shippingRequests = data.requests?.shipping || 0;
+            this.stats.completedRequests = data.requests?.completed || 0;
+            this.stats.totalImports = data.imports?.total || 0;
+            this.stats.totalImportAmount = data.imports?.total_amount || 0;
+            this.stats.recentImportsCount = data.imports?.total || 0;
+            this.stats.totalExports = data.exports?.total || 0;
+            this.stats.totalSalesAmount = data.sales?.total_amount || 0;
+        } catch (e) {
+            console.error("Error fetching overview:", e);
+        }
     },
 
     async fetchStock() {
-        if (!this.currentWarehouseId) return;
-
-        const { dateFrom, dateTo } = this.getMonthDateRange();
-
-        try {
-            const res = await fetch(`/api/inventory/stock-summary?warehouse_id=${this.currentWarehouseId}&date_from=${dateFrom}&date_to=${dateTo}`);
-            if (res.ok) {
-                const json = await res.json();
-                this.stocks = (json.data || []).map(s => ({
-                    ...s,
-                    quantity: s.closing_balance // Map closing_balance to quantity for compatibility
-                }));
-
-                this.groupStocksByCategory();
-
-                // Calculate Stock KPIs
-                const warningCount = this.stocks.filter(s => s.status === 'Cảnh báo').length;
-                this.stats.stockWarningCount = warningCount;
-                this.stats.stockWarningPercentage = this.stocks.length > 0
-                    ? Math.round((warningCount / this.stocks.length) * 100)
-                    : 0;
-            }
-        } catch (e) {
-            console.error("Error fetching stock:", e);
-        }
+        return this.fetchOverview();
     },
 
     async fetchDashboardStats() {
-        if (!this.currentWarehouseId) return;
-
-        const { dateFrom, dateTo } = this.getMonthDateRange();
-
-        try {
-            const res = await fetch(`/api/inventory/dashboard-stats?warehouse_id=${this.currentWarehouseId}&date_from=${dateFrom}&date_to=${dateTo}`);
-            if (res.ok) {
-                const data = await res.json();
-
-                // Update Request Stats
-                this.stats.totalRequests = data.requests.total;
-                this.stats.pendingRequests = data.requests.pending;
-                this.stats.shippingRequests = data.requests.shipping;
-                this.stats.completedRequests = data.requests.completed;
-
-                // Update Import Stats
-                this.stats.totalImports = data.imports.total;
-                this.stats.totalImportAmount = data.imports.total_amount;
-                this.stats.recentImportsCount = data.imports.total;
-
-                // Update Export Stats
-                this.stats.totalExports = (data.exports && data.exports.total) ? data.exports.total : 0;
-
-                // Update Sales Stats
-                this.stats.totalSalesAmount = (data.sales && data.sales.total_amount) ? data.sales.total_amount : 0;
-            }
-        } catch (e) {
-            console.error("Error fetching dashboard stats:", e);
-        }
+        return this.fetchOverview();
     },
 
     getMaxRequestCount() {

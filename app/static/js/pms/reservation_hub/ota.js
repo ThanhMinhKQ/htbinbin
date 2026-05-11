@@ -59,7 +59,7 @@ Object.assign(BookingHub, {
         this.text('bk-ota-failed', data.failed_emails || 0);
         this.text('bk-ota-agent-total', data.agent_total_count || 0);
         this.text('bk-ota-agent-ai', data.agent_ai_count ?? data.agent_gemini_count ?? 0);
-        this.text('bk-ota-agent-rule', data.agent_parse_count || 0);
+        this.text('bk-ota-agent-skipped', data.agent_skipped_count || 0);
         const windowText = document.getElementById('bk-ota-agent-window');
         if (windowText) windowText.textContent = `${data.agent_window_days || 1} ngày gần nhất`;
         const latest = document.getElementById('bk-ota-latest');
@@ -162,12 +162,13 @@ Object.assign(BookingHub, {
         document.body.classList.remove('bk-modal-open');
     },
 
-    buildOtaLogParams() {
+    buildOtaLogParams(page = 1) {
         const params = new URLSearchParams();
-        params.set('limit', '50');
+        params.set('limit', '20');
+        params.set('page', String(page));
         const fields = [
             ['status', 'bk-ota-log-status-filter'],
-            ['parser_method', 'bk-ota-log-method-filter'],
+            ['booking_source', 'bk-ota-log-source-filter'],
             ['action_type', 'bk-ota-log-action-filter'],
             ['from_date', 'bk-ota-log-from-date'],
             ['to_date', 'bk-ota-log-to-date'],
@@ -200,26 +201,52 @@ Object.assign(BookingHub, {
         `).join('');
     },
 
-    async loadOtaLogs() {
+    async loadOtaLogs(page = 1) {
         const rows = document.getElementById('bk-ota-log-rows');
         const meta = document.getElementById('bk-ota-log-meta');
         if (!rows) return;
+        this.state.otaLogPage = page;
         const requestId = (this.state.otaLogRequestId || 0) + 1;
         this.state.otaLogRequestId = requestId;
         this.renderOtaLogSkeleton();
         if (meta) meta.textContent = 'Đang tải log booking/hủy OTA...';
         try {
-            const params = this.buildOtaLogParams();
+            const params = this.buildOtaLogParams(page);
             const res = await pmsApi(`/api/pms/reservations/ota/logs?${params.toString()}`);
             if (requestId !== this.state.otaLogRequestId) return;
             this.state.otaLogs = Array.isArray(res.items) ? res.items : [];
+            this.state.otaLogTotal = res.total || 0;
+            this.state.otaLogTotalPages = res.total_pages || 1;
             this.renderOtaLogTable(this.state.otaLogs);
-            if (meta) meta.textContent = `Hiển thị ${this.state.otaLogs.length} log liên quan đặt/hủy phòng theo thời gian mới nhất.`;
+            this.renderOtaLogPagination();
+            if (meta) meta.textContent = `Hiển thị ${this.state.otaLogs.length} / ${this.state.otaLogTotal} log • Trang ${page}/${this.state.otaLogTotalPages}`;
         } catch (err) {
             if (requestId !== this.state.otaLogRequestId) return;
             rows.innerHTML = `<tr><td colspan="8" class="bk-ota-log-error">${this.escape(err.message || 'Không tải được log OTA')}</td></tr>`;
             if (meta) meta.textContent = 'Không tải được log OTA.';
         }
+    },
+
+    renderOtaLogPagination() {
+        const container = document.getElementById('bk-ota-log-pagination');
+        if (!container) return;
+        const total = this.state.otaLogTotalPages || 1;
+        const current = this.state.otaLogPage || 1;
+        if (total <= 1) { container.innerHTML = ''; return; }
+        let html = '<div class="bk-pagination">';
+        html += `<button class="bk-page-btn" ${current <= 1 ? 'disabled' : ''} onclick="BookingHub.loadOtaLogs(${current - 1})">‹</button>`;
+        const start = Math.max(1, current - 2);
+        const end = Math.min(total, current + 2);
+        if (start > 1) html += `<button class="bk-page-btn" onclick="BookingHub.loadOtaLogs(1)">1</button>`;
+        if (start > 2) html += '<span class="bk-page-dots">…</span>';
+        for (let i = start; i <= end; i++) {
+            html += `<button class="bk-page-btn ${i === current ? 'active' : ''}" onclick="BookingHub.loadOtaLogs(${i})">${i}</button>`;
+        }
+        if (end < total - 1) html += '<span class="bk-page-dots">…</span>';
+        if (end < total) html += `<button class="bk-page-btn" onclick="BookingHub.loadOtaLogs(${total})">${total}</button>`;
+        html += `<button class="bk-page-btn" ${current >= total ? 'disabled' : ''} onclick="BookingHub.loadOtaLogs(${current + 1})">›</button>`;
+        html += '</div>';
+        container.innerHTML = html;
     },
 
     renderOtaLogTable(logs) {
@@ -233,7 +260,7 @@ Object.assign(BookingHub, {
             const status = String(log.status || '').toUpperCase();
             const failed = status === 'FAILED';
             const method = String(log.parser_method || '').toLowerCase();
-            const methodLabel = method === 'gemini' ? 'Gemini' : (method === 'rule' ? 'Rule' : '—');
+            const methodLabel = method === 'ai' || method === 'gemini' ? 'GPT-5.4' : (method === 'rule' ? 'Rule' : '—');
             const actionType = String(log.action_type || 'NEW').toUpperCase();
             const actionLabel = actionType === 'CANCEL' ? 'Hủy phòng' : (actionType === 'UPDATE' ? 'Cập nhật' : 'Đặt phòng');
             const source = log.booking_source || 'OTA';
@@ -266,11 +293,11 @@ Object.assign(BookingHub, {
     },
 
     resetOtaLogFilters() {
-        ['bk-ota-log-status-filter', 'bk-ota-log-method-filter', 'bk-ota-log-action-filter', 'bk-ota-log-from-date', 'bk-ota-log-to-date', 'bk-ota-log-branch-filter', 'bk-ota-log-search'].forEach((id) => {
+        ['bk-ota-log-status-filter', 'bk-ota-log-source-filter', 'bk-ota-log-action-filter', 'bk-ota-log-from-date', 'bk-ota-log-to-date', 'bk-ota-log-branch-filter', 'bk-ota-log-search'].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
-        this.loadOtaLogs();
+        this.loadOtaLogs(1);
     },
 
     async retryOtaLog(id) {

@@ -45,6 +45,12 @@
     padding: 14px;
   }
 
+  .bk-grid-note {
+    grid-column: 1 / -1;
+    padding: 8px 0;
+    color: var(--bk-muted);
+  }
+
   .bk-block-card,
   .bk-timeline-room {
     border: 1px solid #e2e8f0;

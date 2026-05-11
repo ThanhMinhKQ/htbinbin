@@ -116,22 +116,16 @@ class OTAAgent:
 
 
         try:
-            # 2. Extract Data: rule/template trước để tiết kiệm Gemini quota; chỉ fallback AI khi parser chưa đủ tự tin.
-            data = precheck_data or self.rule_extractor.extract(email)
-            if data and data.get("status") == "SKIPPED":
+            # 2. Extract Data: AI-first — luôn gọi GPT cho mọi email OTA
+            if precheck_data and precheck_data.get("status") == "SKIPPED":
                 logger.info(
-                    f"[OTA Agent] ⏭️ Rule skip {data.get('booking_source')} — không phải booking, không gọi Gemini"
+                    f"[OTA Agent] ⏭️ Rule skip {precheck_data.get('booking_source')} — không phải booking, không gọi AI"
                 )
-            elif data and is_confident_booking(data):
-                data["parser_method"] = "rule"
-                logger.info(
-                    f"[OTA Agent] ✅ Rule parser xử lý {data.get('booking_source')} "
-                    f"booking {data.get('external_id')} — không gọi Gemini"
-                )
+                data = precheck_data
             else:
                 data = self.extractor.extract_data(email['html'], email['sender'], email['subject'])
                 if isinstance(data, dict):
-                    data["parser_method"] = "gemini"
+                    data["parser_method"] = "ai"
             data = self._normalize_extracted_data(data)
 
             if data.get("status") == "FAILED" or "error" in data:

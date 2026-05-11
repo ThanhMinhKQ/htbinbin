@@ -143,23 +143,23 @@
                 </div>
 
                 <!-- Partials -->
-                {% include "inventory/reception_request/requests/tab_requests.html" %}
-                {% include "inventory/reception_request/approvals/tab_approvals.html" %}
+                {% include "inventory/shared/requests/tab_requests.html" %}
+                {% include "inventory/shared/approvals/tab_approvals.html" %}
                 {% include "inventory/reception_request/overview/tab_overview.html" %}
                 {% include "inventory/reception_request/overview/modal_product_history.html" %}
-                {% include "inventory/reception_request/imports/tab_import.html" %}
+                {% include "inventory/shared/imports/tab_import.html" %}
 
                 <!-- Modals -->
-                {% include "inventory/reception_request/requests/modal_create.html" %}
-                {% include "inventory/reception_request/requests/modal_edit_request.html" %}
-                {% include "inventory/reception_request/requests/modal_request_detail.html" %}
-                {% include "inventory/reception_request/approvals/modal_approval_detail.html" %}
-                {% include "inventory/reception_request/requests/modal_child_ticket.html" %}
-                {% include "inventory/reception_request/approvals/modal_approval.html" %}
-                {% include "inventory/reception_request/requests/modal_receipt.html" %}
-                {% include "inventory/reception_request/imports/modal_import.html" %}
-                {% include "inventory/reception_request/imports/modal_import_detail.html" %}
-                {% include "inventory/reception_request/imports/modal_edit_import.html" %}
+                {% include "inventory/shared/requests/modal_create.html" %}
+                {% include "inventory/shared/requests/modal_edit_request.html" %}
+                {% include "inventory/shared/requests/modal_request_detail.html" %}
+                {% include "inventory/shared/approvals/modal_approval_detail.html" %}
+                {% include "inventory/shared/requests/modal_child_ticket.html" %}
+                {% include "inventory/shared/approvals/modal_approval.html" %}
+                {% include "inventory/shared/requests/modal_receipt.html" %}
+                {% include "inventory/shared/imports/modal_import.html" %}
+                {% include "inventory/shared/imports/modal_import_detail.html" %}
+                {% include "inventory/shared/imports/modal_edit_import.html" %}
 
                 <!-- Global Image Viewer Modal -->
                 <div x-show="viewingImage" style="display: none;"

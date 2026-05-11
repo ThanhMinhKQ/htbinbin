@@ -125,66 +125,58 @@ export default {
         this.selectedMonthInput = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         this.stockSearch = '';
         this.selectedCategory = '';
-        this.stockSearch = '';
-        this.selectedCategory = '';
-        this.fetchDashboardStats();
+        this.fetchOverview();
     },
 
-    async fetchStock() {
-        if (!this.currentBranchId) return;
+    async fetchOverview() {
+        if (!this.currentBranchId && !this.currentWarehouseId) return;
+        const { dateFrom, dateTo } = this.getMonthDateRange();
+        const wh = this.currentWarehouseId;
+        const br = this.currentBranchId;
+        const param = wh ? `warehouse_id=${wh}` : `branch_id=${br}`;
+
         try {
-            const res = await fetch(`/api/inventory/report-realtime?branch_id=${this.currentBranchId}`);
-            if (res.ok) {
-                const json = await res.json();
+            const [stockRes, statsRes] = await Promise.all([
+                fetch(`/api/inventory/report-realtime?${param}`),
+                fetch(`/api/inventory/dashboard-stats?${param}&date_from=${dateFrom}&date_to=${dateTo}`)
+            ]);
+
+            if (stockRes.ok) {
+                const json = await stockRes.json();
                 this.stocks = (json.data || []).map(s => ({
                     ...s,
-                    quantity: s.quantity_base // Map quantity_base from API to quantity for frontend use
+                    quantity: s.quantity_base
                 }));
-
                 this.groupStocksByCategory();
-
-                // Calculate Stock KPIs
                 const warningCount = this.stocks.filter(s => s.status === 'Cảnh báo').length;
                 this.stats.stockWarningCount = warningCount;
                 this.stats.stockWarningPercentage = this.stocks.length > 0
-                    ? Math.round((warningCount / this.stocks.length) * 100)
-                    : 0;
+                    ? Math.round((warningCount / this.stocks.length) * 100) : 0;
+            }
+
+            if (statsRes.ok) {
+                const data = await statsRes.json();
+                this.stats.totalRequests = data.requests?.total || 0;
+                this.stats.pendingRequests = data.requests?.pending || 0;
+                this.stats.shippingRequests = data.requests?.shipping || 0;
+                this.stats.completedRequests = data.requests?.completed || 0;
+                this.stats.totalImports = data.imports?.total || 0;
+                this.stats.totalImportAmount = data.imports?.total_amount || 0;
+                this.stats.recentImportsCount = data.imports?.total || 0;
+                this.stats.totalExports = data.exports?.total || 0;
+                this.stats.totalSalesAmount = data.sales?.total_amount || 0;
             }
         } catch (e) {
-            console.error("Error fetching stock:", e);
+            console.error("Error fetching overview:", e);
         }
     },
 
+    async fetchStock() {
+        return this.fetchOverview();
+    },
+
     async fetchDashboardStats() {
-        if (!this.currentBranchId) return;
-
-        const { dateFrom, dateTo } = this.getMonthDateRange();
-
-        try {
-            const res = await fetch(`/api/inventory/dashboard-stats?branch_id=${this.currentBranchId}&date_from=${dateFrom}&date_to=${dateTo}`);
-            if (res.ok) {
-                const data = await res.json();
-
-                // Update Request Stats
-                this.stats.totalRequests = data.requests.total;
-                this.stats.pendingRequests = data.requests.pending;
-                this.stats.shippingRequests = data.requests.shipping;
-                this.stats.completedRequests = data.requests.completed;
-
-                // Update Import Stats
-                this.stats.totalImports = data.imports.total;
-                this.stats.totalImportAmount = data.imports.total_amount;
-                this.stats.recentImportsCount = data.imports.total;
-
-                // Update Export Stats
-                this.stats.totalExports = (data.exports && data.exports.total) ? data.exports.total : 0;
-
-                // Update Sales Stats
-                this.stats.totalSalesAmount = (data.sales && data.sales.total_amount) ? data.sales.total_amount : 0;
-            }
-        } catch (e) {
-            console.error("Error fetching dashboard stats:", e);
-        }
+        return this.fetchOverview();
     },
 
     getMaxRequestCount() {

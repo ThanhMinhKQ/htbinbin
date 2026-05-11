@@ -1,33 +1,30 @@
-#pms-setup-root{--rs-bg: #f6f3ee;
-  --rs-paper: rgba(255, 255, 255, .88);
+#pms-setup-root{--rs-bg: var(--app-bg-soft, #f8fafc);
+  --rs-paper: var(--surface, rgba(255, 255, 255, .88));
   --rs-ink: #172033;
   --rs-muted: #6b7280;
-  --rs-line: #e7dfd2;
+  --rs-line: var(--surface-border, #e2e8f0);
   --rs-blue: #1d5f8f;
   --rs-blue-soft: #dbeafe;
   --rs-green: #0f8a5f;
   --rs-amber: #c57918;
   --rs-red: #c2413a;
-  --rs-shadow: 0 18px 45px rgba(49, 38, 22, .10);
+  --rs-shadow: var(--surface-shadow, 0 18px 45px rgba(49, 38, 22, .10));
   --rs-radius: 22px;
 }
 
 
 
-.dark #pms-setup-root{--rs-bg: #0b1220;
-  --rs-paper: rgba(15, 23, 42, .88);
+.dark #pms-setup-root{--rs-bg: var(--app-bg-soft, #0f172a);
+  --rs-paper: var(--surface, rgba(15, 23, 42, .88));
   --rs-ink: #e5e7eb;
   --rs-muted: #94a3b8;
-  --rs-line: #253244;
+  --rs-line: var(--surface-border, #334155);
   --rs-blue: #60a5fa;
   --rs-blue-soft: rgba(96, 165, 250, .16);
   --rs-green: #34d399;
   --rs-amber: #fbbf24;
   --rs-red: #f87171;
-  --rs-shadow: 0 22px 55px rgba(0, 0, 0, .38);
-}
-.dark #pms-setup-root #setup-page{background:
-    radial-gradient(circle at 8% 10%, rgba(96, 165, 250, .18), transparent 30%), radial-gradient(circle at 92% 2%, rgba(251, 191, 36, .11), transparent 28%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+  --rs-shadow: var(--surface-shadow, 0 22px 55px rgba(0, 0, 0, .38));
 }
 .dark #pms-setup-root .rs-hero-main, .dark #pms-setup-root .rs-hero-side, .dark #pms-setup-root .s-card, .dark #pms-setup-root .rs-v-dialog{background: var(--rs-paper); border-color: rgba(148, 163, 184, .22); color: var(--rs-ink); }
 .dark #pms-setup-root .rs-title, .dark #pms-setup-root .s-card-title, .dark #pms-setup-root .tc-name, .dark #pms-setup-root .bs-value, .dark #pms-setup-root .rs-v-title, .dark #pms-setup-root .preset-card strong, .dark #pms-setup-root .price-tile .p-val, .dark #pms-setup-root .f-grp label{color: #f8fafc; }
@@ -44,8 +41,7 @@
 .dark #pms-setup-root .s-table tbody td{border-bottom-color: rgba(148, 163, 184, .16); color: #dbe4ef; }
 #pms-setup-root #setup-page{min-height: calc(100vh - 60px);
   padding: 22px;
-  background:
-    radial-gradient(circle at 8% 10%, rgba(29, 95, 143, .14), transparent 28%), radial-gradient(circle at 92% 2%, rgba(197, 121, 24, .12), transparent 26%), linear-gradient(180deg, #fbfaf7 0%, var(--rs-bg) 100%);
+  background: transparent;
   color: var(--rs-ink);
 }
 

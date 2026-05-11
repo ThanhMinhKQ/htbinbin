@@ -62,12 +62,12 @@
             <strong id="bk-ota-failed">0</strong>
           </div>
           <div class="bk-metric-card ai">
-            <span class="label"><i class="bi bi-robot"></i> AI</span>
+            <span class="label"><i class="bi bi-robot"></i> GPT-5.4</span>
             <strong id="bk-ota-agent-ai">0</strong>
           </div>
-          <div class="bk-metric-card rule">
-            <span class="label"><i class="bi bi-cpu"></i> Rule</span>
-            <strong id="bk-ota-agent-rule">0</strong>
+          <div class="bk-metric-card">
+            <span class="label"><i class="bi bi-skip-forward"></i> Bỏ qua</span>
+            <strong id="bk-ota-agent-skipped">0</strong>
           </div>
         </div>
       </div>
@@ -147,10 +147,16 @@
               <option value="SUCCESS">Thành công</option>
               <option value="FAILED">Lỗi</option>
             </select>
-            <select class="bk-select" id="bk-ota-log-method-filter" onchange="BookingHub.loadOtaLogs()">
-              <option value="">AI + Rule</option>
-              <option value="gemini">AI agent Gemini</option>
-              <option value="rule">Rule parser</option>
+            <select class="bk-select" id="bk-ota-log-source-filter" onchange="BookingHub.loadOtaLogs()">
+              <option value="">Tất cả kênh OTA</option>
+              <option value="Agoda">Agoda</option>
+              <option value="Expedia">Expedia</option>
+              <option value="Traveloka">Traveloka</option>
+              <option value="Trip.com">Trip.com</option>
+              <option value="Go2Joy">Go2Joy</option>
+              <option value="Airbnb">Airbnb</option>
+              <option value="Mytour">Mytour</option>
+              <option value="Website">Website</option>
             </select>
             <select class="bk-select" id="bk-ota-log-action-filter" onchange="BookingHub.loadOtaLogs()">
               <option value="">Mọi loại</option>
@@ -193,6 +199,7 @@
               </tbody>
             </table>
           </div>
+          <div class="bk-ota-log-pagination" id="bk-ota-log-pagination"></div>
         </div>
       </div>
     </div>
@@ -242,11 +249,11 @@
       <div class="bk-card-head bk-reservations-head">
         <div class="bk-table-tools">
           <div class="bk-tabs" id="bk-tabs">
-            <button class="bk-tab active" data-tab="today" onclick="BookingHub.selectTab('today')">Hôm nay</button>
+            <button class="bk-tab" data-tab="today" onclick="BookingHub.selectTab('today')">Hôm nay</button>
             <button class="bk-tab" data-tab="upcoming" onclick="BookingHub.selectTab('upcoming')">Sắp đến</button>
             <button class="bk-tab" data-tab="pending" onclick="BookingHub.selectTab('pending')">Chờ xác nhận</button>
             <button class="bk-tab" data-tab="ota" onclick="BookingHub.selectTab('ota')">OTA</button>
-            <button class="bk-tab" data-tab="all" onclick="BookingHub.selectTab('all')">Tất cả</button>
+            <button class="bk-tab active" data-tab="all" onclick="BookingHub.selectTab('all')">Tất cả</button>
           </div>
           <div class="bk-filter-row">
             <div class="bk-search-box">

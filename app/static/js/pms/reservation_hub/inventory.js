@@ -94,7 +94,7 @@ Object.assign(BookingHub, {
         const grid = document.getElementById('bk-block-grid');
         if (!grid) return;
         if (!this.state.blocks.length) {
-            grid.innerHTML = '<div style="grid-column:1/-1;color:#64748b;padding:8px 0;">Không có phòng đang khóa trong khoảng ngày này.</div>';
+            grid.innerHTML = '<div class="bk-grid-note">Không có phòng đang khóa trong khoảng ngày này.</div>';
             return;
         }
         grid.innerHTML = this.state.blocks.map((block) => `

@@ -15,10 +15,10 @@
 /* ── Design Tokens 2026 ── */
 :root {
   /* Background */
-  --rh-bg: #ffffff;
-  --rh-bg-alt: #ebf4f6;
+  --rh-bg: var(--page-bg, #ffffff);
+  --rh-bg-alt: var(--surface-muted, #f8fafc);
   --rh-bg-hover: #d8eef0;
-  --rh-bg-card: #ffffff;
+  --rh-bg-card: var(--surface-solid, #ffffff);
   /* Border */
   --rh-border: rgba(14, 107, 123, 0.12);
   --rh-border-light: rgba(14, 107, 123, 0.06);
@@ -61,10 +61,10 @@
 }
 
 html.dark {
-  --rh-bg: #0f1c1e;
-  --rh-bg-alt: #162022;
-  --rh-bg-hover: #1e2c2e;
-  --rh-bg-card: #1a2527;
+  --rh-bg: var(--page-bg, rgba(15, 23, 42, 0.96));
+  --rh-bg-alt: var(--surface-muted, rgba(2, 6, 23, 0.74));
+  --rh-bg-hover: rgba(51, 65, 85, 0.72);
+  --rh-bg-card: var(--surface-solid, #0f172a);
   --rh-border: rgba(56, 189, 248, 0.1);
   --rh-border-light: rgba(56, 189, 248, 0.05);
   --rh-text: #e8f4f5;
@@ -112,7 +112,7 @@ header.sticky { z-index: 60 !important; }
   margin: 0;
   padding: 0;
   font-family: var(--rh-font);
-  background: var(--rh-bg);
+  background: transparent;
   color: var(--rh-text);
 }
 
@@ -135,7 +135,7 @@ header.sticky { z-index: 60 !important; }
   box-shadow: 0 4px 12px rgba(8, 95, 102, 0.06);
 }
 html.dark #rh-bar {
-  background: rgba(15, 23, 25, 0.96);
+  background: var(--surface, rgba(15, 23, 42, 0.82));
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 

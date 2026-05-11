@@ -211,6 +211,11 @@ def detect_source(email: dict) -> Optional[str]:
 
 def detect_cancel_action(subject: str = "", text: str = "", source: str = "") -> bool:
     haystack = normalize_key(f"{source} {subject} {text[:2500]}")
+    # Strip out "cancellation policy" / "chinh sach huy phong" sections — they appear in ALL booking emails
+    haystack = re.sub(r"cancellation polic(?:y|ies)\b[^.]{0,200}", " ", haystack)
+    haystack = re.sub(r"chinh sach (?:huy|hoan huy) phong\b[^.]{0,200}", " ", haystack)
+    haystack = re.sub(r"chinh sach hoan huy\b[^.]{0,200}", " ", haystack)
+    haystack = re.sub(r"khong hoan huy\b", " ", haystack)
     cancel_patterns = (
         r"\b(?:cancel|canceled|cancelled|cancellation)\b",
         r"\b(?:booking|reservation|itinerary|order)\b.{0,80}\b(?:canceled|cancelled)\b",
@@ -264,6 +269,8 @@ def extract_external_id_by_source(source: str, subject: str, text: str) -> Optio
             r"Mã đơn phòng\s*(H\d+)",
             r"chi tiết đơn hàng\s+(H\d+)",
             r"booking/\d+/detail/\d+\s+truy cập hệ thống.+?(H\d+)",
+            r"(?:Mytour|mytour)[^\w].*?(H\d{4,})",
+            r"\b(H\d{4,})\b",
         ],
         "Expedia": [
             r"Mã đặt phòng\s*:??\s*(\d{6,})",
@@ -477,7 +484,11 @@ class RuleBasedOTAExtractor:
         subject_id = first_match(email.get("subject", ""), [r"Booking ID\s+([A-Z0-9-]{5,})"])
         booking_id = subject_id or extract_external_id_by_source("Agoda", email.get("subject", ""), text)
         first = clean_field(first_match(text, [r"Customer First Name\s+Tên Khách Hàng\s+(.+?)\s+Customer Last Name", r"Tên Khách Hàng\s*:??\s*(.+?)\s+Họ Khách Hàng"]))
-        last = clean_field(first_match(text, [r"Customer Last Name\s+Họ Khách Hàng\s+(.+?)\s+Country of Residence", r"Họ Khách Hàng\s*:??\s*(.+?)\s+Thành Phố"]))
+        last = clean_field(first_match(text, [
+            r"Customer Last Name\s+Họ Khách Hàng\s+(.+?)\s+Country of Residence",
+            r"Họ Khách Hàng\s*:??\s*(.+?)\s+(?:Thành Phố|Check-in|Nhận phòng|Room Type|Loại Phòng)",
+            r"Customer Last Name\s+Họ Khách Hàng\s+(.+?)\s+(?:Check-in|Room Type|Other Guests)",
+        ]))
         guest = normalize_space(" ".join(x for x in (first, last) if x)) or None
         prepaid = any(k in normalize_key(text) for k in ("tra truoc", "prepaid", "pre-paid"))
         special_request = clean_field(first_match(text, [
@@ -494,7 +505,12 @@ class RuleBasedOTAExtractor:
         num_children = int(first_match(text, [r"Số Trẻ Em\s*:??\s*(\d+)"]) or 0)
         data.update({
             "external_id": booking_id,
-            "hotel_name": clean_field(first_match(text, [r"Booking confirmation\s+Xác nhận đặt phòng\s+(.+?)\s+\(Property ID", r"(.+?)\s+\(Property ID\s+\d+\)", r"Khách Sạn\s*:??\s*(.+?)\s+Loại Phòng"])),
+            "hotel_name": clean_field(first_match(text, [
+                r"Booking confirmation\s+Xác nhận đặt phòng\s+(.+?)\s+\(Property ID",
+                r"(.+?)\s+\(Property ID\s+\d+\)",
+                r"Khách Sạn\s*:??\s*(.+?)\s+Loại Phòng",
+                r"\d{7,}\s+(.+?)\s+(?:TRẢ TRƯỚC|Booking confirmation|IATA|Customer First Name)",
+            ])),
             "guest_name": clean_field(guest),
             "check_in": parse_date_value(first_match(text, [r"Check-in\s+Nhận phòng\s+([^\(]+)", r"Ngày Đến\s*:??\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})"])),
             "check_out": parse_date_value(first_match(text, [r"Check-out\s+Trả phòng\s+([^\(]+)", r"Ngày Đi\s*:??\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})"])),
@@ -503,7 +519,12 @@ class RuleBasedOTAExtractor:
             "num_guests": num_adults + num_children,
             "num_adults": num_adults,
             "num_children": num_children,
-            "total_price": parse_amount_decimal(first_match(text, [r"Net rate \(incl\. taxes & fees\)\s+Giá thực tế \(bao gồm thuế & phí\)\s+(?:VND|VNĐ|đ|₫)?\s*([\d.,]+)", r"Net rate.*?(?:VND|VNĐ|đ|₫)\s*([\d.,]+)"])),
+            "total_price": parse_amount_decimal(first_match(text, [
+                r"Net rate \(incl\. taxes & fees\)\s+Giá thực tế \(bao gồm thuế & phí\)\s+(?:VND|VNĐ|đ|₫)?\s*([\d.,]+)",
+                r"Net rate \(incl\. taxes & fees\).*?(?:VND|VNĐ|đ|₫)\s*([\d.,]+)",
+                r"Giá thực tế \(bao gồm thuế & phí\)\s+(?:VND|VNĐ|đ|₫)\s*([\d.,]+)",
+                r"(?:VND|VNĐ)\s+([\d.,]+\.00)\b",
+            ])),
             "is_prepaid": prepaid or True,
             "payment_method": "Agoda prepaid/net rate" if prepaid else "Agoda net rate",
             "notes": special_request or clean_field(first_match(text, [r"Ghi Chú\s*:??\s*(.+?)(?:\s+Bộ Phận Hỗ Trợ|\s+Đặt phòng thông minh|$)"]), 1000),
@@ -567,6 +588,8 @@ class RuleBasedOTAExtractor:
         data = base_result("Trip.com", email)
         if detect_cancel_action(subject, text, "Trip.com"):
             data["action_type"] = "CANCEL"
+
+        # Format 1: fullwidth colon (e.g. "Reservation：", "Total amount：")
         if "Reservation：" in text or "Total amount：" in text:
             data.update({
                 "external_id": extract_external_id_by_source("Trip.com", subject, text),
@@ -581,6 +604,58 @@ class RuleBasedOTAExtractor:
                 "rule_confidence": 92,
             })
             return data
+
+        # Format 2: "Action required - New booking received" layout
+        # Dates appear as "Mon DD, YYYY - Mon DD, YYYY" without a "Staying period:" label.
+        # Guest appears as "Guest: NAME" or "Guest Name: NAME".
+        # Hotel name appears before "Guest" line or after "Dear Partner,".
+        is_action_required = bool(re.search(r"action required|new booking received", subject, re.IGNORECASE))
+        date_range = re.search(
+            r"([A-Za-z]+ \d{1,2},?\s+\d{4})\s*[-–]\s*([A-Za-z]+ \d{1,2},?\s+\d{4})",
+            text,
+        )
+        if is_action_required or date_range:
+            room_count = int(first_match(text, [r"(\d+)\s+room\(s\)", r"Room Type:?\s*.+?\|\s*(\d+)\s+room"]) or 1)
+            adults = int(first_match(text, [r"(\d+)\s+adult", r"Guests?\s*\(estimated\)\s*:?\s*(\d+)\s+adult"]) or 1)
+            children = int(first_match(text, [r"\d+\s+adults?\s+(\d+)\s+child"]) or 0)
+            is_prepaid = "prepaid" in normalize_key(text) or "prepay" in normalize_key(text)
+            data.update({
+                "external_id": extract_external_id_by_source("Trip.com", subject, text),
+                "hotel_name": clean_field(first_match(text, [
+                    r"Dear Partner,\s*\n?\s*(.+?)\s*\n",
+                    r"Dear Partner,\s*(.+?)\s+(?:Please update|Guest|Room Type|Booking)",
+                    r"(?:property|hotel)\s*:?\s*(.+?)\s+(?:Guest|Room Type|Check)",
+                    r"^(.+?)\s+Dear Partner",
+                ])),
+                "guest_name": clean_field(first_match(text, [
+                    r"Guest(?:\s+Name)?\s*:?\s*(.+?)\s+(?:Room Type|Booking Amount|Check-in|Check-out|\d{4})",
+                    r"Guest(?:\s+Name)?\s*:?\s*([A-Z][A-Z/,\s]+?)(?:\s{2,}|\n|Room|Booking)",
+                ])),
+                "room_type": clean_field(first_match(text, [
+                    r"Room Type:?\s*(.+?)\s+\|\s+\d+\s+room",
+                    r"Room Type:?\s*(.+?)\s+(?:Booking Amount|Check-in|Guest|$)",
+                ])),
+                "num_rooms": room_count,
+                "num_adults": adults,
+                "num_children": children,
+                "check_in": parse_date_value(date_range.group(1)) if date_range else None,
+                "check_out": parse_date_value(date_range.group(2)) if date_range else None,
+                "check_in_time": clean_field(first_match(text, [r"Arrival time:?\s*(\d{1,2}:\d{2})"]), 5),
+                "total_price": parse_amount_decimal(first_match(text, [
+                    r"Booking Amount\s*:?\s*(?:VND|VNĐ|đ|₫)?\s*([\d.,]+)",
+                    r"Net rate\s*:?\s*(?:VND|VNĐ|đ|₫)?\s*([\d.,]+)",
+                    r"(?:VND|VNĐ)\s*([\d.,]+)",
+                    r"([\d.,]+)\s*(?:VND|VNĐ)",
+                ])),
+                "is_prepaid": is_prepaid,
+                "payment_method": "Trip.com prepaid" if is_prepaid else None,
+                "notes": clean_field(first_match(text, [r"Special requests?\s+Other requests?:\s+(.+?)\s+Cancellation"]), 1000),
+                "rule_confidence": 90,
+            })
+            data["num_guests"] = int(data.get("num_adults") or 0) + int(data.get("num_children") or 0)
+            return data
+
+        # Format 3: legacy "Staying period" / "Confirmed by Ctrip" layout
         room_count = int(first_match(text, [r"Room Type:?\s*.+?\|\s*(\d+)\s+room", r"Room rate\s+(\d+)\s+room\(s\)"]) or 1)
         adults = int(first_match(text, [r"Guests \(estimated\):\s*(\d+)\s+adult", r"This rate is for\s+(\d+)\s+adults?"]) or 1)
         children = int(first_match(text, [r"Guests \(estimated\):\s*\d+\s+adults?\s+(\d+)\s+child"]) or 0)
@@ -630,7 +705,7 @@ class RuleBasedOTAExtractor:
             "guest_phone": clean_field(first_match(text, [r"SĐT\s+(\+?\d[\d .-]{7,})"]), 50),
             "check_in": parse_date_value(first_match(text, [r"(\d{2}-\d{2}-\d{4})\s+Check-in"])),
             "check_out": parse_date_value(first_match(text, [r"Check-in\s+(\d{2}-\d{2}-\d{4})\s+Check-out"])),
-            "room_type": clean_field(first_match(text, [r"Địa chỉ\s+(.+?)\s+\|\s+\d+\s+phòng", r"(Deluxe Room|Superior Room|Standard Room|Suite Room|Family Room|.+?Room)\s+\|\s+\d+\s+phòng"])),
+            "room_type": clean_field(first_match(text, [r"Địa chỉ\s+(.+?)\s+\|\s+\d+\s+phòng", r"(?:Check-out|check-out)\s+(.+?)\s+\|\s+\d+\s+phòng", r"((?:Superior|Deluxe|Standard|Suite|Family|Double|Single|Twin|Triple|King|Queen|Premium|Executive|VIP|Economy)\s*\w*\s*Room(?:\s+\w+)?)\s+\|?\s*\d+\s+phòng"])),
             "num_rooms": int(first_match(text, [r"\|\s+(\d+)\s+phòng"]) or 1),
             "num_adults": num_adults,
             "num_children": num_children,
@@ -672,7 +747,7 @@ class RuleBasedOTAExtractor:
             "guest_name": clean_field(first_match(text, [r"Khách\s*:??\s*([^:]+?)\s+Đặt vào", r"Khách\s*:??\s*([A-ZÀ-Ỹ][^:]+?)\s+Đặt vào", r"Guest\s*:??\s*([^:]+?)\s+Booked", r"Guest\s*:??\s*([^:]+?)\s+Guest Email", r"Guest\s*:??\s*([^:]+?)\s+Room Type"])),
             "guest_email": normalize_space(clean_field(first_match(text, [r"Email khách\s*:??\s*([\w.+-]+@\s*(?:<wbr>\s*)?[\w.-]+(?:\s+[\w.-]+)?)", r"Guest Email\s*:??\s*([\w.+-]+@\s*(?:<wbr>\s*)?[\w.-]+(?:\s+[\w.-]+)?)"]), 255)).replace(" ", ""),
             "hotel_name": clean_field(first_match(text, [r"Đặt phòng mới\s+(.+?)\s+Ho Chi Minh City", r"New Reservation\s+(.+?)\s+Ho Chi Minh City", r"EAN logo\s+(.+?)\s+Ho Chi Minh City"])),
-            "room_type": clean_field(first_match(text, [r"Tên loại phòng\s*:??\s*(.+?)\s+Deluxe Suite", r"Room Type Name\s*:??\s*(.+?)\s+Pricing Model", r"Mã loại phòng\s*:??\s*(.+?)\s+Tên loại phòng", r"Room Type Code\s*:??\s*(.+?)\s+Room Type Name"])),
+            "room_type": clean_field(first_match(text, [r"Tên loại phòng\s*:?\s*(.+?)\s+(?:Khoản tiền|Amount|Pricing Model|Mã loại phòng|$)", r"Room Type Name\s*:?\s*(.+?)\s+(?:Pricing Model|Amount|Total|$)", r"Mã loại phòng\s*:??\s*(.+?)\s+Tên loại phòng", r"Room Type Code\s*:??\s*(.+?)\s+Room Type Name"])),
             "num_rooms": 1,
             "num_adults": int(stay_match.group(3) if stay_match else first_match(text, [r"Người lớn\s+Trẻ/Tuổi\s+Đêm phòng\s+[^\d]*(\d+)"]) or 1),
             "num_children": int(stay_match.group(4) if stay_match else first_match(text, [r"Trẻ/Tuổi\s+Đêm phòng\s+[^\d]*\d+\s+(\d+)"]) or 0),
@@ -715,7 +790,7 @@ class RuleBasedOTAExtractor:
             "guest_name": clean_field(first_match(text, [r"(?:Guest name|Guest|Customer name|Primary guest|Tên khách|Khách hàng)\s*:?\s*(.+?)(?:Booking|Confirmation|Property|Hotel|Room|Check-in|Số điện thoại|Phone|$)"])),
             "guest_phone": clean_field(first_match(text, [r"(?:Phone|Mobile|Số điện thoại|Điện thoại)\s*:?\s*(\+?\d[\d .-]{7,})"]), 50),
             "hotel_name": clean_field(first_match(text, [r"(?:Property|Hotel|Accommodation|Khách sạn|Tên khách sạn)\s*:?\s*(.+?)(?:Room|Guest|Check-in|Check in|Địa chỉ|Address|$)"])),
-            "room_type": clean_field(first_match(text, [r"(?:Room type|Room|Loại phòng)\s*:?\s*(.+?)(?:Check-in|Check in|Check-out|Guest|Số khách|Guests|Số phòng|No\. of Rooms|Rooms?|$)"])),
+            "room_type": clean_field(first_match(text, [r"(?:Room type|Room|Loại phòng)\s*:?\s*(.+?)(?:Check-in|Check in|Check-out|Guest|Số khách|Guests|Số phòng|No\. of Rooms|Rooms?|Bạn kiếm|Ban kiem|You earn|Host payout|Confirmation|Total|Price|Amount|\n)"])),
             "num_rooms": int(first_match(text, [r"(?:Số phòng|No\. of Rooms|Room\(s\)|Rooms?)\s*:?\s*(\d+)"]) or 1),
             "num_guests": guest_count,
             "num_adults": guest_count,

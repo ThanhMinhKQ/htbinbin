@@ -47,16 +47,30 @@ def release_expired_inventory_holds() -> None:
 def mark_reservation_no_shows() -> None:
     db = SessionLocal()
     try:
-        today = datetime.now(VN_TZ).date()
-        bookings = db.query(Booking).filter(
-            Booking.reservation_status == "CONFIRMED",
-            Booking.check_in < today,
-            Booking.stay_id.is_(None),
-        ).all()
+        now = datetime.now(VN_TZ)
+        today = now.date()
+        is_past_noon = now.hour >= 12
+
+        # Noshow nếu booking CONFIRMED chưa check-in và:
+        # - checkout < today (đã qua hẳn ngày checkout), HOẶC
+        # - checkout == today và đã qua 12:00 trưa
+        if is_past_noon:
+            bookings = db.query(Booking).filter(
+                Booking.reservation_status == "CONFIRMED",
+                Booking.stay_id.is_(None),
+                Booking.check_out <= today,
+            ).all()
+        else:
+            bookings = db.query(Booking).filter(
+                Booking.reservation_status == "CONFIRMED",
+                Booking.stay_id.is_(None),
+                Booking.check_out < today,
+            ).all()
+
         service = BookingService(db)
         count = 0
         for booking in bookings:
-            service.cancel_reservation(booking.id, "Tự động no-show sau ngày nhận phòng", None, no_show=True)
+            service.cancel_reservation(booking.id, "Tự động no-show sau 12:00 ngày trả phòng", None, no_show=True)
             count += 1
         db.commit()
         if count:

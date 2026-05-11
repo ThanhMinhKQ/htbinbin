@@ -1873,22 +1873,6 @@ function pmsBindScanCCCD(inputEl, onScan) {
     });
 }
 
-/** Tô màu expiry badge theo status */
-function pmsExpiryBadgeHtml(status, expiry) {
-    const colors = {
-        valid: { bg: "#dcfce7", color: "#16a34a", label: "Còn hạn" },
-        expiring: { bg: "#fef9c3", color: "#d97706", label: "Sắp hết hạn" },
-        expired: { bg: "#fee2e2", color: "#dc2626", label: "Đã hết hạn" },
-        permanent: { bg: "#e0f2fe", color: "#0369a1", label: "Không thời hạn" },
-        unknown: { bg: "#f1f5f9", color: "#64748b", label: "—" },
-    };
-    const c = colors[status] || colors.unknown;
-    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700;background:${c.bg};color:${c.color};white-space:nowrap;">
-        ${status === "valid" ? "&#10003;" : status === "expiring" ? "&#9888;" : status === "expired" ? "&#10005;" : ""}
-        ${expiry || c.label}
-    </span>`;
-}
-
 /** Parse dd/MM/yyyy → yyyy-MM-dd cho <input type="date"> */
 function pmsScanDateToISO(dateStr) {
     if (!dateStr) return "";
@@ -1900,7 +1884,6 @@ function pmsScanDateToISO(dateStr) {
 window.pmsParseScanCCCD = pmsParseScanCCCD;
 window.pmsExpiryStatus = pmsExpiryStatus;
 window.pmsBindScanCCCD = pmsBindScanCCCD;
-window.pmsExpiryBadgeHtml = pmsExpiryBadgeHtml;
 window.pmsScanDateToISO = pmsScanDateToISO;
 window.pmsMatchAddressToForm = pmsMatchAddressToForm;
 window.pmsValidateAddressAfterScan = pmsValidateAddressAfterScan;

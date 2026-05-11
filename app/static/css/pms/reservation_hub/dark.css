@@ -1,7 +1,7 @@
 /* Reservation Hub dark mode consolidation. Loaded last for scoped overrides. */
 @media (prefers-color-scheme: dark) {
   #pms-booking-page {
-    background: var(--bk-bg);
+    background: transparent;
     color: var(--bk-text);
   }
 
@@ -58,7 +58,7 @@
 
   #pms-booking-page .bk-table th,
   #pms-booking-page .bk-ota-log-table th {
-    background: var(--bk-surface-muted) !important;
+    background: var(--bk-table-head-bg) !important;
     color: var(--bk-ink) !important;
     border-color: var(--bk-line) !important;
   }
@@ -71,8 +71,8 @@
     background: var(--bk-primary-soft) !important;
   }
 
-  #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-warning-bg) !important; }
-  #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-success-bg) !important; }
+  #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-row-warning-bg) !important; }
+  #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-row-success-bg) !important; }
 
   #pms-booking-page .bk-input,
   #pms-booking-page .bk-select,
@@ -252,7 +252,7 @@
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table th,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-log-table th {
-  background: var(--bk-surface-muted) !important;
+  background: var(--bk-table-head-bg) !important;
   color: var(--bk-ink) !important;
   border-color: var(--bk-line) !important;
 }
@@ -265,8 +265,8 @@
   background: var(--bk-primary-soft) !important;
 }
 
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-warning-bg) !important; }
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-success-bg) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-row-warning-bg) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-row-success-bg) !important; }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-input,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-select,
@@ -330,7 +330,7 @@
 /* Explicit dark-mode fixes for PMS booking dialogs, popups, logo/icon contrast. */
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-modal,
 :is(html.dark, body.dark, .dark-mode, .dark) .bk-modal {
-  background: rgba(2, 6, 23, 0.72) !important;
+  background: var(--bk-modal-backdrop) !important;
   backdrop-filter: blur(10px) saturate(125%);
 }
 
@@ -496,4 +496,173 @@
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-copy-inline svg,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-hero-icon {
   color: #a7f3d0 !important;
+}
+
+
+#pms-booking-page {
+  background: transparent !important;
+}
+
+#pms-booking-page .bk-ota-strip,
+#pms-booking-page .bk-avail-bar,
+#pms-booking-page .bk-card,
+#pms-booking-page .bk-table-wrap {
+  background: var(--surface, var(--bk-surface)) !important;
+  border: 1px solid var(--surface-border, var(--bk-line)) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--surface-shadow, var(--bk-shadow-md)) !important;
+  overflow: hidden;
+}
+
+#pms-booking-page .bk-stat-card,
+#pms-booking-page .bk-metric-card,
+#pms-booking-page .bk-avail-card {
+  background: var(--surface, var(--bk-surface)) !important;
+  border: 1px solid var(--surface-border, var(--bk-line)) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08) !important;
+}
+
+html.dark #pms-booking-page .bk-stat-card,
+html.dark #pms-booking-page .bk-metric-card,
+html.dark #pms-booking-page .bk-avail-card {
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.26) !important;
+}
+
+#pms-booking-page .bk-card-head,
+#pms-booking-page .bk-avail-head,
+#pms-booking-page .bk-filter-row,
+#pms-booking-page .bk-table-tools,
+#pms-booking-page .bk-ota-strip-metrics {
+  background: transparent !important;
+}
+
+#pms-booking-page .bk-search-box,
+#pms-booking-page .bk-input,
+#pms-booking-page .bk-select,
+#pms-booking-page .bk-textarea,
+#pms-booking-page .bk-shad-dt-wrap .ci-shad-dt-input {
+  background: var(--surface-muted, var(--bk-surface-muted)) !important;
+  border-color: var(--surface-border, var(--bk-line)) !important;
+  border-radius: 14px !important;
+}
+
+#pms-booking-page .bk-table th {
+  background: var(--surface-muted, var(--bk-table-head-bg)) !important;
+}
+
+#pms-booking-page .bk-table td {
+  background: transparent !important;
+}
+
+html:not(.dark) #pms-booking-page .bk-ota-strip,
+html:not(.dark) #pms-booking-page .bk-avail-bar,
+html:not(.dark) #pms-booking-page .bk-card,
+html:not(.dark) #pms-booking-page .bk-table-wrap,
+html:not(.dark) #pms-booking-page .bk-stat-card,
+html:not(.dark) #pms-booking-page .bk-metric-card,
+html:not(.dark) #pms-booking-page .bk-avail-card {
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+
+html.dark #pms-booking-page .bk-ota-strip,
+html.dark #pms-booking-page .bk-avail-bar,
+html.dark #pms-booking-page .bk-card,
+html.dark #pms-booking-page .bk-table-wrap,
+html.dark #pms-booking-page .bk-stat-card,
+html.dark #pms-booking-page .bk-metric-card,
+html.dark #pms-booking-page .bk-avail-card {
+  background: rgba(15, 23, 42, 0.82) !important;
+}
+
+#pms-booking-page .bk-avail-head,
+#pms-booking-page .bk-avail-controls,
+#pms-booking-page .bk-avail-dates,
+#pms-booking-page .bk-reservations-head,
+#pms-booking-page .bk-table-tools,
+#pms-booking-page .bk-filter-row,
+#pms-booking-page .bk-tabs {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+#pms-booking-page .bk-avail-head,
+#pms-booking-page .bk-reservations-head {
+  border-radius: 22px !important;
+}
+
+#pms-booking-page .bk-avail-dates,
+#pms-booking-page .bk-filter-row {
+  border-radius: 18px !important;
+}
+
+html.dark #pms-booking-page .bk-avail-head,
+html.dark #pms-booking-page .bk-avail-controls,
+html.dark #pms-booking-page .bk-avail-dates,
+html.dark #pms-booking-page .bk-reservations-head,
+html.dark #pms-booking-page .bk-table-tools,
+html.dark #pms-booking-page .bk-filter-row,
+html.dark #pms-booking-page .bk-tabs {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+#pms-booking-page .bk-table tbody tr:hover td,
+html.dark #pms-booking-page .bk-table tbody tr:hover td,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover td {
+  background: rgba(59, 130, 246, 0.10) !important;
+  color: var(--bk-text) !important;
+}
+
+#pms-booking-page .bk-table tbody tr:hover .bk-main-cell strong,
+#pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell strong,
+#pms-booking-page .bk-table tbody tr:hover .bk-stay-cell strong,
+#pms-booking-page .bk-table tbody tr:hover .bk-guest-info strong,
+#pms-booking-page .bk-table tbody tr:hover .bk-money,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-main-cell strong,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell strong,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell strong,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-guest-info strong,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-money,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-main-cell strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-guest-info strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-money {
+  color: #f8fafc !important;
+}
+
+#pms-booking-page .bk-table tbody tr:hover .bk-main-cell span,
+#pms-booking-page .bk-table tbody tr:hover .bk-row-muted,
+#pms-booking-page .bk-table tbody tr:hover .bk-subline span,
+#pms-booking-page .bk-table tbody tr:hover .bk-order-date,
+#pms-booking-page .bk-table tbody tr:hover .bk-ota-id,
+#pms-booking-page .bk-table tbody tr:hover .bk-stay-nights,
+#pms-booking-page .bk-table tbody tr:hover .bk-room-extra,
+#pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell span,
+#pms-booking-page .bk-table tbody tr:hover .bk-stay-cell span,
+#pms-booking-page .bk-table tbody tr:hover .bk-guest-info span,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-main-cell span,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-row-muted,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-subline span,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-order-date,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-ota-id,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-stay-nights,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-room-extra,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell span,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell span,
+html.dark #pms-booking-page .bk-table tbody tr:hover .bk-guest-info span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-main-cell span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-row-muted,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-subline span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-order-date,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-ota-id,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-stay-nights,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-room-extra,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell span,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-guest-info span {
+  color: #cbd5e1 !important;
 }

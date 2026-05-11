@@ -2082,22 +2082,22 @@ Object.assign(BookingHub, {
         const renderGuests = (guests) => {
             if (!box || requestId !== this.state.crmSearchRequestId) return;
             if (!guests.length) {
-                box.innerHTML = '<div style="padding:12px;color:#64748b;">Không tìm thấy khách phù hợp.</div>';
+                box.innerHTML = '<div class="bk-crm-message">Không tìm thấy khách phù hợp.</div>';
                 return;
             }
             box.innerHTML = guests.map((g) => `
                 <button class="bk-crm-item" type="button" onclick="BookingHub.selectCrmGuest(${this.escape(JSON.stringify(g))})">
                     <span>
                         <strong>${this.escape(g.full_name || 'Khách')}</strong>
-                        <div style="font-size:12px;color:#64748b;margin-top:2px;">${this.escape(g.phone || g.cccd || g.email || 'Chưa có định danh')}</div>
+                        <div class="bk-crm-meta">${this.escape(g.phone || g.cccd || g.email || 'Chưa có định danh')}</div>
                     </span>
-                    <span style="font-size:11px;font-weight:850;color:#0e7490;">${this.escape(g.tier_display || g.tier || 'BASIC')}</span>
+                    <span class="bk-crm-tier">${this.escape(g.tier_display || g.tier || 'BASIC')}</span>
                 </button>
             `).join('');
         };
         if (box) {
             box.classList.add('show');
-            box.innerHTML = '<div style="padding:12px;color:#64748b;">Đang tìm khách...</div>';
+            box.innerHTML = '<div class="bk-crm-message">Đang tìm khách...</div>';
         }
         if (this.state.crmSearchCache[cacheKey]) {
             renderGuests(this.state.crmSearchCache[cacheKey]);
@@ -2109,7 +2109,7 @@ Object.assign(BookingHub, {
             this.state.crmSearchCache[cacheKey] = guests;
             renderGuests(guests);
         } catch (err) {
-            if (box && requestId === this.state.crmSearchRequestId) box.innerHTML = `<div style="padding:12px;color:#b91c1c;">${this.escape(err.message || 'Lỗi tìm khách')}</div>`;
+            if (box && requestId === this.state.crmSearchRequestId) box.innerHTML = `<div class="bk-crm-message error">${this.escape(err.message || 'Lỗi tìm khách')}</div>`;
         }
     },
 

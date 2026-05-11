@@ -189,6 +189,7 @@ class Task(Base):
     
     room_number = Column(String(50))
     description = Column(Text, nullable=False)
+    department = Column(String(100))
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"), nullable=True)
     status = Column(String(50), default='Đang chờ', index=True)
 
@@ -199,7 +200,7 @@ class Task(Base):
     notes = Column(Text)
 
     branch = relationship("Branch")
-    department = relationship("Department")  # Thêm relationship
+    department_obj = relationship("Department")
     author = relationship("User", foreign_keys=[author_id], back_populates="created_tasks")
     assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
     deleter = relationship("User", foreign_keys=[deleter_id], back_populates="deleted_tasks")
@@ -414,6 +415,7 @@ class Product(Base):
     
     is_active = Column(Boolean, default=True)
     is_sellable = Column(Boolean, default=False)          # Có thể bán cho khách qua PMS
+    service_code = Column(String(50), nullable=True, index=True)  # Map với service type trong PMS
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     category = relationship("ProductCategory")
@@ -431,6 +433,22 @@ class Warehouse(Base):
     sort_order = Column(Integer, default=0)
     
     branch = relationship("Branch")
+
+class Supplier(Base):
+    """Nhà cung cấp"""
+    __tablename__ = "suppliers"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(50), unique=True, index=True)
+    name = Column(String(255), nullable=False)
+    phone = Column(String(20))
+    email = Column(String(255))
+    address = Column(Text)
+    tax_code = Column(String(20))
+    contact_person = Column(String(100))
+    notes = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 # 7.2 Core Inventory (Tồn kho & Lịch sử)
 class InventoryLevel(Base):
@@ -497,6 +515,7 @@ class InventoryReceipt(Base):
     id = Column(BIGINT, primary_key=True)
     code = Column(String(50), unique=True, nullable=False)
     warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id", ondelete="SET NULL"), nullable=True, index=True)
     supplier_name = Column(String(255))
 
     creator_id = Column(BIGINT, ForeignKey("users.id"))
@@ -509,6 +528,7 @@ class InventoryReceipt(Base):
     items = relationship("InventoryReceiptItem", back_populates="receipt", cascade="all, delete-orphan")
     images = relationship("ImportImage", back_populates="receipt", cascade="all, delete-orphan")
     creator = relationship("User", foreign_keys=[creator_id])
+    supplier = relationship("Supplier", foreign_keys=[supplier_id])
 
     __table_args__ = (
         Index("ix_inventory_receipts_version", "version"),
@@ -591,6 +611,47 @@ class InventoryTransferItem(Base):
     transfer = relationship("InventoryTransfer", back_populates="items")
     product = relationship("Product")
 
+# 7.3b Stocktake (Kiểm kê)
+class StocktakeStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+class Stocktake(Base):
+    """Phiếu kiểm kê kho"""
+    __tablename__ = "stocktakes"
+
+    id = Column(BIGINT, primary_key=True)
+    code = Column(String(50), unique=True, nullable=False)
+    warehouse_id = Column(Integer, ForeignKey("warehouses.id"), nullable=False, index=True)
+    status = Column(SQLAlchemyEnum(StocktakeStatus, native_enum=True), default=StocktakeStatus.DRAFT, index=True)
+    creator_id = Column(BIGINT, ForeignKey("users.id"), index=True)
+    completed_at = Column(DateTime(timezone=True))
+    completed_by = Column(BIGINT, ForeignKey("users.id"))
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    items = relationship("StocktakeItem", back_populates="stocktake", cascade="all, delete-orphan")
+    warehouse = relationship("Warehouse")
+    creator = relationship("User", foreign_keys=[creator_id])
+    completer = relationship("User", foreign_keys=[completed_by])
+
+class StocktakeItem(Base):
+    """Dòng kiểm kê từng sản phẩm"""
+    __tablename__ = "stocktake_items"
+
+    id = Column(BIGINT, primary_key=True)
+    stocktake_id = Column(BIGINT, ForeignKey("stocktakes.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    system_quantity = Column(NUMERIC(12, 2), nullable=False)
+    actual_quantity = Column(NUMERIC(12, 2), nullable=True)
+    difference = Column(NUMERIC(12, 2), nullable=True)
+    notes = Column(Text)
+
+    stocktake = relationship("Stocktake", back_populates="items")
+    product = relationship("Product")
+
 # 7.4 Import Images (Hình ảnh đính kèm phiếu nhập)
 class ImportImage(Base):
     """Hình ảnh đính kèm cho phiếu nhập hàng"""
@@ -630,6 +691,25 @@ class TransferImage(Base):
     display_order = Column(Integer, default=0)
     
     transfer = relationship("InventoryTransfer", back_populates="images")
+
+# 7.6 Audit Trail (Lịch sử thao tác kho)
+class InventoryAuditLog(Base):
+    """Lịch sử thao tác trên hệ thống kho"""
+    __tablename__ = "inventory_audit_logs"
+
+    id = Column(BIGINT, primary_key=True)
+    entity_type = Column(String(50), nullable=False, index=True)
+    entity_id = Column(BIGINT, nullable=False, index=True)
+    action = Column(String(50), nullable=False, index=True)
+    actor_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), index=True)
+    changes_json = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+    actor = relationship("User")
+
+    __table_args__ = (
+        Index("ix_audit_entity", "entity_type", "entity_id"),
+    )
 
 # ====================================================================
 # 8. OTA BOOKING AGENT (AI AGENT)

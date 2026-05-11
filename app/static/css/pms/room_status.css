@@ -3,7 +3,7 @@
   --rs-text-primary: #0a2540;
   --rs-text-secondary: #425466;
   --rs-text-muted: #8792a2;
-  --rs-surface-page: #f6f9fc;
+  --rs-surface-page: var(--page-bg, #f8fafc);
   --rs-surface-card: #ffffff;
   --rs-surface-muted: #f3f6f8;
   --rs-surface-soft: #f8fafc;
@@ -54,7 +54,7 @@
     --rs-text-primary: #e3e8ee;
     --rs-text-secondary: #8792a2;
     --rs-text-muted: #6b7c93;
-    --rs-surface-page: #0b0f19;
+    --rs-surface-page: var(--page-bg, #0f172a);
     --rs-surface-card: #131b2c;
     --rs-surface-muted: #1c2539;
     --rs-surface-soft: #0e1423;
@@ -99,7 +99,7 @@ body.dark,
   --rs-text-primary: #f8fafc;
   --rs-text-secondary: #cbd5e1;
   --rs-text-muted: #94a3b8;
-  --rs-surface-page: #0f172a;
+  --rs-surface-page: var(--page-bg, #0f172a);
   --rs-surface-card: #1e293b;
   --rs-surface-muted: #172033;
   --rs-surface-soft: #111827;
@@ -2146,4 +2146,146 @@ body.dark,
   .rs-day-main { padding: 0; }
   .rs-day-card { padding: 12px; }
   .rs-legend { flex-wrap: wrap; gap: 10px; }
+}
+
+html.dark,
+html.dark body,
+body.dark,
+.dark-mode,
+.dark .rs-page-wrap {
+  --rs-text-primary: #f8fafc;
+  --rs-text-secondary: #d1d5db;
+  --rs-text-muted: #a8b3c7;
+  --rs-surface-page: transparent;
+  --rs-surface-card: var(--surface, rgba(15, 23, 42, 0.84));
+  --rs-surface-muted: var(--surface-muted, rgba(30, 41, 59, 0.74));
+  --rs-surface-soft: rgba(15, 23, 42, 0.62);
+  --rs-surface-raised: rgba(30, 41, 59, 0.92);
+  --rs-border: var(--surface-border, rgba(148, 163, 184, 0.24));
+  --rs-border-light: rgba(148, 163, 184, 0.16);
+  --rs-glass-border: rgba(255, 255, 255, 0.08);
+  --rs-toolbar-bg: var(--surface, rgba(15, 23, 42, 0.84));
+  --rs-shadow-sm: 0 10px 28px rgba(0, 0, 0, 0.24);
+  --rs-shadow-md: var(--surface-shadow, 0 18px 45px rgba(0, 0, 0, 0.34));
+  --rs-shadow-float: 0 22px 55px rgba(0, 0, 0, 0.44);
+}
+
+.rs-page-wrap {
+  background: transparent;
+}
+
+html.dark .rs-stat-card,
+body.dark .rs-stat-card,
+.dark-mode .rs-stat-card,
+.dark .rs-stat-card,
+html.dark .rs-toolbar,
+body.dark .rs-toolbar,
+.dark-mode .rs-toolbar,
+.dark .rs-toolbar,
+html.dark .rs-day-card,
+body.dark .rs-day-card,
+.dark-mode .rs-day-card,
+.dark .rs-day-card,
+html.dark .rs-day-sidebar,
+html.dark .rs-sidebar-section,
+html.dark .rs-table-container,
+html.dark .rs-timeline-container,
+html.dark .rs-modal-dialog,
+html.dark .rs-waitlist-item,
+html.dark .rs-assign-room,
+html.dark .rs-btn-ghost.full-width,
+html.dark .rs-btn-refresh,
+html.dark .rs-btn-action,
+html.dark .rs-date-nav-group-modern,
+html.dark .rs-range-group-modern {
+  background: var(--rs-surface-card) !important;
+  border-color: var(--rs-border) !important;
+  box-shadow: var(--rs-shadow-sm) !important;
+}
+
+html.dark .rs-day-layout,
+html.dark .rs-content-panel,
+html.dark .rs-day-sidebar,
+html.dark .rs-modal-head,
+html.dark .rs-modal-foot,
+html.dark .rs-summary-row,
+html.dark .rs-timeline-header {
+  background: transparent !important;
+}
+
+html.dark .rs-branch-selector-modern,
+html.dark .rs-segmented-control,
+html.dark .rs-section-meta,
+html.dark .rs-table-hint,
+html.dark .rs-legend,
+html.dark .rs-room-group,
+html.dark .rs-legend-item,
+html.dark .rs-data-table thead th,
+html.dark .rs-room-label,
+html.dark .rs-timeline-wrapper {
+  background: var(--rs-surface-muted) !important;
+  border-color: var(--rs-border) !important;
+}
+
+html.dark .rs-room-pill,
+html.dark .rs-type-icon,
+html.dark .rs-modal-close,
+html.dark .rs-block-field input,
+html.dark .rs-block-field select,
+html.dark .rs-block-field textarea,
+html.dark .rs-assign-current {
+  background: var(--rs-surface-soft) !important;
+  border-color: var(--rs-border) !important;
+  color: var(--rs-text-primary) !important;
+}
+
+html.dark .rs-stat-label,
+html.dark .rs-section-meta,
+html.dark .rs-table-hint,
+html.dark .rs-legend,
+html.dark .rs-legend-info,
+html.dark .rs-room-label small,
+html.dark .rs-waitlist-item span,
+html.dark .rs-assign-room span,
+html.dark .rs-block-field,
+html.dark .rs-modal-head p,
+html.dark .rs-avail-label {
+  color: var(--rs-text-secondary) !important;
+}
+
+html.dark .rs-stat-value,
+html.dark .rs-section-header h3,
+html.dark .rs-data-table tbody td,
+html.dark .rs-room-label strong,
+html.dark .rs-sidebar-header h3,
+html.dark .rs-legend-item strong,
+html.dark .rs-room-group-head,
+html.dark .rs-waitlist-item strong,
+html.dark .rs-assign-room strong,
+html.dark .rs-modal-head h2 {
+  color: var(--rs-text-primary) !important;
+}
+
+html.dark .rs-data-table tbody tr:hover,
+html.dark .rs-avail-cell:hover .rs-avail-tile,
+html.dark .rs-room-group.open,
+html.dark .rs-room-pill:hover,
+html.dark .rs-btn-ghost.full-width:hover,
+html.dark .rs-assign-room:hover,
+html.dark .rs-waitlist-item:hover {
+  background: rgba(59, 130, 246, 0.12) !important;
+  border-color: rgba(96, 165, 250, 0.45) !important;
+}
+
+html.dark .rs-stat-card::before {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0) 72%);
+}
+
+html.dark .rs-cell:hover {
+  background: rgba(96, 165, 250, 0.10);
+}
+
+html.dark .rs-booking-bar {
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+  border-color: rgba(255, 255, 255, 0.28);
 }
