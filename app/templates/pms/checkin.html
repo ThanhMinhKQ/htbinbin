@@ -69,27 +69,29 @@
               <!-- Time fields -->
               <div class="ci-time-grid">
                 <div class="ci-time-field">
-                  <label
-                    style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#64748b; margin-bottom:8px;">
-                    Nhận phòng <span class="f-req">*</span>
-                  </label>
-                  <div style="position: relative;" class="ci-shad-dt-wrap" data-target="ci-in">
-                    <input type="text" class="f-ctrl ci-shad-dt-input" id="ci-in-display"
-                      style="padding-left:12px; cursor: pointer; background: #fff; color: #1e293b; border-radius:8px;"
-                      placeholder="DD/MM/YYYY, HH:mm" autocomplete="off">
-                    <input type="hidden" id="ci-in" onchange="pmsCalcPrice()">
+                  <div class="bk-date-box" onclick="document.getElementById('ci-in-display').focus()">
+                    <div class="bk-date-icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></svg>
+                    </div>
+                    <div class="bk-date-content">
+                      <label>Nhận phòng (CI) <span class="f-req">*</span></label>
+                      <input type="text" class="bk-planner-flatpickr ci-shad-dt-input" id="ci-in-display"
+                        placeholder="Chọn ngày nhận phòng..." autocomplete="off" readonly>
+                      <input type="hidden" id="ci-in" onchange="pmsCalcPrice()">
+                    </div>
                   </div>
                 </div>
                 <div class="ci-time-field">
-                  <label
-                    style="display:flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:#64748b; margin-bottom:8px;">
-                    Trả phòng dự kiến
-                  </label>
-                  <div style="position: relative;" class="ci-shad-dt-wrap" data-target="ci-out">
-                    <input type="text" class="f-ctrl ci-shad-dt-input" id="ci-out-display"
-                      style="padding-left:12px; cursor: pointer; background: #fff; color: #1e293b; border-radius:8px;"
-                      placeholder="DD/MM/YYYY, HH:mm" autocomplete="off">
-                    <input type="hidden" id="ci-out" onchange="pmsCalcPrice()">
+                  <div class="bk-date-box" onclick="document.getElementById('ci-out-display').focus()">
+                    <div class="bk-date-icon co">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" x2="9" y1="12" y2="12"></line></svg>
+                    </div>
+                    <div class="bk-date-content">
+                      <label>Trả phòng (CO)</label>
+                      <input type="text" class="bk-planner-flatpickr ci-shad-dt-input" id="ci-out-display"
+                        placeholder="Chọn ngày trả phòng..." autocomplete="off" readonly>
+                      <input type="hidden" id="ci-out" onchange="pmsCalcPrice()">
+                    </div>
                   </div>
                 </div>
               </div>

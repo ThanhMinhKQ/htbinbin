@@ -1,11 +1,5 @@
 /* Focused palette and loading polish overrides. */
-#pms-booking-page {
-  background: var(--bk-bg);
-}
 
-body:has(#pms-booking-page) {
-  background: var(--bk-bg) !important;
-}
 
 #pms-booking-page .bk-loading {
   display: none;
@@ -45,16 +39,16 @@ body:has(#pms-booking-page) {
 .bk-tab.active,
 .bk-icon-btn.primary,
 .bk-ota-log-table th {
-  background: #093C5D !important;
+  background: var(--bk-primary) !important;
   color: #ffffff !important;
-  border-color: #093C5D !important;
+  border-color: var(--bk-primary) !important;
 }
 
 .bk-btn.success,
 .bk-mini-btn.success,
 .bk-btn.warning,
 .bk-mini-btn.warning {
-  background: #3B7597 !important;
+  background: var(--bk-muted) !important;
   color: #ffffff !important;
 }
 
@@ -62,7 +56,7 @@ body:has(#pms-booking-page) {
 .bk-mini-btn.danger,
 .bk-icon-btn.danger {
   background: rgba(59, 117, 151, 0.14) !important;
-  color: #093C5D !important;
+  color: var(--bk-primary) !important;
   border-color: rgba(59, 117, 151, 0.28) !important;
 }
 
@@ -71,7 +65,7 @@ body:has(#pms-booking-page) {
 .bk-stat-card.pending .bk-stat-icon,
 .bk-stat-card.revenue .bk-stat-icon,
 .bk-stat-icon {
-  color: #093C5D !important;
+  color: var(--bk-primary) !important;
   background: rgba(111, 209, 215, 0.18) !important;
 }
 
@@ -81,7 +75,7 @@ body:has(#pms-booking-page) {
 .bk-price-line strong,
 .bk-money,
 .bk-row-click-hint {
-  color: #3B7597 !important;
+  color: var(--bk-muted) !important;
 }
 
 .bk-status.PENDING,
@@ -113,7 +107,7 @@ body:has(#pms-booking-page) {
 #pms-toast.ok,
 #pms-toast.err,
 #pms-toast {
-  border-left-color: #093C5D !important;
+  border-left-color: var(--bk-primary) !important;
 }
 
 /* Dark mode overrides moved to variables in theme.css */
@@ -331,10 +325,11 @@ html.dark #pms-booking-page .bk-skeleton {
 }
 
 .bk-detail-dialog {
-  max-width: 860px;
-  overflow: hidden;
-  border-radius: 18px;
-  box-shadow: 0 22px 60px rgba(9, 60, 93, 0.22);
+  max-width: 640px;
+  overflow: visible;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .bk-detail-hero {
@@ -551,7 +546,7 @@ html.dark #pms-booking-page .bk-skeleton {
 .bk-detail-card label {
   display: block;
   margin-bottom: 6px;
-  color: #3B7597;
+  color: var(--bk-muted);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .06em;
@@ -561,7 +556,7 @@ html.dark #pms-booking-page .bk-skeleton {
 .bk-detail-summary strong,
 .bk-detail-card strong {
   display: block;
-  color: #093C5D;
+  color: var(--bk-primary);
   font-size: 14px;
   font-weight: 800;
 }
@@ -570,7 +565,7 @@ html.dark #pms-booking-page .bk-skeleton {
 .bk-detail-card p {
   display: block;
   margin: 4px 0 0;
-  color: #3B7597;
+  color: var(--bk-muted);
   font-size: 12.5px;
   line-height: 1.45;
 }
@@ -637,15 +632,15 @@ tr.transfer-shadow {
 }
 
 .bk-no-actions {
-  color: #3B7597;
+  color: var(--bk-muted);
   font-size: 13px;
   font-weight: 700;
 }
 
 #pms-booking-page .bk-assign-list .bk-mini-btn.primary {
-  background: #093C5D !important;
+  background: var(--bk-primary) !important;
   color: #ffffff !important;
-  border-color: #093C5D !important;
+  border-color: var(--bk-primary) !important;
 }
 
 .bk-ota-confirm-dialog {
@@ -656,7 +651,7 @@ tr.transfer-shadow {
   display: grid;
   gap: 6px;
   margin-bottom: 14px;
-  color: #3B7597;
+  color: var(--bk-muted);
   font-size: 13px;
 }
 
@@ -675,14 +670,14 @@ tr.transfer-shadow {
   border: 1px solid rgba(59, 117, 151, 0.18);
   border-radius: 14px;
   background: #ffffff;
-  color: #093C5D;
+  color: var(--bk-primary);
   text-align: left;
   cursor: pointer;
 }
 
 .bk-ota-confirm-card:hover,
 .bk-ota-confirm-card.selected {
-  border-color: #093C5D;
+  border-color: var(--bk-primary);
   box-shadow: 0 10px 24px rgba(9, 60, 93, 0.12);
 }
 
@@ -703,7 +698,7 @@ tr.transfer-shadow {
 .bk-ota-confirm-card span,
 .bk-ota-confirm-price span {
   margin-top: 4px;
-  color: #3B7597;
+  color: var(--bk-muted);
   font-size: 12px;
 }
 
@@ -949,11 +944,12 @@ tr.transfer-shadow {
 /* --- Modern Reservation Receipt Modal (2026 Admin Design) --- */
 .bk-receipt-wrapper {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 40px 100px rgba(10, 37, 64, 0.15);
-  max-width: 680px;
+  box-shadow: 0 20px 40px rgba(10, 37, 64, 0.15);
+  max-width: 640px;
   width: 95vw;
+  max-height: calc(100vh - 64px);
   margin: 0 auto;
   border: 1px solid var(--bk-line);
   display: flex;
@@ -961,12 +957,13 @@ tr.transfer-shadow {
 }
 
 .bk-receipt-header {
-  padding: 32px 40px 24px;
-  background: #f6f9fc;
+  padding: 20px 24px;
+  background: #f8fafc;
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   border-bottom: 1px dashed var(--bk-line);
+  flex-shrink: 0;
 }
 
 .bk-receipt-brand {
@@ -976,45 +973,44 @@ tr.transfer-shadow {
 }
 
 .bk-receipt-logo {
-  width: 48px;
-  height: 48px;
-  background: #0a2540;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  background: #0f172a;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
-  box-shadow: 0 8px 16px rgba(10, 37, 64, 0.15);
+  box-shadow: 0 4px 8px rgba(10, 37, 64, 0.1);
 }
 
 .bk-receipt-logo svg {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 .bk-receipt-brand-text h2 {
-  font-size: 16px;
-  font-weight: 900;
-  color: #0a2540;
-  margin: 0 0 4px;
-  letter-spacing: 0.05em;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 2px;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
 .bk-receipt-brand-text p {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   color: #64748b;
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.05em;
 }
 
 .bk-receipt-status {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: center;
+  gap: 12px;
 }
 
 .bk-receipt-close {
@@ -1039,10 +1035,10 @@ tr.transfer-shadow {
 }
 
 .bk-receipt-badge {
-  padding: 6px 14px;
-  border-radius: 99px;
+  padding: 6px 12px;
+  border-radius: 6px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: #f1f5f9;
@@ -1055,14 +1051,16 @@ tr.transfer-shadow {
 .bk-receipt-badge.checked_in { background: #dbeafe; color: #1e40af; }
 
 .bk-receipt-body {
-  padding: 32px 40px;
+  padding: 24px;
   background: #ffffff;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .bk-receipt-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 20px;
 }
 
 .bk-receipt-col {
@@ -1074,22 +1072,22 @@ tr.transfer-shadow {
 
 .bk-receipt-label {
   font-size: 11px;
-  font-weight: 800;
-  color: #94a3b8;
+  font-weight: 700;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.02em;
+  margin-bottom: 2px;
 }
 
 .bk-receipt-value {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: #0f172a;
 }
 
 .bk-receipt-value.large {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: -0.02em;
+  font-size: 18px;
+  font-weight: 800;
 }
 
 .bk-receipt-value.highlight {
@@ -1097,15 +1095,16 @@ tr.transfer-shadow {
 }
 
 .bk-receipt-subvalue {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 500;
   color: #64748b;
+  margin-top: 2px;
 }
 
 .bk-receipt-divider {
   height: 1px;
   background: var(--bk-line);
-  margin: 24px 0;
+  margin: 16px 0;
 }
 
 .bk-receipt-divider.dashed {
@@ -1116,8 +1115,8 @@ tr.transfer-shadow {
 .bk-receipt-finance {
   background: #f8fafc;
   border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 24px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
 }
 
 .bk-receipt-finance-row {
@@ -1151,32 +1150,31 @@ tr.transfer-shadow {
 .bk-receipt-note {
   background: #fffbeb;
   border: 1px solid #fef3c7;
-  padding: 16px 20px;
-  border-radius: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
   color: #92400e;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 12px;
   line-height: 1.5;
 }
 
 .bk-receipt-note strong {
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
   font-size: 11px;
   display: block;
   margin-bottom: 4px;
 }
 
 .bk-receipt-footer {
-  padding: 24px 40px;
-  background: #f6f9fc;
+  padding: 16px 24px;
+  background: #f8fafc;
   border-top: 1px dashed var(--bk-line);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .bk-receipt-footer-left,
@@ -1187,11 +1185,11 @@ tr.transfer-shadow {
 }
 
 .bk-receipt-footer .bk-btn {
-  height: 44px;
-  padding: 0 20px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

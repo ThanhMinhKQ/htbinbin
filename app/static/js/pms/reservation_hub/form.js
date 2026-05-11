@@ -306,9 +306,11 @@ Object.assign(BookingHub, {
     _renderAvailCard(rt, ci, co, nights, context) {
         const soldOut = rt.stop_sell || Number(rt.available_rooms || 0) <= 0;
         const low = rt.low_inventory;
-        const fillClass = soldOut ? 'danger' : low ? 'warn' : '';
-        const totalRooms = rt.available_rooms + 3;
-        const usedPct = soldOut ? 100 : Math.min(95, Math.round(((totalRooms - rt.available_rooms) / totalRooms) * 100));
+        const totalRooms = Number(rt.total_rooms || 0);
+        const availableRooms = Number(rt.available_rooms || 0);
+        const usedRooms = Math.max(0, totalRooms - availableRooms);
+        const usedPct = soldOut ? 100 : (totalRooms > 0 ? Math.round((usedRooms / totalRooms) * 100) : 0);
+        const fillClass = soldOut ? 'danger' : low ? 'warn' : 'good';
         const selected = this.getRoomCart().some((item) => Number(item.room_type_id) === Number(rt.room_type_id));
         const selectedQty = this.getRoomCart().find((item) => Number(item.room_type_id) === Number(rt.room_type_id))?.quantity || 1;
         const maxGuests = Number(rt.max_guests || rt.max_occupancy || 2);
@@ -329,7 +331,7 @@ Object.assign(BookingHub, {
                         <div class="bk-avail-fill ${fillClass}" style="width:${usedPct}%"></div>
                     </div>
                     <div class="bk-avail-meta">
-                        <span>${soldOut ? 'Hết phòng' : `Còn ${rt.available_rooms} phòng`}</span>
+                        <span>${soldOut ? 'Hết phòng' : `Còn ${availableRooms}/${totalRooms} phòng`}</span>
                         <span class="bk-money" data-fallback="${fallback}">${pmsMoney(fallback)}</span>
                     </div>
                 </div>
@@ -1664,12 +1666,6 @@ Object.assign(BookingHub, {
             card.classList.toggle('disabled', locked);
             card.setAttribute('aria-checked', active ? 'true' : 'false');
         });
-
-        // Show/hide OTA comparison panel
-        const otaPanel = document.getElementById('bk-ota-compare-panel');
-        if (otaPanel) {
-            otaPanel.style.display = this.isOtaBookingForm() ? 'block' : 'none';
-        }
     },
 
     onDepositInput(input) {

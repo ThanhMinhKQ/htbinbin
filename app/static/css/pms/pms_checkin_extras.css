@@ -345,6 +345,67 @@ html.dark .ci-section-badge {
   position: relative;
 }
 
+.ci-time-field .bk-date-box {
+  position: relative;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.ci-time-field .bk-date-box:focus-within,
+.ci-time-field .bk-date-box:hover {
+  border-color: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+.ci-time-field .bk-date-icon {
+  width: 32px;
+  height: 32px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ci-time-field .bk-date-icon.co {
+  color: #ef4444;
+  background: #fef2f2;
+}
+.ci-time-field .bk-date-content {
+  flex: 1;
+  min-width: 0;
+}
+.ci-time-field .bk-date-content label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+.ci-time-field .bk-date-content input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1e293b;
+  outline: none;
+  cursor: pointer;
+}
+.ci-time-field .bk-date-content input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
 .f-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

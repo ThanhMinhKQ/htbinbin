@@ -6,31 +6,31 @@
    ───────────────────────────────────────────────────── */
 
 :root {
-  /* Reservation Hub palette */
+  /* Reservation Hub palette - Lost and Found Theme */
   --bk-bg: var(--page-bg, #ffffff);
   --bk-surface: #ffffff;
-  --bk-surface-muted: #f4fbfd;
+  --bk-surface-muted: #ffffff;
   --bk-surface-soft: #f8fafc;
-  --bk-surface-raised: #ffffff;
-  --bk-ink: #093C5D;
-  --bk-text: #093C5D;
-  --bk-muted: #3B7597;
-  --bk-faint: #94a3b8;
-  --bk-line: rgba(59, 117, 151, 0.18);
-  --bk-line-strong: rgba(59, 117, 151, 0.32);
-  --bk-table-head-bg: #f4fbfd;
+  --bk-surface-raised: #e2e8f0;
+  --bk-ink: #0f172a;
+  --bk-text: #475569;
+  --bk-muted: #334155;
+  --bk-faint: #64748b;
+  --bk-line: #e5e7eb;
+  --bk-line-strong: #cbd5e1;
+  --bk-table-head-bg: #f8fafc;
   --bk-table-row-bg: #ffffff;
-  --bk-row-hover-bg: rgba(111, 209, 215, 0.18);
+  --bk-row-hover-bg: rgba(15, 23, 42, 0.04);
   --bk-row-warning-bg: rgba(245, 158, 11, 0.06);
   --bk-row-success-bg: rgba(16, 185, 129, 0.06);
   --bk-modal-backdrop: rgba(15, 23, 42, 0.4);
 
-  --bk-primary: #093C5D;
-  --bk-primary-strong: #093C5D;
-  --bk-primary-soft: rgba(111, 209, 215, 0.18);
-  --bk-accent: #3B7597;
-  --bk-success: #0f766e;
-  --bk-warning: #d97706;
+  --bk-primary: #0f172a;
+  --bk-primary-strong: #000000;
+  --bk-primary-soft: #e2e8f0;
+  --bk-accent: #2563eb;
+  --bk-success: #16a34a;
+  --bk-warning: #ea580c;
   --bk-danger: #dc2626;
   --bk-info: #2563eb;
 
@@ -49,17 +49,18 @@
 
   --bk-radius-xs: 8px;
   --bk-radius-sm: 12px;
-  --bk-radius-md: 16px;
-  --bk-radius-lg: 24px;
+  --bk-radius-md: 15.2px;
+  --bk-radius-lg: 20px;
+  --bk-radius-xl: 21.6px;
 
-  --bk-shadow-sm: 0 1px 3px 0 rgba(9, 60, 93, 0.08), 0 1px 2px -1px rgba(9, 60, 93, 0.08);
-  --bk-shadow-md: 0 4px 6px -1px rgba(9, 60, 93, 0.08), 0 2px 4px -2px rgba(9, 60, 93, 0.08);
-  --bk-shadow-lg: 0 10px 15px -3px rgba(9, 60, 93, 0.1), 0 4px 6px -4px rgba(9, 60, 93, 0.08);
-  --bk-shadow-xl: 0 20px 25px -5px rgba(9, 60, 93, 0.1), 0 8px 10px -6px rgba(9, 60, 93, 0.08);
+  --bk-shadow-sm: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+  --bk-shadow-md: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.1) 0px 4px 6px -1px, rgba(0, 0, 0, 0.1) 0px 2px 4px -2px;
+  --bk-shadow-lg: rgba(15, 23, 42, 0.42) 0px 18px 50px -32px;
+  --bk-shadow-xl: rgba(15, 23, 42, 0.42) 0px 18px 50px -32px;
 
   --bk-glass: rgba(255, 255, 255, 0.78);
   --bk-glass-blur: blur(12px);
-  --bk-glass-border: rgba(111, 209, 215, 0.3);
+  --bk-glass-border: rgba(229, 231, 235, 0.5);
   --bk-skeleton-a: #eef2f7;
   --bk-skeleton-b: #f8fafc;
 }
@@ -114,7 +115,10 @@
   }
 }
 
-html.dark,
+#pms-booking-page,
+#pms-booking-page * {
+  font-family: 'Inter', sans-serif;
+}
 html.dark body,
 body.dark,
 .dark-mode,
@@ -235,9 +239,9 @@ body.dark,
 }
 
 .bk-ota-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) max-content;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 14px;
   padding: 10px 14px;
   background: var(--bk-surface);
@@ -403,11 +407,12 @@ body.dark,
 }
 
 .bk-btn.glow {
-  box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+  box-shadow: none !important;
+  animation: none !important;
 }
 
 .bk-btn.glow:hover {
-  box-shadow: 0 0 25px rgba(99, 102, 241, 0.6);
+  box-shadow: none !important;
 }
 
 /* ── Stats Grid ── */
@@ -745,8 +750,10 @@ body.dark,
   height: 100%;
   background: var(--bk-primary);
   border-radius: inherit;
+  transition: width 0.3s ease;
 }
 
+.bk-avail-fill.good { background: var(--bk-success); }
 .bk-avail-fill.warn { background: var(--bk-warning); }
 .bk-avail-fill.danger { background: var(--bk-danger); }
 
@@ -1796,8 +1803,9 @@ html.dark .bk-detail-stay-line span { background: var(--bk-surface-soft); }
 }
 
 #pms-booking-page .bk-ota-strip {
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.95fr);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
 }
 
 #pms-booking-page .bk-ota-strip-controls {

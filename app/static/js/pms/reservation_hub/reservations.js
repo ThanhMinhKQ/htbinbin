@@ -590,154 +590,162 @@ Object.assign(BookingHub, {
     async openDetail(id) {
         this.state.detailBookingId = id;
         const dialog = document.getElementById('bk-detail-dialog');
-        if (dialog) dialog.innerHTML = '<div class="bk-detail-loading"><div class="bk-skeleton"></div></div>';
         this.showModal('bk-detail-modal');
 
+        // Render immediately from cached list data
+        const cached = (this.state.reservations || []).find(b => b.id === id);
+        if (cached) {
+            this._renderDetailContent(dialog, cached);
+        } else if (dialog) {
+            dialog.innerHTML = '<div class="bk-detail-loading"><div class="bk-skeleton"></div></div>';
+        }
+
+        // Fetch fresh data in background and re-render
         try {
             const booking = this.apiData(await pmsApi(`/api/pms/reservations/${id}`), {});
-            const status = booking.reservation_status || 'PENDING';
-            const code = booking.external_id || `#${booking.id || id}`;
-            const guestName = booking.guest_name || 'Khách lẻ';
-            
-            const nights = Math.max(1, this.dateDiff(booking.check_in, booking.check_out) || 1);
-            const guests = Number(booking.num_guests || booking.num_adults || 1);
-            const totalPrice = Number(booking.total_price || 0);
-            const depositAmount = Number(booking.deposit_amount || 0);
-            const balance = Math.max(0, totalPrice - depositAmount);
-            const roomLabel = booking.assigned_room_number ? `Phòng ${booking.assigned_room_number}` : 'Chưa gán';
-
-            // Calculate Payment Progress
-            let payPercent = 0;
-            if (totalPrice > 0) {
-                payPercent = Math.min(100, (depositAmount / totalPrice) * 100);
-            }
-
-            // Actions logic
-            const rawData = booking.raw_data || {};
-            const checkInTime = String(rawData.check_in_at || booking.estimated_arrival || '14:00').includes('T')
-                ? String(rawData.check_in_at || booking.estimated_arrival || '14:00').slice(11, 16)
-                : String(rawData.check_in_at || booking.estimated_arrival || '14:00').slice(0, 5);
-            const checkOutTime = String(rawData.check_out_at || '12:00').includes('T')
-                ? String(rawData.check_out_at || '12:00').slice(11, 16)
-                : String(rawData.check_out_at || '12:00').slice(0, 5);
-            const isTransferShadow = Boolean(rawData.transfer_shadow);
-            const canConfirm = status === 'PENDING' && !booking.assigned_room_id && !isTransferShadow;
-            const canAssign = status === 'CONFIRMED' && !isTransferShadow;
-            const canCheckin = status === 'CONFIRMED' && booking.assigned_room_id && this.isCheckinDateReached(booking.check_in) && !isTransferShadow;
-            const canCancel = ['PENDING', 'CONFIRMED'].includes(status) && !isTransferShadow;
-
-            const actions = [
-                canCheckin ? `<button class="rd-brand-btn primary" onclick="BookingHub.detailCheckin(${booking.id})">Nhận phòng</button>` : '',
-                canConfirm ? `<button class="rd-brand-btn primary" onclick="BookingHub.detailConfirm(${booking.id})">Xác nhận</button>` : '',
-                canAssign ? `<button class="rd-brand-btn" onclick="BookingHub.detailAssign(${booking.id})">Gán phòng</button>` : '',
-                `<button class="rd-brand-btn" onclick="BookingHub.editFromDetail()">Chỉnh sửa</button>`,
-                canCancel ? `<button class="rd-brand-btn danger" onclick="BookingHub.detailCancel(${booking.id})">Hủy đặt</button>` : '',
-            ].filter(Boolean).join('');
-
-            if (dialog) {
-                dialog.innerHTML = `
-                    <div class="bk-receipt-wrapper">
-                        <header class="bk-receipt-header">
-                            <div class="bk-receipt-brand">
-                                <div class="bk-receipt-logo">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                                </div>
-                                <div class="bk-receipt-brand-text">
-                                    <h2>BIN BIN HOTEL GROUP</h2>
-                                    <p>Reservation Confirmation</p>
-                                </div>
-                            </div>
-                            <div class="bk-receipt-status">
-                                <span class="bk-receipt-badge ${status.toLowerCase()}">${this.statusLabel(status)}</span>
-                                <button class="bk-receipt-close" onclick="BookingHub.closeDetail()">×</button>
-                            </div>
-                        </header>
-
-                        <div class="bk-receipt-body">
-                            <div class="bk-receipt-row">
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Mã Đặt Phòng / Booking ID</span>
-                                    <strong class="bk-receipt-value large">${this.escape(code)}</strong>
-                                </div>
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Khách Hàng / Guest Name</span>
-                                    <strong class="bk-receipt-value">${this.escape(guestName)}</strong>
-                                    <span class="bk-receipt-subvalue">${this.escape(booking.guest_phone || '—')}</span>
-                                </div>
-                            </div>
-
-                            <div class="bk-receipt-divider"></div>
-
-                            <div class="bk-receipt-row">
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Nhận Phòng / Check-in</span>
-                                    <strong class="bk-receipt-value">${this.formatDate(booking.check_in)}</strong>
-                                    <span class="bk-receipt-subvalue">Từ ${this.escape(checkInTime)}</span>
-                                </div>
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Trả Phòng / Check-out</span>
-                                    <strong class="bk-receipt-value">${this.formatDate(booking.check_out)}</strong>
-                                    <span class="bk-receipt-subvalue">Trước ${this.escape(checkOutTime)}</span>
-                                </div>
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Lưu Trú / Duration</span>
-                                    <strong class="bk-receipt-value">${nights} đêm</strong>
-                                    <span class="bk-receipt-subvalue">${guests} người lớn</span>
-                                </div>
-                            </div>
-
-                            <div class="bk-receipt-divider"></div>
-
-                            <div class="bk-receipt-row">
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Loại Phòng / Room Type</span>
-                                    <strong class="bk-receipt-value">${(() => { const parts = (booking.room_type || '—').split(/\s*[-–—]\s*/); const clean = (parts.length >= 2 ? parts[1] : parts[0]).split(/\s*(?:Hệ thống|Hướng dẫn|Payment)/i)[0].trim(); return this.escape((clean || parts[0]).substring(0, 80)); })()}</strong>
-                                </div>
-                                <div class="bk-receipt-col">
-                                    <span class="bk-receipt-label">Số Phòng / Room Number</span>
-                                    <strong class="bk-receipt-value highlight">${this.escape(roomLabel)}</strong>
-                                </div>
-                            </div>
-
-                            <div class="bk-receipt-divider dashed"></div>
-
-                            <div class="bk-receipt-finance">
-                                <div class="bk-receipt-finance-row">
-                                    <span>Tổng cộng / Total</span>
-                                    <strong>${pmsMoney(totalPrice)}</strong>
-                                </div>
-                                <div class="bk-receipt-finance-row success">
-                                    <span>Đã đặt cọc / Deposit</span>
-                                    <strong>${pmsMoney(depositAmount)}</strong>
-                                </div>
-                                <div class="bk-receipt-finance-row balance">
-                                    <span>Còn lại cần thu / Balance Due</span>
-                                    <strong>${pmsMoney(balance)}</strong>
-                                </div>
-                            </div>
-
-                            <div class="bk-receipt-note">
-                                <strong>Ghi chú:</strong> ${this.escape(booking.special_requests || (booking.raw_data || {}).notes || 'Không có yêu cầu thêm.')}
-                            </div>
-                        </div>
-
-                        <footer class="bk-receipt-footer">
-                            <div class="bk-receipt-footer-left">
-                                <button class="bk-btn" onclick="BookingHub.openConfirmationPrint()">
-                                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                                    Lấy đơn xác nhận đặt phòng
-                                </button>
-                            </div>
-                            <div class="bk-receipt-footer-right">
-                                ${actions.replace(/rd-brand-btn/g, 'bk-btn')}
-                            </div>
-                        </footer>
-                    </div>
-                `;
+            if (this.state.detailBookingId === id && dialog) {
+                this._renderDetailContent(dialog, booking);
             }
         } catch (err) {
-            if (dialog) dialog.innerHTML = `<div class="bk-detail-error">${this.escape(err.message || 'Lỗi hệ thống')}</div>`;
+            if (!cached && dialog) {
+                dialog.innerHTML = `<div class="bk-detail-loading"><p>Không tải được chi tiết: ${this.escape(err.message)}</p></div>`;
+            }
         }
+    },
+
+    _renderDetailContent(dialog, booking) {
+        if (!dialog || !booking) return;
+        const status = booking.reservation_status || 'PENDING';
+        const code = booking.external_id || `#${booking.id}`;
+        const guestName = booking.guest_name || 'Khách lẻ';
+
+        const nights = Math.max(1, this.dateDiff(booking.check_in, booking.check_out) || 1);
+        const guests = Number(booking.num_guests || booking.num_adults || 1);
+        const totalPrice = Number(booking.total_price || 0);
+        const depositAmount = Number(booking.deposit_amount || 0);
+        const balance = Math.max(0, totalPrice - depositAmount);
+        const roomLabel = booking.assigned_room_number ? `Phòng ${booking.assigned_room_number}` : 'Chưa gán';
+
+        const rawData = booking.raw_data || {};
+        const checkInTime = String(rawData.check_in_at || booking.estimated_arrival || '14:00').includes('T')
+            ? String(rawData.check_in_at || booking.estimated_arrival || '14:00').slice(11, 16)
+            : String(rawData.check_in_at || booking.estimated_arrival || '14:00').slice(0, 5);
+        const checkOutTime = String(rawData.check_out_at || '12:00').includes('T')
+            ? String(rawData.check_out_at || '12:00').slice(11, 16)
+            : String(rawData.check_out_at || '12:00').slice(0, 5);
+        const isTransferShadow = Boolean(rawData.transfer_shadow);
+        const canConfirm = status === 'PENDING' && !booking.assigned_room_id && !isTransferShadow;
+        const canAssign = status === 'CONFIRMED' && !isTransferShadow;
+        const canCheckin = status === 'CONFIRMED' && booking.assigned_room_id && this.isCheckinDateReached(booking.check_in) && !isTransferShadow;
+        const canCancel = ['PENDING', 'CONFIRMED'].includes(status) && !isTransferShadow;
+
+        const actions = [
+            canCheckin ? `<button class="bk-btn primary" onclick="BookingHub.detailCheckin(${booking.id})">Nhận phòng</button>` : '',
+            canConfirm ? `<button class="bk-btn primary" onclick="BookingHub.detailConfirm(${booking.id})">Xác nhận</button>` : '',
+            canAssign ? `<button class="bk-btn" onclick="BookingHub.detailAssign(${booking.id})">Gán phòng</button>` : '',
+            `<button class="bk-btn" onclick="BookingHub.editFromDetail()">Chỉnh sửa</button>`,
+            canCancel ? `<button class="bk-btn danger" onclick="BookingHub.detailCancel(${booking.id})">Hủy đặt</button>` : '',
+        ].filter(Boolean).join('');
+
+        dialog.innerHTML = `
+            <div class="bk-receipt-wrapper">
+                <header class="bk-receipt-header">
+                    <div class="bk-receipt-brand">
+                        <div class="bk-receipt-logo">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                        </div>
+                        <div class="bk-receipt-brand-text">
+                            <h2>BIN BIN HOTEL GROUP</h2>
+                            <p>Reservation Confirmation</p>
+                        </div>
+                    </div>
+                    <div class="bk-receipt-status">
+                        <span class="bk-receipt-badge ${status.toLowerCase()}">${this.statusLabel(status)}</span>
+                        <button class="bk-receipt-close" onclick="BookingHub.closeDetail()">×</button>
+                    </div>
+                </header>
+
+                <div class="bk-receipt-body">
+                    <div class="bk-receipt-row">
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Mã Đặt Phòng / Booking ID</span>
+                            <strong class="bk-receipt-value large">${this.escape(code)}</strong>
+                        </div>
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Khách Hàng / Guest Name</span>
+                            <strong class="bk-receipt-value">${this.escape(guestName)}</strong>
+                            <span class="bk-receipt-subvalue">${this.escape(booking.guest_phone || '—')}</span>
+                        </div>
+                    </div>
+
+                    <div class="bk-receipt-divider"></div>
+
+                    <div class="bk-receipt-row">
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Nhận Phòng / Check-in</span>
+                            <strong class="bk-receipt-value">${this.formatDate(booking.check_in)}</strong>
+                            <span class="bk-receipt-subvalue">Từ ${this.escape(checkInTime)}</span>
+                        </div>
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Trả Phòng / Check-out</span>
+                            <strong class="bk-receipt-value">${this.formatDate(booking.check_out)}</strong>
+                            <span class="bk-receipt-subvalue">Trước ${this.escape(checkOutTime)}</span>
+                        </div>
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Lưu Trú / Duration</span>
+                            <strong class="bk-receipt-value">${nights} đêm</strong>
+                            <span class="bk-receipt-subvalue">${guests} người lớn</span>
+                        </div>
+                    </div>
+
+                    <div class="bk-receipt-divider"></div>
+
+                    <div class="bk-receipt-row">
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Loại Phòng / Room Type</span>
+                            <strong class="bk-receipt-value">${(() => { const parts = (booking.room_type || '—').split(/\s*[-–—]\s*/); const clean = (parts.length >= 2 ? parts[1] : parts[0]).split(/\s*(?:Hệ thống|Hướng dẫn|Payment)/i)[0].trim(); return this.escape((clean || parts[0]).substring(0, 80)); })()}</strong>
+                        </div>
+                        <div class="bk-receipt-col">
+                            <span class="bk-receipt-label">Số Phòng / Room Number</span>
+                            <strong class="bk-receipt-value highlight">${this.escape(roomLabel)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="bk-receipt-divider dashed"></div>
+
+                    <div class="bk-receipt-finance">
+                        <div class="bk-receipt-finance-row">
+                            <span>Tổng cộng / Total</span>
+                            <strong>${pmsMoney(totalPrice)}</strong>
+                        </div>
+                        <div class="bk-receipt-finance-row success">
+                            <span>Đã đặt cọc / Deposit</span>
+                            <strong>${pmsMoney(depositAmount)}</strong>
+                        </div>
+                        <div class="bk-receipt-finance-row balance">
+                            <span>Còn lại cần thu / Balance Due</span>
+                            <strong>${pmsMoney(balance)}</strong>
+                        </div>
+                    </div>
+
+                    <div class="bk-receipt-note">
+                        <strong>Ghi chú:</strong> ${this.escape(booking.special_requests || (booking.raw_data || {}).notes || 'Không có yêu cầu thêm.')}
+                    </div>
+                </div>
+
+                <footer class="bk-receipt-footer">
+                    <div class="bk-receipt-footer-left">
+                        <button class="bk-btn" onclick="BookingHub.openConfirmationPrint()">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            Lấy đơn xác nhận đặt phòng
+                        </button>
+                    </div>
+                    <div class="bk-receipt-footer-right">
+                        ${actions}
+                    </div>
+                </footer>
+            </div>
+        `;
     },
 
     closeDetail() {

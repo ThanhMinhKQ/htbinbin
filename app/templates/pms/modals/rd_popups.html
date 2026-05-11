@@ -320,14 +320,251 @@
   html.dark .rd-sm-close {
     background: #2a3a3c;
   }
+
+  /* ───── Service Popup Redesign ───── */
+  .rd-service-popup { max-width: 1280px; width: 95%; }
+
+  .rd-sm-sidebar-title {
+    padding: 20px 24px;
+    font-weight: 850;
+    font-size: 10px;
+    color: var(--rd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--rd-bg-secondary);
+  }
+  .rd-sm-cat-list { flex: 1; overflow-y: auto; }
+
+  .rd-sv-main {
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .rd-sv-search-bar {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--rd-bg-secondary);
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .rd-sv-search-icon {
+    position: absolute;
+    left: 40px;
+    pointer-events: none;
+    color: var(--rd-text-muted);
+  }
+  .rd-sv-search-input {
+    padding-left: 48px !important;
+    height: 46px !important;
+    background: var(--rd-bg-primary) !important;
+    border-color: transparent !important;
+    width: 100%;
+  }
+
+  .rd-sv-grid {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    overflow-y: auto;
+    max-height: calc(75vh - 80px);
+  }
+  .rd-sv-grid.rd-sv-empty-state { display: flex; }
+
+  .rd-sv-card {
+    background: #fff;
+    border: 1.5px solid var(--rd-bg-secondary);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .rd-sv-card:hover { border-color: var(--rd-accent-soft); box-shadow: 0 4px 12px rgba(8, 131, 149, 0.1); }
+  .rd-sv-card.disabled { opacity: 0.5; filter: grayscale(1); pointer-events: none; }
+
+  .rd-sv-stock {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 7px;
+    border-radius: 6px;
+  }
+  .rd-sv-stock.ok { background: #d1fae5; color: #059669; }
+  .rd-sv-stock.low { background: #fef3c7; color: #d97706; }
+  .rd-sv-stock.out { background: #fee2e2; color: #dc2626; }
+
+  .rd-sv-card-name {
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--rd-accent-bold);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .rd-sv-card-price {
+    color: var(--rd-accent-soft);
+    font-weight: 900;
+    font-size: 15px;
+    font-family: 'Outfit', sans-serif;
+  }
+  .rd-sv-card-price small { font-size: 11px; margin-left: 1px; }
+
+  .rd-sv-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: auto;
+  }
+  .rd-sv-card-actions .rd-sm-pm-field { height: 34px; flex: 1; }
+  .rd-sv-card-actions .rd-sm-pm-btn { width: 30px; font-size: 15px; }
+  .rd-sv-card-actions .rd-sm-pm-input { font-size: 13px; }
+
+  .rd-sv-add-btn {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 10px;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--rd-accent-soft), var(--rd-accent-bold));
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .rd-sv-add-btn:hover:not(:disabled) { transform: scale(1.1); }
+  .rd-sv-add-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+
+  .rd-sv-bill-title {
+    font-weight: 850;
+    font-size: 11px;
+    margin-bottom: 16px;
+    color: var(--rd-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .rd-sv-total-amount {
+    color: var(--rd-accent-soft);
+    font-size: 22px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 900;
+  }
+  .rd-sv-confirm-btn {
+    width: 100%;
+    margin-top: 20px;
+    height: 52px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, var(--rd-accent-soft), var(--rd-accent-bold));
+    color: #fff;
+    font-weight: 850;
+    font-size: 14px;
+    box-shadow: 0 8px 16px -4px rgba(9, 99, 126, 0.25);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .rd-sv-confirm-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 20px -4px rgba(9, 99, 126, 0.3); }
+
+  .rd-sv-loading, .rd-sv-error {
+    padding: 60px;
+    text-align: center;
+    font-weight: 700;
+  }
+  .rd-sv-loading { color: var(--rd-text-muted); }
+  .rd-sv-error { color: #ef4444; }
+
+  .rd-sv-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-height: 300px;
+    gap: 12px;
+    opacity: 0.5;
+  }
+  .rd-sv-empty p { margin: 0; font-size: 14px; font-weight: 700; color: var(--rd-text-muted); }
+
+  /* ───── Surcharge Popup ───── */
+  .rd-sur-content-area {
+    padding: 20px;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(75vh - 80px);
+  }
+  .rd-sur-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .rd-sur-manual {
+    border-top: 2px dashed var(--rd-bg-secondary);
+    padding-top: 20px;
+  }
+  .rd-sur-manual-title {
+    font-weight: 850;
+    font-size: 11px;
+    margin-bottom: 14px;
+    color: var(--rd-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .rd-sur-manual-form {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 16px;
+  }
+  .rd-sur-input { height: 46px !important; }
+  .rd-sur-amount-field { height: 46px; }
+  .rd-sur-add-btn {
+    margin-top: 12px;
+    height: 46px;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 13px;
+    width: 100%;
+    border: none;
+    background: var(--rd-bg-primary);
+    color: var(--rd-accent-bold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .rd-sur-add-btn:hover { background: var(--rd-bg-secondary); transform: translateY(-1px); }
+  .rd-sur-confirm {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    box-shadow: 0 8px 16px -4px rgba(16, 185, 129, 0.25) !important;
+  }
+  .rd-sur-confirm:hover { box-shadow: 0 12px 20px -4px rgba(16, 185, 129, 0.35) !important; }
 </style>
 
 <!-- Surcharge Modal -->
 <div id="rd-sub-modal-surcharge" class="rd-sub-modal-overlay">
-  <div class="rd-sub-modal" style="max-width: 1100px;">
+  <div class="rd-sub-modal rd-service-popup">
     <div class="rd-sm-header">
       <div class="rd-sm-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/>
         </svg>
         Phát sinh lưu trú
@@ -335,18 +572,15 @@
       <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'; window.isCiMode=false;">&times;</div>
     </div>
     <div class="rd-sm-body">
-      <!-- Panel 1: Surcharge Categories -->
       <div class="rd-sm-sidebar">
-        <div style="padding: 20px 24px; font-weight: 850; font-size: 10px; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--rd-bg-secondary);">
-          Phân loại
-        </div>
-        <div id="rd-sm-sur-cats" style="flex: 1; overflow-y: auto;">
+        <div class="rd-sm-sidebar-title">Phân loại</div>
+        <div id="rd-sm-sur-cats" class="rd-sm-cat-list">
           <div class="rd-sm-cat-item active" onclick="pmsRdSwitchSurCat(this, 'DAMAGE')">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
             Đồ hỏng hóc
           </div>
           <div class="rd-sm-cat-item" onclick="pmsRdSwitchSurCat(this, 'GUESTS')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="19" cy="11" r="2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
             Khách thêm
           </div>
           <div class="rd-sm-cat-item" onclick="pmsRdSwitchSurCat(this, 'OTHER')">
@@ -356,72 +590,58 @@
         </div>
       </div>
 
-      <!-- Panel 2: Items & Manual Entry -->
-      <div class="rd-sm-left" style="padding: 0; display: flex; flex-direction: column; background: #fff;">
-        <div style="padding: 24px; flex: 1; overflow-y: auto;">
-          <!-- Item Grid (Populated by JS) -->
-          <div id="rd-sm-sur-item-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px;">
-            <!-- Category items go here -->
-          </div>
+      <div class="rd-sm-left rd-sv-main">
+        <div class="rd-sur-content-area">
+          <div id="rd-sm-sur-item-grid" class="rd-sur-grid"></div>
 
-          <!-- Manual Form -->
-          <div style="border-top: 2px dashed var(--rd-bg-secondary); padding-top: 24px;">
-            <div style="font-weight: 850; font-size: 11px; margin-bottom: 16px; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em;">Hoặc Nhập Thủ Công</div>
-            <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px;">
+          <div class="rd-sur-manual">
+            <div class="rd-sur-manual-title">Hoặc nhập thủ công</div>
+            <div class="rd-sur-manual-form">
               <div class="rd-sm-input-grp">
                 <label class="rd-sm-label">Nội dung chi phí</label>
-                <input type="text" class="rd-sm-input" id="rd-sm-sur-content" placeholder="Vd: Dọn phòng gấp, Giặt mền..." style="height: 50px;">
+                <input type="text" class="rd-sm-input rd-sur-input" id="rd-sm-sur-content" placeholder="Vd: Dọn phòng gấp, Giặt mền...">
               </div>
               <div class="rd-sm-input-grp">
                 <label class="rd-sm-label">Số tiền (VND)</label>
-                <div class="rd-sm-pm-field" style="height: 50px;">
+                <div class="rd-sm-pm-field rd-sur-amount-field">
                   <button class="rd-sm-pm-btn" onclick="rdIncr('rd-sm-sur-amount', -10000)">-</button>
-                  <input type="number" class="rd-sm-pm-input" id="rd-sm-sur-amount" value="0">
+                  <input type="text" class="rd-sm-pm-input" id="rd-sm-sur-amount" value="0" oninput="pmsFormatMoneyInput(this)">
                   <button class="rd-sm-pm-btn" onclick="rdIncr('rd-sm-sur-amount', 10000)">+</button>
                 </div>
               </div>
             </div>
-            <button class="v-btn primary" onclick="pmsRdAddTempSurcharge()"
-              style="margin-top: 12px; height: 50px; border-radius: 14px; font-weight: 850; width: 100%; border:none; background: var(--rd-bg-primary); color:var(--rd-accent-bold); display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer; transition:all 0.2s;">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            <button class="rd-sur-add-btn" onclick="pmsRdAddTempSurcharge()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
               Ghi vào phiếu tạm
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Panel 3: Bill Preview -->
-      <div class="rd-sm-right">
-        <div style="font-weight: 850; font-size: 11px; margin-bottom: 20px; color: var(--rd-text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/><path d="M7 7h10"/><path d="M7 11h10"/><path d="M7 15h10"/></svg>
+      <div class="rd-sm-right rd-sv-bill">
+        <div class="rd-sv-bill-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/>
+            <path d="M7 7h10"/><path d="M7 11h10"/><path d="M7 15h10"/>
+          </svg>
           Hoá đơn tạm tính
         </div>
-        <div class="rd-sm-bill-list" id="rd-sm-sur-bill-list" style="display: flex; flex-direction: column; min-height: 200px;">
-          <div class="rd-sv-empty" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--rd-text-muted); opacity:0.6; padding: 40px 20px;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:16px; display: block;">
-              <rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
-            </svg>
-            <p style="margin:0; font-size:14px; font-weight:700; text-align: center; width: 100%;">Trống</p>
-          </div>
-        </div>
+        <div class="rd-sm-bill-list" id="rd-sm-sur-bill-list"></div>
         <div class="rd-sm-total-row">
-          <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--rd-text-muted);">Tổng phát sinh</span>
-          <span style="color: var(--rd-accent-bold); font-size: 24px; font-family: 'Outfit', sans-serif;" id="rd-sm-sur-total">0</span>
+          <span>Tổng phát sinh</span>
+          <span class="rd-sv-total-amount" id="rd-sm-sur-total">0</span>
         </div>
-        <button class="v-btn primary" onclick="pmsRdApplySurcharge()"
-          style="width: 100%; margin-top: 24px; height: 56px; border-radius: 16px; border:none; background: linear-gradient(135deg, #10b981, #059669); color:#fff; font-weight:850; box-shadow: 0 10px 20px -5px rgba(16, 185, 129, 0.3); cursor:pointer;">
-          Lưu vào phòng
-        </button>
+        <button class="v-btn primary rd-sv-confirm-btn rd-sur-confirm" onclick="pmsRdApplySurcharge()">Lưu vào phòng</button>
       </div>
     </div>
   </div>
 </div>
 
 <div id="rd-sub-modal-service" class="rd-sub-modal-overlay">
-  <div class="rd-sub-modal" style="max-width: 1280px; width: 95%;">
+  <div class="rd-sub-modal rd-service-popup">
     <div class="rd-sm-header">
       <div class="rd-sm-title">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>
         </svg>
         Dịch vụ phòng
@@ -429,71 +649,35 @@
       <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'; window.isCiMode=false;">&times;</div>
     </div>
     <div class="rd-sm-body">
-      <!-- Sidebar Categories -->
       <div class="rd-sm-sidebar">
-        <div style="padding: 20px 24px; font-weight: 850; font-size: 10px; color: var(--rd-text-muted); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--rd-bg-secondary);">
-          Danh mục
-        </div>
-        <div id="rd-sm-sv-cats" style="flex: 1; overflow-y: auto;">
-          <div class="rd-sm-cat-item active" onclick="pmsRdSwitchSvCat(this)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 11V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5"/><path d="M15 2h2a2 2 0 0 1 2 2v2"/><path d="M12 18v.01"/><path d="M8 18v.01"/><path d="M12 14v.01"/><path d="M8 14v.01"/><path d="M12 10v.01"/><path d="M8 10v.01"/></svg>
-            Đồ uống
-          </div>
-          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" y1="17" x2="18" y2="17"/></svg>
-            Đồ ăn nhanh
-          </div>
-          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m14 21-3-3 3-3"/><path d="m10 21 3-3-3-3"/><path d="M12 2v2"/><path d="m16.2 4.2 1.4 1.4"/><path d="M22 8h-2"/><path d="M12 10V8"/><path d="m7.8 4.2-1.4 1.4"/><path d="M2 8h2"/><path d="m12 14-2.5 2.5"/><path d="M12 14 9.5 11.5"/></svg>
-            Giặt là
-          </div>
-          <div class="rd-sm-cat-item" onclick="pmsRdSwitchSvCat(this)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-            Khác
-          </div>
-        </div>
+        <div class="rd-sm-sidebar-title">Danh mục</div>
+        <div id="rd-sm-sv-cats" class="rd-sm-cat-list"></div>
       </div>
 
-      <!-- Main Interaction Area -->
-      <div class="rd-sm-left" style="padding: 0; display: flex; flex-direction: column;">
-        <div style="padding: 24px; border-bottom: 1px solid var(--rd-bg-secondary); background: #fff; position: sticky; top: 0; z-index: 10;">
-          <div style="position: relative;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="var(--rd-text-muted)" stroke-width="3"
-              style="position: absolute; left: 16px; top: 50%; transform: translateY(-50%); pointer-events: none;">
-              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-            </svg>
-            <input type="text" class="rd-sm-input" placeholder="Tìm tên dịch vụ..." oninput="pmsRdSearchService(this)"
-              style="padding-left: 48px; height: 50px; background: var(--rd-bg-primary); border-color: transparent;">
-          </div>
+      <div class="rd-sm-left rd-sv-main">
+        <div class="rd-sv-search-bar">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="rd-sv-search-icon">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+          <input type="text" class="rd-sm-input rd-sv-search-input" placeholder="Tìm tên dịch vụ..." oninput="pmsRdSearchService(this)">
         </div>
-        <div id="rd-sm-sv-list"
-          style="padding: 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; overflow-y: auto; max-height: 500px;">
-          <!-- Service Cards will be injected here -->
-        </div>
+        <div id="rd-sm-sv-list" class="rd-sv-grid"></div>
       </div>
 
-      <!-- Bill Review Panel -->
-      <div class="rd-sm-right">
-        <div style="font-weight: 850; font-size: 11px; margin-bottom: 20px; color: var(--rd-text-muted); display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: 0.1em;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="3">
-            <path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z" />
-            <path d="M7 7h10" /><path d="M7 11h10" /><path d="M7 15h10" />
+      <div class="rd-sm-right rd-sv-bill">
+        <div class="rd-sv-bill-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 16V4a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"/>
+            <path d="M7 7h10"/><path d="M7 11h10"/><path d="M7 15h10"/>
           </svg>
           Hoá đơn tạm tính
         </div>
-        <div class="rd-sm-bill-list" id="rd-sm-sv-bill-list">
-          <!-- Items will appear here -->
-        </div>
+        <div class="rd-sm-bill-list" id="rd-sm-sv-bill-list"></div>
         <div class="rd-sm-total-row">
-          <span style="font-size:11px; text-transform:uppercase; letter-spacing:0.05em; color:var(--rd-text-muted);">Tổng thành tiền</span>
-          <span style="color: var(--rd-accent-soft); font-size: 24px; font-family: 'Outfit', sans-serif;" id="rd-sm-sv-total">0</span>
+          <span>Tổng thành tiền</span>
+          <span class="rd-sv-total-amount" id="rd-sm-sv-total">0</span>
         </div>
-        <button class="v-btn primary" onclick="pmsRdApplyService()"
-          style="width: 100%; margin-top: 24px; height: 56px; border-radius: 16px; border:none; background: linear-gradient(135deg, var(--rd-accent-soft), var(--rd-accent-bold)); color:#fff; font-weight:850; box-shadow: 0 10px 20px -5px rgba(9, 99, 126, 0.3); cursor:pointer;">
-          Xác nhận dịch vụ
-        </button>
+        <button class="v-btn primary rd-sv-confirm-btn" onclick="pmsRdApplyService()">Xác nhận dịch vụ</button>
       </div>
     </div>
   </div>
@@ -1238,9 +1422,18 @@ async function rdPayV2Submit() {
 </div>
 
 <script>
+  function pmsFormatMoneyInput(input) {
+    let val = input.value.replace(/[^0-9]/g, '');
+    if (!val) { input.value = '0'; return; }
+    input.value = parseInt(val).toLocaleString('vi-VN');
+  }
+  window.pmsFormatMoneyInput = pmsFormatMoneyInput;
+
   function rdIncr(id, amount) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.value = parseInt(el.value || 0) + amount;
+    let raw = parseInt((el.value || '0').replace(/[^0-9]/g, '')) || 0;
+    raw = Math.max(0, raw + amount);
+    el.value = raw.toLocaleString('vi-VN');
   }
 </script>

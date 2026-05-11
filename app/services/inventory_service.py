@@ -813,11 +813,13 @@ class InventoryService:
                 type_inventories.append(inv)
             self.db.flush()
             min_available = min([i.available_rooms for i in type_inventories], default=0)
+            total_rooms = type_inventories[0].total_rooms if type_inventories else 0
             result.append({
                 "room_type_id": room_type.id,
                 "room_type": room_type.name,
                 "max_guests": room_type.max_guests,
                 "base_price": float(room_type.price_per_night or 0),
+                "total_rooms": int(total_rooms),
                 "available_rooms": int(min_available),
                 "stop_sell": min_available <= 0,
                 "low_inventory": 0 < min_available < 3,

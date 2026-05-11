@@ -2999,14 +2999,22 @@ let _invActiveCat = null;
 
 async function pmsRdOpenService() {
     rdTempServices = [];
-    const searchInp = document.querySelector('#rd-sub-modal-service .rd-sm-input');
+    const searchInp = document.querySelector('#rd-sub-modal-service .rd-sv-search-input');
     if (searchInp) searchInp.value = '';
     pmsRdRenderTempService();
     document.getElementById('rd-sub-modal-service').style.display = 'flex';
 
-    // Load from inventory API
+    // Render from cache immediately if available
+    if (_invProducts.length > 0) {
+        _invRenderCatSidebar();
+        pmsRdRenderServiceList();
+    }
+
+    // Load/refresh from API in background
     const list = document.getElementById('rd-sm-sv-list');
-    if (list) list.innerHTML = `<div style="padding:60px;text-align:center;color:var(--rd-text-muted);font-weight:700;">Đang tải sản phẩm...</div>`;
+    if (_invProducts.length === 0 && list) {
+        list.innerHTML = `<div class="rd-sv-loading">Đang tải sản phẩm...</div>`;
+    }
     try {
         let branchIdQ = '';
         if (window.isCiMode) {
@@ -3019,7 +3027,7 @@ async function pmsRdOpenService() {
         } else if (typeof rdStayData !== 'undefined' && rdStayData && rdStayData.branch_id) {
             branchIdQ = `?branch_id=${encodeURIComponent(rdStayData.branch_id)}`;
         }
-        
+
         const data = await pmsApi('/api/pms/inventory/products' + branchIdQ);
         _invProducts = data.products || [];
         _invCategories = data.categories || [];
@@ -3027,7 +3035,9 @@ async function pmsRdOpenService() {
         _invRenderCatSidebar();
         pmsRdRenderServiceList();
     } catch (e) {
-        if (list) list.innerHTML = `<div style="padding:60px;text-align:center;color:#ef4444;font-weight:700;">Lỗi tải sản phẩm: ${e.message}<br><small>Hãy kiểm tra kho chi nhánh đã được thiết lập</small></div>`;
+        if (_invProducts.length === 0 && list) {
+            list.innerHTML = `<div class="rd-sv-error">Lỗi tải sản phẩm: ${e.message}<br><small>Hãy kiểm tra kho chi nhánh đã được thiết lập</small></div>`;
+        }
     }
 }
 
@@ -3053,60 +3063,45 @@ function pmsRdRenderServiceList(filter = '', cat = null) {
         filtered = filtered.filter(s => {
             const cname = (s.category_name || '').toLowerCase();
             const fCat = activeCat.toLowerCase();
-            return cname === fCat || cname.includes(fCat) || fCat.includes(cname) || 
+            return cname === fCat || cname.includes(fCat) || fCat.includes(cname) ||
                    (fCat === 'đồ uống' && (cname.includes('nước') || cname.includes('giải khát')));
         });
     }
     if (filter) filtered = filtered.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
 
     if (filtered.length === 0) {
-        list.style.display = 'flex';
-        list.innerHTML = `<div class="rd-sv-empty" style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; min-height:400px; gap:16px; opacity:0.5;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="var(--rd-text-muted)" stroke-width="1.8">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
-        </svg>
-        <p style="margin:0; font-size:15px; font-weight:800; color:var(--rd-text-muted);">Chưa có sản phẩm nào được cấu hình bán hàng</p>
-        <a href="/inventory" style="text-decoration:none; margin-top:8px;"><button class="v-btn primary" style="background:var(--rd-bg-primary); color:var(--rd-accent-soft); border-color:var(--rd-bg-secondary);">Vào Cấu hình Kho</button></a>
-      </div>`;
+        list.className = 'rd-sv-grid rd-sv-empty-state';
+        list.innerHTML = `<div class="rd-sv-empty">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            <p>Không tìm thấy sản phẩm</p>
+        </div>`;
     } else {
-        list.style.display = 'grid';
+        list.className = 'rd-sv-grid';
         list.innerHTML = filtered.map((s, idx) => {
             const tempItem = rdTempServices.find(temp => temp.product_id === s.id);
             const currentStock = tempItem ? s.stock - tempItem.qty : s.stock;
-            const isLow = currentStock <= (s.min_stock || 0);
             const outOfStock = currentStock <= 0;
-            const stockColor = outOfStock ? '#ef4444' : (isLow ? '#f59e0b' : '#10b981');
-            // Escape name for both single and double quotes to prevent HTML breaking
+            const isLow = currentStock <= (s.min_stock || 0);
+            const stockClass = outOfStock ? 'out' : (isLow ? 'low' : 'ok');
             const safeName = s.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             return `
-      <div style="background:#fff; border:1.5px solid ${outOfStock ? '#fecaca' : 'var(--rd-bg-secondary)'}; border-radius:20px; padding:16px; transition:all 0.3s; display:flex; flex-direction:column; gap:12px; box-shadow:var(--rd-card-shadow); ${outOfStock ? 'opacity:0.6; filter: grayscale(100%);' : ''} position:relative; overflow:hidden;" class="rd-sv-grid-card">
-        
-        <div style="position:absolute; top:12px; right:12px; background:${stockColor}20; color:${stockColor}; font-size:10px; font-weight:800; padding:4px 8px; border-radius:8px; z-index:1;">
-            ${outOfStock ? 'Hết hàng' : Math.floor(currentStock) + ' ' + (s.base_unit || 'Cái')}
-        </div>
-        
-        <div style="width:48px; height:48px; background:var(--rd-bg-primary); border-radius:14px; display:flex; align-items:center; justify-content:center; color:var(--rd-accent-soft); margin-bottom: 4px;">
-           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-        </div>
-
-        <div style="flex:1;">
-           <div style="font-weight:850; font-size:14px; color:var(--rd-accent-bold); line-height:1.3; margin-bottom:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;" title="${s.name}">${s.name}</div>
-           <div style="color:var(--rd-accent-soft); font-weight:900; font-size:16px; font-family:'Outfit', sans-serif;">${(s.sell_price || 0).toLocaleString()}<small style="font-size:11px; margin-left:2px;">đ</small></div>
-        </div>
-
-        <div style="display:flex; align-items:center; gap:8px; margin-top:auto;">
-           <div class="rd-sm-pm-field" style="height:36px; flex:1;">
-              <button class="rd-sm-pm-btn" onclick="window.rdStepSvQty(this, -1); event.stopPropagation();" style="width:32px; font-size:16px;">-</button>
-              <input type="text" class="rd-sm-pm-input" value="1" id="sv-qty-${idx}" style="font-size:13px;" oninput="this.value=this.value.replace(/\\D/g,'')" onclick="event.stopPropagation();">
-              <button class="rd-sm-pm-btn" onclick="window.rdStepSvQty(this, 1); event.stopPropagation();" style="width:32px; font-size:16px;">+</button>
-           </div>
-           <button class="v-btn primary" onclick="window.pmsRdAddTempService('${safeName}', ${s.sell_price || 0}, 'sv-qty-${idx}', ${s.id}); event.stopPropagation();" 
-             style="width:36px; height:36px; padding:0; border-radius:10px; border:none; display:flex; align-items:center; justify-content:center; background:${outOfStock ? '#cbd5e1' : 'linear-gradient(135deg, var(--rd-accent-soft), var(--rd-accent-bold))'}; color:#fff; cursor:${outOfStock ? 'not-allowed' : 'pointer'}; flex-shrink:0;"
-             ${outOfStock ? 'disabled' : ''}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14m-7-7v14"/></svg>
-           </button>
-        </div>
-      </div>`;
+                <div class="rd-sv-card ${outOfStock ? 'disabled' : ''}">
+                    <span class="rd-sv-stock ${stockClass}">${outOfStock ? 'Hết' : Math.floor(currentStock) + ' ' + (s.base_unit || 'Cái')}</span>
+                    <div class="rd-sv-card-name" title="${s.name}">${s.name}</div>
+                    <div class="rd-sv-card-price">${(s.sell_price || 0).toLocaleString()}<small>đ</small></div>
+                    <div class="rd-sv-card-actions">
+                        <div class="rd-sm-pm-field">
+                            <button class="rd-sm-pm-btn" onclick="window.rdStepSvQty(this, -1); event.stopPropagation();">-</button>
+                            <input type="text" class="rd-sm-pm-input" value="1" id="sv-qty-${idx}" oninput="this.value=this.value.replace(/\\D/g,'')" onclick="event.stopPropagation();">
+                            <button class="rd-sm-pm-btn" onclick="window.rdStepSvQty(this, 1); event.stopPropagation();">+</button>
+                        </div>
+                        <button class="rd-sv-add-btn" onclick="window.pmsRdAddTempService('${safeName}', ${s.sell_price || 0}, 'sv-qty-${idx}', ${s.id}); event.stopPropagation();" ${outOfStock ? 'disabled' : ''}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14m-7-7v14"/></svg>
+                        </button>
+                    </div>
+                </div>`;
         }).join('');
     }
 }

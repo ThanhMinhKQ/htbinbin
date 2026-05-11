@@ -385,7 +385,7 @@ async function agSwitchMode(mode, keepValues = true, guest = null) {
         }
     } else {
         if (distGrp) distGrp.style.display = '';
-        if (convGrp) convGrp.style.display = 'none';
+        if (convGrp) convGrp.style.display = '';
         const provinces = await agLoadOldProvinces();
         agPopulateDatalist('dl-ag-province', provinces);
         if (guest) {

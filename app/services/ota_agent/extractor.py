@@ -136,8 +136,8 @@ Rules:
 Email Content:
 {cleaned_body}"""
 
-        max_retries = 2
-        retry_delays = [5, 15]
+        max_retries = 3
+        retry_delays = [5, 10, 20]
 
         for attempt in range(max_retries):
             try:
@@ -159,12 +159,19 @@ Email Content:
                     timeout=60.0,
                 )
 
-                if response.status_code == 429:
+                if response.status_code in (429, 502, 503, 504):
                     _apply_global_backoff(response.text)
                     if attempt < max_retries - 1:
                         time.sleep(retry_delays[attempt])
                         continue
-                    return {"error": "Rate limit exceeded after max retries", "status": "FAILED"}
+                    return {"error": f"Server error {response.status_code} after max retries", "status": "FAILED"}
+
+                if response.status_code == 404:
+                    if attempt < max_retries - 1:
+                        logger.warning(f"[OTA Extractor] 404 transient — retry in {retry_delays[attempt]}s (attempt {attempt + 1})")
+                        time.sleep(retry_delays[attempt])
+                        continue
+                    return {"error": "API endpoint 404 after max retries", "status": "FAILED"}
 
                 response.raise_for_status()
                 result = response.json()

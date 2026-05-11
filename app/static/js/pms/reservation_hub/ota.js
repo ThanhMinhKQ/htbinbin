@@ -97,8 +97,9 @@ Object.assign(BookingHub, {
         const guest = payload?.guest_name || 'khách';
         const code = payload?.external_id ? ` #${payload.external_id}` : '';
         const branch = payload?.branch_name && payload.branch_name !== 'Chưa xác định' ? ` • ${payload.branch_name}` : '';
-        if (action === 'cancel') return `OTA hủy phòng ${source}${code}: ${guest}${branch}`;
-        return `Booking ${source}${code}: ${guest}${branch}`;
+        const dates = payload?.check_in ? ` • ${payload.check_in}` : '';
+        if (action === 'cancel') return `❌ HỦY PHÒNG ${source}${code}: ${guest}${branch}${dates}`;
+        return `✅ ĐẶT PHÒNG MỚI ${source}${code}: ${guest}${branch}${dates}`;
     },
 
     updateOtaRealtimeBaseline(data) {
@@ -130,7 +131,7 @@ Object.assign(BookingHub, {
             if (!hasNewBooking && !hasCancel) return;
 
             this.updateOtaRealtimeBaseline(data);
-            if (hasCancel) pmsToast(this.otaRealtimeMessage(data.latest_cancel_booking, 'cancel'), true);
+            if (hasCancel) pmsToast(this.otaRealtimeMessage(data.latest_cancel_booking, 'cancel'), false);
             if (hasNewBooking) pmsToast(this.otaRealtimeMessage(data.latest_success_booking, 'new'), true);
             await Promise.all([this.loadStats(), this.loadReservations()]);
             if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
