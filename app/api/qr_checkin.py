@@ -7,7 +7,7 @@ import uuid
 
 from ..db.session import get_db
 from ..db.models import User, AttendanceLog
-from ..core.security import get_csrf_token
+from ..core.security import get_branch_code, get_csrf_token
 from ..core.utils import get_lan_ip, get_current_work_shift, _get_log_shift_for_user
 
 from fastapi.templating import Jinja2Templates
@@ -140,7 +140,9 @@ async def checkin_status(request: Request, token: str, db: Session = Depends(get
         # === SỬA LỖI NGHIÊM TRỌNG ===
         # Đọc chi nhánh mới nhất (mà điện thoại vừa lưu) từ DB và cập nhật vào session của máy tính
         if log.user.last_active_branch:
-            request.session["active_branch"] = log.user.last_active_branch
+            branch_code = get_branch_code(log.user.last_active_branch)
+            if branch_code:
+                request.session["active_branch"] = branch_code
         # === KẾT THÚC SỬA LỖI ===
 
         request.session.pop("pending_user", None)

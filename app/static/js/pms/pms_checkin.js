@@ -161,9 +161,104 @@ function pmsCiSetDateTime(inputId, value) {
     if (!input) return;
     input.value = value || '';
     input.dispatchEvent(new Event('change'));
-    if (input.parentElement && input.parentElement._shadDateTimePicker) {
-        input.parentElement._shadDateTimePicker.syncFromInput();
+    pmsCiSyncDateTimePicker(inputId);
+}
+
+function pmsCiParseDateTime(value) {
+    if (!value) return null;
+    const next = new Date(value);
+    return Number.isNaN(next.getTime()) ? null : next;
+}
+
+function pmsCiFormatDisplayDateTime(value) {
+    const dt = pmsCiParseDateTime(value);
+    if (!dt) return '';
+    const d = String(dt.getDate()).padStart(2, '0');
+    const m = String(dt.getMonth() + 1).padStart(2, '0');
+    const y = dt.getFullYear();
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y}, ${hh}:${mm}`;
+}
+
+function pmsCiSetDateTimeDisplay(inputId) {
+    const input = document.getElementById(inputId);
+    const displayInput = document.getElementById(`${inputId}-display`);
+    if (input && displayInput) displayInput.value = pmsCiFormatDisplayDateTime(input.value);
+}
+
+function pmsCiSyncDateTimePicker(inputId) {
+    const input = document.getElementById(inputId);
+    const displayInput = document.getElementById(`${inputId}-display`);
+    if (!input || !displayInput) return;
+    const instance = displayInput._flatpickr;
+    if (!instance) {
+        pmsCiSetDateTimeDisplay(inputId);
+        return;
     }
+    const nextDate = pmsCiParseDateTime(input.value);
+    if (!nextDate) {
+        instance.clear(false);
+        return;
+    }
+    const currentDate = instance.selectedDates[0];
+    if (!currentDate || currentDate.getTime() !== nextDate.getTime()) {
+        instance.setDate(nextDate, false);
+    }
+}
+
+function pmsCiEnsureDateTimePickers() {
+    const fields = [
+        { hiddenId: 'ci-in', displayId: 'ci-in-display', role: 'check-in' },
+        { hiddenId: 'ci-out', displayId: 'ci-out-display', role: 'check-out' },
+    ];
+    const locale = typeof flatpickr !== 'undefined' && flatpickr.l10ns && flatpickr.l10ns.vn
+        ? flatpickr.l10ns.vn
+        : undefined;
+
+    fields.forEach(({ hiddenId, displayId, role }) => {
+        const hiddenInput = document.getElementById(hiddenId);
+        const displayInput = document.getElementById(displayId);
+        if (!hiddenInput || !displayInput) return;
+
+        if (typeof flatpickr !== 'function') {
+            pmsCiSetDateTimeDisplay(hiddenId);
+            return;
+        }
+        if (displayInput._flatpickr) {
+            pmsCiSyncDateTimePicker(hiddenId);
+            return;
+        }
+
+        flatpickr(displayInput, {
+            enableTime: true,
+            time_24hr: true,
+            minuteIncrement: 30,
+            allowInput: false,
+            disableMobile: true,
+            locale,
+            minDate: role === 'check-out' ? 'today' : null,
+            dateFormat: 'd/m/Y, H:i',
+            defaultDate: pmsCiParseDateTime(hiddenInput.value),
+            prevArrow: '<i class="bi bi-chevron-left"></i>',
+            nextArrow: '<i class="bi bi-chevron-right"></i>',
+            onReady: (_selectedDates, _dateStr, instance) => {
+                instance.input.readOnly = true;
+                instance.calendarContainer.classList.add('bk-planner-flatpickr-popup');
+                instance.calendarContainer.dataset.plannerRole = role;
+                pmsCiSyncDateTimePicker(hiddenId);
+            },
+            onOpen: (_selectedDates, _dateStr, instance) => {
+                instance.calendarContainer.dataset.plannerRole = role;
+            },
+            onChange: (selectedDates) => {
+                hiddenInput.value = selectedDates.length
+                    ? flatpickr.formatDate(selectedDates[0], 'Y-m-d\\TH:i')
+                    : '';
+                hiddenInput.dispatchEvent(new Event('change'));
+            },
+        });
+    });
 }
 
 function pmsCiResetGuestInputChrome() {
@@ -426,6 +521,8 @@ function pmsCiInitFlatpickr() {
         ciInEl.value = localISOTime;
     }
     if (ciOutEl) ciOutEl.value = '';
+
+    pmsCiEnsureDateTimePickers();
 
     if (typeof pmsCalcPrice === 'function') setTimeout(pmsCalcPrice, 100);
 }
@@ -1099,7 +1196,7 @@ async function pmsCiFillFromScan(parsed) {
 
     const cardType = parsed.card_type || 'CCCD_CU';
     if (typeof pmsMatchAddressToForm === 'function') {
-        await pmsMatchAddressToForm(parsed.address, 'ci', cardType);
+        await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ci', cardType);
     }
 
     if (typeof pmsShowAddressValidationIssues === 'function') {

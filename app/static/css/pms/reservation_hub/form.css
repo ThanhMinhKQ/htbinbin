@@ -426,6 +426,12 @@
     box-shadow: 0 4px 12px rgba(0,0,0,0.04);
   }
 
+  .bk-cart-item-v4.over-capacity {
+    background: #fffbeb;
+    border-color: #f59e0b;
+    box-shadow: inset 3px 0 0 #f59e0b;
+  }
+
   .bk-cart-item-head {
     display: flex;
     justify-content: space-between;
@@ -635,7 +641,6 @@
     font-weight: 700;
   }
 
-  .bk-over-capacity-pill,
   .bk-over-capacity-note {
     color: #c2410c;
     background: #fff7ed;

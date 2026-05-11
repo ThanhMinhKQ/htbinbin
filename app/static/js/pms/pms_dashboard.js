@@ -68,8 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const ciName = document.getElementById('ci-name');
     if (ciName) ciName.addEventListener('input', pmsCiUpdateCapacityWarn);
 
-    // Init Density
+    // Init Density & View
     pmsSetDensity(PMS_DENSITY_MODE);
+    pmsSetView(PMS_VIEW_MODE);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,12 +79,18 @@ document.addEventListener('DOMContentLoaded', () => {
     async function pmsLoadRooms(bid, silent = false) {
     if (PMS._loading) return; // tránh gọi chồng
     PMS._loading = true;
+    PMS._roomsLoaded = false;
     if (bid!==undefined) PMS.branchId=bid;
     const loadEl = document.getElementById('pms-loading');
     const floorsEl = document.getElementById('pms-floors');
-    if (!silent && loadEl && floorsEl) {
-        loadEl.style.display = 'block';
-        floorsEl.style.display = 'none';
+    if (loadEl && floorsEl) {
+        if (!silent) {
+            loadEl.style.display = 'block';
+            floorsEl.style.display = 'none';
+        } else if (!floorsEl.innerHTML.trim()) {
+            loadEl.style.display = 'block';
+            floorsEl.style.display = 'none';
+        }
     }
     try {
         let url = '/api/pms/rooms';
@@ -93,6 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const [data, roomTypesData] = await Promise.all([pmsApi(url), pmsApi(rtUrl)]);
         PMS.floors = data.floors || {};
         PMS.roomTypes = roomTypesData;
+        PMS._roomsLoaded = true;
         await pmsLoadTodayArrivals(true);
         pmsRender();
     } catch(e) {
@@ -385,6 +393,7 @@ function pmsSetDensity(mode) {
     }
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Render Room Map
 // ─────────────────────────────────────────────────────────────────────────────
@@ -401,6 +410,11 @@ function pmsRender() {
     if (!floorsEl) return;
 
     if (!sortedF.length) {
+        if (PMS._loading && !PMS._roomsLoaded) {
+            if (loadEl) loadEl.style.display = 'block';
+            floorsEl.style.display = 'none';
+            return;
+        }
         floorsEl.innerHTML = `<div class="pms-empty">
             ${PMS_SVG.bed}
             <p>Chưa có phòng nào. <a href="/pms/setup?tab=rooms">Thiết lập phòng ngay</a></p>
@@ -408,7 +422,7 @@ function pmsRender() {
         ['cnt-occ','cnt-vac','cnt-all'].forEach(id => {
             const el = document.getElementById(id); if (el) el.textContent = '0';
         });
-        loadEl.style.display = 'none'; floorsEl.style.display = 'block'; return;
+        if (loadEl) loadEl.style.display = 'none'; floorsEl.style.display = 'block'; return;
     }
 
     const totalOcc = allRooms.filter(r => r.status === 'OCCUPIED').length;

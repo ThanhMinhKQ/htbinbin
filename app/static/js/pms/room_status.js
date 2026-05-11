@@ -296,7 +296,7 @@ const RoomStatus = {
         const sidebarTitle = document.getElementById('rs-sidebar-title');
         const sidebarSubtitle = document.getElementById('rs-sidebar-subtitle');
         const body = document.getElementById('rs-day-detail-body');
-        if (!sidebarTitle || !body) return;
+        if (!body) return;
 
         const dayData = calendar.find(d => d.date === this.state.selectedDate) || calendar[0];
         if (!dayData) {
@@ -304,17 +304,9 @@ const RoomStatus = {
             return;
         }
 
-        const detailMeta = document.getElementById('rs-day-detail-meta');
-        if (detailMeta) {
-            detailMeta.textContent = `${this.longWeekday(this.parseDate(dayData.date))}, ${this.formatDate(dayData.date)}`;
-        }
-
-        // Sidebar Header
-        const d = this.parseDate(dayData.date);
-        sidebarTitle.textContent = `Chi tiết ngày ${this.formatDate(dayData.date)}`;
-        sidebarSubtitle.textContent = this.longWeekday(d);
-
-        // Sidebar Stat Card
+        // Render Tables
+        let html = '';
+        let sums = { total: 0, reserved: 0, sold: 0, cleaning: 0, maintenance: 0, available: 0 };
         const availCount = dayData.available_rooms || 0;
         const totalCount = dayData.total_rooms || 1;
         const availPct = Math.round((availCount / totalCount) * 100);
@@ -322,9 +314,6 @@ const RoomStatus = {
         document.getElementById('rs-sidebar-avail-pct').textContent = `${availPct}% tổng số phòng`;
 
         // Render Tables
-        let html = '';
-        let sums = { total: 0, reserved: 0, sold: 0, cleaning: 0, maintenance: 0, available: 0 };
-
         (dayData.room_types || []).forEach(rt => {
             const ratio = rt.total_rooms ? (rt.available_rooms / rt.total_rooms) : 0;
             const pct = Math.round(ratio * 100);
@@ -972,7 +961,10 @@ const RoomStatus = {
     },
 
     toDateInput(date) {
-        return date.toISOString().split('T')[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     },
 
     parseDate(str) {
@@ -1055,14 +1047,89 @@ const RoomStatus = {
     },
 
     renderDaySkeleton() {
+        this.renderStatsSkeleton();
+        this.renderDayDetailSkeleton();
+        this.renderDayTrendSkeleton();
+        this.renderSidebarSkeleton();
+    },
+
+    renderStatsSkeleton() {
+        ['rs-stat-total', 'rs-stat-occupied', 'rs-stat-booked', 'rs-stat-cleaning', 'rs-stat-maintenance', 'rs-stat-occ-ratio'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<span class="rs-skeleton-text short"></span>';
+        });
+        const occText = document.getElementById('rs-stat-occ-text');
+        if (occText) occText.textContent = '...';
+        document.getElementById('rs-stat-occ-path')?.setAttribute('stroke-dasharray', '0, 100');
+    },
+
+    renderDayDetailSkeleton() {
         const body = document.getElementById('rs-day-detail-body');
         if (!body) return;
-        body.innerHTML = Array.from({ length: 4 }).map(() => `
+        body.innerHTML = Array.from({ length: 5 }).map(() => `
             <tr class="rs-skeleton-row">
                 <td><div class="rs-skeleton-text wide"></div></td>
-                <td colspan="7"><div class="rs-skeleton-text"></div></td>
+                ${Array.from({ length: 6 }).map(() => '<td><div class="rs-skeleton-text short"></div></td>').join('')}
+                <td><div class="rs-skeleton-text wide"></div></td>
             </tr>
         `).join('');
+    },
+
+    renderDayTrendSkeleton() {
+        const headerRow = document.getElementById('rs-day-header');
+        const body = document.getElementById('rs-day-body');
+        if (!headerRow || !body) return;
+        while (headerRow.children.length > 2) headerRow.lastChild.remove();
+        Array.from({ length: 7 }).forEach(() => {
+            const th = document.createElement('th');
+            th.className = 'rs-col-date';
+            th.innerHTML = '<div class="rs-date-header"><div class="rs-skeleton-text wide"></div><div class="rs-skeleton-text short"></div></div>';
+            headerRow.appendChild(th);
+        });
+        body.innerHTML = Array.from({ length: 5 }).map(() => `
+            <tr class="rs-skeleton-row">
+                <td><div class="rs-skeleton-text wide"></div></td>
+                <td><div class="rs-skeleton-text short"></div></td>
+                ${Array.from({ length: 7 }).map(() => '<td><div class="rs-skeleton-bar rs-avail-tile"></div></td>').join('')}
+            </tr>
+        `).join('');
+    },
+
+    renderSidebarSkeleton() {
+        const count = document.getElementById('rs-sidebar-avail-count');
+        const pct = document.getElementById('rs-sidebar-avail-pct');
+        const legend = document.getElementById('rs-donut-legend');
+        const list = document.getElementById('rs-sidebar-room-list');
+        const canvas = document.getElementById('rs-avail-donut');
+        if (count) count.innerHTML = '<span class="rs-skeleton-text short"></span>';
+        if (pct) pct.innerHTML = '<span class="rs-skeleton-text wide"></span>';
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.arc(70, 70, 50, 0, 2 * Math.PI);
+            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--rs-progress-bg-strong').trim() || '#d3dce6';
+            ctx.lineWidth = 15;
+            ctx.stroke();
+        }
+        if (legend) {
+            legend.innerHTML = Array.from({ length: 5 }).map(() => `
+                <div class="rs-legend-item">
+                    <div class="rs-legend-info"><div class="rs-skeleton-text short"></div></div>
+                    <strong><div class="rs-skeleton-text short"></div></strong>
+                </div>
+            `).join('');
+        }
+        if (list) {
+            list.innerHTML = Array.from({ length: 5 }).map(() => `
+                <div class="rs-room-group open rs-skeleton-row">
+                    <button class="rs-room-group-head" type="button" disabled><span><div class="rs-skeleton-text wide"></div></span></button>
+                    <div class="rs-room-group-body">
+                        ${Array.from({ length: 4 }).map(() => '<span class="rs-room-pill"><span class="rs-skeleton-text short"></span></span>').join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
     },
 
     renderTimelineSkeleton() {

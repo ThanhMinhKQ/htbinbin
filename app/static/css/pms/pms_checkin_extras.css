@@ -406,6 +406,64 @@ html.dark .ci-section-badge {
   font-weight: 500;
 }
 
+body.ci-modal-open .flatpickr-calendar.bk-planner-flatpickr-popup {
+  z-index: 100020 !important;
+}
+
+.flatpickr-calendar.bk-planner-flatpickr-popup {
+  border: 1px solid var(--ci-border);
+  border-radius: 18px;
+  box-shadow: 0 22px 48px rgba(9, 60, 93, 0.18);
+  overflow: hidden;
+}
+
+.flatpickr-calendar.bk-planner-flatpickr-popup::before,
+.flatpickr-calendar.bk-planner-flatpickr-popup::after {
+  display: none;
+}
+
+.bk-planner-flatpickr-popup .flatpickr-months {
+  background: var(--ci-surface-soft);
+  border-bottom: 1px solid var(--ci-border);
+}
+
+.bk-planner-flatpickr-popup .flatpickr-current-month {
+  padding-top: 8px;
+}
+
+.bk-planner-flatpickr-popup .flatpickr-weekdays {
+  background: var(--ci-surface);
+}
+
+.bk-planner-flatpickr-popup .flatpickr-weekday {
+  color: var(--ci-muted);
+  font-weight: 800;
+}
+
+.bk-planner-flatpickr-popup .flatpickr-day.selected,
+.bk-planner-flatpickr-popup .flatpickr-day.startRange,
+.bk-planner-flatpickr-popup .flatpickr-day.endRange {
+  background: var(--ci-primary);
+  border-color: var(--ci-primary);
+}
+
+.bk-planner-flatpickr-popup[data-planner-role="check-out"] .flatpickr-day.selected,
+.bk-planner-flatpickr-popup[data-planner-role="check-out"] .flatpickr-day.startRange,
+.bk-planner-flatpickr-popup[data-planner-role="check-out"] .flatpickr-day.endRange {
+  background: var(--ci-success);
+  border-color: var(--ci-success);
+}
+
+.bk-planner-flatpickr-popup .flatpickr-time {
+  border-top: 1px solid var(--ci-border);
+}
+
+.bk-planner-flatpickr-popup .flatpickr-time input:hover,
+.bk-planner-flatpickr-popup .flatpickr-time .flatpickr-am-pm:hover,
+.bk-planner-flatpickr-popup .numInputWrapper:hover {
+  background: var(--ci-surface-soft);
+}
+
 .f-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

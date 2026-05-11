@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import datetime, timedelta
 import math
+import time
 
 # Import từ các module đã tái cấu trúc
 from ..db.session import get_db
@@ -29,6 +30,8 @@ from fastapi.encoders import jsonable_encoder
 import os
 
 router = APIRouter()
+DISPOSABLE_STATUS_UPDATE_INTERVAL_SECONDS = 300
+_last_disposable_status_update = 0.0
 
 # Xác định đường dẫn tuyệt đối đến thư mục gốc của project 'app'
 APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -41,6 +44,15 @@ def map_status_to_vietnamese(status_value: Optional[str]) -> str:
     if not status_value:
         return ""
     return STATUS_MAP.get(status_value, status_value)
+
+def _maybe_update_disposable_items_status(db: Session) -> None:
+    global _last_disposable_status_update
+    now = time.monotonic()
+    if now - _last_disposable_status_update < DISPOSABLE_STATUS_UPDATE_INTERVAL_SECONDS:
+        return
+    update_disposable_items_status(db=db)
+    db.commit()
+    _last_disposable_status_update = now
 
 # --- SỬA: Di chuyển helper _serialize_item lên đây ---
 def _serialize_item(item: LostAndFoundItem) -> dict:
@@ -72,7 +84,8 @@ def _get_filtered_lost_items(
     last_found_datetime: Optional[str] = None,
     last_id: Optional[int] = None,
     page: Optional[int] = 1, # Giữ lại để tải trang đầu tiên
-    active_branch_for_letan: Optional[str] = None
+    active_branch_for_letan: Optional[str] = None,
+    include_total: bool = True
 ) -> (List[LostAndFoundItem], int):
     """
     Hàm dịch vụ để lấy danh sách các món đồ thất lạc đã được lọc và phân trang.
@@ -139,9 +152,10 @@ def _get_filtered_lost_items(
     # --- THÊM: id làm tie-breaker, cực kỳ quan trọng cho keyset pagination ---
     id_order_expression = desc(LostAndFoundItem.id)
 
-    # --- SỬA: Bỏ COUNT(*), thay bằng logic Keyset Pagination ---
-    count_q = query.with_entities(func.count(LostAndFoundItem.id)).order_by(None)
-    total_records = db.execute(count_q).scalar_one()
+    total_records = 0
+    if include_total:
+        count_q = query.with_entities(func.count(LostAndFoundItem.id)).order_by(None)
+        total_records = db.execute(count_q).scalar_one()
 
     # Áp dụng sắp xếp
     query = query.order_by(status_order, order_expression, id_order_expression)
@@ -188,8 +202,7 @@ async def lost_and_found_page(
 
     if user_data.get("role") in ["admin", "boss", "quanly", "letan"]:
         try:
-            update_disposable_items_status(db=db)
-            db.commit() 
+            _maybe_update_disposable_items_status(db)
         except Exception as e:
             db.rollback() 
             logger.error(f"Lỗi khi cập nhật trạng thái đồ thất lạc: {e}", exc_info=True)
@@ -286,12 +299,14 @@ async def get_dashboard_stats(
     if branch_to_filter:
         query = query.join(Branch).filter(Branch.branch_code == branch_to_filter)
 
+    now = datetime.now(VN_TZ)
+
     # --- SỬA LỖI LOGIC: Tính toán ngày bắt đầu LỌC cho cả 2 query ---
     query_start_datetime = None
     if days > 0:
-        # Lấy N ngày, bao gồm cả hôm nay. 
+        # Lấy N ngày, bao gồm cả hôm nay.
         # VD: days=7 -> (now - 6 days) -> 7 ngày
-        query_start_date = (datetime.now(VN_TZ) - timedelta(days=days - 1)).date()
+        query_start_date = (now - timedelta(days=days - 1)).date()
         query_start_datetime = datetime.combine(query_start_date, datetime.min.time()).replace(tzinfo=VN_TZ)
 
     # [REMOVED] Không lọc theo thời gian cho Dashboard Status Stats để hiển thị đúng "Có thể thanh lý"
@@ -342,7 +357,7 @@ async def get_dashboard_stats(
     # --- SỬA LỖI LOGIC: Tính toán ngày bắt đầu và kết thúc cho VÒNG LẶP ---
     
     # 1. Xác định ngày kết thúc
-    end_date_iter = datetime.now(VN_TZ).date()
+    end_date_iter = now.date()
     
     # 2. Xác định ngày bắt đầu
     if days > 0:
@@ -404,6 +419,7 @@ async def api_lost_and_found_items(
     if user_data.get("role") == 'letan' and not chi_nhanh:
         active_branch_for_letan = get_active_branch(request, db, user_data)
 
+    include_total = not (last_found_datetime and last_id is not None)
     items, total_records = _get_filtered_lost_items(
         db=db,
         user_data=user_data,
@@ -416,18 +432,21 @@ async def api_lost_and_found_items(
         reported_by=reported_by,
         last_found_datetime=last_found_datetime,
         last_id=last_id,
-        active_branch_for_letan=active_branch_for_letan
+        active_branch_for_letan=active_branch_for_letan,
+        include_total=include_total
     )
     
     # --- SỬA: Dùng _serialize_item cho nhất quán ---
     results = [_serialize_item(item) for item in items]
 
+    effective_total_records = total_records if include_total else (page - 1) * per_page + len(results)
+
     return {
         "records": results,
         # SỬA: Trả về page đã nhận được, không gán cứng là 1
-        "currentPage": page, 
-        "totalPages": math.ceil(total_records / per_page) if per_page > 0 else 1,
-        "totalRecords": total_records
+        "currentPage": page,
+        "totalPages": math.ceil(effective_total_records / per_page) if per_page > 0 else 1,
+        "totalRecords": effective_total_records
     }
 
 # ----------------------------------------------------------------------

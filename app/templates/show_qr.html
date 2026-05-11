@@ -1,341 +1,546 @@
 <!DOCTYPE html>
-<html lang="vi" class="h-full">
+<html lang="vi" data-theme="light">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Điểm Danh - Bin Bin Hotel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap" rel="stylesheet">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap"
-        rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Điểm Danh - Bin Bin Hotel</title>
 
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Quicksand', 'sans-serif']
-                    },
-                    colors: {
-                        tet: { red: '#D90429', gold: '#FFD60A', dark: '#020617' }
-                    },
-                    animation: {
-                        'fade-in-up': 'fadeInUp 0.8s ease-out forwards',
-                        'pulse-slow': 'pulse 3s infinite',
-                        'glow-pulse': 'glowPulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                    },
-                    keyframes: {
-                        fadeInUp: {
-                            '0%': { opacity: '0', transform: 'translateY(20px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        },
-                        glowPulse: {
-                            '0%, 100%': {
-                                boxShadow: '0 0 15px 0px rgba(217, 4, 41, 0.2)',
-                                borderColor: 'rgba(217, 4, 41, 0.3)',
-                                transform: 'scale(1)'
-                            },
-                            '50%': {
-                                boxShadow: '0 0 40px 10px rgba(217, 4, 41, 0.6)',
-                                borderColor: 'rgba(217, 4, 41, 0.8)',
-                                transform: 'scale(1.02)'
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* High Contrast Glassmorphism */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
-            /* Tăng độ đục cho nền sáng */
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.25);
-        }
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-        .dark .glass-panel {
-            background: rgba(2, 6, 23, 0.85);
-            /* Tăng độ đục cho nền tối */
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
-        }
+  <style>
+    :root {
+      --bg-body:    linear-gradient(45deg, #f7eaff 0%, #fde2ea 100%);
+      --card-bg:    rgba(255,255,255,0.38);
+      --card-blur:  blur(28px);
+      --card-border:rgba(255,255,255,0.55);
+      --panel-form-bg: rgba(255,255,255,0.38);
+      --text-primary:  #1e1b4b;
+      --text-secondary:#6b5fa0;
+      --text-hint:     #9f97b8;
+      --accent:        #7c3aed;
+      --accent-dark:   #6d28d9;
+      --btn-gradient:  linear-gradient(135deg, #7c3aed 0%, #a855f7 60%, #c026d3 100%);
+      --btn-shadow:    rgba(124,58,237,0.38);
+    }
 
-        .qr-glow-tet {
-            border-width: 2px;
-            border-style: solid;
-            border-radius: 1rem;
-            will-change: transform, box-shadow;
-            animation: glowPulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-    </style>
+    [data-theme="dark"] {
+      --bg-body: linear-gradient(180deg, 
+          rgba(245,245,220,1) 0%, 
+          rgba(255,223,186,0.8) 25%, 
+          rgba(255,182,193,0.6) 50%, 
+          rgba(147,112,219,0.7) 75%, 
+          rgba(72,61,139,0.9) 100%
+        );
+      --card-bg:     rgba(12, 5, 30, 0.42);
+      --card-border: rgba(255,255,255,0.06);
+      --panel-form-bg: rgba(12, 5, 30, 0.42);
+      --text-primary:  #f1eeff;
+      --text-secondary:#a89dc8;
+      --text-hint:     #6b5f88;
+      --accent:        #a78bfa;
+      --accent-dark:   #8b5cf6;
+      --btn-gradient:  linear-gradient(135deg, #7c3aed 0%, #9333ea 60%, #c026d3 100%);
+      --btn-shadow:    rgba(124,58,237,0.5);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background:
+        radial-gradient(ellipse 80% 60% at 5% 40%, rgba(175,109,255,0.48), transparent 67%),
+        radial-gradient(ellipse 70% 60% at 45% 45%, rgba(255,100,180,0.41), transparent 67%),
+        radial-gradient(ellipse 62% 52% at 83% 76%, rgba(255,235,170,0.44), transparent 63%),
+        radial-gradient(ellipse 60% 48% at 75% 20%, rgba(120,190,255,0.36), transparent 66%),
+        var(--bg-body);
+      background-attachment: fixed;
+      overflow: hidden;
+      padding: 24px;
+      transition: background 0.4s;
+    }
+
+    [data-theme="dark"] body {
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255,255,224,0.4) 0%, transparent 50%),
+        radial-gradient(circle at 70% 80%, rgba(72,61,139,0.6) 0%, transparent 70%),
+        radial-gradient(circle at 50% 60%, rgba(147,112,219,0.3) 0%, transparent 60%),
+        var(--bg-body);
+    }
+
+    /* ── Split Card ── */
+    .login-card {
+      display: flex;
+      width: 100%;
+      max-width: 900px;
+      min-height: 540px;
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow:
+        0 32px 80px rgba(80,30,160,0.22),
+        0 4px 20px rgba(0,0,0,0.1);
+      animation: slide-up 0.65s cubic-bezier(0.16,1,0.3,1) forwards;
+    }
+
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(32px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0)   scale(1);    }
+    }
+
+    /* ── LEFT: Brand Panel ── */
+    .panel-brand {
+      flex: 1;
+      position: relative;
+      background:
+        radial-gradient(ellipse 110% 90% at 10% 30%, rgba(175,109,255,0.75), transparent 65%),
+        radial-gradient(ellipse 90% 80% at 65% 60%, rgba(255,100,180,0.6), transparent 65%),
+        radial-gradient(ellipse 70% 60% at 90% 85%, rgba(255,200,150,0.45), transparent 60%),
+        linear-gradient(145deg, #9333ea 0%, #c026d3 55%, #f472b6 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 38px;
+      overflow: hidden;
+      transition: background 0.4s;
+    }
+
+    [data-theme="dark"] .panel-brand {
+      background:
+        radial-gradient(ellipse 110% 90% at 10% 30%, rgba(100,50,200,0.8), transparent 65%),
+        radial-gradient(ellipse 80% 70% at 70% 60%, rgba(160,50,180,0.65), transparent 65%),
+        linear-gradient(145deg, #3b1170 0%, #5b1fa8 55%, #7c3aed 100%);
+    }
+
+    /* Deco circles */
+    .panel-brand::before {
+      content: '';
+      position: absolute;
+      width: 380px; height: 380px;
+      border-radius: 50%;
+      border: 90px solid rgba(255,255,255,0.12);
+      top: -70px; right: -90px;
+      pointer-events: none;
+    }
+    .panel-brand::after {
+      content: '';
+      position: absolute;
+      width: 260px; height: 260px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      bottom: -55px; left: -45px;
+      pointer-events: none;
+    }
+    .circle-mid {
+      position: absolute;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      border: 55px solid rgba(255,255,255,0.09);
+      bottom: 50px; right: -15px;
+      pointer-events: none;
+    }
+
+    /* Logo row */
+    .brand-logo-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .brand-logo-img {
+      width: 52px; height: 52px;
+      object-fit: contain;
+      border-radius: 12px;
+      filter: drop-shadow(0 3px 10px rgba(0,0,0,0.25));
+      transition: transform 0.3s, filter 0.3s;
+    }
+    .brand-logo-img:hover {
+      transform: scale(1.08);
+      filter: drop-shadow(0 6px 18px rgba(0,0,0,0.35));
+    }
+
+    .brand-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.2);
+    }
+    .brand-name span {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.65);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* Tagline */
+    .brand-tagline {
+      position: relative;
+      z-index: 2;
+    }
+    .brand-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.6);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 10px;
+    }
+    .brand-heading {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.55;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+
+    /* ── RIGHT: Glass Form Panel ── */
+    .panel-form {
+      width: 430px;
+      flex-shrink: 0;
+      background: var(--panel-form-bg);
+      backdrop-filter: var(--card-blur);
+      -webkit-backdrop-filter: var(--card-blur);
+      border-left: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 56px 50px;
+      position: relative;
+      transition: background 0.4s, border-color 0.4s;
+    }
+
+    /* Theme toggle button */
+    .btn-controls {
+      position: absolute;
+      top: 22px; right: 22px;
+      display: flex; gap: 8px;
+      z-index: 10;
+    }
+    .btn-action {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-secondary);
+      font-size: 17px;
+      transition: all 0.22s;
+      backdrop-filter: blur(8px);
+    }
+    .btn-action:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      transform: scale(1.1);
+      box-shadow: 0 4px 14px var(--btn-shadow);
+    }
+
+    .form-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+      text-align: center;
+      text-transform: uppercase;
+      transition: color 0.3s;
+    }
+    .form-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 400;
+      margin-bottom: 34px;
+      text-align: center;
+      transition: color 0.3s;
+    }
+
+    /* QR Display */
+    .qr-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+    .qr-box {
+      background: #ffffff;
+      padding: 16px;
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.1);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border: 4px solid #fff;
+    }
+    .qr-box:hover {
+      transform: scale(1.04);
+    }
+    #qrcode {
+      display: block;
+      width: 200px;
+      height: 200px;
+      border-radius: 12px;
+    }
+
+    /* Status badge */
+    .status-badge {
+      padding: 10px 20px;
+      border-radius: 50px;
+      background: var(--card-bg);
+      border: 1.5px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      position: relative;
+    }
+    .dot::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: inherit;
+      animation: ping 1.5s infinite;
+    }
+    @keyframes ping {
+      0% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(2.5); opacity: 0; }
+    }
+
+    /* Info Cards */
+    .info-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      margin-top: 24px;
+    }
+    .info-card {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      transition: transform 0.2s;
+    }
+    .info-card:hover {
+      transform: translateY(-2px);
+    }
+    .info-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    .info-content {
+      flex: 1;
+    }
+    .info-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-hint);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .info-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    /* Responsive */
+    @media (max-width: 680px) {
+      .panel-brand { display: none; }
+      .panel-form { width: 100%; border-radius: 28px; padding: 44px 32px; border-left: none; }
+      .login-card { border-radius: 28px; }
+    }
+  </style>
 </head>
 
-<body
-    class="h-full w-full overflow-hidden text-slate-900 dark:text-slate-100 selection:bg-tet-red selection:text-white relative flex items-center justify-center">
+<body>
+  <div class="login-card">
 
-    <!-- Video Background (Immediate Autoplay) -->
-    <video autoplay muted loop playsinline preload="auto" id="bg-video"
-        class="fixed inset-0 w-full h-full object-cover z-[-1]">
-        <source src="../static/view_hotel/intro_1.mp4" type="video/mp4" media="(min-width: 768px)">
-        <source src="../static/view_hotel/intro_1.webm" type="video/webm">
-    </video>
+    <!-- ── LEFT: Brand Panel ── -->
+    <div class="panel-brand">
+      <div class="circle-mid"></div>
 
-    <div class="fixed inset-0 z-[-1] bg-black/20 dark:bg-black/50 pointer-events-none transition-colors duration-500">
+      <div class="brand-logo-row">
+        <img src="/static/logo.png" class="brand-logo-img" alt="Bin Bin Hotel" />
+        <div class="brand-name">
+          Bin Bin Hotel
+          <span>Management System</span>
+        </div>
+      </div>
+
+      <div class="brand-tagline">
+        <p class="brand-eyebrow">Chào mừng trở lại</p>
+        <h2 class="brand-heading">
+          Hệ Thống<br>Quản Lý Khách Sạn<br>
+        </h2>
+      </div>
     </div>
 
-    <audio id="bg-music" loop>
-        <source src='/static/sounds/Tet.mp3' type="audio/mpeg">
-    </audio>
+    <!-- ── RIGHT: Glass Action Panel ── -->
+    <div class="panel-form">
 
-    <!-- Main Container -->
-    <div class="w-full max-w-4xl px-4 z-10 animate-fade-in-up">
+      <!-- Controls -->
+      <div class="btn-controls">
+        <button class="btn-action" id="btn-theme" title="Chế độ tối/sáng">
+          <i id="theme-icon" class="ph ph-moon"></i>
+        </button>
+      </div>
 
-        <div class="glass-panel rounded-[2.5rem] p-8 md:p-12 relative overflow-visible shadow-2xl">
+      <h1 class="form-title">Điểm Danh</h1>
+      <p class="form-subtitle">Quét mã QR để xác nhận ca làm việc</p>
 
-            <!-- Controls -->
-            <div class="absolute top-6 right-6 z-20 flex gap-3">
-                <button id="btn-music"
-                    class="p-2.5 rounded-full bg-slate-100/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition shadow-sm border border-slate-200 dark:border-slate-700 group">
-                    <i id="music-icon"
-                        class="ph ph-speaker-slash text-slate-700 dark:text-slate-200 text-lg group-hover:scale-110 transition-transform"></i>
-                </button>
-
-                <button id="btn-theme"
-                    class="p-2.5 rounded-full bg-slate-100/50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-700 transition shadow-sm border border-slate-200 dark:border-slate-700 group">
-                    <i
-                        class="ph ph-sun text-orange-500 text-lg hidden dark:block group-hover:rotate-90 transition-transform"></i>
-                    <i
-                        class="ph ph-moon text-slate-700 text-lg block dark:hidden group-hover:-rotate-12 transition-transform"></i>
-                </button>
-            </div>
-
-            <div class="grid md:grid-cols-2 gap-10 items-center">
-
-                <!-- Left: Informations -->
-                <div class="flex flex-col text-center md:text-left order-2 md:order-1">
-
-                    <div class="mb-8 pl-1">
-                        <h1
-                            class="text-5xl md:text-6xl font-['Dancing_Script'] font-bold leading-normal text-transparent bg-clip-text bg-gradient-to-r from-tet-red to-orange-500 dark:from-tet-gold dark:to-yellow-300 drop-shadow-sm pb-1">
-                            Điểm Danh
-                        </h1>
-                    </div>
-
-                    <div class="space-y-4 mb-6">
-                        <!-- User Info -->
-                        <div
-                            class="flex items-center gap-4 p-4 rounded-2xl bg-slate-100/60 dark:bg-slate-900/60 backdrop-blur-sm border border-slate-200 dark:border-slate-800 transition-transform hover:scale-[1.02]">
-                            <div
-                                class="w-12 h-12 rounded-full bg-white dark:bg-slate-800 text-tet-red shadow-sm flex items-center justify-center">
-                                <i class="ph ph-user text-2xl"></i>
-                            </div>
-                            <div class="text-left">
-                                <p
-                                    class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                                    Nhân viên</p>
-                                <p class="font-bold text-slate-900 dark:text-white text-lg truncate">{{ user.name }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Shift Info -->
-                        <div id="shiftNotice"
-                            class="hidden items-center gap-4 p-4 rounded-2xl bg-slate-100/60 dark:bg-slate-900/60 backdrop-blur-sm border border-slate-200 dark:border-slate-800 transition-transform hover:scale-[1.02]">
-                            <div
-                                class="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center shadow-sm">
-                                <i class="ph ph-clock text-2xl"></i>
-                            </div>
-                            <div class="text-left">
-                                <p
-                                    class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                                    Ca làm việc</p>
-                                <p id="shiftText" class="font-bold text-slate-900 dark:text-white text-lg">Loading...
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Footer/Instruction -->
-                    <div class="pt-5 border-t border-slate-200 dark:border-slate-700/50">
-                        <div
-                            class="flex items-center justify-center md:justify-start gap-6 text-slate-600 dark:text-slate-300 text-sm font-medium">
-                            <span class="flex items-center gap-2"><i class="ph ph-camera text-lg text-slate-400"></i>
-                                Camera thường</span>
-                            <span class="flex items-center gap-2"><i
-                                    class="ph ph-qr-code text-lg text-tet-red dark:text-tet-gold"></i> Zalo QR (Tốt
-                                nhất)</span>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Right: QR Code -->
-                <div class="flex flex-col items-center justify-center relative order-1 md:order-2">
-                    <div class="bg-white p-4 rounded-3xl qr-glow-tet relative z-20 shadow-xl">
-                        <canvas id="qrcode" class="block w-[220px] h-[220px] rounded-xl"></canvas>
-                    </div>
-
-                    <div
-                        class="mt-8 bg-white/80 dark:bg-black/60 backdrop-blur-md border border-slate-200 dark:border-white/10 px-6 py-2.5 rounded-full flex items-center gap-3 shadow-lg relative z-20">
-                        <span class="relative flex h-3 w-3">
-                            <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                        </span>
-                        <span id="status-text"
-                            class="text-sm font-bold text-slate-700 dark:text-white tracking-wide">Đang chờ quét
-                            mã...</span>
-                    </div>
-                </div>
-
-            </div>
+      <!-- QR Display -->
+      <div class="qr-container">
+        <div class="qr-box">
+          <canvas id="qrcode"></canvas>
         </div>
 
-        <div class="mt-8 text-center animate-fade-in-up" style="animation-delay: 0.3s;">
-            <p class="text-slate-200 text-[10px] font-bold uppercase tracking-[0.2em] drop-shadow-md">© <span
-                    id="year"></span> Bin Bin Hotel Management</p>
+        <div class="status-badge">
+          <span class="dot"></span>
+          <span id="status-text">Đang chờ quét mã...</span>
         </div>
+      </div>
+
+      <!-- Info Grid -->
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-icon"><i class="ph ph-user"></i></div>
+          <div class="info-content">
+            <p class="info-label">Nhân viên</p>
+            <p class="info-value">{{ user.name }}</p>
+          </div>
+        </div>
+
+        <div class="info-card" id="shiftCard">
+          <div class="info-icon" style="background: #3b82f6;"><i class="ph ph-clock"></i></div>
+          <div class="info-content">
+            <p class="info-label">Ca làm việc</p>
+            <p class="info-value" id="shiftText">Loading...</p>
+          </div>
+        </div>
+      </div>
+
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <!-- Scripts -->
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // 1. QR Code
-            const checkinUrl = "{{ base_url }}/attendance/checkin?token={{ qr_token }}";
-            const qr = new QRious({
-                element: document.getElementById('qrcode'),
-                value: checkinUrl,
-                size: 220,
-                level: 'H'
-            });
+  <script src="https://cdn.jsdelivr.net/npm/qrious/dist/qrious.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // 1. QR Code
+      const checkinUrl = "{{ base_url }}/attendance/checkin?token={{ qr_token }}";
+      const qr = new QRious({
+        element: document.getElementById('qrcode'),
+        value: checkinUrl,
+        size: 200,
+        level: 'H'
+      });
 
-            // 2. Poll Status
-            const statusText = document.getElementById('status-text');
-            async function pollCheckin() {
-                try {
-                    const res = await fetch(`/attendance/checkin_status?token={{ qr_token }}&t=` + Date.now(), { credentials: 'same-origin' });
-                    const data = await res.json();
-                    if (data.checked_in) {
-                        statusText.textContent = 'Thành công! Đang chuyển...';
-                        statusText.className = "text-sm font-bold text-tet-red dark:text-tet-gold";
-                        const container = document.querySelector('.qr-glow-tet');
-                        if (container) container.style.borderColor = '#FFD60A';
-
-                        if (data.redirect_to) window.location.href = data.redirect_to;
-                        else window.location.href = '/choose-function';
-                    } else {
-                        setTimeout(pollCheckin, 2500);
-                    }
-                } catch {
-                    setTimeout(pollCheckin, 3500);
-                }
-            }
-            pollCheckin();
-
-            // 3. Shift Logic
-            const shiftNoticeEl = document.getElementById('shiftNotice');
-            const shiftTextEl = document.getElementById('shiftText');
-            const now = new Date();
-            const currentHour = now.getHours();
-            let workDate = new Date(now);
-            let shiftName = '';
-
-            if (currentHour < 7) {
-                workDate.setDate(workDate.getDate() - 1);
-                shiftName = 'Ca Đêm';
-            } else if (currentHour >= 7 && currentHour < 19) {
-                shiftName = 'Ca Ngày';
-            } else {
-                shiftName = 'Ca Đêm';
-            }
-
-            const dateStr = `${String(workDate.getDate()).padStart(2, '0')}/${String(workDate.getMonth() + 1).padStart(2, '0')}`;
-            shiftTextEl.innerHTML = `${shiftName} <span class="text-sm font-normal opacity-70 ml-1">(${dateStr})</span>`;
-            shiftNoticeEl.classList.remove('hidden');
-            shiftNoticeEl.classList.add('flex');
-
-            // 4. Music Logic & Theme
-            const html = document.documentElement;
-            const audio = document.getElementById('bg-music');
-            const btnMusic = document.getElementById('btn-music');
-            const musicIcon = document.getElementById('music-icon');
-            let isPlaying = false;
-
-            function updateMusicIcon(play) {
-                if (play) {
-                    musicIcon.classList.replace('ph-speaker-slash', 'ph-speaker-high');
-                    musicIcon.classList.add('text-tet-red');
-                    musicIcon.classList.add('dark:text-tet-gold');
-                    musicIcon.classList.add('animate-pulse');
-                } else {
-                    musicIcon.classList.replace('ph-speaker-high', 'ph-speaker-slash');
-                    musicIcon.classList.remove('text-tet-red');
-                    musicIcon.classList.remove('dark:text-tet-gold');
-                    musicIcon.classList.remove('animate-pulse');
-                }
-            }
-
-            btnMusic.onclick = () => {
-                if (isPlaying) {
-                    audio.pause();
-                } else {
-                    audio.volume = 0.5;
-                    audio.play();
-                }
-                isPlaying = !isPlaying;
-                updateMusicIcon(isPlaying);
-            };
-
-            const tryAutoPlay = () => {
-                audio.volume = 0.5;
-                audio.play().then(() => {
-                    isPlaying = true;
-                    updateMusicIcon(true);
-                }).catch(() => {
-                    document.addEventListener('click', () => {
-                        if (!isPlaying) {
-                            audio.play();
-                            isPlaying = true;
-                            updateMusicIcon(true);
-                        }
-                    }, { once: true });
-                });
-            };
-            tryAutoPlay();
-
-
-            // Theme Logic
-            const btnTheme = document.getElementById('btn-theme');
-            btnTheme.onclick = () => {
-                html.classList.toggle('dark');
-                localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
-            };
-
-            const savedTheme = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (savedTheme) html.classList.add('dark');
-
-            document.getElementById('year').textContent = new Date().getFullYear();
-
-            // OPTIMIZED VIDEO LOADING - REMOVED (Direct Autoplay)
-        });
-    </script>
-</body>
-<script>
-    function checkAndLogoutForShiftChange() {
-        const now = new Date();
-        if ((now.getHours() === 6 || now.getHours() === 18) && now.getMinutes() === 59) {
-            window.location.href = '/logout';
+      // 2. Poll Status
+      const statusText = document.getElementById('status-text');
+      async function pollCheckin() {
+        try {
+          const res = await fetch(`/attendance/checkin_status?token={{ qr_token }}&t=` + Date.now(), { credentials: 'same-origin' });
+          const data = await res.json();
+          if (data.checked_in) {
+            statusText.textContent = 'Thành công!';
+            statusText.style.color = '#10b981';
+            
+            if (data.redirect_to) window.location.href = data.redirect_to;
+            else window.location.href = '/choose-function';
+          } else {
+            setTimeout(pollCheckin, 2500);
+          }
+        } catch {
+          setTimeout(pollCheckin, 3500);
         }
+      }
+      pollCheckin();
+
+      // 3. Shift Logic
+      const shiftTextEl = document.getElementById('shiftText');
+      const now = new Date();
+      const currentHour = now.getHours();
+      let workDate = new Date(now);
+      let shiftName = '';
+
+      if (currentHour < 7) {
+        workDate.setDate(workDate.getDate() - 1);
+        shiftName = 'Ca Đêm';
+      } else if (currentHour >= 7 && currentHour < 19) {
+        shiftName = 'Ca Ngày';
+      } else {
+        shiftName = 'Ca Đêm';
+      }
+
+      const dateStr = `${String(workDate.getDate()).padStart(2, '0')}/${String(workDate.getMonth() + 1).padStart(2, '0')}`;
+      shiftTextEl.innerHTML = `${shiftName} <span style="font-size: 12px; font-weight: 400; opacity: 0.6;">(${dateStr})</span>`;
+
+      // 4. Theme Logic
+      const html = document.documentElement;
+      const themeIcon = document.getElementById('theme-icon');
+
+      function applyTheme(dark) {
+        html.setAttribute('data-theme', dark ? 'dark' : 'light');
+        themeIcon.className = dark ? 'ph ph-sun' : 'ph ph-moon';
+        localStorage.setItem('theme', dark ? 'dark' : 'light');
+      }
+
+      const savedTheme = localStorage.getItem('theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      applyTheme(savedTheme ? savedTheme === 'dark' : prefersDark);
+
+      document.getElementById('btn-theme').onclick = () => {
+        applyTheme(html.getAttribute('data-theme') !== 'dark');
+      };
+    });
+
+    // Auto logout for shift change
+    function checkAndLogoutForShiftChange() {
+      const now = new Date();
+      if ((now.getHours() === 6 || now.getHours() === 18) && now.getMinutes() === 59) {
+        window.location.href = '/logout';
+      }
     }
     setInterval(checkAndLogoutForShiftChange, 30000);
-</script>
+  </script>
+</body>
 
 </html>

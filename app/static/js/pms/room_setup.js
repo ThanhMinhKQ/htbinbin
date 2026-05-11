@@ -19,7 +19,12 @@ function applyBaseTheme() {
 
 function fmt(n){ return new Intl.NumberFormat('vi-VN').format(n||0)+'đ'; }
 function toast(msg, ok=true) {
+    if (typeof window.pmsToast === 'function') {
+        window.pmsToast(msg, ok);
+        return;
+    }
     const el=document.getElementById('s-toast');
+    if (!el) { console.warn('Toast:', msg); return; }
     el.textContent=msg; el.style.background=ok?'#16a34a':'#dc2626'; el.style.opacity='1';
     clearTimeout(el._t); el._t=setTimeout(()=>el.style.opacity='0',3500);
 }
@@ -752,7 +757,14 @@ function init(options = {}) {
         if (btn) showTab('rooms', btn);
     }
     const branchId = Number(options.branchId || currentDashboardBranchId() || 0) || null;
-    if (branchId && selectBranch(branchId)) loadAll();
+    if (branchId && selectBranch(branchId)) {
+        // Only auto-load if NOT on dashboard or if setup modal is already visible
+        const isDashboard = !!document.getElementById('pms-floors');
+        const setupVisible = document.getElementById('pmsSetupModal')?.classList.contains('show');
+        if (!isDashboard || setupVisible) {
+            loadAll();
+        }
+    }
 }
 
 function open(options = {}) {

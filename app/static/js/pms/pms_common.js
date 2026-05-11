@@ -862,22 +862,43 @@ window.pmsRenderPricingBreakdown = pmsRenderPricingBreakdown;
  *            issue_date, expiry_date, age, is_valid, expiry_status, error }
  */
 /** Địa chỉ QR còn cấp Quận/Huyện sau dấu phẩy → dùng tách 4 cấp (CCCD_CU). */
+function _pmsIsProvinceRepeat(first, second) {
+    if (!first || !second) return false;
+    const a = _pmsNormVietnamese(_pmsStripPrefix(first)).replace(/[.\s]/g, '');
+    const b = _pmsNormVietnamese(_pmsStripPrefix(second)).replace(/[.\s]/g, '');
+    const aliases = {
+        hanoi: 'hanoi', thanhphohanoi: 'hanoi', tphanoi: 'hanoi', hn: 'hanoi',
+        tphcm: 'hcm', hcm: 'hcm', hochiminh: 'hcm', thanhphohochiminh: 'hcm',
+        danang: 'danang', thanhphodanang: 'danang', tpdanang: 'danang',
+    };
+    return (aliases[a] || a) === (aliases[b] || b);
+}
+
 function _pmsAddressHintsOldAdminLevels(raw) {
     if (!raw || !String(raw).trim()) return false;
-    
+
     const addr = String(raw).trim();
-    
+    const parts = addr.split(',').map(p => p.trim()).filter(Boolean);
+
+    if (parts.length >= 3 && _pmsIsNewWardInProvince(parts[parts.length - 2], parts[parts.length - 1])) {
+        return false;
+    }
+
+    if (parts.length >= 4 && _pmsIsProvinceRepeat(parts[parts.length - 2], parts[parts.length - 1])) {
+        return false;
+    }
+
     // Pattern 1: Prefix rõ ràng
     if (/,\s*(quận|huyện|thị xã|thị trấn|tx\.)\s/i.test(addr)) {
         return true;
     }
-    
+
     // Pattern 2: Count dấu phẩy → nếu >= 3 dấu phẩy → 4 cấp
     const commaCount = (addr.match(/,/g) || []).length;
     if (commaCount >= 3) {
         return true;
     }
-    
+
     // Pattern 3: Các quận/huyện phổ biến không có prefix
     const knownDistricts = [
         "nam từ liêm", "bình thạnh", "thủ đức", "phú nhuận", "tân bình",
@@ -889,19 +910,19 @@ function _pmsAddressHintsOldAdminLevels(raw) {
         "phú xuyên", "quốc oai", "sóc sơn", "thạch thất", "thường tín",
         "ứng hòa",
     ];
-    
+
     // Tách parts để kiểm tra
-    const parts = addr.split(',').map(p => p.trim().toLowerCase());
-    
+    const lowerParts = addr.split(',').map(p => p.trim().toLowerCase());
+
     // Kiểm tra nếu có phần tử là tên quận/huyện
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        
+    for (let i = 0; i < lowerParts.length; i++) {
+        const part = lowerParts[i];
+
         // Skip nếu là số nhà, tổ, KP
         if (/^(số|tổ|kp|đường|phố)\s*\d/i.test(part)) continue;
         // Skip nếu là phường/xã
-        if (/^(phường phường phường phường phường phường phường|xã)\s*\d/i.test(part)) continue;
-        
+        if (/^(phường|xã)\s*\d/i.test(part)) continue;
+
         for (const district of knownDistricts) {
             if (part.includes(district)) {
                 // Cần ít nhất 2 phần tử trước đó (detail + ward)
@@ -911,13 +932,63 @@ function _pmsAddressHintsOldAdminLevels(raw) {
             }
         }
     }
-    
+
     return false;
 }
 
+function _pmsIsNewWardInProvince(ward, province) {
+    if (!ward || !province) return false;
+    const provinceKey = _pmsNormVietnamese(_pmsStripPrefix(province)).replace(/[.\s]/g, '');
+    const wardNorm = _pmsNormVietnamese(_pmsStripPrefix(ward)).replace(/[.\s]/g, '');
+    const hcmKeys = new Set(['tphcm', 'hcm', 'hochiminh', 'thanhphohochiminh']);
+    if (hcmKeys.has(provinceKey) && wardNorm === 'minhthanh') return true;
+    return false;
+}
+
+function _pmsNormalizeQrRaw(raw) {
+    let s = String(raw || '');
+    if (typeof s.normalize === 'function') s = s.normalize('NFKC');
+    s = s.replace(/﻿/g, '')
+         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+         .replace(/\r\n|\r|\n/g, '')
+         .replace(/[｜¦]/g, '|')
+         .replace(/\|{3,}/g, '||');
+    if (typeof s.normalize === 'function') s = s.normalize('NFC');
+    return s.trim();
+}
+
+function _pmsNormCompare(s) {
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[.\s]/g, '').trim();
+}
+
+function _pmsNormalizeGender(value) {
+    const v = _pmsNormCompare(value);
+    if (['nam', 'male', 'm'].includes(v)) return 'Nam';
+    if (['nu', 'n', 'female', 'f'].includes(v)) return 'Nữ';
+    return '';
+}
+
+function _pmsBirthGenderFromCCCD(id) {
+    if (!/^\d{12}$/.test(id || '')) return null;
+    const code = Number(id[3]);
+    const year = Number(id.slice(4, 6));
+    return { gender: code % 2 === 0 ? 'Nam' : 'Nữ', birthYear: 1900 + Math.floor(code / 2) * 100 + year };
+}
+
+function _pmsIsAddressLikeField(p) {
+    return /[,\d]|TP\.|Tỉnh|Thành phố|Quận|Huyện|Phường|Xã|Đường|Phố|Tổ|KP/i.test(String(p || ''));
+}
+
+function _pmsIsNameLikeField(p) {
+    const s = String(p || '').trim();
+    if (!s || _pmsIsAddressLikeField(s)) return false;
+    const words = s.split(/\s+/).filter(Boolean);
+    if (words.length < 2 || words.length > 6) return false;
+    return words.every(w => /^[A-Za-zÀ-ỹĐđ'’-]+$/.test(w));
+}
+
 function pmsParseScanCCCD(raw) {
-    // Strip known prefixes
-    let cleaned = raw.trim();
+    let cleaned = _pmsNormalizeQrRaw(raw);
     const prefixes = ["CĂN CƯỚC CÔNG DÂN:", "CCCD:", "CMND:", "CAN CUOC:", "CANCUOC:"];
     for (const p of prefixes) {
         if (cleaned.toUpperCase().startsWith(p)) {
@@ -929,7 +1000,7 @@ function pmsParseScanCCCD(raw) {
     const CCCD_CU = "CCCD_CU", CAN_CUOC_MOI = "CAN_CUOC_MOI", CMND_TYPE = "CMND";
 
     const result = {
-        card_type: "", id_number: "", old_id: "", name: "",
+        card_type: "", address_mode: "", id_number: "", old_id: "", name: "",
         dob: "", gender: "",
         address: { raw: "", detail: "", ward: "", district: "", province: "" },
         issue_date: "", expiry_date: "", age: null,
@@ -954,47 +1025,57 @@ function pmsParseScanCCCD(raw) {
             result.old_id = p;
         } else if (re8.test(p)) {
             const d = parseInt(p.slice(0, 2)), m = parseInt(p.slice(2, 4)), y = parseInt(p.slice(4));
-            if (d >= 1 && d <= 31 && m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
+            const dt = new Date(y, m - 1, d);
+            if (dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d) {
                 const fmt = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}/${y}`;
                 dateCandidates.push({ raw: p, fmt });
             }
-        } else if (p === "Nam" || p === "Nữ") {
-            result.gender = p;
-        } else if (!result.name && /[\u00C0-\u1EF9]/.test(p)) {
-            result.name = pmsTitleCase(p.trim());
-        } else if (p.length > addressCandidate.length) {
-            if (/[\d,]|TP\.|Tỉnh|Thành phố|Quận|Huyện|Phường|Xã|Đường|Phố|Tổ|KP/.test(p)) {
+        } else {
+            const normalizedGender = _pmsNormalizeGender(p);
+            if (normalizedGender) {
+                result.gender = normalizedGender;
+            } else if (!result.name && _pmsIsNameLikeField(p)) {
+                result.name = pmsTitleCase(p.trim());
+            } else if (p.length > addressCandidate.length && _pmsIsAddressLikeField(p)) {
                 addressCandidate = p;
             }
         }
     }
 
     // ── Card type detection ───────────────────────────────────────────────
+    const idEvidence = _pmsBirthGenderFromCCCD(result.id_number);
+    const conflicts = [];
+    const warnings = [];
+    if (idEvidence) {
+        if (result.gender && result.gender !== idEvidence.gender) conflicts.push('gender_mismatch');
+        if (dateCandidates.length && parseInt(dateCandidates[0].raw.slice(4), 10) !== idEvidence.birthYear) {
+            conflicts.push('birth_year_mismatch');
+        }
+        if (!result.gender) result.gender = idEvidence.gender;
+    }
+
     let detectedCardType;
     if (!result.id_number && result.old_id) {
         detectedCardType = CMND_TYPE;
     } else {
         detectedCardType = CCCD_CU;
-        if (_pmsAddressHintsOldAdminLevels(addressCandidate)) {
-            detectedCardType = CCCD_CU;
-        } else {
-            if (parts.length > 1 && parts[1].trim() === "") {
-                detectedCardType = CAN_CUOC_MOI;
-            }
+        if (!_pmsAddressHintsOldAdminLevels(addressCandidate)) {
+            if (parts.length > 1 && parts[1].trim() === '') detectedCardType = CAN_CUOC_MOI;
             const emptyCount = parts.filter(p => !p.trim()).length;
             const nonEmptyCount = parts.filter(p => p.trim()).length;
-            if (emptyCount >= 2 || nonEmptyCount > 7) {
-                detectedCardType = CAN_CUOC_MOI;
-            }
+            if (emptyCount >= 2 || nonEmptyCount > 7) detectedCardType = CAN_CUOC_MOI;
             if (dateCandidates.length >= 2) {
-                try {
-                    const issueYear = parseInt(dateCandidates[dateCandidates.length - 1].raw.slice(4));
-                    if (issueYear >= 2024) detectedCardType = CAN_CUOC_MOI;
-                } catch (_) {}
+                const issueYear = parseInt(dateCandidates[dateCandidates.length - 1].raw.slice(4), 10);
+                if (issueYear >= 2024) detectedCardType = CAN_CUOC_MOI;
             }
         }
     }
     result.card_type = detectedCardType;
+    result.address_mode = detectedCardType === CMND_TYPE ? 'old'
+                        : detectedCardType === CAN_CUOC_MOI && !_pmsAddressHintsOldAdminLevels(addressCandidate) ? 'new'
+                        : 'old';
+    result.conflicts = conflicts;
+    result.warnings = warnings;
 
     // ── Dates ─────────────────────────────────────────────────────────────
     if (dateCandidates.length >= 1) {
@@ -1007,7 +1088,7 @@ function pmsParseScanCCCD(raw) {
     // ── Address: normalize → reverse-split → map ───────────────────────
     if (addressCandidate) {
         result.address.raw = addressCandidate;
-        const addr = _pmsParseAddressVN(addressCandidate, result.card_type);
+        const addr = _pmsParseAddressVN(addressCandidate, result.address_mode === 'new' ? CAN_CUOC_MOI : CCCD_CU);
         result.address.detail   = addr.detail;
         result.address.ward     = addr.ward;
         result.address.district = addr.district;
@@ -1028,6 +1109,8 @@ function pmsParseScanCCCD(raw) {
         result.error = "Không tìm thấy tên";
     } else if (!result.dob) {
         result.error = "Không tìm thấy ngày sinh";
+    } else if (result.conflicts && result.conflicts.length) {
+        result.error = "Dữ liệu QR mâu thuẫn";
     } else {
         result.is_valid = true;
     }
@@ -1214,7 +1297,8 @@ function _pmsParseAddressVN(rawAddress, cardType) {
  */
 async function pmsMatchAddressToForm(addr, prefix = 'ci', cardType = 'CCCD_CU') {
     const CCCD_CU = "CCCD_CU", CAN_CUOC_MOI = "CAN_CUOC_MOI", CMND_TYPE = "CMND";
-    const mode = (cardType === CAN_CUOC_MOI || cardType === CMND_TYPE) ? 'new' : 'old';
+    const preferredMode = addr && typeof addr === 'object' && addr.address_mode ? addr.address_mode : '';
+    const mode = preferredMode || (cardType === CAN_CUOC_MOI ? 'new' : 'old');
     
     // ── 0. Ensure cache is loaded ─────────────────────────────────────────────
     // Show loading overlay on address section

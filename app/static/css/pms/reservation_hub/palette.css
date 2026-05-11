@@ -1220,3 +1220,74 @@ tr.transfer-shadow {
     flex-direction: column;
   }
 }
+
+/* --- Reservation Detail Modal Dark Mode Overrides --- */
+html.dark .bk-receipt-wrapper {
+  background: var(--bk-surface);
+  border-color: var(--bk-line);
+}
+
+html.dark .bk-receipt-header,
+html.dark .bk-receipt-footer {
+  background: transparent;
+  border-color: var(--bk-line);
+}
+
+html.dark .bk-receipt-body {
+  background: transparent;
+}
+
+html.dark .bk-receipt-brand-text h2,
+html.dark .bk-receipt-value {
+  color: #f8fafc;
+}
+
+html.dark .bk-receipt-label,
+html.dark .bk-receipt-subvalue,
+html.dark .bk-receipt-brand-text p {
+  color: #94a3b8;
+}
+
+html.dark .bk-receipt-logo {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+html.dark .bk-receipt-finance {
+  background: transparent;
+  border: 1px solid var(--bk-line);
+}
+
+html.dark .bk-receipt-finance-row {
+  color: #e2e8f0;
+}
+
+html.dark .bk-receipt-finance-row.balance {
+  border-top-color: var(--bk-line);
+  color: #f8fafc;
+}
+
+html.dark .bk-receipt-divider.dashed {
+  border-bottom-color: var(--bk-line);
+}
+
+html.dark .bk-receipt-note {
+  background: transparent;
+  border-color: rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+
+html.dark .bk-receipt-note strong {
+  color: #f59e0b;
+}
+
+html.dark .bk-receipt-close {
+  background: var(--bk-surface-muted);
+  border-color: var(--bk-line);
+  color: #94a3b8;
+}
+
+html.dark .bk-receipt-close:hover {
+  background: var(--bk-surface-raised);
+  color: #f8fafc;
+}

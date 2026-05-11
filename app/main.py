@@ -44,6 +44,7 @@ from .api.pms import (
 from .api.pms.guest_crm_api import router as guest_crm_router
 
 from .core.config import settings, logger
+from .core.security import get_branch_code
 from .core.utils import VN_TZ
 from .db.session import SessionLocal, engine, _task_engine, Base
 from .db.utils import reset_all_sequences, sync_employees_on_startup, sync_master_data
@@ -91,7 +92,9 @@ async def ensure_active_branch_in_session(request: Request, call_next):
                     logger.info(f"Middleware: Đã set 'HỆ THỐNG' cho user {current_user.employee_code} (Role: {role})")
                 
                 elif current_user.last_active_branch:
-                    request.session["active_branch"] = current_user.last_active_branch
+                    branch_code = get_branch_code(current_user.last_active_branch)
+                    if branch_code:
+                        request.session["active_branch"] = branch_code
                 
                 else:
                     request.session["active_branch"] = "Chưa phân bổ"

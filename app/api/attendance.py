@@ -9,7 +9,13 @@ from math import sin, cos, sqrt, atan2, radians # <-- THÊM IMPORT
 
 from ..db.session import get_db
 from ..db.models import User, AttendanceRecord, ServiceRecord, Branch, Department, AttendanceLog
-from ..core.security import get_csrf_token, require_checked_in_user, validate_csrf
+from ..core.security import (
+    get_active_branch,
+    get_branch_code,
+    get_csrf_token,
+    require_checked_in_user,
+    validate_csrf,
+)
 from ..core.utils import get_current_work_shift, VN_TZ, format_datetime_display
 # SỬA DÒNG DƯỚI ĐỂ IMPORT TỌA ĐỘ
 from ..core.config import logger, ROLE_MAP, BRANCHES, BRANCH_COORDINATES
@@ -66,13 +72,7 @@ def attendance_ui(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse("/login", status_code=303)
     
     # ... (Logic lấy active_branch giữ nguyên) ...
-    active_branch = request.session.get("active_branch")
-    if not active_branch:
-        user_from_db = db.query(User).filter(User.id == user_data.get("id")).first()
-        if user_from_db and user_from_db.last_active_branch:
-            active_branch = user_from_db.last_active_branch
-        else:
-            active_branch = user_data.get("branch", "")
+    active_branch = get_active_branch(request, db, user_data) or ""
     
     csrf_token = get_csrf_token(request)
 
@@ -106,7 +106,8 @@ async def detect_branch(
     if user_data:
         # TỐI ƯU: Load sẵn main_branch để dùng
         user_in_db = db.query(User).options(
-            joinedload(User.main_branch)
+            joinedload(User.main_branch),
+            joinedload(User.last_active_branch)
         ).filter(User.employee_code == user_data["code"]).first()
 
     # ===============================
@@ -117,7 +118,7 @@ async def detect_branch(
             # SỬA LỖI LOGIC: Dùng main_branch.branch_code
             main_branch_code = user_in_db.main_branch.branch_code
             request.session["active_branch"] = main_branch_code
-            user_in_db.last_active_branch = main_branch_code
+            user_in_db.last_active_branch = user_in_db.main_branch
             db.commit()
             return {"branch": main_branch_code, "distance_km": 0}
 
@@ -133,8 +134,10 @@ async def detect_branch(
     if lat is None or lng is None:
         # Nếu không có GPS, thử fallback về chi nhánh đã lưu
         if user_in_db and user_in_db.last_active_branch:
-             request.session["active_branch"] = user_in_db.last_active_branch
-             return {"branch": user_in_db.last_active_branch, "distance_km": 0}
+             branch_code = get_branch_code(user_in_db.last_active_branch)
+             if branch_code:
+                 request.session["active_branch"] = branch_code
+                 return {"branch": branch_code, "distance_km": 0}
         
         # Nếu không có gì cả, báo lỗi
         return JSONResponse(
@@ -167,8 +170,10 @@ async def detect_branch(
 
     request.session["active_branch"] = chosen_branch
     if user_in_db:
-        user_in_db.last_active_branch = chosen_branch
-        db.commit()
+        branch_obj = db.query(Branch).filter(Branch.branch_code == chosen_branch).first()
+        if branch_obj:
+            user_in_db.last_active_branch = branch_obj
+            db.commit()
 
     return {"branch": chosen_branch, "distance_km": round(min_distance, 3)}
 
@@ -199,8 +204,10 @@ async def select_branch(
     # Lưu vào DB
     user_in_db = db.query(User).filter(User.employee_code == user_data["code"]).first()
     if user_in_db:
-        user_in_db.last_active_branch = chosen_branch
-        db.commit()
+        branch_obj = db.query(Branch).filter(Branch.branch_code == chosen_branch).first()
+        if branch_obj:
+            user_in_db.last_active_branch = branch_obj
+            db.commit()
 
     return {"status": "success", "branch": chosen_branch}
 

@@ -230,6 +230,64 @@ def _normalize_for_compare(s: str) -> str:
     return normalized.encode("ascii", "ignore").decode("utf-8").lower().replace(".", "").replace(" ", "").strip()
 
 
+def normalize_qr_raw(raw: str) -> str:
+    """Normalize scanner QR payload before field extraction."""
+    if not raw:
+        return ""
+    s = unicodedata.normalize("NFKC", raw).replace("﻿", "")
+    s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", s)
+    s = s.replace("\r\n", "").replace("\r", "").replace("\n", "")
+    s = re.sub(r"[｜¦]", "|", s)
+    s = re.sub(r"\|{3,}", "||", s)
+    return unicodedata.normalize("NFC", s).strip()
+
+
+def split_qr_fields(raw: str) -> list[str]:
+    return [p.strip() for p in normalize_qr_raw(raw).split("|")]
+
+
+def _normalize_gender(value: str) -> str:
+    norm = _normalize_for_compare(value)
+    if norm in {"nam", "male", "m"}:
+        return "Nam"
+    if norm in {"nu", "n", "female", "f"}:
+        return "Nữ"
+    return ""
+
+
+def _birth_gender_from_cccd(id_number: str) -> dict:
+    if not re.fullmatch(r"\d{12}", id_number or ""):
+        return {}
+    code = int(id_number[3])
+    year = int(id_number[4:6])
+    century = 1900 + (code // 2) * 100
+    return {
+        "gender": "Nam" if code % 2 == 0 else "Nữ",
+        "birth_year": century + year,
+    }
+
+
+def _is_address_like_field(value: str) -> bool:
+    return bool(re.search(r"[,\d]|TP\.|Tỉnh|Thành phố|Quận|Huyện|Phường|Xã|Đường|Phố|Tổ|KP", value, re.IGNORECASE))
+
+
+def _is_name_like_field(value: str) -> bool:
+    if not value or _is_address_like_field(value):
+        return False
+    words = [w for w in re.split(r"\s+", value.strip()) if w]
+    if len(words) < 2 or len(words) > 6:
+        return False
+    return all(re.fullmatch(r"[A-Za-zÀ-ỹĐđ'’-]+", w) for w in words)
+
+
+def _address_mode_for_card(card_type: str, address_raw: str) -> str:
+    if card_type == CMND_TYPE:
+        return "old"
+    if card_type == CAN_CUOC_MOI and not _hints_old_admin_levels(address_raw):
+        return "new"
+    return "old"
+
+
 def _normalize_district_name(district_name: str) -> str:
     """Remove common district-level prefixes for comparison."""
     if not district_name:
@@ -503,14 +561,25 @@ def _hints_old_admin_levels(address_raw: str) -> bool:
     True nếu địa chỉ có cấp Quận/Huyện/Thị xã/Thị trấn → CCCD_CU (4 cấp).
     Patterns:
       1. Prefix rõ ràng sau dấu phẩy (', Quận ', ', Huyện ')
-      2. ≥ 3 dấu phẩy → 4 cấp
+      2. ≥ 3 dấu phẩy và phần áp chót không phải Phường/Xã mới trong tỉnh
       3. Tên quận/huyện phổ biến ở vị trí 3+ (sau detail + ward)
-      4. 2 phần tử cuối giống nhau (district == province)
+      4. 2 phần tử cuối giống nhau (district == province) nhưng không phải tỉnh/TP lặp
     """
     if not address_raw or not address_raw.strip():
         return False
 
     addr = address_raw.strip()
+    raw_parts = [p.strip() for p in addr.split(",")]
+    parts = [p for p in raw_parts if p]
+
+    if len(parts) >= 3 and _is_ward_in_province(parts[-2], parts[-1]):
+        return False
+
+    if len(parts) >= 4:
+        last_key = _resolve_province_data_key(parts[-1])
+        second_last_key = _resolve_province_data_key(parts[-2])
+        if last_key and second_last_key == last_key:
+            return False
 
     # Pattern 1: prefix rõ ràng
     if re.search(r",\s*(quận|huyện|thị xã|thị trấn|tx\.)\s", addr, re.IGNORECASE):
@@ -521,7 +590,7 @@ def _hints_old_admin_levels(address_raw: str) -> bool:
         return True
 
     # Pattern 3: tên quận/huyện phổ biến ở vị trí 3+
-    parts = [p.strip().lower() for p in addr.split(",")]
+    parts = [p.strip().lower() for p in raw_parts]
     for i, part in enumerate(parts):
         if re.match(r"^(số|tổ|kp|đường|phố)\s*\d", part):
             continue
@@ -600,12 +669,15 @@ def detect_card_type(
     date_candidates: list[tuple[str, str]],
     address_raw: str = "",
     old_id: str = "",
+    id_number: str = "",
 ) -> str:
     """
     Phát hiện loại thẻ / format QR.
-    Ưu tiên tín hiệu mạnh: năm cấp >= 2024 và cấu trúc địa chỉ thực tế.
+    Ưu tiên tín hiệu mạnh: CMND-only, năm cấp >= 2024 và cấu trúc địa chỉ thực tế.
     """
-    # Signal mạnh nhất: ngày cấp từ 2024 trở đi là căn cước mới.
+    if old_id and not id_number:
+        return CMND_TYPE
+
     if len(date_candidates) >= 2:
         issue_raw = date_candidates[-1][0]
         try:
@@ -614,7 +686,6 @@ def detect_card_type(
         except ValueError:
             pass
 
-    # CCCD mới bị ghi 4 phần tử nhưng thực chất là 3 cấp.
     if _detect_can_cuoc_moi_special(address_raw):
         return CAN_CUOC_MOI
 
@@ -624,11 +695,9 @@ def detect_card_type(
         if len(filtered) == 3:
             return CAN_CUOC_MOI
 
-    # Địa chỉ có quận/huyện rõ ràng thì ưu tiên CCCD cũ.
     if _hints_old_admin_levels(address_raw):
         return CCCD_CU
 
-    # Field rỗng / nhiều field dữ liệu là pattern phổ biến của thẻ mới.
     if len(parts) > 1 and parts[1].strip() == "":
         return CAN_CUOC_MOI
 
@@ -636,10 +705,6 @@ def detect_card_type(
     non_empty = [p for p in parts if p.strip()]
     if empty_count >= 2 or len(non_empty) > 7:
         return CAN_CUOC_MOI
-
-    # Chỉ fallback sang cũ khi không có tín hiệu mới mạnh hơn.
-    if old_id and len(old_id) == 9 and old_id.isdigit():
-        return CCCD_CU
 
     return CCCD_CU
 
@@ -749,7 +814,7 @@ def _parse_address_flexible(
         return "", "", ""
 
     three_level_ward = parts_rev[1] if len(parts_rev) >= 2 else ""
-    if _is_ward_in_province(three_level_ward, province):
+    if card_type == CAN_CUOC_MOI and _is_ward_in_province(three_level_ward, province):
         detail_parts = parts_rev[2:] if len(parts_rev) >= 3 else []
         detail_parts.reverse()
         return ", ".join(detail_parts), three_level_ward, ""
@@ -855,14 +920,13 @@ def parse_qr(raw: str) -> dict:
     """
     _compile_aliases()
 
-    cleaned = raw.strip()
+    cleaned = normalize_qr_raw(raw)
     for prefix in ("CĂN CƯỚC CÔNG DÂN:", "CCCD:", "CMND:", "CAN CUOC:", "CANCUOC:"):
         if cleaned.upper().startswith(prefix):
             cleaned = cleaned[len(prefix):].strip()
             break
 
-    raw_parts = cleaned.split("|")
-    parts = [p.strip() for p in raw_parts]
+    parts = [p.strip() for p in cleaned.split("|")]
 
     id_number: str = ""
     old_id: str = ""
@@ -870,6 +934,8 @@ def parse_qr(raw: str) -> dict:
     gender: str = ""
     address_raw: str = ""
     date_candidates: list[tuple[str, str]] = []
+    warnings: list[str] = []
+    conflicts: list[str] = []
 
     for p in parts:
         if not p:
@@ -877,41 +943,46 @@ def parse_qr(raw: str) -> dict:
 
         if re.fullmatch(r"\d{12}", p) and not id_number:
             id_number = p
-
         elif re.fullmatch(r"\d{9}", p) and not old_id:
             old_id = p
-
         elif re.fullmatch(r"\d{8}", p):
             fmt = fmt_dmy(p)
             if fmt:
                 date_candidates.append((p, fmt))
-
-        elif p in ("Nam", "Nữ"):
-            gender = p
-
-        elif not name and re.search(r"[\u00C0-\u1EF9]", p):
+        elif normalized_gender := _normalize_gender(p):
+            gender = normalized_gender
+        elif not name and _is_name_like_field(p):
             name = p.strip().upper()
-
-        elif (
-            len(p) > len(address_raw)
-            and (
-                "," in p
-                or re.search(r"\d", p)
-                or re.search(r"TP\.|Tỉnh|Thành phố|Quận|Huyện|Phường|Xã|Đường|Phố|Tổ|KP", p)
-            )
-        ):
+        elif len(p) > len(address_raw) and _is_address_like_field(p):
             address_raw = p
 
-    card_type = detect_card_type(parts, date_candidates, address_raw, old_id=old_id)
+    id_evidence = _birth_gender_from_cccd(id_number)
+    if id_evidence:
+        if gender and id_evidence.get("gender") and gender != id_evidence["gender"]:
+            conflicts.append("gender_mismatch")
+        if date_candidates and id_evidence.get("birth_year"):
+            try:
+                if int(date_candidates[0][0][4:8]) != id_evidence["birth_year"]:
+                    conflicts.append("birth_year_mismatch")
+            except ValueError:
+                pass
+        if not gender:
+            gender = id_evidence.get("gender", "")
+
+    card_type = detect_card_type(parts, date_candidates, address_raw, old_id=old_id, id_number=id_number)
+    address_mode = _address_mode_for_card(card_type, address_raw)
 
     dob_fmt = date_candidates[0][1] if date_candidates else ""
     issue_date = date_candidates[-1][1] if len(date_candidates) > 1 else ""
 
-    addr = parse_address_vn(address_raw, card_type)
+    addr = parse_address_vn(address_raw, CAN_CUOC_MOI if address_mode == "new" else CCCD_CU)
 
     expiry_date = calc_expiry(dob_fmt) if dob_fmt else "Không xác định"
     age = calc_age(dob_fmt) if dob_fmt else None
     expiry_status = get_expiry_status(expiry_date)
+
+    if not address_raw:
+        warnings.append("address_missing")
 
     if not id_number and not old_id:
         is_valid = False
@@ -922,17 +993,33 @@ def parse_qr(raw: str) -> dict:
     elif not dob_fmt:
         is_valid = False
         error = "Không tìm thấy ngày sinh trong chuỗi QR"
+    elif conflicts:
+        is_valid = False
+        error = "Dữ liệu QR mâu thuẫn: " + ", ".join(conflicts)
     else:
         is_valid = True
         error = ""
 
+    confidence = 0.0
+    if id_number or old_id: confidence += 0.30
+    if name:                confidence += 0.25
+    if dob_fmt:             confidence += 0.15
+    if gender:              confidence += 0.10
+    if addr.get("province"): confidence += 0.10
+    if addr.get("district") or addr.get("ward"): confidence += 0.05
+    if issue_date:          confidence += 0.05
+    confidence -= 0.25 * len(conflicts)
+    confidence -= 0.05 * len(warnings)
+    confidence = round(max(0.0, min(confidence, 1.0)), 2)
+
     return {
         "card_type":     card_type,
+        "address_mode":  address_mode,
         "id_number":     id_number,
         "old_id":        old_id,
         "name":          name,
         "dob":           dob_fmt,
-        "gender":         gender,
+        "gender":        gender,
         "address": {
             "raw":      address_raw,
             "detail":   addr["detail"],
@@ -945,6 +1032,9 @@ def parse_qr(raw: str) -> dict:
         "age":           age,
         "is_valid":      is_valid,
         "expiry_status": expiry_status,
+        "confidence":    confidence,
+        "warnings":      warnings,
+        "conflicts":     conflicts,
         "error":         error,
         "raw_cleaned":   cleaned,
     }

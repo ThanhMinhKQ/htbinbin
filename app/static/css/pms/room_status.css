@@ -1,17 +1,17 @@
 :root {
   --rs-font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  --rs-text-primary: #0a2540;
-  --rs-text-secondary: #425466;
-  --rs-text-muted: #8792a2;
-  --rs-surface-page: var(--page-bg, #f8fafc);
+  --rs-text-primary: #0f172a;
+  --rs-text-secondary: #475569;
+  --rs-text-muted: #64748b;
+  --rs-surface-page: var(--page-bg, #ffffff);
   --rs-surface-card: #ffffff;
-  --rs-surface-muted: #f3f6f8;
-  --rs-surface-soft: #f8fafc;
+  --rs-surface-muted: #ffffff;
+  --rs-surface-soft: #ffffff;
   --rs-surface-raised: #ffffff;
-  --rs-border: rgba(10, 37, 64, 0.08);
-  --rs-border-light: rgba(10, 37, 64, 0.04);
+  --rs-border: #e2e8f0;
+  --rs-border-light: #f1f5f9;
   
-  --rs-accent: #635bff;
+  --rs-accent: #2563eb;
   --rs-accent-hover: #4b44d3;
   --rs-accent-soft: rgba(99, 91, 255, 0.08);
   
@@ -29,6 +29,8 @@
   
   --rs-progress-bg: #e6ebf1;
   --rs-progress-bg-strong: #d3dce6;
+  --rs-skeleton-a: #e2e8f0;
+  --rs-skeleton-b: #f8fafc;
   
   --rs-radius-sm: 8px;
   --rs-radius-md: 12px;
@@ -158,7 +160,13 @@ body.dark,
 .rs-page-wrap {
   display: flex;
   height: 100%;
-  background: var(--rs-surface-page);
+  background:
+    radial-gradient(ellipse 80% 60% at 5% 40%, rgba(175, 109, 255, 0.48), transparent 67%),
+    radial-gradient(ellipse 70% 60% at 45% 45%, rgba(255, 100, 180, 0.41), transparent 67%),
+    radial-gradient(ellipse 62% 52% at 83% 76%, rgba(255, 235, 170, 0.44), transparent 63%),
+    radial-gradient(ellipse 60% 48% at 75% 20%, rgba(120, 190, 255, 0.36), transparent 66%),
+    linear-gradient(45deg, #f7eaff 0%, #fde2ea 100%);
+  background-attachment: fixed;
   color: var(--rs-text-primary);
   font-family: var(--rs-font-family);
   margin: -16px;
@@ -225,7 +233,7 @@ body.dark,
 }
 
 .rs-stat-card:hover .rs-stat-icon-bg {
-  transform: rotate(0deg) scale(1.1);
+  transform: scale(1.1);
   opacity: 0.1;
 }
 
@@ -608,13 +616,34 @@ body.dark,
 .rs-day-card {
   background: var(--rs-surface-card);
   border: 1px solid var(--rs-border);
-  border-top: 1px solid var(--rs-glass-border);
-  border-radius: var(--rs-radius-xl);
-  padding: 20px;
-  box-shadow: var(--rs-shadow-md);
+  border-radius: var(--rs-radius-md);
+  padding: 24px;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.rs-day-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+      linear-gradient(45deg, transparent 49%, var(--sidebar-grid-color, #e5e7eb) 49%, var(--sidebar-grid-color, #e5e7eb) 51%, transparent 51%),
+      linear-gradient(-45deg, transparent 49%, var(--sidebar-grid-color, #e5e7eb) 49%, var(--sidebar-grid-color, #e5e7eb) 51%, transparent 51%);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 0% 0%, #000 50%, transparent 90%);
+  mask-image: radial-gradient(ellipse 80% 80% at 0% 0%, #000 50%, transparent 90%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+.rs-day-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .rs-day-sidebar {
@@ -624,45 +653,46 @@ body.dark,
   background: var(--rs-surface-page);
   border-left: 1px solid var(--rs-border);
   display: grid;
-  grid-template-rows: auto auto minmax(128px, auto) minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(128px, auto) minmax(0, 1fr) auto;
   gap: 12px;
   padding: 14px;
   min-height: 0;
   overflow: hidden;
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.02);
   z-index: 10;
+  position: relative;
 }
 
-.rs-sidebar-header {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 8px;
-  min-width: 0;
+.rs-day-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+      linear-gradient(to right, var(--sidebar-grid-color, #d1d5db) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--sidebar-grid-color, #d1d5db) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 100% 100%, #000 50%, transparent 90%);
+  mask-image: radial-gradient(ellipse 80% 80% at 100% 100%, #000 50%, transparent 90%);
+  pointer-events: none;
+  z-index: 0;
 }
 
-.rs-sidebar-header h3 {
-  font-size: 0.95rem;
-  font-weight: 800;
+.rs-day-sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+.rs-section-header h3 {
+  font-size: 18px;
+  font-weight: 600;
   color: var(--rs-text-primary);
-  letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.25;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.rs-sidebar-header span {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--rs-accent);
-  background: var(--rs-accent-soft);
-  border: 1px solid rgba(37, 99, 235, 0.16);
-  border-radius: 999px;
-  padding: 4px 8px;
-  white-space: nowrap;
+.rs-eyebrow {
+  display: none;
 }
 
 .rs-sidebar-stat-card {
@@ -979,20 +1009,11 @@ body.dark,
 
 .rs-section-header h3 {
   margin: 2px 0 0;
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--rs-text-primary);
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-.rs-section-header h3::before {
-  content: '';
-  width: 4px;
-  height: 18px;
-  background: var(--rs-accent);
-  border-radius: 4px;
 }
 
 .rs-eyebrow,
@@ -1057,21 +1078,16 @@ body.dark,
 }
 
 .rs-data-table thead th {
-  background: var(--rs-surface-muted);
-  padding: 12px 14px;
-  font-size: 11px;
-  font-weight: 800;
+  background: var(--rs-surface-card);
+  padding: 16px 14px;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--rs-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 1px solid var(--rs-border);
+  border-bottom: 2px solid var(--rs-border);
   position: sticky;
   top: 0;
   z-index: 10;
   white-space: nowrap;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  background: rgba(243, 246, 248, 0.85); /* fallback for light mode */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1098,7 +1114,7 @@ body.dark,
 }
 
 .rs-data-table tbody tr:hover {
-  background: var(--rs-surface-muted);
+  background: rgba(15, 23, 42, 0.02);
 }
 
 /* Status Text Colors */
@@ -1117,34 +1133,33 @@ body.dark,
 .rs-type-name {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
 .rs-type-icon {
-  width: 32px;
-  height: 32px;
-  background: var(--rs-surface-page);
+  width: 36px;
+  height: 36px;
+  background: var(--rs-surface-muted);
   color: var(--rs-text-secondary);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  border: 1px solid var(--rs-border);
+  font-size: 18px;
   flex-shrink: 0;
 }
 
 /* Summary Row */
 .rs-summary-row {
-  background: var(--rs-surface-page) !important;
+  background: #ffffff !important;
 }
 
 .rs-summary-row td {
-  font-weight: 900 !important;
+  font-weight: 700 !important;
   color: var(--rs-text-primary);
-  border-top: 2px solid var(--rs-border);
-  padding-top: 20px;
-  padding-bottom: 20px;
+  border-top: 1px solid var(--rs-border);
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 /* Trend Table (Avail Tiles) */
@@ -1158,16 +1173,15 @@ body.dark,
 
 .rs-avail-tile {
   width: 100%;
-  min-height: 56px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px 4px;
+  gap: 6px;
+  padding: 10px;
   border: 1px solid transparent;
-  border-radius: 12px;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 8px;
+  transition: all 0.2s;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -1175,21 +1189,17 @@ body.dark,
 }
 
 .rs-avail-tile:hover {
-  transform: scale(1.05);
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .rs-avail-num {
-  font-size: 20px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1;
 }
 
 .rs-avail-label {
-  font-size: 9px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--rs-text-muted);
+  display: none;
 }
 
 /* No Heatmap Backgrounds */
@@ -1328,10 +1338,11 @@ body.dark,
 
 .rs-inline-progress {
   width: 60px;
-  height: 6px;
+  height: 4px;
   background: var(--rs-progress-bg);
   border-radius: 4px;
   overflow: hidden;
+  margin-left: 8px;
 }
 
 .rs-inline-progress.strong {
@@ -2041,6 +2052,7 @@ body.dark,
 }
 
 .rs-skeleton-text {
+  display: block;
   height: 10px;
   background: var(--rs-progress-bg);
   border-radius: 4px;
@@ -2135,17 +2147,52 @@ body.dark,
 }
 
 @media (max-width: 768px) {
-  .rs-main-content { padding: 10px; gap: 10px; }
-  :root { --rs-room-label-width: 104px; }
+  .rs-main-content { padding: 10px; gap: 10px; overflow: auto; -webkit-overflow-scrolling: touch; }
+  :root { --rs-room-label-width: 96px; --rs-col-min: 58px; }
+  .rs-page-wrap { margin: -10px; min-height: 100%; }
   .rs-stats-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .rs-stat-card { padding: 14px; min-height: 88px; }
+  .rs-stat-card { padding: 14px; min-height: 88px; border-radius: var(--rs-radius-lg); }
+  .rs-stat-value { font-size: 20px; }
+  .rs-stat-icon-bg { font-size: 56px; }
   .rs-stat-chart { grid-column: span 2; }
-  .rs-section-header { flex-direction: column; align-items: stretch; }
+  .rs-toolbar { padding: 10px; gap: 10px; border-radius: var(--rs-radius-lg); }
+  .rs-toolbar-left,
+  .rs-toolbar-center,
+  .rs-toolbar-right { width: 100%; justify-content: stretch; }
+  .rs-branch-selector-modern,
+  .rs-date-nav-group-modern,
+  .rs-range-group-modern,
+  .rs-segmented-control,
+  .rs-btn-action { width: 100%; justify-content: center; }
+  .rs-range-group-modern { flex-wrap: wrap; }
+  .rs-range-inputs { flex: 1 1 100%; justify-content: center; border-right: 0; }
+  .rs-preset-group { width: 100%; margin-left: 0; padding-left: 0; border-left: 0; justify-content: center; flex-wrap: wrap; }
+  .rs-section-header { flex-direction: column; align-items: stretch; gap: 8px; }
   .rs-section-meta,
   .rs-table-hint { width: 100%; justify-content: center; white-space: normal; text-align: center; }
-  .rs-day-main { padding: 0; }
-  .rs-day-card { padding: 12px; }
+  .rs-day-main { padding: 0; overflow: visible; }
+  .rs-day-card { padding: 12px; border-radius: var(--rs-radius-lg); }
+  .rs-day-sidebar { padding: 10px; }
+  .rs-table-container,
+  .rs-timeline-wrapper { -webkit-overflow-scrolling: touch; }
+  .rs-data-table { min-width: 680px; }
+  .rs-room-label { padding: 0 8px 0 10px; }
+  .rs-room-label strong { font-size: 14px; }
+  .rs-room-label small { display: none; }
+  .rs-booking-bar { padding: 0 8px; }
+  .rs-booking-bar span { display: none; }
   .rs-legend { flex-wrap: wrap; gap: 10px; }
+}
+
+@media (max-width: 480px) {
+  :root { --rs-room-label-width: 82px; --rs-col-min: 54px; }
+  .rs-stats-overview { grid-template-columns: minmax(0, 1fr); }
+  .rs-stat-chart { grid-column: auto; }
+  .rs-stat-card { min-height: 78px; }
+  .rs-segmented-control button { flex: 1; padding-inline: 10px; }
+  .rs-date-input-wrap { padding-inline: 10px; }
+  .rs-room-label strong { font-size: 13px; }
+  .rs-tm-corner { padding-inline: 8px; font-size: 10px; }
 }
 
 html.dark,
@@ -2257,7 +2304,6 @@ html.dark .rs-stat-value,
 html.dark .rs-section-header h3,
 html.dark .rs-data-table tbody td,
 html.dark .rs-room-label strong,
-html.dark .rs-sidebar-header h3,
 html.dark .rs-legend-item strong,
 html.dark .rs-room-group-head,
 html.dark .rs-waitlist-item strong,
@@ -2288,4 +2334,506 @@ html.dark .rs-cell:hover {
 html.dark .rs-booking-bar {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
   border-color: rgba(255, 255, 255, 0.28);
+}
+
+/* Room Status skin aligned with CRM / Booking dashboard */
+#pms-room-status-page {
+  --rs-sun: #FFE394;
+  --rs-coral: #F48F68;
+  --rs-aqua: #8BDFDD;
+  --rs-cream: #FFF6DE;
+  --rs-accent: var(--rs-coral);
+  --rs-accent-hover: #e97751;
+  --rs-accent-soft: rgba(244, 143, 104, 0.16);
+  --rs-surface-page: var(--page-bg, #ffffff);
+  --rs-surface-card: var(--surface, rgba(255, 255, 255, 0.88));
+  --rs-surface-muted: var(--surface-muted, #f8fafc);
+  --rs-surface-soft: rgba(255, 246, 222, 0.72);
+  --rs-surface-raised: #ffffff;
+  --rs-border: var(--surface-border, #e2e8f0);
+  --rs-border-light: rgba(244, 143, 104, 0.18);
+  --rs-glass-border: rgba(244, 143, 104, 0.18);
+  --rs-toolbar-bg: rgba(255, 246, 222, 0.72);
+  --rs-shadow-sm: 0 8px 18px rgba(244, 143, 104, 0.08);
+  --rs-shadow-md: 0 14px 34px rgba(244, 143, 104, 0.08);
+  --rs-shadow-float: 0 20px 46px rgba(244, 143, 104, 0.16);
+  height: 100%;
+  min-height: calc(100vh - 60px);
+  margin: 0;
+  background: var(--rs-surface-page);
+  font-feature-settings: "tnum" 1;
+}
+
+#pms-room-status-page,
+#pms-room-status-page * {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+#pms-room-status-page .rs-main-content {
+  gap: 14px;
+  padding: 0;
+}
+
+#pms-room-status-page .rs-stats-overview {
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+#pms-room-status-page .rs-stat-card,
+#pms-room-status-page .rs-toolbar,
+#pms-room-status-page .rs-day-card,
+#pms-room-status-page .rs-day-sidebar,
+#pms-room-status-page .rs-timeline-container,
+#pms-room-status-page .rs-modal-dialog {
+  border-radius: 15.2px;
+  border: 1px solid rgba(244, 143, 104, 0.18);
+  box-shadow: 0 14px 34px rgba(244, 143, 104, 0.08);
+}
+
+#pms-room-status-page .rs-stat-card {
+  min-height: 112px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(255, 246, 222, 0.96), rgba(255, 255, 255, 0.92));
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+#pms-room-status-page .rs-stat-card::before {
+  inset: auto -34px -44px auto;
+  width: 132px;
+  height: 132px;
+  border-radius: 40px;
+  background: var(--rs-stat-bg, rgba(255, 227, 148, 0.5));
+  opacity: 0.72;
+  transform: rotate(18deg);
+  z-index: 0;
+}
+
+#pms-room-status-page .rs-stat-card::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  bottom: 12px;
+  width: 70px;
+  height: 70px;
+  background: var(--rs-stat-icon-url) center / contain no-repeat;
+  opacity: 0.16;
+  animation: none;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#pms-room-status-page .rs-stat-card.total {
+  --rs-stat-bg: rgba(255, 227, 148, 0.58);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7v11'/%3E%3Cpath d='M21 18V9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v9'/%3E%3Cpath d='M3 12h18'/%3E%3Cpath d='M7 12V9h4v3'/%3E%3Cpath d='M13 12V9h4v3'/%3E%3C/svg%3E");
+}
+
+#pms-room-status-page .rs-stat-card.occupied {
+  --rs-stat-bg: rgba(139, 223, 221, 0.42);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-8 0v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3Cpath d='M3 21h18'/%3E%3C/svg%3E");
+}
+
+#pms-room-status-page .rs-stat-card.booked {
+  --rs-stat-bg: rgba(244, 143, 104, 0.24);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238BDFDD' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4M16 2v4M3 10h18'/%3E%3Crect x='4' y='5' width='16' height='17' rx='2'/%3E%3Cpath d='m9 16 2 2 4-5'/%3E%3C/svg%3E");
+}
+
+#pms-room-status-page .rs-stat-card.cleaning {
+  --rs-stat-bg: rgba(255, 246, 222, 0.86);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Z'/%3E%3Cpath d='M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z'/%3E%3Cpath d='M5 15l.8 1.7L8 18l-2.2.7L5 21l-.8-2.3L2 18l2.2-1.3L5 15Z'/%3E%3C/svg%3E");
+}
+
+#pms-room-status-page .rs-stat-card.maintenance {
+  --rs-stat-bg: rgba(226, 232, 240, 0.62);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-3-3 2.4-2.4Z'/%3E%3C/svg%3E");
+}
+
+#pms-room-status-page .rs-stat-card.occupancy {
+  --rs-stat-bg: rgba(139, 223, 221, 0.36);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238BDFDD' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='m7 14 4-4 3 3 5-6'/%3E%3Cpath d='M18 7h1v1'/%3E%3C/svg%3E");
+}
+
+#pms-room-status-page .rs-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(244, 143, 104, 0.12);
+  border-color: rgba(244, 143, 104, 0.28);
+}
+
+#pms-room-status-page .rs-stat-icon-bg {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  opacity: 1;
+  transform: none;
+  box-shadow: 0 10px 20px rgba(244, 143, 104, 0.18);
+  z-index: 1;
+}
+
+#pms-room-status-page .rs-stat-card:hover .rs-stat-icon-bg {
+  opacity: 1;
+  transform: scale(1.1) rotate(5deg);
+}
+
+@keyframes rsFloatSpin {
+  from { transform: translateY(0); }
+  to { transform: translateY(-10px); }
+}
+
+#pms-room-status-page .rs-stat-icon-bg.blue,
+#pms-room-status-page .rs-stat-icon-bg.indigo {
+  background: linear-gradient(135deg, var(--rs-coral), var(--rs-sun));
+  color: #ffffff;
+}
+
+#pms-room-status-page .rs-stat-icon-bg.green {
+  background: linear-gradient(135deg, var(--rs-aqua), var(--rs-cream));
+  color: #0f766e;
+}
+
+#pms-room-status-page .rs-stat-icon-bg.yellow {
+  background: linear-gradient(135deg, var(--rs-sun), rgba(244, 143, 104, 0.58));
+  color: #92400e;
+}
+
+#pms-room-status-page .rs-stat-icon-bg.gray {
+  background: linear-gradient(135deg, rgba(226, 232, 240, 0.95), rgba(255, 246, 222, 0.9));
+  color: #475569;
+}
+
+#pms-room-status-page .rs-stat-chart-card {
+  align-items: flex-start;
+}
+
+#pms-room-status-page .rs-mini-chart-wrap {
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(139, 223, 221, 0.18);
+  transition: transform 0.3s;
+}
+
+#pms-room-status-page .rs-stat-card:hover .rs-mini-chart-wrap {
+  transform: scale(1.1);
+}
+
+#pms-room-status-page .rs-circle {
+  stroke: var(--rs-coral);
+}
+
+#pms-room-status-page .rs-percentage {
+  fill: var(--rs-text-primary);
+}
+
+#pms-room-status-page .rs-toolbar {
+  grid-template-columns: minmax(220px, 1.25fr) auto minmax(220px, 1fr);
+  gap: 12px;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--rs-cream), rgba(139, 223, 221, 0.35));
+  overflow: hidden;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+#pms-room-status-page .rs-branch-selector-modern,
+#pms-room-status-page .rs-date-nav-group-modern,
+#pms-room-status-page .rs-range-group-modern,
+#pms-room-status-page .rs-segmented-control,
+#pms-room-status-page .rs-section-meta,
+#pms-room-status-page .rs-table-hint {
+  background: rgba(255, 246, 222, 0.72);
+  border: 1px solid rgba(244, 143, 104, 0.2);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+#pms-room-status-page .rs-branch-selector-modern:hover,
+#pms-room-status-page .rs-date-nav-group-modern:hover,
+#pms-room-status-page .rs-range-group-modern:hover {
+  border-color: rgba(244, 143, 104, 0.42);
+  box-shadow: 0 0 0 3px rgba(244, 143, 104, 0.1);
+}
+
+#pms-room-status-page .rs-branch-selector-modern {
+  min-height: 40px;
+  color: var(--rs-coral);
+}
+
+#pms-room-status-page .rs-date-input-wrap input,
+#pms-room-status-page .rs-branch-selector-modern select {
+  color: var(--rs-text-primary);
+}
+
+#pms-room-status-page .rs-nav-arrow:hover,
+#pms-room-status-page .rs-btn-refresh:hover,
+#pms-room-status-page .rs-btn-ghost.full-width:hover {
+  color: var(--rs-coral);
+  border-color: rgba(244, 143, 104, 0.32);
+  background: rgba(255, 246, 222, 0.86);
+  transform: translateY(-1px);
+}
+
+#pms-room-status-page .rs-segmented-control button.active {
+  background: var(--rs-coral);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(244, 143, 104, 0.18);
+}
+
+#pms-room-status-page .rs-preset-btn:hover,
+#pms-room-status-page .rs-avail-cell.active .rs-avail-tile,
+#pms-room-status-page .rs-room-pill:hover,
+#pms-room-status-page .rs-assign-room.active {
+  color: var(--rs-coral);
+  border-color: rgba(244, 143, 104, 0.42);
+  background: rgba(255, 246, 222, 0.86);
+}
+
+#pms-room-status-page .rs-day-layout,
+#pms-room-status-page .rs-content-panel {
+  gap: 14px;
+  background: transparent;
+}
+
+#pms-room-status-page .rs-day-main {
+  gap: 14px;
+  padding: 0;
+}
+
+#pms-room-status-page .rs-day-card,
+#pms-room-status-page .rs-day-sidebar,
+#pms-room-status-page .rs-timeline-container {
+  background: var(--rs-surface-card);
+}
+
+#pms-room-status-page .rs-day-sidebar {
+  border-left: 1px solid rgba(244, 143, 104, 0.18);
+  min-width: 316px;
+  width: 316px;
+}
+
+#pms-room-status-page .rs-section-header h3 {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+#pms-room-status-page .rs-sidebar-stat-card {
+  background: linear-gradient(135deg, var(--rs-coral), var(--rs-sun));
+  border-color: rgba(244, 143, 104, 0.22);
+  box-shadow: 0 12px 28px rgba(244, 143, 104, 0.2);
+}
+
+#pms-room-status-page .rs-sidebar-stat-card::before {
+  background: rgba(255, 246, 222, 0.2);
+  filter: none;
+}
+
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-value,
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-unit,
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-label,
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-sub,
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-icon {
+  color: transparent !important;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.56) 42%, rgba(255, 255, 255, 0.24) 82%);
+  background-size: 220% 100%;
+  animation: rsSidebarSkeleton 1.2s ease-in-out infinite;
+}
+
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-value {
+  width: 58px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-unit {
+  width: 42px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-label {
+  width: 82px;
+  height: 13px;
+  border-radius: 999px;
+  display: block;
+}
+
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-sub {
+  width: 132px;
+  height: 11px;
+  border-radius: 999px;
+  display: block;
+}
+
+#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-icon i {
+  opacity: 0;
+}
+
+@keyframes rsSidebarSkeleton {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
+#pms-room-status-page .rs-sidebar-section,
+#pms-room-status-page .rs-room-group,
+#pms-room-status-page .rs-legend-item,
+#pms-room-status-page .rs-room-pill,
+#pms-room-status-page .rs-assign-room,
+#pms-room-status-page .rs-waitlist-item {
+  border-color: rgba(244, 143, 104, 0.16);
+}
+
+#pms-room-status-page .rs-table-container,
+#pms-room-status-page .rs-timeline-wrapper {
+  border-radius: 12px;
+  border-color: rgba(244, 143, 104, 0.16);
+}
+
+#pms-room-status-page .rs-data-table thead th,
+#pms-room-status-page .rs-timeline-header,
+#pms-room-status-page .rs-tm-corner,
+#pms-room-status-page .rs-room-label,
+#pms-room-status-page .rs-legend {
+  background: rgba(255, 246, 222, 0.72);
+  border-color: rgba(244, 143, 104, 0.16);
+}
+
+#pms-room-status-page .rs-data-table tbody tr:hover,
+#pms-room-status-page .rs-timeline-row:hover .rs-room-label,
+#pms-room-status-page .rs-avail-tile:hover {
+  background: rgba(139, 223, 221, 0.12);
+}
+
+#pms-room-status-page .rs-room-label::before {
+  background: rgba(244, 143, 104, 0.36);
+}
+
+#pms-room-status-page .rs-timeline-row:hover .rs-room-label::before {
+  background: var(--rs-coral);
+}
+
+#pms-room-status-page .rs-booking-bar.booked,
+#pms-room-status-page .rs-timeline-row.unassigned .rs-booking-bar {
+  background: linear-gradient(135deg, var(--rs-aqua), #0f766e) !important;
+}
+
+#pms-room-status-page .rs-booking-bar.occupied {
+  background: linear-gradient(135deg, var(--rs-coral), #dc6f4b);
+}
+
+#pms-room-status-page .rs-booking-bar.pending,
+#pms-room-status-page .rs-booking-bar.waitlist-group {
+  background: linear-gradient(135deg, var(--rs-sun), var(--rs-coral));
+  color: #78350f;
+}
+
+#pms-room-status-page .rs-booking-bar:hover {
+  filter: none;
+  transform: translateY(-2px);
+}
+
+#pms-room-status-page .rs-modal-head {
+  background: linear-gradient(135deg, var(--rs-cream), rgba(139, 223, 221, 0.35));
+}
+
+#pms-room-status-page .rs-modal-eyebrow,
+#pms-room-status-page .rs-modal-close:hover {
+  color: var(--rs-coral);
+}
+
+#pms-room-status-page .rs-block-submit {
+  background: var(--rs-coral);
+  border-color: var(--rs-coral);
+  box-shadow: 0 8px 18px rgba(244, 143, 104, 0.18);
+}
+
+html.dark #pms-room-status-page,
+body.dark #pms-room-status-page,
+.dark-mode #pms-room-status-page,
+.dark #pms-room-status-page {
+  --rs-surface-page: var(--page-bg, #0f172a);
+  --rs-surface-card: var(--surface, rgba(15, 23, 42, 0.84));
+  --rs-surface-muted: var(--surface-muted, rgba(30, 41, 59, 0.74));
+  --rs-surface-soft: rgba(15, 23, 42, 0.58);
+  --rs-border: var(--surface-border, rgba(148, 163, 184, 0.24));
+  --rs-border-light: rgba(139, 223, 221, 0.2);
+  --rs-glass-border: rgba(139, 223, 221, 0.2);
+  --rs-toolbar-bg: rgba(15, 23, 42, 0.58);
+  background: var(--rs-surface-page);
+}
+
+html.dark #pms-room-status-page .rs-stat-card,
+body.dark #pms-room-status-page .rs-stat-card,
+.dark-mode #pms-room-status-page .rs-stat-card,
+.dark #pms-room-status-page .rs-stat-card,
+html.dark #pms-room-status-page .rs-toolbar,
+body.dark #pms-room-status-page .rs-toolbar,
+.dark-mode #pms-room-status-page .rs-toolbar,
+.dark #pms-room-status-page .rs-toolbar,
+html.dark #pms-room-status-page .rs-day-card,
+html.dark #pms-room-status-page .rs-day-sidebar,
+html.dark #pms-room-status-page .rs-timeline-container,
+html.dark #pms-room-status-page .rs-modal-dialog {
+  background: linear-gradient(135deg, rgba(244, 143, 104, 0.16), rgba(139, 223, 221, 0.1)) !important;
+  border-color: rgba(139, 223, 221, 0.2) !important;
+}
+
+html.dark #pms-room-status-page .rs-branch-selector-modern,
+html.dark #pms-room-status-page .rs-date-nav-group-modern,
+html.dark #pms-room-status-page .rs-range-group-modern,
+html.dark #pms-room-status-page .rs-segmented-control,
+html.dark #pms-room-status-page .rs-section-meta,
+html.dark #pms-room-status-page .rs-table-hint,
+html.dark #pms-room-status-page .rs-data-table thead th,
+html.dark #pms-room-status-page .rs-timeline-header,
+html.dark #pms-room-status-page .rs-tm-corner,
+html.dark #pms-room-status-page .rs-room-label,
+html.dark #pms-room-status-page .rs-legend {
+  background: rgba(15, 23, 42, 0.58) !important;
+  border-color: rgba(139, 223, 221, 0.18) !important;
+}
+
+html.dark #pms-room-status-page .rs-data-table tbody tr:hover,
+html.dark #pms-room-status-page .rs-timeline-row:hover .rs-room-label,
+html.dark #pms-room-status-page .rs-avail-tile:hover {
+  background: rgba(139, 223, 221, 0.12) !important;
+}
+
+@media (max-width: 1200px) {
+  #pms-room-status-page .rs-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  #pms-room-status-page .rs-day-sidebar {
+    width: auto;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  #pms-room-status-page {
+    height: auto;
+    margin: 0;
+    min-height: 100%;
+  }
+
+  #pms-room-status-page .rs-main-content {
+    padding: 0;
+  }
+
+  #pms-room-status-page .rs-toolbar,
+  #pms-room-status-page .rs-day-card,
+  #pms-room-status-page .rs-day-sidebar {
+    border-radius: 15.2px;
+  }
 }

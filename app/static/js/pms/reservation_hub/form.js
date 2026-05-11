@@ -227,7 +227,7 @@ Object.assign(BookingHub, {
         }
         if (infoGrid) infoGrid.classList.toggle('has-source-extra', Object.prototype.hasOwnProperty.call(extraMap, type) || showReferenceCode);
         if (!status || this.state.editingBookingId) return;
-        status.value = 'PENDING';
+        status.value = 'CONFIRMED';
     },
 
     getBookingSourceExtraConfig() {
@@ -335,8 +335,8 @@ Object.assign(BookingHub, {
                         <span class="bk-money" data-fallback="${fallback}">${pmsMoney(fallback)}</span>
                     </div>
                 </div>
-                <div class="bk-avail-cta ${soldOut ? 'pending' : ''}">
-                    ${soldOut ? 'Tạo chờ xác nhận' : (context === 'toolbar' ? 'Đặt phòng' : (selected ? `Đã chọn x${selectedQty}` : 'Thêm'))}
+                <div class="bk-avail-cta">
+                    ${soldOut ? (selected ? `Đã chọn x${selectedQty}` : 'Thêm vào đặt phòng') : (context === 'toolbar' ? 'Đặt phòng' : (selected ? `Đã chọn x${selectedQty}` : 'Thêm'))}
                 </div>
             </div>
         `;
@@ -720,10 +720,9 @@ Object.assign(BookingHub, {
             grandTotal += lineTotal;
 
             return `
-                <div class="bk-cart-item-v4" data-room-type-id="${item.room_type_id}">
+                <div class="bk-cart-item-v4 ${item.over_capacity ? 'over-capacity' : ''}" data-room-type-id="${item.room_type_id}">
                     <div class="bk-cart-item-head">
                         <strong>${this.escape(item.room_type || 'Loại phòng')}</strong>
-                        ${item.over_capacity ? '<span class="bk-over-capacity-pill">Tạo chờ xác nhận</span>' : ''}
                         <button class="bk-cart-remove" type="button" onclick="BookingHub.removeRoomCartItem(${item.room_type_id})" title="Xóa">×</button>
                     </div>
                     <div class="bk-cart-item-ctrl">
@@ -745,6 +744,7 @@ Object.assign(BookingHub, {
 
         const guests = document.getElementById('bk-form-guests');
         if (guests) guests.max = String(this.getRoomCartMaxGuests() || 1);
+        this.applyOverCapacityStatusLock();
         this.renderPaymentRoomSummary();
     },
 
@@ -852,7 +852,7 @@ Object.assign(BookingHub, {
                 </div>
                 <div class="bk-receipt-badge">${depositPct}% đã thanh toán</div>
             </div>
-            ${overCapacity ? '<div class="bk-over-capacity-note">Có hạng phòng đã hết tồn. Booking chỉ được tạo ở trạng thái chờ xác nhận và chỉ xác nhận khi đủ tồn.</div>' : ''}
+            ${overCapacity ? '<div class="bk-over-capacity-note">Có hạng phòng đã hết tồn. Booking sẽ ở trạng thái chờ xác nhận cho tới khi đủ tồn.</div>' : ''}
             <div class="bk-receipt-room-list">${rows}</div>
             <div class="bk-receipt-footer">
                 ${isOta ? 'Tiền OTA được xử lý theo giá thực thu của kênh.' : (totalQty > 1 ? (allocationMode === 'single' ? 'Toàn bộ tiền cọc sẽ được ghi vào phòng đã chọn.' : 'Tiền cọc sẽ được chia đều cho từng phòng trong nhóm.') : 'Khoản cọc áp dụng cho booking này.')}
@@ -868,7 +868,7 @@ Object.assign(BookingHub, {
             const cta = card.querySelector('.bk-avail-cta');
             const item = this.getRoomCart().find((entry) => String(entry.room_type_id) === card.dataset.roomTypeId);
             const soldOut = card.dataset.soldOut === '1';
-            if (cta) cta.textContent = isSelected ? `Đã chọn x${item?.quantity || 1}` : (soldOut ? 'Tạo chờ xác nhận' : (containerId === 'bk-avail-cards' ? 'Đặt phòng' : 'Thêm'));
+            if (cta) cta.textContent = isSelected ? `Đã chọn x${item?.quantity || 1}` : (soldOut ? 'Thêm vào đặt phòng' : (containerId === 'bk-avail-cards' ? 'Đặt phòng' : 'Thêm'));
         });
     },
 
@@ -1205,6 +1205,7 @@ Object.assign(BookingHub, {
                 allowInput: false,
                 disableMobile: true,
                 locale,
+                minDate: role === 'check-out' ? 'today' : null,
                 dateFormat: 'd/m/Y, H:i',
                 defaultDate: toDate(hiddenInput.value),
                 prevArrow: '<i class="bi bi-chevron-left"></i>',
@@ -2027,7 +2028,7 @@ Object.assign(BookingHub, {
         const guests = document.getElementById('bk-form-guests');
         if (guests) guests.value = '2';
         const status = document.getElementById('bk-form-status');
-        if (status) status.value = 'PENDING';
+        if (status) status.value = 'CONFIRMED';
         const bookingType = document.getElementById('bk-form-booking-type');
         if (bookingType) bookingType.value = 'DIRECT';
         this.state.editingBookingId = null;

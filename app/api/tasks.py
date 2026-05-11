@@ -94,7 +94,12 @@ def home(
 
     # Query công việc bằng hàm helper mới
     tasks_query = _get_filtered_tasks_query(
-        db, user_data, branch_to_filter, search, trang_thai, han_hoan_thanh,bo_phan
+        db, user_data, branch_to_filter, search, trang_thai, han_hoan_thanh, bo_phan,
+        load_relationships=False
+    )
+    list_query = _get_filtered_tasks_query(
+        db, user_data, branch_to_filter, search, trang_thai, han_hoan_thanh, bo_phan,
+        load_relationships=True
     )
 
     total_tasks = tasks_query.count()
@@ -103,7 +108,7 @@ def home(
     # Sắp xếp (cập nhật tên cột)
     order = {"Quá hạn": 0, "Đang chờ": 1, "Hoàn thành": 2, "Đã xoá": 3}
     rows = (
-        tasks_query.order_by(
+        list_query.order_by(
             case(order, value=Task.status, else_=99),
             Task.due_date.nullslast(),
         )
@@ -219,7 +224,8 @@ def _get_filtered_tasks_query(
     search: str = "",
     trang_thai: str = "",
     han_hoan_thanh: str = "",
-    bo_phan: str = ""
+    bo_phan: str = "",
+    load_relationships: bool = True
 ):
     """
     Hàm helper phiên bản mới, query công việc dựa trên kiến trúc database chuẩn hóa.
@@ -227,20 +233,22 @@ def _get_filtered_tasks_query(
     Author = aliased(User, name="author")
     Assignee = aliased(User, name="assignee")
 
-    # Bắt đầu query với options để load sẵn các relationship cần thiết
-    tasks_query = db.query(Task).options(
-        joinedload(Task.branch),
-        joinedload(Task.author),
-        joinedload(Task.assignee),
-        joinedload(Task.deleter) # Thêm joinedload cho người xóa
-    )
+    tasks_query = db.query(Task)
+    if load_relationships:
+        tasks_query = tasks_query.options(
+            joinedload(Task.branch),
+            joinedload(Task.author),
+            joinedload(Task.assignee),
+            joinedload(Task.deleter)
+        )
 
-    # Chỉ join với các bảng cần thiết để lọc
-    tasks_query = tasks_query.join(Task.branch)
-    tasks_query = tasks_query.outerjoin(Author, Task.author)
-    tasks_query = tasks_query.outerjoin(Assignee, Task.assignee)
+    needs_branch_join = bool(chi_nhanh or search)
+    needs_user_search = bool(search)
 
-
+    if needs_branch_join:
+        tasks_query = tasks_query.join(Task.branch)
+    if needs_user_search:
+        tasks_query = tasks_query.outerjoin(Author, Task.author).outerjoin(Assignee, Task.assignee)
     # Lọc theo trạng thái (loại bỏ "Đã xoá" cho vai trò không phải quản lý)
     role = user_data.get("role")
     if role not in ["quanly", "admin", "boss"]:

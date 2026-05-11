@@ -2996,6 +2996,19 @@ function pmsRdRemoveTempSurcharge(i) {
 let _invProducts = [];
 let _invCategories = [];
 let _invActiveCat = null;
+let _invCacheKey = null;
+let _invLoadPromise = null;
+
+function _invGetBranchId() {
+    if (window.isCiMode) {
+        return window._pmsCiBranchId
+            || (typeof pmsCi !== 'undefined' && pmsCi ? pmsCi.branch_id : null)
+            || (window.PMS ? window.PMS.branchId : null)
+            || '';
+    }
+    if (typeof rdStayData !== 'undefined' && rdStayData && rdStayData.branch_id) return rdStayData.branch_id;
+    return '';
+}
 
 async function pmsRdOpenService() {
     rdTempServices = [];
@@ -3004,40 +3017,48 @@ async function pmsRdOpenService() {
     pmsRdRenderTempService();
     document.getElementById('rd-sub-modal-service').style.display = 'flex';
 
-    // Render from cache immediately if available
-    if (_invProducts.length > 0) {
+    const list = document.getElementById('rd-sm-sv-list');
+    const cats = document.getElementById('rd-sm-sv-cats');
+    const branchId = _invGetBranchId();
+    const cacheKey = `branch:${branchId || 'default'}`;
+    const hasValidCache = _invCacheKey === cacheKey && _invProducts.length > 0;
+
+    if (hasValidCache) {
         _invRenderCatSidebar();
         pmsRdRenderServiceList();
+        return;
     }
 
-    // Load/refresh from API in background
-    const list = document.getElementById('rd-sm-sv-list');
-    if (_invProducts.length === 0 && list) {
+    _invProducts = [];
+    _invCategories = [];
+    _invActiveCat = null;
+    _invCacheKey = cacheKey;
+    if (cats) cats.innerHTML = '';
+    if (list) {
+        list.className = 'rd-sv-grid rd-sv-empty-state';
         list.innerHTML = `<div class="rd-sv-loading">Đang tải sản phẩm...</div>`;
     }
-    try {
-        let branchIdQ = '';
-        if (window.isCiMode) {
-            const ciBranchId = window._pmsCiBranchId
-                || (typeof pmsCi !== 'undefined' && pmsCi ? pmsCi.branch_id : null)
-                || (window.PMS ? window.PMS.branchId : null);
-            if (ciBranchId) {
-                branchIdQ = `?branch_id=${encodeURIComponent(ciBranchId)}`;
-            }
-        } else if (typeof rdStayData !== 'undefined' && rdStayData && rdStayData.branch_id) {
-            branchIdQ = `?branch_id=${encodeURIComponent(rdStayData.branch_id)}`;
-        }
 
-        const data = await pmsApi('/api/pms/inventory/products' + branchIdQ);
+    if (!_invLoadPromise || _invLoadPromise.cacheKey !== cacheKey) {
+        const branchIdQ = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
+        _invLoadPromise = pmsApi('/api/pms/inventory/products' + branchIdQ);
+        _invLoadPromise.cacheKey = cacheKey;
+    }
+
+    try {
+        const data = await _invLoadPromise;
+        if (_invCacheKey !== cacheKey) return;
         _invProducts = data.products || [];
         _invCategories = data.categories || [];
         _invActiveCat = _invCategories.length > 0 ? _invCategories[0].name : 'All';
         _invRenderCatSidebar();
         pmsRdRenderServiceList();
     } catch (e) {
-        if (_invProducts.length === 0 && list) {
+        if (_invCacheKey === cacheKey && list) {
             list.innerHTML = `<div class="rd-sv-error">Lỗi tải sản phẩm: ${e.message}<br><small>Hãy kiểm tra kho chi nhánh đã được thiết lập</small></div>`;
         }
+    } finally {
+        if (_invLoadPromise && _invLoadPromise.cacheKey === cacheKey) _invLoadPromise = null;
     }
 }
 

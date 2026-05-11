@@ -1,6 +1,7 @@
 <div id="pms-booking-page">
   <div class="bk-shell">
     <div class="bk-dashboard-header">
+      {% if is_admin %}
       <div class="bk-ota-strip">
         <div class="bk-ota-strip-controls">
           {% if branches and branches|length > 0 %}
@@ -71,6 +72,7 @@
           </div>
         </div>
       </div>
+      {% endif %}
 
       <div class="bk-stats-grid" id="bk-stats">
         <div class="bk-stat-card total">

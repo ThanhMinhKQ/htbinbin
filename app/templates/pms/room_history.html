@@ -116,27 +116,18 @@ header.sticky { z-index: 60 !important; }
   color: var(--rh-text);
 }
 
-/* ── Topbar ── */
-#rh-bar {
+.rh-header-actions {
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: nowrap;
-  min-height: 62px;
-  padding: 14px 24px;
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  width: 100%;
-  border-bottom: 1px solid var(--rh-border);
-  box-shadow: 0 4px 12px rgba(8, 95, 102, 0.06);
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
-html.dark #rh-bar {
-  background: var(--surface, rgba(15, 23, 42, 0.82));
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+.rh-header-actions > * {
+  flex-shrink: 0;
 }
 
 .rh-title {
@@ -226,11 +217,41 @@ html.dark #rh-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  min-height: 54px;
-  padding: 10px 24px;
-  background: var(--rh-bg);
+  gap: 12px;
+  min-height: 58px;
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--rh-border);
+  position: sticky;
+  top: 0;
+  z-index: 65;
+  overflow: hidden;
+}
+
+.rh-filters::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+      linear-gradient(45deg, transparent 49%, var(--sidebar-grid-color, #e5e7eb) 49%, var(--sidebar-grid-color, #e5e7eb) 51%, transparent 51%),
+      linear-gradient(-45deg, transparent 49%, var(--sidebar-grid-color, #e5e7eb) 49%, var(--sidebar-grid-color, #e5e7eb) 51%, transparent 51%);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 60% at 100% 0%, #000 50%, transparent 90%);
+  mask-image: radial-gradient(ellipse 60% 60% at 100% 0%, #000 50%, transparent 90%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.4;
+}
+
+.rh-filters > * {
+  position: relative;
+  z-index: 1;
+}
+
+html.dark .rh-filters {
+  background: rgba(30, 41, 59, 0.75);
 }
 
 /* ── Search ── */
@@ -715,7 +736,7 @@ html.dark .rh-sk-pill {
 @media (max-width: 600px)  { .rh-grid, .f-rooms { grid-template-columns: 1fr; } }
 @media (max-width: 1200px) { .rh-skeleton-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 900px)  {
-  #rh-bar { flex-wrap: wrap; }
+  .rh-header-actions { flex-wrap: wrap; }
   .rh-skeleton-grid { grid-template-columns: repeat(2, 1fr); }
   .rh-skeleton-row { grid-template-columns: 1fr 1fr; }
 }
@@ -916,25 +937,10 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="rh-layout">
-
-  <!-- TOPBAR -->
-  <div id="rh-bar">
-    <!-- Back + Title -->
-    <a href="/pms" class="rh-back">
-      <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-      Sơ đồ
-    </a>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div style="width:28px;height:28px;border-radius:8px;background:var(--rh-accent);display:flex;align-items:center;justify-content:center;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>
-      </div>
-      <span class="rh-title">Lịch sử Phòng</span>
-    </div>
-
+{% block app_header_actions %}
+<div class="rh-header-actions">
     <!-- Quick stats -->
-    <div class="rh-stats" style="padding-left:8px;border-left:1px solid var(--rh-border);margin-left:4px;">
+    <div class="rh-stats">
       <span class="rh-stat">
         <span class="dot" style="background:var(--rh-debt);"></span>
         Còn nợ: <b id="rh-stat-debt">0</b>
@@ -972,17 +978,23 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
       </button>
     </div>
   </div>
+{% endblock %}
+
+{% block content %}
+<div class="rh-layout">
+
+
 
   <!-- FILTER BAR -->
   <div class="rh-filters">
     <!-- Search by guest name or CCCD -->
     <div class="rh-search-group">
       <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--rh-text-subtle);stroke-width:2;fill:none;flex-shrink:0;">
-        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
       </svg>
       <input type="text" class="rh-search-input" id="rh-search" placeholder="Tên khách, CCCD…" onkeydown="if(event.key==='Enter')rhApplySearch()">
       <button type="button" class="rh-search-btn" onclick="rhApplySearch()" title="Tìm kiếm">
-        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
       </button>
     </div>
 
@@ -997,9 +1009,9 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
 
     <!-- Date range -->
     <div class="rh-date-group">
-      <input type="text" class="rh-date-input" id="rh-date-from" placeholder="Từ ngày" readonly>
+      <input type="text" class="rh-date-input flatpickr-input" id="rh-date-from" placeholder="Từ ngày" readonly="readonly">
       <span class="rh-date-sep">→</span>
-      <input type="text" class="rh-date-input" id="rh-date-to" placeholder="Đến ngày" readonly>
+      <input type="text" class="rh-date-input flatpickr-input" id="rh-date-to" placeholder="Đến ngày" readonly="readonly">
       <button type="button" class="rh-date-apply" id="rh-date-apply" onclick="rhApplyDateFilter()">Lọc</button>
       <button type="button" class="rh-date-reset" id="rh-date-reset" onclick="rhResetDateFilter()">✕</button>
     </div>
@@ -1015,11 +1027,11 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
     <!-- View toggle -->
     <div class="rh-view-toggle">
       <button type="button" class="rh-vbtn active" data-rh-view="grid">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
         Thẻ
       </button>
       <button type="button" class="rh-vbtn" data-rh-view="list">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
         Bảng
       </button>
     </div>

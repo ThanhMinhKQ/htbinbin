@@ -73,6 +73,11 @@
 
   #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-row-warning-bg) !important; }
   #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-row-success-bg) !important; }
+  #pms-booking-page .bk-avail-card.sold-out,
+  #pms-booking-page .bk-cart-item-v4.over-capacity {
+    background: var(--bk-warning-bg) !important;
+    border-color: var(--bk-warning-border) !important;
+  }
 
   #pms-booking-page .bk-input,
   #pms-booking-page .bk-select,
@@ -267,6 +272,11 @@
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-row-warning-bg) !important; }
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-row-success-bg) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card.sold-out,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-cart-item-v4.over-capacity {
+  background: var(--bk-warning-bg) !important;
+  border-color: var(--bk-warning-border) !important;
+}
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-input,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-select,

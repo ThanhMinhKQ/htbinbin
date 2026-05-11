@@ -508,7 +508,7 @@
                         </div>
                     </div>
 
-                    {% if user.role != 'letan' %}
+                    {% if user.role in ['admin', 'boss'] %}
                     <div class="col-span-12 md:col-span-6 lg:col-span-2 xl:col-span-2">
                         <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Chi Nhánh</label>
                         <select id="chi_nhanh" @change="currentPage = 1; fetchData(); fetchDashboardSummary()"
@@ -1648,6 +1648,7 @@
                         </template>
                     </select>
                 </div>
+                {% if user.role in ['admin', 'boss'] %}
                 <div class="w-48">
                     <label class="block text-xs font-semibold text-slate-500 uppercase mb-1.5 ml-1">Chi nhánh</label>
                     <select x-model="analytics.chi_nhanh" @change="fetchAnalytics()"
@@ -1658,6 +1659,7 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% endif %}
                 <button @click="fetchAnalytics()" class="bg-indigo-600 hover:bg-indigo-700 text-white p-2.5 rounded-xl shadow-md transition active:scale-95">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 </button>
@@ -1856,7 +1858,7 @@
                 month: String(new Date().getMonth() + 1),
                 year: String(new Date().getFullYear()),
                 yearOptions: Array.from({ length: 3 }, (_, i) => String(new Date().getFullYear() - i)),
-                chi_nhanh: '',
+                chi_nhanh: {{ ('' if user.role in ['admin', 'boss'] else initial_branch_filter) | tojson }},
                 charts: {
                     comparison: null,
                     trend: null,
@@ -3526,13 +3528,17 @@
                     const response = await fetch(`/shift-report/api/analytics?${params.toString()}`);
                     const result = await response.json();
 
+                    if (!response.ok) {
+                        throw new Error(result.detail || result.message || 'Lỗi tải dữ liệu analytics');
+                    }
+
                     if (result.status === 'success') {
                         this.analytics.data = result.data;
                         this.$nextTick(() => {
                             this.renderAnalyticsCharts();
                         });
                     } else {
-                        console.error('Lỗi lấy dữ liệu analytics:', result.message);
+                        console.error('Lỗi lấy dữ liệu analytics:', result.message || result.detail);
                     }
                 } catch (err) {
                     console.error('Exception analytics:', err);
@@ -3563,6 +3569,21 @@
                     const b = parseInt(value.slice(4, 6), 16);
                     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
                 };
+                const makeGradient = (canvas, color, alphaTop = 0.24, alphaBottom = 0.02) => {
+                    const gradient = canvas.getContext('2d').createLinearGradient(0, 0, 0, canvas.height || 320);
+                    gradient.addColorStop(0, fill(color, alphaTop));
+                    gradient.addColorStop(1, fill(color, alphaBottom));
+                    return gradient;
+                };
+                const chartAnimation = {
+                    duration: 1200,
+                    easing: 'easeOutQuart',
+                    delay: context => (context.dataIndex || 0) * 55 + (context.datasetIndex || 0) * 90
+                };
+                const chartInteraction = {
+                    mode: 'index',
+                    intersect: false
+                };
 
                 const ctxComp = document.getElementById('analyticsComparisonChart');
                 if (ctxComp) {
@@ -3573,18 +3594,28 @@
                         data: {
                             labels: rows.map(b => b.branch_code),
                             datasets: [
-                                { label: 'Tiền mặt', data: rows.map(b => b.cash || 0), backgroundColor: palette.cash, borderRadius: 6 },
-                                { label: 'Online/CK', data: rows.map(b => (b.online || 0) + (b.branch_transfer || 0)), backgroundColor: palette.online, borderRadius: 6 },
-                                { label: 'Công nợ', data: rows.map(b => b.debt || 0), backgroundColor: palette.debt, borderRadius: 6 }
+                                { label: 'Tiền mặt', data: rows.map(b => b.cash || 0), backgroundColor: fill(palette.cash, 0.85), hoverBackgroundColor: palette.cash, borderRadius: 8, borderSkipped: false },
+                                { label: 'Online/CK', data: rows.map(b => (b.online || 0) + (b.branch_transfer || 0)), backgroundColor: fill(palette.online, 0.85), hoverBackgroundColor: palette.online, borderRadius: 8, borderSkipped: false },
+                                { label: 'Công nợ', data: rows.map(b => b.debt || 0), backgroundColor: fill(palette.debt, 0.85), hoverBackgroundColor: palette.debt, borderRadius: 8, borderSkipped: false }
                             ]
                         },
                         options: {
                             indexAxis: 'y',
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, font: { family: 'Inter', size: 11 } } } },
+                            animation: chartAnimation,
+                            animations: {
+                                x: { from: 0, duration: 1200, easing: 'easeOutQuart' },
+                                y: { duration: 900, easing: 'easeOutCubic' }
+                            },
+                            interaction: chartInteraction,
+                            hover: { animationDuration: 240 },
+                            plugins: {
+                                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, font: { family: 'Inter', size: 11 } } },
+                                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.92)', padding: 12, cornerRadius: 12, displayColors: true }
+                            },
                             scales: {
-                                x: { grid: { display: false }, ticks: { callback: moneyTick, font: { size: 10 } } },
+                                x: { grid: { color: 'rgba(148, 163, 184, 0.12)', drawBorder: false }, ticks: { callback: moneyTick, font: { size: 10 } } },
                                 y: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' } } }
                             }
                         }
@@ -3606,18 +3637,28 @@
                         data: {
                             labels,
                             datasets: [
-                                { label: 'Tiền ghi nhận', data: rows.map(d => d.pms || 0), borderColor: palette.pms, backgroundColor: fill(palette.pms, 0.1), fill: true, tension: 0.35, pointRadius: 3, pointHoverRadius: 6 },
-                                { label: 'Tiền mặt', data: rows.map(d => d.cash || 0), borderColor: palette.cash, backgroundColor: fill(palette.cash, 0.08), tension: 0.35, pointRadius: 3, pointHoverRadius: 6 },
-                                { label: 'Online/CK', data: rows.map(d => (d.online || 0) + (d.branch || 0)), borderColor: palette.online, backgroundColor: fill(palette.online, 0.08), tension: 0.35, pointRadius: 3, pointHoverRadius: 6 }
+                                { label: 'Tiền ghi nhận', data: rows.map(d => d.pms || 0), borderColor: palette.pms, backgroundColor: makeGradient(ctxTrend, palette.pms, 0.28, 0.02), fill: true, tension: 0.42, borderWidth: 3, pointRadius: 0, pointHoverRadius: 6, pointHoverBorderWidth: 3, pointHoverBackgroundColor: '#fff' },
+                                { label: 'Tiền mặt', data: rows.map(d => d.cash || 0), borderColor: palette.cash, backgroundColor: fill(palette.cash, 0.08), tension: 0.42, borderWidth: 2, pointRadius: 0, pointHoverRadius: 6, pointHoverBorderWidth: 3, pointHoverBackgroundColor: '#fff' },
+                                { label: 'Online/CK', data: rows.map(d => (d.online || 0) + (d.branch || 0)), borderColor: palette.online, backgroundColor: fill(palette.online, 0.08), tension: 0.42, borderWidth: 2, pointRadius: 0, pointHoverRadius: 6, pointHoverBorderWidth: 3, pointHoverBackgroundColor: '#fff' }
                             ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } } },
+                            animation: chartAnimation,
+                            animations: {
+                                y: { from: 0, duration: 1300, easing: 'easeOutQuart' },
+                                tension: { duration: 900, easing: 'easeOutCubic', from: 0.12, to: 0.42 }
+                            },
+                            interaction: chartInteraction,
+                            hover: { animationDuration: 240 },
+                            plugins: {
+                                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } },
+                                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.92)', padding: 12, cornerRadius: 12, displayColors: true }
+                            },
                             scales: {
                                 x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-                                y: { beginAtZero: true, grid: { borderDash: [5, 5] }, ticks: { callback: moneyTick, font: { size: 10 } } }
+                                y: { beginAtZero: true, grid: { color: 'rgba(148, 163, 184, 0.14)', borderDash: [5, 5], drawBorder: false }, ticks: { callback: moneyTick, font: { size: 10 } } }
                             }
                         }
                     });
@@ -3648,12 +3689,23 @@
                     });
                     this.analytics.charts.breakdown = new Chart(ctxBreak, {
                         type: 'doughnut',
-                        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, hoverOffset: 10 }] },
+                        data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 4, borderColor: '#fff', hoverOffset: 14, spacing: 3 }] },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
                             cutout: '70%',
-                            plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } } }
+                            rotation: -90,
+                            animation: {
+                                animateRotate: true,
+                                animateScale: true,
+                                duration: 1300,
+                                easing: 'easeOutQuart'
+                            },
+                            hover: { animationDuration: 240 },
+                            plugins: {
+                                legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 6, font: { size: 11 } } },
+                                tooltip: { backgroundColor: 'rgba(15, 23, 42, 0.92)', padding: 12, cornerRadius: 12, displayColors: true }
+                            }
                         }
                     });
                 }

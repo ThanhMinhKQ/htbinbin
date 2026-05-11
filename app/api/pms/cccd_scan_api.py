@@ -14,40 +14,21 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 
 from .pms_helpers import _require_login
-from .identity_parser import parse_qr, CAN_CUOC_MOI, CCCD_CU, CMND_TYPE, parse_address_vn
+from .identity_parser import parse_qr, CAN_CUOC_MOI, CCCD_CU, CMND_TYPE, parse_address_vn, normalize_qr_raw
 
 router = APIRouter()
 
 # ───────────────────────────── Raw data preprocessing ──────────────────────────
 
 def preprocess_raw(raw: str) -> str:
-    """Clean raw QR data from scanner before parsing.
-
-    Handles common RAR-DTA RD23 scanner artifacts:
-      - NULL bytes & control characters
-      - Unicode normalization (NFC)
-      - Triple+ pipes → double pipe (preserve || for CAN_CUOC_MOI)
-      - Trailing/leading whitespace, stray carriage returns
-    """
-    if not raw:
-        return ""
-    s = raw
-    # 1. Remove NULL bytes and non-printable control chars
-    s = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", s)
-    # 2. Flatten line-endings
-    s = s.replace("\r\n", "").replace("\r", "").replace("\n", "")
-    # 3. Unicode NFC normalization (fixes composed vs decomposed Vietnamese)
-    s = unicodedata.normalize("NFC", s)
-    # 4. Fix triple+ pipes → double (CAN_CUOC_MOI uses ||, don't collapse those)
-    s = re.sub(r"\|{3,}", "||", s)
-    # 5. Trim
-    return s.strip()
+    """Clean raw QR data from scanner before parsing."""
+    return normalize_qr_raw(raw)
 
 
 def _calc_confidence(result: dict) -> float:
     """Score 0.0–1.0 indicating how confident we are in the parse result."""
-    if not result.get("is_valid"):
-        return 0.0
+    if "confidence" in result:
+        return float(result.get("confidence") or 0.0)
     score = 0.0
     if result.get("id_number"):   score += 0.30
     if result.get("name"):        score += 0.25
@@ -57,7 +38,9 @@ def _calc_confidence(result: dict) -> float:
     if addr.get("province"):      score += 0.10
     if addr.get("district") or addr.get("ward"): score += 0.05
     if result.get("issue_date"):  score += 0.05
-    return round(min(score, 1.0), 2)
+    score -= 0.25 * len(result.get("conflicts") or [])
+    score -= 0.05 * len(result.get("warnings") or [])
+    return round(max(0.0, min(score, 1.0)), 2)
 
 
 # ─────────────────────────── API endpoint ──────────────────────────────────────
@@ -75,6 +58,8 @@ def api_scan_cccd(
 
     # Preprocess: clean scanner artifacts before parsing
     cleaned = preprocess_raw(raw)
+    if len(cleaned) > 2048:
+        return JSONResponse(status_code=400, content={"detail": "Chuỗi QR quá dài hoặc không hợp lệ"})
 
     result = parse_qr(cleaned)   # from identity_parser (single source of truth)
     confidence = _calc_confidence(result)

@@ -339,6 +339,60 @@
       </div>
     </div>
 
+    <div id="tasks-loading-skeleton" class="hidden">
+      <div class="w-full bg-white dark:bg-slate-900/70 overflow-hidden rounded-2xl shadow-md border border-slate-200 dark:border-slate-800 mb-6 hidden lg:block">
+        <div class="overflow-auto max-h-[65vh]">
+          <table class="w-full text-sm text-left border-collapse">
+            <thead class="text-xs uppercase bg-gradient-to-b from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                {% if user.role in ['quanly', 'admin', 'boss'] or (user.role == 'letan' and user_chi_nhanh) %}<th class="w-12 px-4 py-3"><div class="skeleton mx-auto" style="width: 16px; height: 16px;"></div></th>{% endif %}
+                <th class="w-24 px-4 py-3"><div class="skeleton" style="width: 48px; height: 14px;"></div></th>
+                <th class="w-28 px-4 py-3"><div class="skeleton mx-auto" style="width: 56px; height: 14px;"></div></th>
+                <th class="hidden lg:table-cell w-32 px-4 py-3"><div class="skeleton" style="width: 72px; height: 14px;"></div></th>
+                <th class="px-4 py-3"><div class="skeleton mx-auto" style="width: 80px; height: 14px;"></div></th>
+                <th class="hidden md:table-cell px-4 py-3"><div class="skeleton mx-auto" style="width: 64px; height: 14px;"></div></th>
+                <th class="w-32 px-4 py-3"><div class="skeleton mx-auto" style="width: 72px; height: 14px;"></div></th>
+                <th class="w-28 px-4 py-3"><div class="skeleton mx-auto" style="width: 56px; height: 14px;"></div></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for _ in range(6) %}
+              <tr class="bg-white border-b dark:bg-slate-900 dark:border-slate-700" aria-hidden="true">
+                {% if user.role in ['quanly', 'admin', 'boss'] or (user.role == 'letan' and user_chi_nhanh) %}<td class="px-4 py-3"><div class="skeleton mx-auto" style="width: 16px; height: 16px;"></div></td>{% endif %}
+                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 72px;"></div></td>
+                <td class="px-4 py-3"><div class="skeleton skeleton-text mx-auto" style="width: 58px;"></div></td>
+                <td class="hidden lg:table-cell px-4 py-3"><div class="skeleton skeleton-text" style="width: 88px;"></div></td>
+                <td class="px-4 py-3"><div class="skeleton skeleton-text mx-auto" style="width: 82%;"></div></td>
+                <td class="hidden md:table-cell px-4 py-3"><div class="skeleton skeleton-text mx-auto" style="width: 74%;"></div></td>
+                <td class="px-4 py-3"><div class="skeleton skeleton-badge mx-auto" style="width: 86px;"></div></td>
+                <td class="px-4 py-3"><div class="skeleton mx-auto" style="width: 64px; height: 20px;"></div></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="block lg:hidden w-full space-y-4" role="status" aria-label="Đang tải công việc">
+        {% for _ in range(4) %}
+        <div class="skeleton-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" aria-hidden="true">
+          <div class="flex justify-between items-center gap-4">
+            <div class="skeleton skeleton-text-lg" style="width: 38%;"></div>
+            <div class="skeleton skeleton-badge" style="width: 84px;"></div>
+          </div>
+          <div class="mt-4 space-y-2">
+            <div class="skeleton skeleton-text" style="width: 86%;"></div>
+            <div class="skeleton skeleton-text" style="width: 58%;"></div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+            <div class="skeleton skeleton-text" style="width: 42%;"></div>
+          </div>
+        </div>
+        {% endfor %}
+        <span class="sr-only">Đang tải dữ liệu...</span>
+      </div>
+    </div>
+
+    <div id="tasks-results-content">
     {# 
       [THAY ĐỔI] Đã loại bỏ div bọc: <div class="flex justify-center px-2">
       Điều này cho phép card bảng dãn ra lấp đầy 100% chiều rộng của <main>.
@@ -478,6 +532,7 @@
         <div class="text-center py-16 text-slate-500 dark:text-slate-400">Không có công việc nào.</div>
         {% endif %}
       </div>
+    </div>
     </div>
     
 </div> <!-- Đóng div padding chung -->
@@ -1681,11 +1736,37 @@
     </script>
 
     <script>
+      function showTasksPendingState() {
+        const skeleton = document.getElementById('tasks-loading-skeleton');
+        const content = document.getElementById('tasks-results-content');
+        const filterForm = document.getElementById('filterForm');
+        if (skeleton) skeleton.classList.remove('hidden');
+        if (content) content.classList.add('hidden');
+        if (filterForm) {
+          filterForm.querySelectorAll('button, input, select').forEach((el) => {
+            if (el.type !== 'hidden') el.disabled = true;
+          });
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function() {
+          const filterForm = document.getElementById('filterForm');
+          if (filterForm) {
+              filterForm.addEventListener('submit', showTasksPendingState);
+          }
+          document.querySelectorAll('.pagination a').forEach((link) => {
+              link.addEventListener('click', showTasksPendingState);
+          });
+      });
+    </script>
+
+    <script>
       // --- SCRIPT MỚI: XỬ LÝ DROPDOWN CHỌN SỐ LƯỢNG HIỂN THỊ ---
       document.addEventListener('DOMContentLoaded', function() {
           const perPageSelect = document.getElementById('per-page-select');
           if (perPageSelect) {
               perPageSelect.addEventListener('change', function() {
+                  showTasksPendingState();
                   const newPerPage = this.value;
                   const currentUrl = new URL(window.location.href);
                   currentUrl.searchParams.set('per_page', newPerPage);

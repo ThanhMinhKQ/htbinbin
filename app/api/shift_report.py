@@ -526,21 +526,9 @@ async def shift_report_page(
 
     # === BẮT ĐẦU SỬA LỖI LOGIC CHI NHÁNH ===
     
-    active_branch = "" # Sẽ lưu chi nhánh hoạt động của Lễ tân
-    
-    if user_data.get("role") == 'letan':
-        # 1. Ưu tiên hàng đầu: Chi nhánh đã chọn chủ động (GPS/chọn tay)
-        session_branch = request.session.get("active_branch")
-        if session_branch:
-            active_branch = session_branch
-        else:
-            # 2. Nếu không có, query DB để lấy `last_active_branch_id`
-            user_from_db = db.query(User).filter(User.id == user_data.get("id")).first()
-            if user_from_db and user_from_db.last_active_branch_id and user_from_db.last_active_branch:
-                active_branch = user_from_db.last_active_branch.branch_code
-            else:
-                # 3. Nếu vẫn không có, dùng chi nhánh chính (mặc định)
-                active_branch = user_data.get("branch", "")
+    active_branch = ""
+    if user_data.get("role") not in ['admin', 'boss']:
+        active_branch = get_active_branch(request, db, user_data) or ""
     
     # === KẾT THÚC SỬA LỖI ===
 
@@ -563,9 +551,7 @@ async def shift_report_page(
     # --- SỬA: SỬ DỤNG HÀM DỊCH VỤ ĐỂ LẤY DỮ LIỆU BAN ĐẦU ---
     branch_to_filter = chi_nhanh
     
-    # SỬA: Dùng biến `active_branch` đã được xác định ở trên
-    if user_data.get("role") == 'letan' and not chi_nhanh:
-        # `active_branch` đã chứa B10 (hoặc chi nhánh đúng)
+    if user_data.get("role") not in ['admin', 'boss']:
         branch_to_filter = active_branch
 
     # SỬA: Gọi hàm filter mới
@@ -1415,12 +1401,10 @@ async def get_dashboard_summary(
             date_filters_log.append(extract('year', ShiftCloseLog.closed_datetime) == now.year)
 
         # Lọc chi nhánh
-        active_branch_for_letan = None
         branch_filter_value = chi_nhanh
 
-        if user_data.get("role") == 'letan':
-            active_branch_for_letan = get_active_branch(request, db, user_data)
-            branch_filter_value = active_branch_for_letan # Lễ tân bắt buộc lọc theo chi nhánh của mình
+        if user_data.get("role") not in ['admin', 'boss']:
+            branch_filter_value = get_active_branch(request, db, user_data)
 
         # --- 2. QUERY 1: LỊCH SỬ KẾT CA (Recent Closes) ---
         # Query này độc lập, luôn Join Branch và Closer để lấy tên hiển thị
@@ -2120,8 +2104,12 @@ async def get_shift_analytics(
     Chỉ dành cho Admin/Boss/Quản lý.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss", "quanly"]:
+    if not user_data or user_data.get("role") not in ["admin", "boss", "quanly", "letan"]:
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
+
+    branch_filter_value = chi_nhanh
+    if user_data.get("role") not in ["admin", "boss"]:
+        branch_filter_value = get_active_branch(request, db, user_data)
 
     now = datetime.now(VN_TZ)
     filter_month = month if month else now.month
@@ -2129,9 +2117,9 @@ async def get_shift_analytics(
     view_mode = "year" if view == "year" else "month"
 
     def _apply_branch(query, relation):
-        if not chi_nhanh:
+        if not branch_filter_value:
             return query
-        return query.join(relation).filter(Branch.branch_code == chi_nhanh)
+        return query.join(relation).filter(Branch.branch_code == branch_filter_value)
 
     def _log_period_filter(query):
         query = query.filter(extract('year', ShiftCloseLog.closed_datetime) == filter_year)
@@ -2195,8 +2183,8 @@ async def get_shift_analytics(
         reconciliation_gap = total_pms - reconciled_total
 
         branch_rows_query = _log_period_filter(db.query(ShiftCloseLog).join(ShiftCloseLog.branch))
-        if chi_nhanh:
-            branch_rows_query = branch_rows_query.filter(Branch.branch_code == chi_nhanh)
+        if branch_filter_value:
+            branch_rows_query = branch_rows_query.filter(Branch.branch_code == branch_filter_value)
         branch_rows = branch_rows_query.with_entities(
             Branch.branch_code,
             func.coalesce(func.sum(ShiftCloseLog.pms_revenue), 0).label('pms'),
@@ -2209,7 +2197,7 @@ async def get_shift_analytics(
         branch_tx_map: dict[str, list[ShiftReportTransaction]] = {}
         for tx in branch_txs:
             branch_code = tx.branch.branch_code if tx.branch else "N/A"
-            if chi_nhanh and branch_code != chi_nhanh:
+            if branch_filter_value and branch_code != branch_filter_value:
                 continue
             branch_tx_map.setdefault(branch_code, []).append(tx)
 

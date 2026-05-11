@@ -3,57 +3,59 @@
 {% block page_title %}Tình trạng phòng{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/static/css/pms/reservation_hub/base.css">
-<link rel="stylesheet" href="/static/css/pms/reservation_hub/theme.css">
-<link rel="stylesheet" href="/static/css/pms/reservation_hub/palette.css">
-<link rel="stylesheet" href="/static/css/pms/room_status.css">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/base.css?v=2.3">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/theme.css?v=2.3">
+<link rel="stylesheet" href="/static/css/pms/reservation_hub/palette.css?v=2.3">
+<link rel="stylesheet" href="/static/css/pms/room_status.css?v=2.3">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 {% endblock %}
 
 {% block content %}
-<div class="rs-page-wrap">
+<div id="pms-room-status-page" class="rs-page-wrap">
   <div class="rs-main-content">
     <section class="rs-stats-overview">
-      <div class="rs-stat-card">
+      <div class="rs-stat-card total">
         <div class="rs-stat-icon-bg blue"><i class="ph ph-bed"></i></div>
         <div class="rs-stat-info">
           <span class="rs-stat-label">Tổng số phòng</span>
           <div class="rs-stat-value"><span id="rs-stat-total">—</span></div>
         </div>
       </div>
-      <div class="rs-stat-card">
+      <div class="rs-stat-card occupied">
         <div class="rs-stat-icon-bg green"><i class="ph ph-user-check"></i></div>
         <div class="rs-stat-info">
           <span class="rs-stat-label">Đang ở</span>
           <div class="rs-stat-value"><span id="rs-stat-occupied">—</span></div>
         </div>
       </div>
-      <div class="rs-stat-card">
+      <div class="rs-stat-card booked">
         <div class="rs-stat-icon-bg indigo"><i class="ph ph-calendar-check"></i></div>
         <div class="rs-stat-info">
           <span class="rs-stat-label">Đã đặt</span>
           <div class="rs-stat-value"><span id="rs-stat-booked">—</span></div>
         </div>
       </div>
-      <div class="rs-stat-card">
+      <div class="rs-stat-card cleaning">
         <div class="rs-stat-icon-bg yellow"><i class="ph ph-sparkle"></i></div>
         <div class="rs-stat-info">
           <span class="rs-stat-label">Đang dọn</span>
           <div class="rs-stat-value"><span id="rs-stat-cleaning">—</span></div>
         </div>
       </div>
-      <div class="rs-stat-card">
+      <div class="rs-stat-card maintenance">
         <div class="rs-stat-icon-bg gray"><i class="ph ph-wrench"></i></div>
         <div class="rs-stat-info">
           <span class="rs-stat-label">Bảo trì</span>
           <div class="rs-stat-value"><span id="rs-stat-maintenance">—</span></div>
         </div>
       </div>
-      <div class="rs-stat-card rs-stat-chart-card">
+      <div class="rs-stat-card rs-stat-chart-card occupancy">
         <div class="rs-mini-chart-wrap">
           <svg viewBox="0 0 36 36" class="rs-circular-chart green">
-            <path class="rs-circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-            <path id="rs-stat-occ-path" class="rs-circle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path class="rs-circle-bg"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path id="rs-stat-occ-path" class="rs-circle" stroke-dasharray="0, 100"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
             <text x="18" y="20.35" class="rs-percentage" id="rs-stat-occ-text">0%</text>
           </svg>
         </div>
@@ -71,13 +73,15 @@
           <i class="ph-fill ph-house-line"></i>
           <select id="rs-branch" aria-label="Chọn chi nhánh" onchange="RoomStatus.changeBranch(this.value)">
             {% for b in branches %}
-            <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>
+            <option value="{{ b.id }}" {% if branch and branch.id==b.id %}selected{% endif %}>{{ b.name }}</option>
             {% endfor %}
           </select>
         </div>
         {% endif %}
-        <button class="rs-btn-action warning" id="rs-block-open-btn" type="button" onclick="RoomStatus.openBlockModal()" hidden><i class="ph ph-lock-key"></i> Khóa phòng</button>
-        <button class="rs-btn-refresh" type="button" aria-label="Tải lại dữ liệu" onclick="RoomStatus.refresh()"><i class="ph ph-arrows-clockwise"></i></button>
+        <button class="rs-btn-action warning" id="rs-block-open-btn" type="button" onclick="RoomStatus.openBlockModal()"
+          hidden><i class="ph ph-lock-key"></i> Khóa phòng</button>
+        <button class="rs-btn-refresh" type="button" aria-label="Tải lại dữ liệu" onclick="RoomStatus.refresh()"><i
+            class="ph ph-arrows-clockwise"></i></button>
       </div>
 
       <div class="rs-toolbar-center">
@@ -128,7 +132,6 @@
               <span class="rs-eyebrow">Bảng chi tiết</span>
               <h3>Số lượng phòng trống theo loại phòng</h3>
             </div>
-            <span class="rs-section-meta" id="rs-day-detail-meta">Đang tải dữ liệu</span>
           </div>
           <div class="rs-table-container">
             <table class="rs-data-table">
@@ -182,14 +185,10 @@
       </div>
 
       <aside class="rs-day-sidebar">
-        <div class="rs-sidebar-header">
-          <h3 id="rs-sidebar-title">Chi tiết ngày</h3>
-          <span id="rs-sidebar-subtitle"></span>
-        </div>
-
         <div class="rs-sidebar-stat-card">
           <div class="rs-stat-info">
-            <div class="rs-stat-value-row"><span class="rs-stat-value" id="rs-sidebar-avail-count">—</span><span class="rs-stat-unit">phòng</span></div>
+            <div class="rs-stat-value-row"><span class="rs-stat-value" id="rs-sidebar-avail-count">—</span><span
+                class="rs-stat-unit">phòng</span></div>
             <div class="rs-stat-label">Còn trống</div>
             <div class="rs-stat-sub" id="rs-sidebar-avail-pct">—</div>
           </div>
@@ -235,7 +234,6 @@
   </div>
 
 </div>
-</div>
 
 <div class="rs-modal" id="rs-assign-modal" aria-hidden="true" hidden>
   <div class="rs-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="rs-assign-title">
@@ -268,7 +266,8 @@
         <h2 id="rs-waitlist-title">Booking chờ gán phòng</h2>
         <p id="rs-waitlist-meta">Chọn booking để mở danh sách phòng phù hợp.</p>
       </div>
-      <button class="rs-modal-close" type="button" onclick="RoomStatus.closeWaitlistModal()" aria-label="Đóng">×</button>
+      <button class="rs-modal-close" type="button" onclick="RoomStatus.closeWaitlistModal()"
+        aria-label="Đóng">×</button>
     </div>
     <div class="rs-modal-body">
       <div id="rs-waitlist-list" class="rs-waitlist-list"></div>
@@ -314,7 +313,8 @@
     </div>
     <div class="rs-modal-foot">
       <button class="rs-icon-btn-sm rs-block-cancel" type="button" onclick="RoomStatus.closeBlockModal()">Hủy</button>
-      <button class="rs-block-submit" id="rs-block-submit" type="button" onclick="RoomStatus.submitBlock()">Lưu khóa phòng</button>
+      <button class="rs-block-submit" id="rs-block-submit" type="button" onclick="RoomStatus.submitBlock()">Lưu khóa
+        phòng</button>
     </div>
   </div>
 </div>
@@ -322,7 +322,7 @@
 
 {% block scripts %}
 <script>
-window.PMS_ROOM_STATUS_BOOT = JSON.parse('{{ boot_json|safe }}');
+  window.PMS_ROOM_STATUS_BOOT = JSON.parse('{{ boot_json|safe }}');
 </script>
 <script src="/static/js/pms/pms_common.js"></script>
 <script src="/static/js/pms/room_status.js"></script>

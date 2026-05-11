@@ -1,6 +1,6 @@
 from fastapi import Request, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Any, Optional
 import secrets
 
 # Import model User để truy vấn
@@ -8,6 +8,15 @@ from ..db.models import User, AttendanceLog
 from ..db.session import SessionLocal
 from .utils import get_current_work_shift
 from .config import logger
+
+def get_branch_code(branch_value: Any) -> Optional[str]:
+    """
+    Chuẩn hóa dữ liệu chi nhánh về branch_code dạng string để dùng an toàn
+    trong session, template, và JSON response.
+    """
+    if isinstance(branch_value, str):
+        return branch_value
+    return getattr(branch_value, "branch_code", None)
 
 # === HÀM MỚI ĐƯỢC CHUYỂN VÀO ===
 def get_active_branch(request: Request, db: Session, user_data: dict) -> Optional[str]:
@@ -18,17 +27,17 @@ def get_active_branch(request: Request, db: Session, user_data: dict) -> Optiona
     3. Chi nhánh mặc định của user (fallback).
     """
     # 1. Lấy từ session (ưu tiên cao nhất)
-    active_branch = request.session.get("active_branch")
+    active_branch = get_branch_code(request.session.get("active_branch"))
     if active_branch:
         return active_branch
 
     # 2. Lấy từ DB
     user_from_db = db.query(User).filter(User.id == user_data.get("id")).first()
     if user_from_db and user_from_db.last_active_branch:
-        return user_from_db.last_active_branch
+        return get_branch_code(user_from_db.last_active_branch)
 
     # 3. Lấy từ chi nhánh mặc định trong session
-    return user_data.get("branch")
+    return get_branch_code(user_data.get("branch"))
 
 def require_checked_in_user(request: Request):
     user = request.session.get("user")

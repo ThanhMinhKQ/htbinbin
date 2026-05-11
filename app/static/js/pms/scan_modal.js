@@ -31,6 +31,11 @@ let _smLastInputTime    = 0;
 let _smFirstInputTime   = 0;
 let _smStreamDetected   = false;     // true once scanner-speed chars detected
 let _smSessionStats     = { ok: 0, fail: 0 };
+let _smCameraStream    = null;
+let _smCameraRaf       = null;
+let _smCameraActive    = false;
+let _smBarcodeDetector = null;
+let _smLastCameraText  = '';
 
 /* ═══════════════════════════════════════════════════════════════════
    ARCHITECTURE: INPUT-FIRST, SINGLE-SOURCE-OF-TRUTH
@@ -62,16 +67,15 @@ function _smEl(id) { return document.getElementById(id); }
    ═══════════════════════════════════════════════════════════════════ */
 function _smSanitizeRaw(raw) {
     if (!raw) return '';
-    let s = raw;
-    // 1. Drop NULL bytes & non-printable control chars (keep tabs just in case)
+    let s = String(raw);
+    if (typeof s.normalize === 'function') s = s.normalize('NFKC');
+    s = s.replace(/﻿/g, '');
     s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    // 2. Flatten line-endings
     s = s.replace(/\r\n|\r|\n/g, '');
-    // 3. Fix triple-or-more pipes → double (CAN_CUOC_MOI uses ||, so don't collapse those)
+    s = s.replace(/[｜¦]/g, '|');
     s = s.replace(/\|{3,}/g, '||');
-    // 4. Trim
-    s = s.trim();
-    return s;
+    if (typeof s.normalize === 'function') s = s.normalize('NFC');
+    return s.trim();
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -87,6 +91,7 @@ function openScanModal(onSuccess) {
     _smFirstInputTime = 0;
     _smLastInputTime  = 0;
     _clearAllTimers();
+    _smResetCameraUi();
 
     // ── Reset UI ────────────────────────────────────────────────
     _smSetIcon(
@@ -123,6 +128,7 @@ function openScanModal(onSuccess) {
 }
 
 function scanModalClose() {
+    _smStopCamera();
     _smDisarmScanner();
     _clearAllTimers();
     _smActive       = false;
@@ -138,6 +144,7 @@ function scanModalClose() {
 }
 
 function scanModalBack() {
+    _smStopCamera();
     _smReset();
     _smToggleScannerPanel(true);
     _smUpdateScannerStatus('scanning');
@@ -160,7 +167,7 @@ function scanModalBack() {
    We aggressively keep sm-test-input focused.
    ═══════════════════════════════════════════════════════════════════ */
 function _smFocusInput() {
-    if (!_smActive) return;
+    if (!_smActive || _smCameraActive) return;
     const input = _smEl('sm-test-input');
     if (!input) return;
     if (document.activeElement !== input) {
@@ -185,7 +192,7 @@ function _smStartFocusGuard() {
             if (indicator) indicator.classList.add('sm-focus-lost');
             // Re-capture only when modal is visible and not processing
             const modal = _smEl('scanModal');
-            if (modal && modal.classList.contains('show') && !_smProcessing) {
+            if (modal && modal.classList.contains('show') && !_smProcessing && !_smCameraActive) {
                 input.focus({ preventScroll: true });
             }
         }
@@ -197,7 +204,7 @@ function _smStartFocusGuard() {
 }
 
 function _smOnModalClick(e) {
-    if (!_smActive || _smProcessing) return;
+    if (!_smActive || _smProcessing || _smCameraActive) return;
     const tag = (e.target.tagName || '').toUpperCase();
     if (tag === 'BUTTON' || tag === 'A') return; // let buttons work
     _smFocusInput();
@@ -361,8 +368,7 @@ function _smProcessNow(trigger) {
     const input  = _smEl('sm-test-input');
     const raw    = _smSanitizeRaw(input ? input.value : '');
 
-    console.log(`[SCAN] _smProcessNow (${trigger}), ${raw.length} chars:`,
-                raw.length > 60 ? raw.slice(0, 60) + '…' : raw);
+    console.log(`[SCAN] _smProcessNow (${trigger}), ${raw.length} chars`);
 
     // ── Enough data → process ───────────────────────────────────
     if (raw.length >= SM_MIN_LEN) {
@@ -417,9 +423,203 @@ function scanModalTestInput() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   CAMERA SCAN
+   ═══════════════════════════════════════════════════════════════════ */
+function _smSetCameraStatus(message, state) {
+    const el = _smEl('sm-camera-status');
+    if (!el) return;
+    el.textContent = message || '';
+    el.classList.remove('error', 'ok');
+    if (state) el.classList.add(state);
+}
+
+function _smResetCameraUi() {
+    _smLastCameraText = '';
+    _smCameraActive = false;
+    _smSetCameraStatus('', '');
+
+    const startBtn = _smEl('sm-camera-start-btn');
+    const stopBtn = _smEl('sm-camera-stop-btn');
+    const viewport = _smEl('sm-scanner-viewport');
+    const video = _smEl('sm-camera-video');
+
+    if (startBtn) startBtn.hidden = false;
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.hidden = true;
+    if (viewport) viewport.classList.remove('camera-active');
+    if (video) video.srcObject = null;
+}
+
+function _smStopCamera() {
+    if (_smCameraRaf) {
+        cancelAnimationFrame(_smCameraRaf);
+        _smCameraRaf = null;
+    }
+
+    if (_smCameraStream) {
+        _smCameraStream.getTracks().forEach(track => track.stop());
+        _smCameraStream = null;
+    }
+
+    _smCameraActive = false;
+
+    const startBtn = _smEl('sm-camera-start-btn');
+    const stopBtn = _smEl('sm-camera-stop-btn');
+    const viewport = _smEl('sm-scanner-viewport');
+    const video = _smEl('sm-camera-video');
+
+    if (startBtn) startBtn.hidden = false;
+    if (startBtn) startBtn.disabled = false;
+    if (stopBtn) stopBtn.hidden = true;
+    if (viewport) viewport.classList.remove('camera-active');
+    if (video) video.srcObject = null;
+}
+
+function scanModalStopCamera() {
+    _smStopCamera();
+    _smSetCameraStatus('Đã tắt camera. Bạn vẫn có thể quét bằng máy quét hoặc nhập tay.', '');
+    if (_smActive && !_smProcessing) _smFocusInput();
+}
+
+async function scanModalStartCamera() {
+    if (!_smActive || _smProcessing || _smCameraActive) return;
+
+    if (!window.isSecureContext) {
+        _smSetCameraStatus('Camera chỉ hoạt động trên HTTPS hoặc localhost.', 'error');
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        _smSetCameraStatus('Trình duyệt này chưa hỗ trợ truy cập camera.', 'error');
+        return;
+    }
+    if (typeof window.BarcodeDetector !== 'function' && typeof window.jsQR !== 'function') {
+        _smSetCameraStatus('Trình duyệt chưa hỗ trợ đọc QR bằng camera. Vui lòng dùng máy quét hoặc nhập tay.', 'error');
+        return;
+    }
+
+    const video = _smEl('sm-camera-video');
+    if (!video) return;
+
+    const startBtn = _smEl('sm-camera-start-btn');
+    if (startBtn) startBtn.disabled = true;
+    _smSetCameraStatus('Đang mở camera…', '');
+
+    try {
+        _smStopFocusGuard();
+        _smCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false,
+        });
+
+        video.srcObject = _smCameraStream;
+        await video.play();
+
+        _smCameraActive = true;
+        _smLastCameraText = '';
+        _smUpdateCameraUi(true);
+        _smSetCameraStatus('Đưa mã QR CCCD vào khung camera.', 'ok');
+        _smStartCameraDecodeLoop();
+    } catch (err) {
+        _smStopCamera();
+        _armScanner();
+        _smFocusInput();
+        _smSetCameraStatus(_smCameraErrorMessage(err), 'error');
+    }
+}
+
+function _smUpdateCameraUi(active) {
+    const startBtn = _smEl('sm-camera-start-btn');
+    const stopBtn = _smEl('sm-camera-stop-btn');
+    const viewport = _smEl('sm-scanner-viewport');
+
+    if (startBtn) {
+        startBtn.hidden = active;
+        startBtn.disabled = false;
+    }
+    if (stopBtn) stopBtn.hidden = !active;
+    if (viewport) viewport.classList.toggle('camera-active', active);
+}
+
+function _smCameraErrorMessage(err) {
+    const name = err && err.name ? err.name : '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') return 'Bạn chưa cấp quyền camera. Hãy cấp quyền rồi thử lại.';
+    if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'Không tìm thấy camera phù hợp trên thiết bị.';
+    if (name === 'NotReadableError') return 'Camera đang bận hoặc không thể mở. Hãy đóng ứng dụng khác đang dùng camera.';
+    return 'Không mở được camera. Bạn vẫn có thể dùng máy quét hoặc nhập tay.';
+}
+
+function _smStartCameraDecodeLoop() {
+    if (typeof window.BarcodeDetector === 'function' && !_smBarcodeDetector) {
+        try { _smBarcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+        catch (_) { _smBarcodeDetector = null; }
+    }
+
+    if (!_smBarcodeDetector && typeof window.jsQR !== 'function') {
+        _smStopCamera();
+        _armScanner();
+        _smFocusInput();
+        _smSetCameraStatus('Trình duyệt chưa hỗ trợ đọc QR bằng camera. Vui lòng dùng máy quét hoặc nhập tay.', 'error');
+        return;
+    }
+
+    const loop = async () => {
+        if (!_smCameraActive || _smProcessing) return;
+
+        const decoded = await _smDecodeCameraFrame();
+        const raw = _smSanitizeRaw(decoded || '');
+        if (raw.length >= SM_MIN_LEN && raw !== _smLastCameraText) {
+            _smLastCameraText = raw;
+            _smSetCameraStatus('Đã đọc QR, đang xử lý…', 'ok');
+            _smStopCamera();
+            _smProcessScan(raw);
+            return;
+        }
+
+        _smCameraRaf = requestAnimationFrame(loop);
+    };
+
+    _smCameraRaf = requestAnimationFrame(loop);
+}
+
+async function _smDecodeCameraFrame() {
+    const video = _smEl('sm-camera-video');
+    if (!video || video.readyState < 2) return '';
+
+    if (_smBarcodeDetector) {
+        try {
+            const codes = await _smBarcodeDetector.detect(video);
+            if (codes && codes.length) return codes[0].rawValue || '';
+        } catch (_) {}
+    }
+
+    if (typeof window.jsQR === 'function') {
+        return _smDecodeWithJsQr(video);
+    }
+
+    return '';
+}
+
+function _smDecodeWithJsQr(video) {
+    const canvas = _smEl('sm-camera-canvas');
+    if (!canvas || !video.videoWidth || !video.videoHeight) return '';
+
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return '';
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+    return code && code.data ? code.data : '';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    PROCESS SCAN → API  +  LOCAL FALLBACK
    ═══════════════════════════════════════════════════════════════════ */
 function _smProcessScan(raw) {
+    _smStopCamera();
     _smDisarmScanner();
     clearTimeout(_smTimeoutTimer);
     _smProcessing = true;
@@ -428,7 +628,7 @@ function _smProcessScan(raw) {
     const input = _smEl('sm-test-input');
     if (input) input.value = '';
 
-    console.log('[SCAN] Processing', raw.length, 'chars:', raw.slice(0, 80));
+    console.log('[SCAN] Processing', raw.length, 'chars');
 
     // ── Show loading state ──────────────────────────────────────
     _smUpdateScannerStatus('scanning');
@@ -482,6 +682,7 @@ function _backendToLocal(data) {
         error:         data.error || '',
         raw_cleaned:   data.raw_cleaned || '',
         card_type:     data.card_type || '',
+        address_mode:  data.address_mode || '',
         id_number:     data.id_number || '',
         old_id:        data.old_id || '',
         cccd:          data.id_number || data.old_id || '',
@@ -818,9 +1019,6 @@ function _smRenderError(p) {
     panel.innerHTML = `
       <div class="sm-error-block">
         <div class="sm-error-title">${_esc(p.error || 'Không nhận diện được dữ liệu')}</div>
-        ${p.raw_cleaned ? `
-        <div class="sm-error-raw">${_esc(p.raw_cleaned.slice(0, 120))}${p.raw_cleaned.length > 120 ? '…' : ''}</div>
-        ` : ''}
       </div>`;
 }
 
@@ -841,7 +1039,9 @@ function _esc(s) {
 /* ═══════════════════════════════════════════════════════════════════
    EXPORT
    ═══════════════════════════════════════════════════════════════════ */
-window.openScanModal      = openScanModal;
-window.scanModalClose     = scanModalClose;
-window.scanModalBack      = scanModalBack;
-window.scanModalTestInput = scanModalTestInput;
+window.openScanModal        = openScanModal;
+window.scanModalClose       = scanModalClose;
+window.scanModalBack        = scanModalBack;
+window.scanModalTestInput   = scanModalTestInput;
+window.scanModalStartCamera = scanModalStartCamera;
+window.scanModalStopCamera  = scanModalStopCamera;

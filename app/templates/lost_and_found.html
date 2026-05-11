@@ -56,9 +56,15 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <template x-for="i in 5" :key="`stat-skeleton-${i}`">
+                <div x-show="dashboardLoading" class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm" aria-hidden="true">
+                    <div class="skeleton mx-auto mb-3" style="width: 64px; height: 32px;"></div>
+                    <div class="skeleton skeleton-text mx-auto" style="width: 110px;"></div>
+                </div>
+            </template>
             <!-- Stat Cards -->
             <template x-for="stat in dashboardStats.cards" :key="stat.label">
-                <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-center items-center shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.03]">
+                <div x-show="!dashboardLoading" class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col justify-center items-center shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.03]">
                     <div class="text-3xl font-bold" :class="stat.color" x-text="stat.value">0</div>
                     <div class="text-sm text-slate-600 dark:text-slate-300 mt-2" x-text="stat.label"></div>
                 </div>
@@ -203,11 +209,17 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-if="loading">
-                        <tr>
-                            <td :colspan="canDelete ? (userRole === 'letan' ? 8 : 9) : (userRole === 'letan' ? 7 : 8)" class="text-center py-16">
-                                <p class="text-slate-500 dark:text-slate-400">Đang tải dữ liệu...</p>
-                            </td>
+                    <template x-for="i in (loading ? 6 : 0)" :key="`lost-row-skeleton-${i}`">
+                        <tr class="bg-white border-b dark:bg-slate-900 dark:border-slate-700" aria-hidden="true">
+                            <td x-show="canDelete" class="px-4 py-3"><div class="skeleton mx-auto" style="width: 16px; height: 16px;"></div></td>
+                            <td x-show="userRole === 'quanly' || userRole === 'admin' || userRole === 'boss'" class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 70%;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 85%;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 95%;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 75%;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 80%;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width: 70%;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton skeleton-badge mx-auto" style="width: 92px;"></div></td>
+                            <td class="px-4 py-3"><div class="skeleton mx-auto" style="width: 72px; height: 20px;"></div></td>
                         </tr>
                     </template>
                     <template x-if="records.length === 0 && !loading">
@@ -266,9 +278,28 @@
     <div id="error" class="hidden text-center py-16 bg-rose-100 text-rose-700 rounded-lg"><p>Có lỗi xảy ra khi tải dữ liệu.</p></div>
 
     <div class="block lg:hidden w-full scroll-smooth space-y-4">
-        <template x-if="loading">
-             <div class="text-center py-16 text-slate-500 dark:text-slate-400">Đang tải dữ liệu...</div>
-        </template>
+        <div x-show="loading" class="space-y-4" role="status" aria-label="Đang tải dữ liệu đồ thất lạc">
+            <template x-for="i in 4" :key="`lost-card-skeleton-${i}`">
+                <div class="skeleton-card border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" aria-hidden="true">
+                    <div class="flex justify-between items-start gap-4">
+                        <div class="flex-1">
+                            <div class="skeleton skeleton-text-lg" style="width: 68%;"></div>
+                            <div class="skeleton skeleton-text" style="width: 36%;"></div>
+                        </div>
+                        <div class="skeleton skeleton-badge" style="width: 92px;"></div>
+                    </div>
+                    <div class="mt-4 space-y-2">
+                        <div class="skeleton skeleton-text" style="width: 90%;"></div>
+                        <div class="skeleton skeleton-text" style="width: 74%;"></div>
+                        <div class="skeleton skeleton-text" style="width: 62%;"></div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700">
+                        <div class="skeleton skeleton-text" style="width: 44%;"></div>
+                    </div>
+                </div>
+            </template>
+            <span class="sr-only">Đang tải dữ liệu...</span>
+        </div>
         <template x-if="records.length === 0 && !loading">
             <div class="text-center py-16 text-slate-500 dark:text-slate-400">
                 Không tìm thấy món đồ nào.
@@ -348,7 +379,7 @@
                     {% endif %}
 
                     <div x-show="userRole === 'admin' || userRole === 'boss'" class="relative sm:col-span-2">
-                        <label for="add_recorded_by" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người tạo</label>
+                        <label for="add_recorded_by_search" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người tạo</label>
                         <input type="text" id="add_recorded_by_search" placeholder="Mặc định là bạn, hoặc tìm người khác..." autocomplete="off"
                                @input.debounce.300ms="searchRecorders($event.target.value)"
                                @focus="searchRecorders($event.target.value)"
@@ -373,7 +404,7 @@
                     </div>
     
                     <div class="relative">
-                        <label for="add_reported_by" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người phát hiện <span class="text-rose-500">*</span></label>
+                        <label for="add_reported_by_search" class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Người phát hiện <span class="text-rose-500">*</span></label>
                         <input type="text" id="add_reported_by_search" placeholder="Tìm tên nhân viên..." autocomplete="off"
                                @input.debounce.300ms="document.getElementById('add_reported_by').value = ''; searchReporters($event.target.value)"
                                @focus="searchReporters($event.target.value)"
@@ -828,6 +859,7 @@
             
             // State cho dashboard
             dashboardStats: { cards: [], daily: { labels: [], data: [] }, status: {} },
+            dashboardLoading: true,
             dailyChart: null,
             pieChart: null,
 
@@ -1059,6 +1091,7 @@
                 }
 
                 try {
+                    this.dashboardLoading = true;
                     const response = await fetch(`/lost-and-found/api/dashboard-stats?${params.toString()}`);
                     if (!response.ok) throw new Error('Lỗi tải dữ liệu dashboard');
                     const data = await response.json();
@@ -1076,6 +1109,8 @@
 
                 } catch (error) {
                     console.error("Lỗi fetch dashboard:", error);
+                } finally {
+                    this.dashboardLoading = false;
                 }
             },
 

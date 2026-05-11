@@ -33,6 +33,8 @@
       <!-- SCANNER PANEL — visible while waiting, hidden after success -->
       <div class="sm-scanner-panel" id="sm-scanner-panel">
         <div class="sm-scanner-viewport" id="sm-scanner-viewport">
+          <video id="sm-camera-video" class="sm-camera-video" playsinline muted autoplay></video>
+          <canvas id="sm-camera-canvas" class="sm-camera-canvas" hidden></canvas>
           <!-- Corner brackets -->
           <div class="sm-corner-tl"></div>
           <div class="sm-corner-tr"></div>
@@ -59,6 +61,17 @@
           <span class="sm-focus-indicator" id="sm-focus-indicator" title="Trạng thái nhận dữ liệu">
             <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="10"/></svg>
           </span>
+        </div>
+
+        <div class="sm-camera-row" id="sm-camera-row">
+          <button type="button" class="sm-camera-btn sm-camera-btn--start" id="sm-camera-start-btn" onclick="scanModalStartCamera()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Quét bằng camera
+          </button>
+          <button type="button" class="sm-camera-btn sm-camera-btn--stop" id="sm-camera-stop-btn" onclick="scanModalStopCamera()" hidden>
+            Tắt camera
+          </button>
+          <span class="sm-camera-status" id="sm-camera-status"></span>
         </div>
 
         <!-- Live preview — shows real-time data as scanner types -->

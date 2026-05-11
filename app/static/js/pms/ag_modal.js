@@ -850,7 +850,7 @@ async function agFillFromScan(parsed) {
 
     const cardType = parsed.card_type || 'CCCD_CU';
     if (typeof pmsMatchAddressToForm === 'function') {
-        await pmsMatchAddressToForm(parsed.address, 'ag', cardType);
+        await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ag', cardType);
     }
     if (typeof pmsShowAddressValidationIssues === 'function') {
         pmsShowAddressValidationIssues('ag');
