@@ -2,7 +2,9 @@ from fastapi import APIRouter
 from .overview import router as overview_router
 from .master_data import router as master_data_router
 from .imports import router as imports_router
-from .exports import router as exports_router
+from .requests import router as requests_router
+from .transfer_actions import router as transfer_actions_router
+from .page_load import router as page_load_router
 from .direct_exports import router as direct_exports_router
 from .transfer_images import router as transfer_images_router
 from .suppliers import router as suppliers_router
@@ -19,7 +21,9 @@ router_ui = APIRouter()
 router.include_router(overview_router, tags=["Inventory Overview"])
 router.include_router(master_data_router, tags=["Inventory Master Data"])
 router.include_router(imports_router, tags=["Inventory Imports"])
-router.include_router(exports_router, tags=["Inventory Transfers"])
+router.include_router(requests_router, tags=["Inventory Requests"])
+router.include_router(transfer_actions_router, tags=["Inventory Transfer Actions"])
+router.include_router(page_load_router, tags=["Inventory Page Load"])
 router.include_router(direct_exports_router, tags=["Inventory Direct Exports"])
 router.include_router(transfer_images_router, tags=["Inventory Transfer Images"])
 router.include_router(suppliers_router, tags=["Inventory Suppliers"])

@@ -1,5 +1,4 @@
-export default function (totalRecords, currentPage, totalPages) {
-    // Determine default date range: Current Month
+export default function (totalRecords, currentPage, totalPages, config = {}) {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -15,43 +14,37 @@ export default function (totalRecords, currentPage, totalPages) {
     const defaultEnd = formatDate(lastDay);
 
     return {
-        currentTab: 'requests', // 'requests', 'approvals', 'overview'
+        currentTab: 'requests',
         productList: [],
         categoryList: [],
         currentBranchId: null,
-        currentWarehouseId: null,  // [NEW] Warehouse ID for the current branch
-        userRole: window.USER_ROLE || null,  // User's role for permission checks
+        currentWarehouseId: null,
+        userRole: window.USER_ROLE || null,
 
-        // Data Lists
         historyList: [],
         approvalsList: [],
         stocks: [],
 
-        // [NEW] Global Data for Exports/Admin
         allWarehouses: [],
         branches: [],
+        isCurrentWarehouseMain: false,
         isCurrentBranchAdmin: false,
 
-        // [NEW] Normalized Data for Stable Rendering
         normalizedCategories: [],
         normalizedProducts: [],
 
-        // Pagination
         currentPage: currentPage || 1,
         totalPages: totalPages || 1,
         totalRecords: totalRecords || 0,
         perPage: 10,
 
-        // Approval Pagination
         currentApprovalPage: 1,
         totalApprovalPages: 1,
         totalApprovalRecords: 0,
 
-        // Sorting
         currentSortBy: 'created_at',
         currentSortOrder: 'desc',
 
-        // Filters
         filters: {
             status: '',
             search: '',
@@ -59,7 +52,6 @@ export default function (totalRecords, currentPage, totalPages) {
             date_to: defaultEnd
         },
 
-        // [NEW] Filters for Approvals
         approvalFilter: 'PENDING',
         approvalFilters: {
             search: '',
@@ -70,11 +62,9 @@ export default function (totalRecords, currentPage, totalPages) {
         loadingApprovals: false,
         isLoadingApprovalDetails: false,
 
-        // Selection
         selectedIds: [],
         lastCheckedId: null,
 
-        // UI States
         loading: false,
         isCreateModalOpen: false,
         isEditModalOpen: false,
@@ -83,7 +73,7 @@ export default function (totalRecords, currentPage, totalPages) {
         editingId: null,
 
         viewingRequestTicket: null,
-        viewingImage: null,  // For image lightbox
+        viewingImage: null,
         viewingApprovalTicket: null,
 
         viewingChildTicket: null,
@@ -91,7 +81,6 @@ export default function (totalRecords, currentPage, totalPages) {
         receivingTicket: null,
         isSubmitting: false,
 
-        // Import Tab States
         isImportModalOpen: false,
         isEditImportModalOpen: false,
         importsList: [],
@@ -100,7 +89,6 @@ export default function (totalRecords, currentPage, totalPages) {
         totalImportRecords: 0,
         loadingImports: false,
 
-        // Import Sorting & Selection
         selectedImportIds: [],
         importSort: { column: 'created_at', order: 'desc' },
         importFilters: {
@@ -110,13 +98,11 @@ export default function (totalRecords, currentPage, totalPages) {
         },
         lastCheckedImportIndex: null,
 
-        // Import Detail & Edit States
         isImportDetailModalOpen: false,
         importDetail: null,
         loadingImportDetail: false,
         editingImportId: null,
 
-        // Forms
         createForm: {
             source_warehouse_id: '',
             product_search: '',
@@ -153,7 +139,6 @@ export default function (totalRecords, currentPage, totalPages) {
         approvalGroups: [],
         receiptForm: { items: [], compensation_mode: 'none' },
 
-        // [NEW] Direct Export Form
         isDirectExportModalOpen: false,
         exportForm: {
             dest_warehouse_id: '',
@@ -163,7 +148,6 @@ export default function (totalRecords, currentPage, totalPages) {
             itemGroups: []
         },
 
-        // Export History Tab
         exportList: [],
         currentExportPage: 1,
         totalExportPages: 1,
@@ -199,7 +183,6 @@ export default function (totalRecords, currentPage, totalPages) {
             return Array.from(cats.entries()).map(([id, name]) => ({ id, name }));
         },
 
-        // Computed Helpers for Forms (Moved from generic getters to here or keep as getters)
         getFlatCreateFormItems() {
             let all = [];
             this.createForm.itemGroups.forEach(g => {
@@ -236,10 +219,9 @@ export default function (totalRecords, currentPage, totalPages) {
             return all;
         },
 
-        // [NEW] Initialize currentTab from localStorage
         initCurrentTab() {
-            const savedTab = localStorage.getItem('reception_currentTab');
-            const validTabs = ['requests', 'approvals', 'import', 'export', 'overview'];
+            const savedTab = localStorage.getItem(config.storageKey);
+            const validTabs = config.validTabs || ['requests', 'approvals', 'import', 'export', 'overview'];
             if (savedTab && validTabs.includes(savedTab)) {
                 this.currentTab = savedTab;
             }
