@@ -1,19 +1,19 @@
 :root {
   --rs-font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  --rs-text-primary: #0f172a;
-  --rs-text-secondary: #475569;
-  --rs-text-muted: #64748b;
-  --rs-surface-page: var(--page-bg, #ffffff);
+  --rs-text-primary: #112D4E;
+  --rs-text-secondary: #3F72AF;
+  --rs-text-muted: #475569;
+  --rs-surface-page: #F9F7F7;
   --rs-surface-card: #ffffff;
-  --rs-surface-muted: #ffffff;
-  --rs-surface-soft: #ffffff;
+  --rs-surface-muted: #DBE2EF;
+  --rs-surface-soft: #f8fafc;
   --rs-surface-raised: #ffffff;
-  --rs-border: #e2e8f0;
+  --rs-border: #DBE2EF;
   --rs-border-light: #f1f5f9;
   
-  --rs-accent: #2563eb;
-  --rs-accent-hover: #4b44d3;
-  --rs-accent-soft: rgba(99, 91, 255, 0.08);
+  --rs-accent: #3F72AF;
+  --rs-accent-hover: #112D4E;
+  --rs-accent-soft: rgba(63, 114, 175, 0.1);
   
   --rs-warning-bg: #fffbf2;
   --rs-warning-border: rgba(245, 158, 11, 0.2);
@@ -27,20 +27,20 @@
   --rs-success-border: rgba(16, 185, 129, 0.2);
   --rs-success-text: #0d8252;
   
-  --rs-progress-bg: #e6ebf1;
-  --rs-progress-bg-strong: #d3dce6;
-  --rs-skeleton-a: #e2e8f0;
-  --rs-skeleton-b: #f8fafc;
+  --rs-progress-bg: #DBE2EF;
+  --rs-progress-bg-strong: #3F72AF;
+  --rs-skeleton-a: #DBE2EF;
+  --rs-skeleton-b: #F9F7F7;
   
   --rs-radius-sm: 8px;
   --rs-radius-md: 12px;
   --rs-radius-lg: 16px;
   --rs-radius-xl: 24px;
   
-  --rs-shadow-sm: 0 2px 5px -1px rgba(50, 50, 93, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.03);
-  --rs-shadow-md: 0 4px 12px -2px rgba(50, 50, 93, 0.06), 0 3px 6px -3px rgba(0, 0, 0, 0.04);
-  --rs-shadow-lg: 0 13px 27px -5px rgba(50, 50, 93, 0.1), 0 8px 16px -8px rgba(0, 0, 0, 0.08);
-  --rs-shadow-float: 0 15px 35px rgba(50, 50, 93, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
+  --rs-shadow-sm: 0 2px 5px -1px rgba(17, 45, 78, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.03);
+  --rs-shadow-md: 0 4px 12px -2px rgba(17, 45, 78, 0.06), 0 3px 6px -3px rgba(0, 0, 0, 0.04);
+  --rs-shadow-lg: 0 13px 27px -5px rgba(17, 45, 78, 0.1), 0 8px 16px -8px rgba(0, 0, 0, 0.08);
+  --rs-shadow-float: 0 15px 35px rgba(17, 45, 78, 0.1), 0 5px 15px rgba(0, 0, 0, 0.07);
   
   --rs-toolbar-bg: rgba(255, 255, 255, 0.85);
   --rs-glass-border: rgba(255, 255, 255, 0.5);
@@ -121,11 +121,10 @@ html.dark ::-webkit-scrollbar-thumb:hover,
   display: flex;
   height: 100%;
   background:
-    radial-gradient(ellipse 80% 60% at 5% 40%, rgba(175, 109, 255, 0.48), transparent 67%),
-    radial-gradient(ellipse 70% 60% at 45% 45%, rgba(255, 100, 180, 0.41), transparent 67%),
-    radial-gradient(ellipse 62% 52% at 83% 76%, rgba(255, 235, 170, 0.44), transparent 63%),
-    radial-gradient(ellipse 60% 48% at 75% 20%, rgba(120, 190, 255, 0.36), transparent 66%),
-    linear-gradient(45deg, #f7eaff 0%, #fde2ea 100%);
+    radial-gradient(ellipse 80% 60% at 5% 40%, rgba(63, 114, 175, 0.15), transparent 67%),
+    radial-gradient(ellipse 70% 60% at 45% 45%, rgba(219, 226, 239, 0.4), transparent 67%),
+    radial-gradient(ellipse 62% 52% at 83% 76%, rgba(17, 45, 78, 0.05), transparent 63%),
+    linear-gradient(135deg, #F9F7F7 0%, #DBE2EF 100%);
   background-attachment: fixed;
   color: var(--rs-text-primary);
   font-family: var(--rs-font-family);
@@ -197,11 +196,11 @@ html.dark ::-webkit-scrollbar-thumb:hover,
   opacity: 0.18;
 }
 
-.rs-stat-icon-bg.blue { color: #635bff; }
+.rs-stat-icon-bg.blue { color: #3F72AF; }
 .rs-stat-icon-bg.green { color: #0d8252; }
-.rs-stat-icon-bg.indigo { color: #4b44d3; }
+.rs-stat-icon-bg.indigo { color: #112D4E; }
 .rs-stat-icon-bg.yellow { color: #b44d12; }
-.rs-stat-icon-bg.gray { color: #425466; }
+.rs-stat-icon-bg.gray { color: #475569; }
 
 .rs-stat-info {
   display: flex;
@@ -662,7 +661,7 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 }
 
 .rs-sidebar-stat-card {
-  background: linear-gradient(135deg, var(--rs-accent), #8a2be2);
+  background: linear-gradient(135deg, #3F72AF, #112D4E);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--rs-radius-xl);
   padding: 18px 20px;
@@ -670,7 +669,7 @@ html.dark ::-webkit-scrollbar-thumb:hover,
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 10px 25px -5px rgba(99, 91, 255, 0.4);
+  box-shadow: 0 10px 25px -5px rgba(17, 45, 78, 0.4);
   color: #ffffff;
   position: relative;
   overflow: hidden;
@@ -2289,27 +2288,33 @@ html.dark .rs-booking-bar {
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-/* Room Status skin aligned with CRM / Booking dashboard */
+/* Room Status skin aligned with requested Blue/Navy palette */
 #pms-room-status-page {
-  --rs-sun: #FFE394;
-  --rs-coral: #F48F68;
-  --rs-aqua: #8BDFDD;
-  --rs-cream: #FFF6DE;
-  --rs-accent: var(--rs-coral);
-  --rs-accent-hover: #e97751;
-  --rs-accent-soft: rgba(244, 143, 104, 0.16);
-  --rs-surface-page: var(--page-bg, #ffffff);
-  --rs-surface-card: var(--surface, rgba(255, 255, 255, 0.88));
-  --rs-surface-muted: var(--surface-muted, #f8fafc);
-  --rs-surface-soft: rgba(255, 246, 222, 0.72);
+  --rs-white: #F9F7F7;
+  --rs-blue-light: #DBE2EF;
+  --rs-blue-mid: #3F72AF;
+  --rs-blue-dark: #112D4E;
+  
+  --rs-accent: var(--rs-blue-mid);
+  --rs-accent-hover: var(--rs-blue-dark);
+  --rs-accent-soft: rgba(63, 114, 175, 0.12);
+  
+  --rs-surface-page: var(--rs-white);
+  --rs-surface-card: #ffffff;
+  --rs-surface-muted: var(--rs-blue-light);
+  --rs-surface-soft: rgba(219, 226, 239, 0.3);
   --rs-surface-raised: #ffffff;
-  --rs-border: var(--surface-border, #e2e8f0);
-  --rs-border-light: rgba(244, 143, 104, 0.18);
-  --rs-glass-border: rgba(244, 143, 104, 0.18);
-  --rs-toolbar-bg: rgba(255, 246, 222, 0.72);
-  --rs-shadow-sm: 0 8px 18px rgba(244, 143, 104, 0.08);
-  --rs-shadow-md: 0 14px 34px rgba(244, 143, 104, 0.08);
-  --rs-shadow-float: 0 20px 46px rgba(244, 143, 104, 0.16);
+  
+  --rs-border: rgba(63, 114, 175, 0.18);
+  --rs-border-light: rgba(63, 114, 175, 0.1);
+  --rs-glass-border: rgba(63, 114, 175, 0.15);
+  
+  --rs-toolbar-bg: rgba(219, 226, 239, 0.4);
+  
+  --rs-shadow-sm: 0 8px 18px rgba(17, 45, 78, 0.05);
+  --rs-shadow-md: 0 14px 34px rgba(17, 45, 78, 0.08);
+  --rs-shadow-float: 0 20px 46px rgba(17, 45, 78, 0.12);
+  
   height: 100%;
   min-height: calc(100vh - 60px);
   margin: 0;
@@ -2339,14 +2344,14 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-timeline-container,
 #pms-room-status-page .rs-modal-dialog {
   border-radius: 15.2px;
-  border: 1px solid rgba(244, 143, 104, 0.18);
-  box-shadow: 0 14px 34px rgba(244, 143, 104, 0.08);
+  border: 1px solid var(--rs-border);
+  box-shadow: var(--rs-shadow-md);
 }
 
 #pms-room-status-page .rs-stat-card {
   min-height: 112px;
   padding: 16px;
-  background: linear-gradient(135deg, rgba(255, 246, 222, 0.96), rgba(255, 255, 255, 0.92));
+  background: linear-gradient(135deg, #ffffff, var(--rs-white));
   flex-direction: row;
   align-items: flex-start;
   justify-content: flex-start;
@@ -2358,8 +2363,8 @@ html.dark .rs-booking-bar {
   width: 132px;
   height: 132px;
   border-radius: 40px;
-  background: var(--rs-stat-bg, rgba(255, 227, 148, 0.5));
-  opacity: 0.72;
+  background: var(--rs-blue-light);
+  opacity: 0.4;
   transform: rotate(18deg);
   z-index: 0;
 }
@@ -2372,46 +2377,46 @@ html.dark .rs-booking-bar {
   width: 70px;
   height: 70px;
   background: var(--rs-stat-icon-url) center / contain no-repeat;
-  opacity: 0.16;
+  opacity: 0.08;
   animation: none;
   pointer-events: none;
   z-index: 0;
 }
 
 #pms-room-status-page .rs-stat-card.total {
-  --rs-stat-bg: rgba(255, 227, 148, 0.58);
-  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7v11'/%3E%3Cpath d='M21 18V9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v9'/%3E%3Cpath d='M3 12h18'/%3E%3Cpath d='M7 12V9h4v3'/%3E%3Cpath d='M13 12V9h4v3'/%3E%3C/svg%3E");
+  --rs-stat-bg: rgba(63, 114, 175, 0.15);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F72AF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7v11'/%3E%3Cpath d='M21 18V9a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v9'/%3E%3Cpath d='M3 12h18'/%3E%3Cpath d='M7 12V9h4v3'/%3E%3Cpath d='M13 12V9h4v3'/%3E%3C/svg%3E");
 }
 
 #pms-room-status-page .rs-stat-card.occupied {
-  --rs-stat-bg: rgba(139, 223, 221, 0.42);
-  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-8 0v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3Cpath d='M3 21h18'/%3E%3C/svg%3E");
+  --rs-stat-bg: rgba(17, 45, 78, 0.1);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F72AF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-8 0v2'/%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3Cpath d='M3 21h18'/%3E%3C/svg%3E");
 }
 
 #pms-room-status-page .rs-stat-card.booked {
-  --rs-stat-bg: rgba(244, 143, 104, 0.24);
-  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238BDFDD' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4M16 2v4M3 10h18'/%3E%3Crect x='4' y='5' width='16' height='17' rx='2'/%3E%3Cpath d='m9 16 2 2 4-5'/%3E%3C/svg%3E");
+  --rs-stat-bg: rgba(63, 114, 175, 0.1);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F72AF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4M16 2v4M3 10h18'/%3E%3Crect x='4' y='5' width='16' height='17' rx='2'/%3E%3Cpath d='m9 16 2 2 4-5'/%3E%3C/svg%3E");
 }
 
 #pms-room-status-page .rs-stat-card.cleaning {
-  --rs-stat-bg: rgba(255, 246, 222, 0.86);
-  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Z'/%3E%3Cpath d='M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z'/%3E%3Cpath d='M5 15l.8 1.7L8 18l-2.2.7L5 21l-.8-2.3L2 18l2.2-1.3L5 15Z'/%3E%3C/svg%3E");
+  --rs-stat-bg: rgba(219, 226, 239, 0.4);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F72AF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3Z'/%3E%3Cpath d='M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9L19 14Z'/%3E%3Cpath d='M5 15l.8 1.7L8 18l-2.2.7L5 21l-.8-2.3L2 18l2.2-1.3L5 15Z'/%3E%3C/svg%3E");
 }
 
 #pms-room-status-page .rs-stat-card.maintenance {
-  --rs-stat-bg: rgba(226, 232, 240, 0.62);
-  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23F48F68' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-3-3 2.4-2.4Z'/%3E%3C/svg%3E");
+  --rs-stat-bg: rgba(17, 45, 78, 0.05);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F72AF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-3-3 2.4-2.4Z'/%3E%3C/svg%3E");
 }
 
 #pms-room-status-page .rs-stat-card.occupancy {
-  --rs-stat-bg: rgba(139, 223, 221, 0.36);
-  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238BDFDD' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='m7 14 4-4 3 3 5-6'/%3E%3Cpath d='M18 7h1v1'/%3E%3C/svg%3E");
+  --rs-stat-bg: rgba(63, 114, 175, 0.08);
+  --rs-stat-icon-url: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233F72AF' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3v18h18'/%3E%3Cpath d='m7 14 4-4 3 3 5-6'/%3E%3Cpath d='M18 7h1v1'/%3E%3C/svg%3E");
 }
 
 #pms-room-status-page .rs-stat-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 16px 36px rgba(244, 143, 104, 0.12);
-  border-color: rgba(244, 143, 104, 0.28);
+  box-shadow: var(--rs-shadow-float);
+  border-color: var(--rs-accent);
 }
 
 #pms-room-status-page .rs-stat-icon-bg {
@@ -2428,7 +2433,7 @@ html.dark .rs-booking-bar {
   font-size: 22px;
   opacity: 1;
   transform: none;
-  box-shadow: 0 10px 20px rgba(244, 143, 104, 0.18);
+  box-shadow: 0 10px 20px rgba(17, 45, 78, 0.08);
   z-index: 1;
 }
 
@@ -2437,29 +2442,24 @@ html.dark .rs-booking-bar {
   transform: scale(1.1) rotate(5deg);
 }
 
-@keyframes rsFloatSpin {
-  from { transform: translateY(0); }
-  to { transform: translateY(-10px); }
-}
-
 #pms-room-status-page .rs-stat-icon-bg.blue,
 #pms-room-status-page .rs-stat-icon-bg.indigo {
-  background: linear-gradient(135deg, var(--rs-coral), var(--rs-sun));
+  background: linear-gradient(135deg, var(--rs-blue-mid), var(--rs-blue-dark));
   color: #ffffff;
 }
 
 #pms-room-status-page .rs-stat-icon-bg.green {
-  background: linear-gradient(135deg, var(--rs-aqua), var(--rs-cream));
-  color: #0f766e;
+  background: linear-gradient(135deg, var(--rs-blue-light), var(--rs-white));
+  color: var(--rs-blue-dark);
 }
 
 #pms-room-status-page .rs-stat-icon-bg.yellow {
-  background: linear-gradient(135deg, var(--rs-sun), rgba(244, 143, 104, 0.58));
-  color: #92400e;
+  background: linear-gradient(135deg, var(--rs-blue-mid), var(--rs-blue-light));
+  color: #ffffff;
 }
 
 #pms-room-status-page .rs-stat-icon-bg.gray {
-  background: linear-gradient(135deg, rgba(226, 232, 240, 0.95), rgba(255, 246, 222, 0.9));
+  background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
   color: #475569;
 }
 
@@ -2470,7 +2470,7 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-mini-chart-wrap {
   padding: 6px;
   border-radius: 12px;
-  background: rgba(139, 223, 221, 0.18);
+  background: rgba(63, 114, 175, 0.1);
   transition: transform 0.3s;
 }
 
@@ -2479,7 +2479,7 @@ html.dark .rs-booking-bar {
 }
 
 #pms-room-status-page .rs-circle {
-  stroke: var(--rs-coral);
+  stroke: var(--rs-blue-mid);
 }
 
 #pms-room-status-page .rs-percentage {
@@ -2490,7 +2490,7 @@ html.dark .rs-booking-bar {
   grid-template-columns: minmax(220px, 1.25fr) auto minmax(220px, 1fr);
   gap: 12px;
   padding: 12px;
-  background: linear-gradient(135deg, var(--rs-cream), rgba(139, 223, 221, 0.35));
+  background: linear-gradient(135deg, #ffffff, var(--rs-blue-light));
   overflow: hidden;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -2502,8 +2502,8 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-segmented-control,
 #pms-room-status-page .rs-section-meta,
 #pms-room-status-page .rs-table-hint {
-  background: rgba(255, 246, 222, 0.72);
-  border: 1px solid rgba(244, 143, 104, 0.2);
+  background: #ffffff;
+  border: 1px solid var(--rs-border);
   border-radius: 12px;
   box-shadow: none;
 }
@@ -2511,13 +2511,13 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-branch-selector-modern:hover,
 #pms-room-status-page .rs-date-nav-group-modern:hover,
 #pms-room-status-page .rs-range-group-modern:hover {
-  border-color: rgba(244, 143, 104, 0.42);
-  box-shadow: 0 0 0 3px rgba(244, 143, 104, 0.1);
+  border-color: var(--rs-blue-mid);
+  box-shadow: 0 0 0 3px rgba(63, 114, 175, 0.1);
 }
 
 #pms-room-status-page .rs-branch-selector-modern {
   min-height: 40px;
-  color: var(--rs-coral);
+  color: var(--rs-blue-mid);
 }
 
 #pms-room-status-page .rs-date-input-wrap input,
@@ -2528,25 +2528,25 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-nav-arrow:hover,
 #pms-room-status-page .rs-btn-refresh:hover,
 #pms-room-status-page .rs-btn-ghost.full-width:hover {
-  color: var(--rs-coral);
-  border-color: rgba(244, 143, 104, 0.32);
-  background: rgba(255, 246, 222, 0.86);
+  color: var(--rs-blue-mid);
+  border-color: var(--rs-blue-mid);
+  background: var(--rs-white);
   transform: translateY(-1px);
 }
 
 #pms-room-status-page .rs-segmented-control button.active {
-  background: var(--rs-coral);
+  background: var(--rs-blue-mid);
   color: #ffffff;
-  box-shadow: 0 8px 18px rgba(244, 143, 104, 0.18);
+  box-shadow: 0 8px 18px rgba(17, 45, 78, 0.18);
 }
 
 #pms-room-status-page .rs-preset-btn:hover,
 #pms-room-status-page .rs-avail-cell.active .rs-avail-tile,
 #pms-room-status-page .rs-room-pill:hover,
 #pms-room-status-page .rs-assign-room.active {
-  color: var(--rs-coral);
-  border-color: rgba(244, 143, 104, 0.42);
-  background: rgba(255, 246, 222, 0.86);
+  color: var(--rs-blue-mid);
+  border-color: var(--rs-blue-mid);
+  background: var(--rs-white);
 }
 
 #pms-room-status-page .rs-day-layout,
@@ -2567,7 +2567,7 @@ html.dark .rs-booking-bar {
 }
 
 #pms-room-status-page .rs-day-sidebar {
-  border-left: 1px solid rgba(244, 143, 104, 0.18);
+  border-left: 1px solid var(--rs-border);
   min-width: 316px;
   width: 316px;
 }
@@ -2579,13 +2579,13 @@ html.dark .rs-booking-bar {
 }
 
 #pms-room-status-page .rs-sidebar-stat-card {
-  background: linear-gradient(135deg, var(--rs-coral), var(--rs-sun));
-  border-color: rgba(244, 143, 104, 0.22);
-  box-shadow: 0 12px 28px rgba(244, 143, 104, 0.2);
+  background: linear-gradient(135deg, var(--rs-blue-mid), var(--rs-blue-dark));
+  border-color: var(--rs-border);
+  box-shadow: 0 12px 28px rgba(17, 45, 78, 0.2);
 }
 
 #pms-room-status-page .rs-sidebar-stat-card::before {
-  background: rgba(255, 246, 222, 0.2);
+  background: rgba(255, 255, 255, 0.1);
   filter: none;
 }
 
@@ -2595,41 +2595,9 @@ html.dark .rs-booking-bar {
 #pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-sub,
 #pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-icon {
   color: transparent !important;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.56) 42%, rgba(255, 255, 255, 0.24) 82%);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.4) 42%, rgba(255, 255, 255, 0.2) 82%);
   background-size: 220% 100%;
   animation: rsSidebarSkeleton 1.2s ease-in-out infinite;
-}
-
-#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-value {
-  width: 58px;
-  height: 30px;
-  border-radius: 10px;
-  display: inline-block;
-}
-
-#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-unit {
-  width: 42px;
-  height: 12px;
-  border-radius: 999px;
-  display: inline-block;
-}
-
-#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-label {
-  width: 82px;
-  height: 13px;
-  border-radius: 999px;
-  display: block;
-}
-
-#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-sub {
-  width: 132px;
-  height: 11px;
-  border-radius: 999px;
-  display: block;
-}
-
-#pms-room-status-page.is-loading .rs-sidebar-stat-card .rs-stat-icon i {
-  opacity: 0;
 }
 
 @keyframes rsSidebarSkeleton {
@@ -2643,13 +2611,13 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-room-pill,
 #pms-room-status-page .rs-assign-room,
 #pms-room-status-page .rs-waitlist-item {
-  border-color: rgba(244, 143, 104, 0.16);
+  border-color: var(--rs-border);
 }
 
 #pms-room-status-page .rs-table-container,
 #pms-room-status-page .rs-timeline-wrapper {
   border-radius: 12px;
-  border-color: rgba(244, 143, 104, 0.16);
+  border-color: var(--rs-border);
 }
 
 #pms-room-status-page .rs-data-table thead th,
@@ -2657,30 +2625,30 @@ html.dark .rs-booking-bar {
 #pms-room-status-page .rs-tm-corner,
 #pms-room-status-page .rs-room-label,
 #pms-room-status-page .rs-legend {
-  background: rgba(255, 246, 222, 0.72);
-  border-color: rgba(244, 143, 104, 0.16);
+  background: var(--rs-white);
+  border-color: var(--rs-border);
 }
 
 #pms-room-status-page .rs-data-table tbody tr:hover,
 #pms-room-status-page .rs-timeline-row:hover .rs-room-label,
 #pms-room-status-page .rs-avail-tile:hover {
-  background: rgba(139, 223, 221, 0.12);
+  background: rgba(63, 114, 175, 0.05);
 }
 
 #pms-room-status-page .rs-room-label::before {
-  background: rgba(244, 143, 104, 0.36);
+  background: var(--rs-blue-light);
 }
 
 #pms-room-status-page .rs-timeline-row:hover .rs-room-label::before {
-  background: var(--rs-coral);
+  background: var(--rs-blue-mid);
 }
 
 #pms-room-status-page .rs-booking-bar.booked {
-  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  background: linear-gradient(135deg, var(--rs-blue-mid), var(--rs-blue-dark)) !important;
 }
 
 #pms-room-status-page .rs-booking-bar.occupied {
-  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+  background: linear-gradient(135deg, #10b981, #059669) !important;
 }
 
 #pms-room-status-page .rs-booking-bar.occupied.is-hourly {
@@ -2688,13 +2656,13 @@ html.dark .rs-booking-bar {
 }
 
 #pms-room-status-page .rs-booking-bar.pending {
-  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
-  color: #ffffff;
+  background: linear-gradient(135deg, var(--rs-blue-light), var(--rs-blue-mid)) !important;
+  color: var(--rs-blue-dark);
 }
 
 #pms-room-status-page .rs-booking-bar.waitlist-group,
 #pms-room-status-page .rs-timeline-row.unassigned .rs-booking-bar {
-  background: linear-gradient(135deg, #0d9488, #0f766e) !important;
+  background: linear-gradient(135deg, var(--rs-blue-dark), #1e3a8a) !important;
   color: #ffffff !important;
 }
 
@@ -2704,32 +2672,32 @@ html.dark .rs-booking-bar {
 }
 
 #pms-room-status-page .rs-modal-head {
-  background: linear-gradient(135deg, var(--rs-cream), rgba(139, 223, 221, 0.35));
+  background: linear-gradient(135deg, #ffffff, var(--rs-blue-light));
 }
 
 #pms-room-status-page .rs-modal-eyebrow,
 #pms-room-status-page .rs-modal-close:hover {
-  color: var(--rs-coral);
+  color: var(--rs-blue-mid);
 }
 
 #pms-room-status-page .rs-block-submit {
-  background: var(--rs-coral);
-  border-color: var(--rs-coral);
-  box-shadow: 0 8px 18px rgba(244, 143, 104, 0.18);
+  background: var(--rs-blue-mid);
+  border-color: var(--rs-blue-mid);
+  box-shadow: 0 8px 18px rgba(17, 45, 78, 0.18);
 }
 
 html.dark #pms-room-status-page,
 body.dark #pms-room-status-page,
 .dark-mode #pms-room-status-page,
 .dark #pms-room-status-page {
-  --rs-surface-page: var(--page-bg, #0f172a);
-  --rs-surface-card: var(--surface, rgba(15, 23, 42, 0.84));
-  --rs-surface-muted: var(--surface-muted, rgba(30, 41, 59, 0.74));
-  --rs-surface-soft: rgba(15, 23, 42, 0.58);
-  --rs-border: var(--surface-border, rgba(148, 163, 184, 0.24));
-  --rs-border-light: rgba(139, 223, 221, 0.2);
-  --rs-glass-border: rgba(139, 223, 221, 0.2);
-  --rs-toolbar-bg: rgba(15, 23, 42, 0.58);
+  --rs-surface-page: #0f172a;
+  --rs-surface-card: #1e293b;
+  --rs-surface-muted: #111827;
+  --rs-surface-soft: #172033;
+  --rs-border: rgba(255, 255, 255, 0.1);
+  --rs-border-light: rgba(255, 255, 255, 0.05);
+  --rs-glass-border: rgba(255, 255, 255, 0.1);
+  --rs-toolbar-bg: rgba(30, 41, 59, 0.8);
   background: var(--rs-surface-page);
 }
 
@@ -2745,8 +2713,8 @@ html.dark #pms-room-status-page .rs-day-card,
 html.dark #pms-room-status-page .rs-day-sidebar,
 html.dark #pms-room-status-page .rs-timeline-container,
 html.dark #pms-room-status-page .rs-modal-dialog {
-  background: linear-gradient(135deg, rgba(244, 143, 104, 0.16), rgba(139, 223, 221, 0.1)) !important;
-  border-color: rgba(139, 223, 221, 0.2) !important;
+  background: var(--rs-surface-card) !important;
+  border-color: var(--rs-border) !important;
 }
 
 html.dark #pms-room-status-page .rs-branch-selector-modern,
@@ -2760,14 +2728,8 @@ html.dark #pms-room-status-page .rs-timeline-header,
 html.dark #pms-room-status-page .rs-tm-corner,
 html.dark #pms-room-status-page .rs-room-label,
 html.dark #pms-room-status-page .rs-legend {
-  background: rgba(15, 23, 42, 0.58) !important;
-  border-color: rgba(139, 223, 221, 0.18) !important;
-}
-
-html.dark #pms-room-status-page .rs-data-table tbody tr:hover,
-html.dark #pms-room-status-page .rs-timeline-row:hover .rs-room-label,
-html.dark #pms-room-status-page .rs-avail-tile:hover {
-  background: rgba(139, 223, 221, 0.12) !important;
+  background: var(--rs-surface-muted) !important;
+  border-color: var(--rs-border) !important;
 }
 
 @media (max-width: 1200px) {

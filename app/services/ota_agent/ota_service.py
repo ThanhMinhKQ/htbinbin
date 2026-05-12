@@ -331,13 +331,26 @@ class OTADashboardService:
         if recent_failures > 5:
             warnings.append(f"{recent_failures} failures in last 24 hours")
         
+        # Check Gmail token health
+        from app.services.ota_agent.gmail_service import gmail_service
+        token_health = gmail_service.check_token_health()
+        if not token_health["valid"]:
+            is_healthy = False
+            if token_health.get("revoked"):
+                warnings.append("Gmail token bị revoke — cần re-authenticate tại /api/ota/oauth/start")
+            elif token_health.get("error"):
+                warnings.append(f"Gmail token lỗi: {token_health['error']}")
+        elif token_health.get("days_until_expiry") is not None and token_health["days_until_expiry"] <= 7:
+            warnings.append(f"Gmail token sắp hết hạn trong {token_health['days_until_expiry']} ngày — re-auth sớm tại /api/ota/oauth/start")
+
         return {
             "is_healthy": is_healthy,
             "last_success_at": last_success.received_at if last_success else None,
             "logs_today": logs_today,
             "recent_failures_24h": recent_failures,
             "warnings": warnings,
-            "ai_api_configured": bool(self.extractor.client)
+            "ai_api_configured": bool(self.extractor.client),
+            "gmail_token": token_health,
         }
     
     def mark_as_dead_letter(self, db: Session, log_id: int) -> bool:

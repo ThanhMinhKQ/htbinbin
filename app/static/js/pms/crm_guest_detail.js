@@ -37,8 +37,10 @@ function guestDetail() {
     tierJourney: [],
 
     async init() {
-      await this.loadProfile();
-      this.loadStays();
+      await Promise.all([
+        this.loadProfile(),
+        this.loadStays(),
+      ]);
     },
 
     async loadProfile() {
@@ -225,8 +227,12 @@ function guestDetail() {
         floor: 'Tầng',
         pillow: 'Gối',
         breakfast: 'Bữa sáng',
-        room: 'Phòng',
+        room: 'Loại phòng',
+        branch: 'Chi nhánh yêu thích',
         payment: 'Thanh toán',
+        stay_type: 'Kiểu lưu trú',
+        pricing_mode: 'Cách tính giá',
+        vehicle: 'Biển số xe',
       };
       return labels[type] || type;
     },
@@ -234,18 +240,18 @@ function guestDetail() {
       return (stay?.activities || []).slice(0, 4);
     },
     avatarColor(name) {
-      const colors = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6'];
+      const colors = ['#8BDFDD', '#F48F68', '#FFE394', '#FFF6DE'];
       let h = 0;
       for (let i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
       return colors[Math.abs(h) % colors.length];
     },
     tierGradient(tier) {
       const map = {
-        BASIC: 'background:linear-gradient(135deg,#64748b,#475569)',
-        SILVER: 'background:linear-gradient(135deg,#94a3b8,#64748b)',
-        GOLD: 'background:linear-gradient(135deg,#f59e0b,#d97706)',
-        PLATINUM: 'background:linear-gradient(135deg,#3b82f6,#1d4ed8)',
-        VIP: 'background:linear-gradient(135deg,#8b5cf6,#6d28d9)',
+        BASIC: 'background:linear-gradient(135deg,#FFF6DE,#FFE394)',
+        SILVER: 'background:linear-gradient(135deg,#8BDFDD,#FFF6DE)',
+        GOLD: 'background:linear-gradient(135deg,#FFE394,#FFF6DE)',
+        PLATINUM: 'background:linear-gradient(135deg,#8BDFDD,#FFE394)',
+        VIP: 'background:linear-gradient(135deg,#F48F68,#FFE394)',
       };
       return map[tier] || map.BASIC;
     },
@@ -278,8 +284,8 @@ function guestDetail() {
       return map[key] || key;
     },
     svcColor(cat) {
-      const map = { MINIBAR: '#f59e0b', SERVICE: '#3b82f6', LAUNDRY: '#06b6d4', RESTAURANT: '#10b981', SPA: '#ec4899', OTHER: '#8b5cf6' };
-      return map[cat] || '#6366f1';
+      const map = { MINIBAR: '#FFE394', SERVICE: '#8BDFDD', LAUNDRY: '#8BDFDD', RESTAURANT: '#278884', SPA: '#F48F68', OTHER: '#FFF6DE' };
+      return map[cat] || '#8BDFDD';
     },
     benefitIcon(key, val) {
       const icons = {
@@ -319,9 +325,9 @@ function guestDetail() {
     },
     tierColor(tier) {
       const colors = {
-        BASIC: '#64748b', SILVER: '#94a3b8', GOLD: '#f59e0b', PLATINUM: '#3b82f6', VIP: '#8b5cf6'
+        BASIC: '#7a705f', SILVER: '#8BDFDD', GOLD: '#FFE394', PLATINUM: '#278884', VIP: '#F48F68'
       };
-      return colors[tier] || '#64748b';
+      return colors[tier] || '#7a705f';
     },
     benefitDisplayValue(key, val) {
       if (key === 'name') return '';

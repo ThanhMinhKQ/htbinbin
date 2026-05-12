@@ -1655,7 +1655,7 @@
             // Dashboard PMS c\u00f2n poll ri\u00eang (60s) cho badge chi ti\u1ebft, n\u00ean global ch\u1ec9 c\u1ea7n nh\u1eb9.
             let globalOtaTimer = null;
             function startGlobalOtaPolling() {
-                if (globalOtaTimer || document.hidden) return;
+                if (globalOtaTimer || document.hidden || document.querySelector('[data-disable-ota-polling="true"]')) return;
                 globalCheckOTA();
                 globalOtaTimer = setInterval(globalCheckOTA, 120000);
             }

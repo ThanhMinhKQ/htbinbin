@@ -1495,6 +1495,7 @@ class HotelGuest(Base):
     # Composite indexes for guest queries
     __table_args__ = (
         Index("ix_hotel_guests_guest_stay", "guest_id", "stay_id"),
+        Index("ix_hotel_guests_guest_id_desc", "guest_id", id.desc()),
         Index("ix_hotel_guests_cccd_active", "cccd",
               postgresql_where=(cccd != None)),
     )
@@ -1537,6 +1538,29 @@ class Guest(Base):
               postgresql_where=(cccd != None)),
         Index("ix_guests_deleted", "deleted_at",
               postgresql_where=(deleted_at != None)),
+        Index("ix_guests_active_last_seen", last_seen_at.desc(), "id",
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_blacklist_last_seen", "is_blacklisted", last_seen_at.desc(), "id",
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_normalized_name_pattern", "normalized_name",
+              postgresql_ops={"normalized_name": "text_pattern_ops"},
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_full_name_pattern", "full_name",
+              postgresql_ops={"full_name": "text_pattern_ops"},
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_full_name_trgm", "full_name",
+              postgresql_using="gin",
+              postgresql_ops={"full_name": "gin_trgm_ops"},
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_phone_pattern", "phone",
+              postgresql_ops={"phone": "text_pattern_ops"},
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_email_pattern", "email",
+              postgresql_ops={"email": "text_pattern_ops"},
+              postgresql_where=(deleted_at == None)),
+        Index("ix_guests_active_cccd_pattern", "cccd",
+              postgresql_ops={"cccd": "text_pattern_ops"},
+              postgresql_where=((deleted_at == None) & (cccd != None))),
     )
 
     # Relationships
@@ -1645,7 +1669,9 @@ class GuestActivity(Base):
 
     # Composite index for timeline queries
     __table_args__ = (
-        Index("ix_guest_activities_guest_created", "guest_id", "created_at"),
+        Index("ix_guest_activities_guest_created", "guest_id", created_at.desc()),
+        Index("ix_guest_activities_blacklist_guest_created", "guest_id", created_at.desc(),
+              postgresql_where=(activity_type == "BLACKLISTED")),
     )
 
     guest = relationship("Guest", back_populates="activities")
@@ -1721,6 +1747,7 @@ class GuestMembership(Base):
 
     __table_args__ = (
         Index("ix_guest_membership_tier", "tier"),
+        Index("ix_guest_membership_tier_guest", "tier", "guest_id"),
         Index("ix_guest_membership_spent", "total_spent"),
     )
 
@@ -1784,8 +1811,12 @@ class GuestStaySummary(Base):
     branch = relationship("Branch")
 
     __table_args__ = (
-        Index("ix_guest_stay_summary_guest_date", "guest_id", "check_in_at"),
+        Index("ix_guest_stay_summary_guest_date", "guest_id", check_in_at.desc()),
         Index("ix_guest_stay_summary_branch", "branch_id"),
+        Index("ix_guest_stay_summary_guest_debt", "guest_id", "debt_status",
+              postgresql_where=(debt_amount > 0)),
+        Index("ix_guest_stay_summary_debt_status_guest", "debt_status", "guest_id",
+              postgresql_where=(debt_amount > 0)),
         Index("uq_guest_stay_unique", "guest_id", "stay_id", unique=True),
     )
 
@@ -1928,6 +1959,8 @@ class GuestStayMapping(Base):
         Index("ix_guest_stay_mapping_unique", "guest_id", "stay_id", unique=True),
         Index("ix_guest_stay_mapping_guest", "guest_id"),
         Index("ix_guest_stay_mapping_stay", "stay_id"),
+        Index("ix_guest_stay_mapping_guest_checkin", "guest_id", check_in_at.desc()),
+        Index("ix_guest_stay_mapping_stay_guest", "stay_id", "guest_id"),
     )
 
     guest = relationship("Guest", back_populates="stay_mappings")

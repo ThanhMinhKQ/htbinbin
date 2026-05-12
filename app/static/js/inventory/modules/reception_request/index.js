@@ -116,7 +116,7 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
 
                 const tab = this.currentTab;
                 if (tab === 'overview') {
-                    setTimeout(() => this.fetchStockOnly(), 100);
+                    setTimeout(() => this.initOverview(), 100);
                 } else if (tab === 'approvals') {
                     setTimeout(() => this.fetchApprovals(), 100);
                 } else if (tab === 'import') {

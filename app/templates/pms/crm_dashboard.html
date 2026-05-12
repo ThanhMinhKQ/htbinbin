@@ -1381,7 +1381,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="crm-shell" x-data="crmDashboard()" x-init="init()">
+<div class="crm-shell" x-data="crmDashboard()" x-init="init()" data-disable-ota-polling="true">
 
   <!-- ── Header ── -->
   <header class="crm-header">
@@ -1408,9 +1408,9 @@
             <path d="m21 21-4.3-4.3" />
           </svg>
           <input type="text" placeholder="Tìm theo tên, CCCD, SĐT, email..." x-model="searchQuery"
-            @keydown.enter="page=1; loadGuests()" @input.debounce.400ms="page=1; loadGuests()">
+            @keydown.enter="refreshGuests()" @input.debounce.400ms="refreshGuests()">
           <button class="clear-btn" :class="{ show: searchQuery.length > 0 }"
-            @click="searchQuery=''; page=1; loadGuests()">
+            @click="searchQuery=''; refreshGuests()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -1418,7 +1418,7 @@
         </div>
 
         <div class="crm-filter-group">
-          <select class="crm-filter-select" x-model="tierFilter" @change="page=1; loadGuests()">
+          <select class="crm-filter-select" x-model="tierFilter" @change="refreshGuests()">
             <option value="">Tất cả hạng</option>
             <option value="VIP">VIP</option>
             <option value="PLATINUM">Platinum</option>
@@ -1426,7 +1426,7 @@
             <option value="SILVER">Silver</option>
             <option value="BASIC">Basic</option>
           </select>
-          <select class="crm-filter-select" x-model="debtFilter" @change="page=1; loadGuests()">
+          <select class="crm-filter-select" x-model="debtFilter" @change="refreshGuests()">
             <option value="">Tất cả thanh toán</option>
             <option value="paid">Đã thanh toán đủ</option>
             <option value="unpaid">Còn nợ</option>
@@ -1543,7 +1543,7 @@
               dần từ Basic đến VIP.</p>
           </div>
           <div class="crm-settings-actions">
-            <button class="crm-secondary-btn" @click="loadMembershipSettings()" :disabled="settingsLoading">Tải
+            <button class="crm-secondary-btn" @click="loadMembershipSettings(true)" :disabled="settingsLoading">Tải
               lại</button>
             <button class="crm-primary-btn" @click="saveMembershipSettings()"
               :disabled="settingsSaving || settingsLoading"
@@ -1830,12 +1830,17 @@
       <!-- Pagination -->
       <div class="crm-pagination" x-show="totalPages > 0">
         <div class="crm-pagination-info">
-          Hiển thị <strong x-text="((page - 1) * pageSize) + 1">1</strong> -
-          <strong x-text="Math.min(page * pageSize, total)">20</strong> của
-          <strong x-text="total">0</strong> khách hàng
+          Hiển thị <strong x-text="guests.length ? ((page - 1) * pageSize) + 1 : 0">1</strong> -
+          <strong x-text="((page - 1) * pageSize) + guests.length">20</strong>
+          <template x-if="hasExactTotal">
+            <span>của <strong x-text="total">0</strong> khách hàng</span>
+          </template>
+          <template x-if="!hasExactTotal">
+            <span x-text="hasNextPage ? '(còn tiếp)' : '(hết danh sách)'"></span>
+          </template>
         </div>
         <div class="crm-pagination-btns">
-          <button class="crm-page-btn" :disabled="page <= 1" @click="page--; loadGuests()">
+          <button class="crm-page-btn" :disabled="page <= 1 || loading" @click="prevPage()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="15,18 9,12 15,6" />
             </svg>
@@ -1844,7 +1849,7 @@
           <span class="crm-page-current">
             Trang <strong x-text="page">1</strong> / <strong x-text="totalPages">1</strong>
           </span>
-          <button class="crm-page-btn" :disabled="page >= totalPages" @click="page++; loadGuests()">
+          <button class="crm-page-btn" :disabled="!hasNextPage || loading" @click="nextPage()">
             Sau
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="9,18 15,12 9,6" />
@@ -1883,8 +1888,17 @@
       pageSize: 20,
       total: 0,
       totalPages: 0,
+      hasExactTotal: true,
+      hasNextPage: false,
+      currentCursor: '',
+      nextCursor: '',
+      cursorStack: [],
       guests: [],
       stats: {},
+      initialized: false,
+      guestsRequestSeq: 0,
+      statsRequestSeq: 0,
+      membershipSettingsLoaded: false,
       loading: false,
       settingsLoading: false,
       settingsSaving: false,
@@ -1897,16 +1911,35 @@
       },
 
       async init() {
-        await Promise.all([this.loadGuests(), this.loadStats(), this.loadMembershipSettings()]);
+        if (this.initialized) return;
+        this.initialized = true;
+        await this.loadGuests();
+        this.loadStats();
+      },
+
+      resetPagination() {
+        this.page = 1;
+        this.currentCursor = '';
+        this.nextCursor = '';
+        this.cursorStack = [];
+      },
+
+      refreshGuests({ refreshStats = false } = {}) {
+        this.resetPagination();
+        this.loadGuests();
+        if (refreshStats) this.loadStats();
       },
 
       async loadGuests() {
+        const requestSeq = ++this.guestsRequestSeq;
         this.loading = true;
         try {
           const params = new URLSearchParams({
             page: this.page,
             page_size: this.pageSize,
+            include_total: 'false',
           });
+          if (this.currentCursor) params.set('cursor', this.currentCursor);
           if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
           if (this.tierFilter) params.set('tier', this.tierFilter);
           if (this.debtFilter) params.set('debt', this.debtFilter);
@@ -1916,19 +1949,41 @@
           const res = await fetch('/api/pms/crm/guests/search?' + params, { credentials: 'same-origin' });
           if (!res.ok) throw new Error('API error');
           const data = await res.json();
+          if (requestSeq !== this.guestsRequestSeq) return;
 
           this.guests = data.items || [];
-          this.total = data.total || 0;
-          this.totalPages = data.pages || 1;
+          this.hasExactTotal = data.total_exact !== false && Number.isFinite(Number(data.total));
+          this.hasNextPage = !!data.has_next;
+          this.nextCursor = data.next_cursor || '';
+          const visibleEnd = ((this.page - 1) * this.pageSize) + this.guests.length;
+          this.total = this.hasExactTotal ? (data.total || 0) : visibleEnd;
+          this.totalPages = this.hasExactTotal ? (data.pages || 1) : (this.hasNextPage ? this.page + 1 : this.page);
         } catch (e) {
+          if (requestSeq !== this.guestsRequestSeq) return;
           console.error('Load guests error:', e);
           this.guests = [];
         } finally {
-          this.loading = false;
+          if (requestSeq === this.guestsRequestSeq) this.loading = false;
         }
       },
 
+      nextPage() {
+        if (!this.hasNextPage || !this.nextCursor) return;
+        this.cursorStack.push(this.currentCursor || '');
+        this.currentCursor = this.nextCursor;
+        this.page += 1;
+        this.loadGuests();
+      },
+
+      prevPage() {
+        if (this.page <= 1) return;
+        this.currentCursor = this.cursorStack.pop() || '';
+        this.page -= 1;
+        this.loadGuests();
+      },
+
       async loadStats() {
+        const requestSeq = ++this.statsRequestSeq;
         try {
           const params = new URLSearchParams();
           if (this.searchQuery.trim()) params.set('q', this.searchQuery.trim());
@@ -1936,6 +1991,7 @@
           const res = await fetch('/api/pms/crm/stats?' + params, { credentials: 'same-origin' });
           if (!res.ok) throw new Error('API error');
           const data = await res.json();
+          if (requestSeq !== this.statsRequestSeq) return;
           this.stats = data;
         } catch (e) {
           console.error('Load stats error:', e);
@@ -1955,14 +2011,13 @@
         }
         if (tab === 'blacklist') this.blacklistFilter = 'true';
         else if (this.blacklistFilter === 'true') this.blacklistFilter = '';
-        this.loadGuests();
+        this.refreshGuests();
       },
 
       setBlacklistFilter() {
         if (this.blacklistFilter === 'true') this.activeTab = 'blacklist';
         else if (this.activeTab === 'blacklist') this.activeTab = 'guests';
-        this.page = 1;
-        this.loadGuests();
+        this.refreshGuests();
       },
 
       resetFilters() {
@@ -1970,8 +2025,7 @@
         this.tierFilter = '';
         this.debtFilter = '';
         this.blacklistFilter = this.activeTab === 'blacklist' ? 'true' : '';
-        this.page = 1;
-        this.loadGuests();
+        this.refreshGuests({ refreshStats: true });
       },
 
       async toggleGuestBlacklist(guest) {
@@ -1994,7 +2048,8 @@
         }
       },
 
-      async loadMembershipSettings() {
+      async loadMembershipSettings(force = false) {
+        if (this.membershipSettingsLoaded && !force) return;
         this.settingsLoading = true;
         this.settingsMessage = '';
         this.settingsMessageType = '';
@@ -2021,6 +2076,7 @@
           };
           this.settingsUpdatedAt = data.updated_at || '';
           this.syncTierThresholds();
+          this.membershipSettingsLoaded = true;
         } catch (e) {
           console.error(e);
           this.settingsMessage = e.message || 'Không tải được thiết lập hạng';
@@ -2085,9 +2141,11 @@
           };
           this.settingsUpdatedAt = settings.updated_at || new Date().toISOString();
           this.syncTierThresholds();
+          this.membershipSettingsLoaded = true;
           this.settingsMessage = 'Đã lưu thiết lập hạng khách hàng';
           this.settingsMessageType = 'ok';
           await this.loadGuests();
+          await this.loadStats();
         } catch (e) {
           console.error(e);
           this.settingsMessage = e.message || 'Không lưu được thiết lập hạng';

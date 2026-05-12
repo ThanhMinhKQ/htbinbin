@@ -1,167 +1,99 @@
 <div x-show="currentTab === 'export'" class="inv-tab-page" x-cloak>
-    <div class="inv-tab-header">
-        <div>
-            <p class="inv-tab-eyebrow">Xuất kho</p>
-            <h2 class="inv-tab-title">Xuất trực tiếp</h2>
-            <p class="inv-tab-copy">Xuất hàng từ kho nguồn, theo dõi phiếu đang giao và lịch sử hoàn tất theo chi nhánh nhận.</p>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <button @click="resetExportDateFilter()" class="inv-btn-secondary" title="Reset về tháng hiện tại">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Tháng này
-            </button>
-            <button @click="openDirectExportModal()" class="inv-btn-primary">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 4v16m8-8H4" />
-                </svg>
-                Tạo phiếu xuất
-            </button>
-        </div>
-    </div>
 
     <div class="inv-kpi-grid">
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Tổng phiếu xuất</p>
-                    <p class="inv-kpi-value text-red-600 dark:text-red-300" x-text="totalExportRecords || 0"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center dark:bg-red-900/30 dark:text-red-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                </div>
-            </div>
+        <div class="inv-kpi-card" data-accent="coral">
+            <p class="inv-kpi-label">Tổng phiếu xuất</p>
+            <p class="inv-kpi-value" x-text="totalExportRecords || 0"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
         </div>
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Đang hiển thị</p>
-                    <p class="inv-kpi-value" x-text="exportsList.length || 0"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center dark:bg-slate-800 dark:text-slate-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                            d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-                    </svg>
-                </div>
-            </div>
+        <div class="inv-kpi-card" data-accent="slate">
+            <p class="inv-kpi-label">Đang hiển thị</p>
+            <p class="inv-kpi-value" x-text="exportsList.length || 0"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+            </svg>
         </div>
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Đang giao</p>
-                    <p class="inv-kpi-value text-amber-600 dark:text-amber-300"
-                        x-text="exportsList.filter(r => r.status === 'SHIPPING').length"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center dark:bg-amber-950/50 dark:text-amber-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-            </div>
+        <div class="inv-kpi-card" data-accent="yellow">
+            <p class="inv-kpi-label">Đang giao</p>
+            <p class="inv-kpi-value" x-text="exportsList.filter(r => r.status === 'SHIPPING').length"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
         </div>
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Hoàn tất</p>
-                    <p class="inv-kpi-value text-emerald-600 dark:text-emerald-300"
-                        x-text="exportsList.filter(r => r.status === 'COMPLETED').length"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center dark:bg-emerald-950/50 dark:text-emerald-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-            </div>
+        <div class="inv-kpi-card" data-accent="teal">
+            <p class="inv-kpi-label">Hoàn tất</p>
+            <p class="inv-kpi-value" x-text="exportsList.filter(r => r.status === 'COMPLETED').length"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
         </div>
     </div>
 
     <div class="inv-toolbar">
         <div class="inv-status-strip mb-3">
             <button type="button" @click="exportFilters.status = ''; fetchExports(1)"
-                :class="{ 'is-active': exportFilters.status === '' }"
-                class="inv-status-chip">
-                Tất cả
-            </button>
+                :class="{ 'is-active': exportFilters.status === '' }" class="inv-status-chip">Tất cả</button>
             <button type="button" @click="exportFilters.status = 'SHIPPING'; fetchExports(1)"
-                :class="{ 'is-active': exportFilters.status === 'SHIPPING' }"
-                class="inv-status-chip">
-                Đang giao
-            </button>
+                :class="{ 'is-active': exportFilters.status === 'SHIPPING' }" class="inv-status-chip">Đang giao</button>
             <button type="button" @click="exportFilters.status = 'COMPLETED'; fetchExports(1)"
-                :class="{ 'is-active': exportFilters.status === 'COMPLETED' }"
-                class="inv-status-chip">
-                Hoàn tất
+                :class="{ 'is-active': exportFilters.status === 'COMPLETED' }" class="inv-status-chip">Hoàn tất</button>
+            <div class="flex-1"></div>
+            <button @click="resetExportDateFilter()" class="inv-btn-secondary" title="Reset về tháng hiện tại">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Tháng này
+            </button>
+            <button @click="openDirectExportModal()" class="inv-btn-primary">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo phiếu xuất
             </button>
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
-            <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1 flex-wrap">
-                <div class="relative w-full sm:w-64">
-                    <input type="text" x-model="exportFilters.search" @keydown.enter="fetchExports(1)"
-                        class="inv-field-search"
-                        placeholder="Tìm mã phiếu, ghi chú...">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
+        <div class="flex flex-col sm:flex-row gap-2 flex-wrap">
+            <div class="relative w-full sm:w-64">
+                <input type="text" x-model="exportFilters.search" @keydown.enter="fetchExports(1)"
+                    class="inv-field-search" placeholder="Tìm mã phiếu, ghi chú...">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                 </div>
-
-                <select x-model="exportFilters.status" @change="fetchExports(1)" class="inv-field w-full sm:w-40">
-                    <option value="">Tất cả trạng thái</option>
-                    <option value="COMPLETED">Hoàn tất</option>
-                    <option value="SHIPPING">Đang giao</option>
-                </select>
-
-                <input type="date" x-model="exportFilters.date_from" @change="fetchExports(1)"
-                    class="inv-field w-full sm:w-40"
-                    placeholder="Từ ngày">
-
-                <input type="date" x-model="exportFilters.date_to" @change="fetchExports(1)"
-                    class="inv-field w-full sm:w-40"
-                    placeholder="Đến ngày">
-
-                <button @click="fetchExports(1)" class="inv-btn-secondary">
-                    Lọc
-                </button>
-
-                <button @click="resetExportDateFilter()" class="inv-btn-secondary" title="Reset về tháng hiện tại">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
             </div>
-
-            <div class="flex items-center gap-2 w-full lg:w-auto justify-end">
-                <button @click="openDirectExportModal()" class="inv-btn-primary">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 4v16m8-8H4" />
-                    </svg>
-                    Tạo phiếu xuất
-                </button>
-            </div>
+            <input type="date" x-model="exportFilters.date_from" @change="fetchExports(1)" class="inv-field w-full sm:w-40">
+            <input type="date" x-model="exportFilters.date_to" @change="fetchExports(1)" class="inv-field w-full sm:w-40">
+            <button @click="fetchExports(1)" class="inv-btn-secondary">Lọc</button>
+            <button @click="resetExportDateFilter()" class="inv-btn-secondary" title="Reset">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
         </div>
     </div>
 
     <div class="inv-table-card">
         <div class="inv-table-scroll">
-            <div x-show="loadingExports"
-                class="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-20 flex items-center justify-center backdrop-blur-sm">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-            </div>
-
+            <template x-if="loadingExports">
+                <table class="w-full text-sm text-left border-collapse">
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        <template x-for="i in 5" :key="i">
+                            <tr>
+                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:90px;"></div></td>
+                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
+                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:100px;"></div></td>
+                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
+                                <td class="px-4 py-3 text-center"><div class="skeleton skeleton-text" style="width:30px;margin:0 auto;"></div></td>
+                                <td class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:60px;margin-left:auto;"></div></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </template>
+            <template x-if="!loadingExports">
             <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 border-collapse">
                 <thead class="inv-table-head">
                     <tr>
@@ -264,6 +196,7 @@
                     </tr>
                 </tbody>
             </table>
+            </template>
         </div>
 
         <div

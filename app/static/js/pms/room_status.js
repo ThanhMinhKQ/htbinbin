@@ -317,7 +317,7 @@ const RoomStatus = {
         (dayData.room_types || []).forEach(rt => {
             const ratio = rt.total_rooms ? (rt.available_rooms / rt.total_rooms) : 0;
             const pct = Math.round(ratio * 100);
-            const barColor = pct > 50 ? '#22c55e' : pct > 10 ? '#f59e0b' : '#ef4444';
+            const barColor = pct > 50 ? '#3F72AF' : pct > 10 ? '#DBE2EF' : '#112D4E';
 
             sums.total += rt.total_rooms || 0;
             sums.reserved += rt.reserved_rooms || 0;
@@ -358,7 +358,7 @@ const RoomStatus = {
         if (dayData.room_types && dayData.room_types.length > 0) {
             const sumRatio = sums.total ? (sums.available / sums.total) : 0;
             const sumPct = Math.round(sumRatio * 100);
-            const sumBarColor = sumPct > 50 ? '#22c55e' : sumPct > 10 ? '#f59e0b' : '#ef4444';
+            const sumBarColor = sumPct > 50 ? '#3F72AF' : sumPct > 10 ? '#DBE2EF' : '#112D4E';
             
             html += `
                 <tr class="rs-summary-row">
@@ -407,7 +407,7 @@ const RoomStatus = {
             return;
         }
 
-        const colors = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+        const colors = ['#3F72AF', '#112D4E', '#DBE2EF', '#475569', '#1e3a8a', '#60a5fa'];
         let startAngle = -Math.PI / 2;
 
         data.forEach((rt, i) => {

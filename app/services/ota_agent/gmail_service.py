@@ -488,7 +488,51 @@ class GmailService:
             logger.error(f"[Gmail Service] Lỗi lấy historyId: {e}")
             return None
 
-    def is_configured(self) -> bool:
+    def check_token_health(self) -> dict:
+        """
+        Kiểm tra trạng thái token Gmail.
+        Trả về dict với: valid, expired, days_until_expiry, error
+        Dùng cho health check và scheduler warning.
+        """
+        from datetime import timezone as _tz
+        result = {
+            "valid": False,
+            "expired": True,
+            "revoked": False,
+            "days_until_expiry": None,
+            "expiry": None,
+            "error": None,
+        }
+        try:
+            creds = self.get_credentials()
+            if creds is None:
+                # get_credentials đã log lỗi — phân biệt revoked vs missing
+                token_json_str = os.environ.get("GMAIL_TOKEN_JSON", "")
+                has_source = TOKEN_PATH.exists() or bool(token_json_str)
+                if has_source:
+                    result["revoked"] = True
+                    result["error"] = "invalid_grant: token revoked or expired permanently"
+                else:
+                    result["error"] = "no_token_source: gmail_token.json and GMAIL_TOKEN_JSON both missing"
+                return result
+
+            result["valid"] = creds.valid
+            result["expired"] = creds.expired
+
+            if creds.expiry:
+                expiry_utc = creds.expiry.replace(tzinfo=_tz.utc) if creds.expiry.tzinfo is None else creds.expiry
+                now_utc = datetime.now(_tz.utc)
+                delta = expiry_utc - now_utc
+                result["expiry"] = expiry_utc.isoformat()
+                result["days_until_expiry"] = max(0, delta.days)
+
+            return result
+
+        except Exception as e:
+            result["error"] = str(e)
+            return result
+
+
         """Kiểm tra Gmail service đã sẵn sàng chưa."""
         has_token = TOKEN_PATH.exists() or bool(os.environ.get("GMAIL_TOKEN_JSON", ""))
         return has_token and settings.GOOGLE_PUBSUB_TOPIC is not None

@@ -1,69 +1,76 @@
-{# CRM Guest Detail - Sidebar Profile (redesigned) #}
+{# CRM Guest Detail - Sidebar Profile #}
 
-<aside class="gd-sidebar gd-sidebar-v2">
+<aside class="gd-sidebar gd-sidebar-v3">
 
-  {# ── HERO ── #}
-  <div class="gd-hero" :class="{ 'is-blocked': guest.is_blacklisted }">
-    <div class="gd-hero-top">
-      <div class="gd-hero-avatar-wrap">
-        <div class="gd-hero-avatar" :style="'background:' + avatarColor(guest.full_name)">
+  <section class="gd-profile-shell" :class="{ 'is-blocked': guest.is_blacklisted }">
+    <div class="gd-profile-top">
+      <div class="gd-profile-avatar-wrap">
+        <div class="gd-profile-avatar" :style="'background:' + avatarColor(guest.full_name)">
           <span x-text="(guest.full_name||'?')[0].toUpperCase()"></span>
         </div>
         <template x-if="!guest.is_blacklisted">
-          <span class="gd-hero-status" title="Đang hoạt động"></span>
+          <span class="gd-profile-status" title="Đang hoạt động"></span>
         </template>
         <template x-if="guest.is_blacklisted">
-          <span class="gd-hero-status gd-hero-status-blocked" title="Blacklist">
+          <span class="gd-profile-status gd-profile-status-blocked" title="Blacklist">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
           </span>
         </template>
       </div>
 
-      <div class="gd-hero-meta">
-        <h2 class="gd-hero-name" x-text="guest.full_name"></h2>
-        <div class="gd-hero-sub">
-          <span class="gd-hero-flag" x-text="(guest.nationality || 'VNM').split('-')[0].trim()"></span>
-          <span class="gd-hero-country" x-text="guest.nationality ? guest.nationality.split('-').slice(1).join('-').trim() : 'Việt Nam'"></span>
-        </div>
-        <div class="gd-hero-tier">
-          <span class="gd-hero-tier-chip tier-badge" :class="'tier-' + (membership?.tier || 'BASIC')">
+      <div class="gd-profile-main">
+        <p class="gd-profile-kicker">Hồ sơ khách hàng</p>
+        <h2 class="gd-profile-name" x-text="guest.full_name"></h2>
+        <div class="gd-profile-tags">
+          <span class="gd-mini-tag">
+            <span x-text="(guest.nationality || 'VNM').split('-')[0].trim()"></span>
+            <span x-text="guest.nationality ? guest.nationality.split('-').slice(1).join('-').trim() : 'Việt Nam'"></span>
+          </span>
+          <span class="gd-tier-pill tier-badge" :class="'tier-' + (membership?.tier || 'BASIC')">
             <span x-text="membership?.tier_display || 'Khách thường'"></span>
           </span>
-          <template x-if="!next_tier && membership?.tier === 'VIP'">
-            <span class="gd-hero-vip">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
-              Hạng cao nhất
-            </span>
-          </template>
         </div>
       </div>
     </div>
 
-    <div class="gd-hero-actions">
+    <template x-if="!next_tier && membership?.tier === 'VIP'">
+      <div class="gd-vip-note">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+        <span>Hạng cao nhất</span>
+      </div>
+    </template>
+
+    <div class="gd-profile-actions">
       <template x-if="guest.phone">
-        <a class="gd-icon-btn gd-icon-call" :href="'tel:' + guest.phone" :title="guest.phone">
+        <a class="gd-action-btn" :href="'tel:' + guest.phone" :title="guest.phone">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           <span>Gọi</span>
         </a>
       </template>
       <template x-if="guest.email">
-        <a class="gd-icon-btn gd-icon-email" :href="'mailto:' + guest.email" :title="guest.email">
+        <a class="gd-action-btn" :href="'mailto:' + guest.email" :title="guest.email">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
           <span>Email</span>
         </a>
       </template>
-      <button type="button"
-              class="gd-icon-btn gd-icon-danger"
-              :class="{ 'is-active': guest.is_blacklisted }"
-              @click="toggleBlacklist()"
-              :title="guest.is_blacklisted ? 'Gỡ khỏi danh sách đen' : 'Đưa vào danh sách đen'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-        <span x-text="guest.is_blacklisted ? 'Gỡ BL' : 'Blacklist'"></span>
-      </button>
     </div>
-  </div>
 
-  {# ── RISK ── #}
+    <div class="gd-profile-stats">
+      <div class="gd-profile-stat">
+        <span x-text="(profile?.stats?.total_stays || membership?.total_stays || 0)"></span>
+        <small>Lưu trú</small>
+      </div>
+      <div class="gd-profile-stat">
+        <span x-text="(profile?.stats?.total_nights || 0)"></span>
+        <small>Đêm</small>
+      </div>
+      <div class="gd-profile-stat">
+        <span x-text="fmtMoneyFull(profile?.stats?.total_spent || 0)"></span>
+        <small>Chi tiêu</small>
+      </div>
+    </div>
+  </section>
+
   <template x-if="guest.risk_flags && (guest.risk_flags.is_blacklisted || guest.risk_flags.has_unpaid_debt)">
     <div class="gd-risk-alert" :class="{ danger: guest.risk_flags.is_blacklisted }">
       <svg class="gd-risk-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -79,14 +86,16 @@
     </div>
   </template>
 
-  {# ── LOYALTY ── #}
-  <div class="gd-loyalty" :style="'--tier-color:' + tierColor(membership?.tier)">
-    <div class="gd-loyalty-head">
-      <span class="gd-loyalty-label">Điểm tích luỹ</span>
-      <span class="gd-loyalty-tier" x-text="membership?.tier_display || 'Khách thường'"></span>
+  <section class="gd-loyalty-card" :style="'--tier-color:' + tierColor(membership?.tier)">
+    <div class="gd-card-head">
+      <div>
+        <p class="gd-card-eyebrow">Thành viên</p>
+        <h3>Điểm tích lũy</h3>
+      </div>
+      <span class="gd-loyalty-chip" x-text="membership?.tier_display || 'Khách thường'"></span>
     </div>
-    <div class="gd-loyalty-points">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>
+
+    <div class="gd-loyalty-score">
       <span x-text="(membership?.loyalty_points || 0).toLocaleString('vi-VN')"></span>
       <small>điểm</small>
     </div>
@@ -102,25 +111,9 @@
         </div>
       </div>
     </template>
+  </section>
 
-    <div class="gd-loyalty-stats">
-      <div class="gd-ls-cell">
-        <span class="gd-ls-value" x-text="(profile?.stats?.total_stays || membership?.total_stays || 0)"></span>
-        <span class="gd-ls-label">Lưu trú</span>
-      </div>
-      <div class="gd-ls-cell">
-        <span class="gd-ls-value" x-text="(profile?.stats?.total_nights || 0)"></span>
-        <span class="gd-ls-label">Đêm</span>
-      </div>
-      <div class="gd-ls-cell">
-        <span class="gd-ls-value" x-text="fmtMoneyFull(profile?.stats?.total_spent || 0)"></span>
-        <span class="gd-ls-label">Chi tiêu</span>
-      </div>
-    </div>
-  </div>
-
-  {# ── INFO ── #}
-  <div class="gd-info-card">
+  <section class="gd-info-card">
     <h3 class="gd-info-title">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       Thông tin cá nhân
@@ -162,6 +155,15 @@
         <span class="gd-info-value gd-info-value-wrap" x-text="guest.address || '-'"></span>
       </li>
     </ul>
-  </div>
+  </section>
+
+  <button type="button"
+          class="gd-action-btn gd-action-danger gd-blacklist-bottom"
+          :class="{ 'is-active': guest.is_blacklisted }"
+          @click="toggleBlacklist()"
+          :title="guest.is_blacklisted ? 'Gỡ khỏi danh sách đen' : 'Đưa vào danh sách đen'">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+    <span x-text="guest.is_blacklisted ? 'Gỡ BL' : 'Blacklist'"></span>
+  </button>
 
 </aside>

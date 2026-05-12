@@ -598,6 +598,7 @@ def api_get_guest_profile(
         db.query(Guest)
         .options(
             joinedload(Guest.membership),
+            joinedload(Guest.profile),
             selectinload(Guest.preferences),
         )
         .filter(Guest.id == guest_id)
@@ -607,6 +608,7 @@ def api_get_guest_profile(
         raise HTTPException(status_code=404, detail="Không tìm thấy khách")
 
     membership = guest.membership
+    guest_profile = guest.profile
     preferences = guest.preferences or []
 
     # Use membership cached stats when available, else query GuestStaySummary once
@@ -716,16 +718,26 @@ def api_get_guest_profile(
     favorite_room_type = membership.favorite_room_type if membership else None
     preferred_payment_method = membership.preferred_payment_method if membership else None
 
+    if not favorite_room_type and guest_profile:
+        favorite_room_type = guest_profile.favorite_room_type
+    if not preferred_payment_method and guest_profile:
+        preferred_payment_method = guest_profile.preferred_payment
+
     # Gộp 3 query favorite thành 1 query duy nhất nếu cần
     if not favorite_branch_id or not favorite_room_type:
         stay_agg = db.query(
             GuestStaySummary.branch_id,
+            Branch.name.label("branch_name"),
             GuestStaySummary.room_type_name,
             func.count(GuestStaySummary.id).label("cnt"),
+        ).join(
+            Branch,
+            Branch.id == GuestStaySummary.branch_id,
         ).filter(
             GuestStaySummary.guest_id == guest_id,
         ).group_by(
             GuestStaySummary.branch_id,
+            Branch.name,
             GuestStaySummary.room_type_name,
         ).order_by(func.count(GuestStaySummary.id).desc()).all()
 
@@ -735,6 +747,8 @@ def api_get_guest_profile(
             room_rows = [r for r in stay_agg if r.room_type_name]
             if room_rows:
                 favorite_room_type = room_rows[0].room_type_name
+    else:
+        stay_agg = []
 
     if not preferred_payment_method:
         payment_row = db.query(
@@ -749,8 +763,77 @@ def api_get_guest_profile(
 
     favorite_branch_name = None
     if favorite_branch_id:
-        favorite_branch = db.query(Branch).filter(Branch.id == favorite_branch_id).first()
-        favorite_branch_name = favorite_branch.name if favorite_branch else None
+        favorite_branch_name = next(
+            (r.branch_name for r in stay_agg if r.branch_id == favorite_branch_id and r.branch_name),
+            None,
+        )
+        if not favorite_branch_name:
+            favorite_branch = db.query(Branch).filter(Branch.id == favorite_branch_id).first()
+            favorite_branch_name = favorite_branch.name if favorite_branch else None
+
+    stay_pref_rows = db.query(
+        GuestStaySummary.branch_id,
+        Branch.name.label("branch_name"),
+        GuestStaySummary.room_type_name,
+        GuestStaySummary.floor,
+        GuestStaySummary.stay_type,
+        GuestStaySummary.pricing_mode,
+        GuestStaySummary.vehicle,
+        func.count(GuestStaySummary.id).label("cnt"),
+    ).join(
+        Branch,
+        Branch.id == GuestStaySummary.branch_id,
+    ).filter(
+        GuestStaySummary.guest_id == guest_id,
+    ).group_by(
+        GuestStaySummary.branch_id,
+        Branch.name,
+        GuestStaySummary.room_type_name,
+        GuestStaySummary.floor,
+        GuestStaySummary.stay_type,
+        GuestStaySummary.pricing_mode,
+        GuestStaySummary.vehicle,
+    ).all()
+
+    preference_map = {
+        pref.preference_type: {
+            "type": pref.preference_type,
+            "value": pref.preference_value,
+            "source": pref.source,
+            "confidence_score": pref.confidence_score,
+        }
+        for pref in preferences
+        if pref.preference_type
+    }
+
+    derived_candidates = {}
+    for row in sorted(stay_pref_rows, key=lambda r: r.cnt or 0, reverse=True):
+        for pref_type, value in {
+            "floor": row.floor,
+            "stay_type": row.stay_type,
+            "pricing_mode": row.pricing_mode,
+            "vehicle": row.vehicle,
+        }.items():
+            if value is not None and pref_type not in derived_candidates:
+                derived_candidates[pref_type] = value
+
+    for pref_type, value in derived_candidates.items():
+        if value is not None and pref_type not in preference_map:
+            preference_map[pref_type] = {
+                "type": pref_type,
+                "value": value,
+                "source": "history",
+                "confidence_score": None,
+            }
+
+    preference_order = ["branch", "room", "payment", "floor", "stay_type", "pricing_mode", "vehicle"]
+    profile_preferences = sorted(
+        preference_map.values(),
+        key=lambda pref: (
+            preference_order.index(pref["type"]) if pref["type"] in preference_order else len(preference_order),
+            pref["type"],
+        ),
+    )
 
     # preferences already loaded via selectinload above
 
@@ -812,15 +895,7 @@ def api_get_guest_profile(
                 "room_type": favorite_room_type,
                 "payment_method": preferred_payment_method,
             },
-            "preferences": [
-                {
-                    "type": pref.preference_type,
-                    "value": pref.preference_value,
-                    "source": pref.source,
-                    "confidence_score": pref.confidence_score,
-                }
-                for pref in preferences
-            ],
+            "preferences": profile_preferences,
             "notes": None,  # Can be extended later
         },
     })

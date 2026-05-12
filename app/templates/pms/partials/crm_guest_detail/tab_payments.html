@@ -13,22 +13,22 @@
       <template x-if="paymentStats">
         <div class="gd-pay-stat">
           <div class="gd-pay-stat-card">
-            <div class="gd-pay-stat-val" style="color:#10b981;"
+            <div class="gd-pay-stat-val" style="color:var(--crm-accent);"
               x-text="fmtMoney(paymentStats.total_payment||0)"></div>
             <div class="gd-pay-stat-lbl">Đã thanh toán</div>
           </div>
           <div class="gd-pay-stat-card">
-            <div class="gd-pay-stat-val" style="color:#f59e0b;"
+            <div class="gd-pay-stat-val" style="color:#b77b00;"
               x-text="fmtMoney(paymentStats.total_deposit||0)"></div>
             <div class="gd-pay-stat-lbl">Đặt cọc</div>
           </div>
           <div class="gd-pay-stat-card">
-            <div class="gd-pay-stat-val" style="color:#ef4444;" x-text="fmtMoney(paymentStats.total_refund||0)">
+            <div class="gd-pay-stat-val" style="color:var(--crm-coral);" x-text="fmtMoney(paymentStats.total_refund||0)">
             </div>
             <div class="gd-pay-stat-lbl">Hoàn tiền</div>
           </div>
           <div class="gd-pay-stat-card">
-            <div class="gd-pay-stat-val" style="color:#dc2626;" x-text="fmtMoney(paymentStats.total_debt||0)">
+            <div class="gd-pay-stat-val" style="color:var(--crm-danger);" x-text="fmtMoney(paymentStats.total_debt||0)">
             </div>
             <div class="gd-pay-stat-lbl">Còn nợ</div>
           </div>

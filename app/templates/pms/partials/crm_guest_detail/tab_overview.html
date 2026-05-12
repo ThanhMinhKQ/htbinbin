@@ -11,7 +11,7 @@
         <div class="gd-tier-progress-line" :style="'width: calc(' + (profile?.membership?.current_tier_index || 0) * (100 / ((profile?.membership?.tier_journey?.length || 5) - 1)) + '% - 0px)'"></div>
         <template x-for="(tier, idx) in (profile?.membership?.tier_journey || [])" :key="tier.tier">
           <div class="gd-tier-step" :class="{ 'active': tier.is_current, 'completed': tier.is_unlocked && !tier.is_current }">
-            <div class="gd-tier-step-icon" :style="tier.is_current ? 'background:linear-gradient(135deg, var(--crm-accent), #818cf8);' : (tier.is_unlocked ? 'background:linear-gradient(135deg, var(--crm-success), #34d399);' : 'background:linear-gradient(135deg, var(--crm-bg-soft), var(--crm-border));')">
+            <div class="gd-tier-step-icon" :style="tier.is_current ? 'background:linear-gradient(135deg, var(--crm-accent), var(--crm-aqua));' : (tier.is_unlocked ? 'background:linear-gradient(135deg, var(--crm-aqua), var(--crm-accent));' : 'background:linear-gradient(135deg, var(--crm-surface), var(--crm-bg-soft));')">
               <span x-html="journeyTierIcon(tier.tier)"></span>
               <div class="gd-tier-badge">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3">

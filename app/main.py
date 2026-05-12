@@ -225,6 +225,50 @@ async def startup_event():
             logger.info("📧 Cronjob Gmail Watch Renewal đã đăng ký (chạy mỗi ngày 06:00)")
             renew_gmail_watch()
 
+            # --- GMAIL TOKEN HEALTH CHECK (Mỗi ngày 08:00) ---
+            def check_gmail_token_health():
+                try:
+                    if not settings.OTA_ENABLED:
+                        return
+                    from app.services.ota_agent.gmail_service import gmail_service
+                    health = gmail_service.check_token_health()
+                    if not health["valid"]:
+                        if health.get("revoked"):
+                            logger.critical(
+                                "🚨 [Gmail Token] Token bị REVOKE — OTA pipeline NGỪNG HOẠT ĐỘNG! "
+                                "Vào /api/ota/oauth/start để re-authenticate ngay."
+                            )
+                        else:
+                            logger.error(
+                                f"🚨 [Gmail Token] Token không hợp lệ: {health.get('error')} — "
+                                "Vào /api/ota/oauth/start để re-authenticate."
+                            )
+                    elif health.get("days_until_expiry") is not None:
+                        days = health["days_until_expiry"]
+                        if days <= 3:
+                            logger.critical(
+                                f"🚨 [Gmail Token] Token hết hạn trong {days} ngày! "
+                                "Vào /api/ota/oauth/start để re-authenticate NGAY."
+                            )
+                        elif days <= 7:
+                            logger.warning(
+                                f"⚠️ [Gmail Token] Token hết hạn trong {days} ngày. "
+                                "Nên re-authenticate sớm tại /api/ota/oauth/start"
+                            )
+                        else:
+                            logger.info(f"✅ [Gmail Token] Token hợp lệ, còn {days} ngày.")
+                except Exception as e:
+                    logger.error(f"❌ [Gmail Token Health] Lỗi kiểm tra token: {e}")
+
+            scheduler.add_job(
+                check_gmail_token_health,
+                'cron', hour=8, minute=0,
+                misfire_grace_time=900,
+                id="gmail_token_health_check"
+            )
+            logger.info("🔑 Cronjob Gmail Token Health Check đã đăng ký (chạy mỗi ngày 08:00)")
+            check_gmail_token_health()  # Chạy ngay khi startup để phát hiện sớm
+
             scheduler.add_job(
                 generate_reservation_inventory,
                 'cron', hour=1, minute=10,

@@ -3,11 +3,11 @@
 {% block page_title %}Hồ sơ Khách hàng{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', path='/css/crm_guest_detail.css') }}?v=20260510-sidebar-v2">
+<link rel="stylesheet" href="{{ url_for('static', path='/css/crm_guest_detail.css') }}?v=20260512-palette-sidebar-v3">
 {% endblock %}
 
 {% block content %}
-<div id="gd-shell" class="gd-shell" x-data="guestDetail()" x-init="init()" data-guest-id="{{ guest_id }}">
+<div id="gd-shell" class="gd-shell" x-data="guestDetail()" x-init="init()" data-guest-id="{{ guest_id }}" data-disable-ota-polling="true">
 
   {# Header & Tabs #}
   {% include 'pms/partials/crm_guest_detail/header_tabs.html' %}

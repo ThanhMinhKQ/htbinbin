@@ -8,11 +8,12 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, cast
 
 from sqlalchemy import func, or_
-from sqlalchemy.orm import selectinload, Session
+from sqlalchemy.orm import Session
 
 from ..core.utils import VN_TZ
 from ..db.models import (
     Booking,
+    HotelGuest,
     HotelRoom,
     HotelRoomType,
     HotelStay,
@@ -654,7 +655,14 @@ class InventoryService:
             HotelRoom.is_active == True,
         ).order_by(HotelRoom.floor, HotelRoom.sort_order, HotelRoom.room_number).all()
 
-        bookings = self.db.query(Booking).filter(
+        bookings = self.db.query(
+            Booking.id,
+            Booking.assigned_room_id,
+            Booking.reservation_status,
+            Booking.guest_name,
+            Booking.check_in,
+            Booking.check_out,
+        ).filter(
             Booking.branch_id == branch_id,
             Booking.reservation_status == "CONFIRMED",
             Booking.check_in < end_date,
@@ -666,12 +674,33 @@ class InventoryService:
         if day_start.tzinfo is None:
             day_start = VN_TZ.localize(day_start)
             day_end = VN_TZ.localize(day_end)
-        active_stays = self.db.query(HotelStay).options(selectinload(HotelStay.guests)).filter(
+        active_stays = self.db.query(
+            HotelStay.id,
+            HotelStay.room_id,
+            HotelStay.check_in_at,
+            HotelStay.check_out_at,
+            HotelStay.pricing_mode_initial,
+            HotelStay.stay_type,
+        ).filter(
             HotelStay.branch_id == branch_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
             HotelStay.check_in_at < day_end,
             or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
         ).all()
+
+        stay_ids = [s.id for s in active_stays]
+        primary_guests = {}
+        if stay_ids:
+            guest_rows = self.db.query(
+                HotelGuest.stay_id,
+                HotelGuest.full_name,
+                HotelGuest.is_primary,
+            ).filter(
+                HotelGuest.stay_id.in_(stay_ids),
+            ).order_by(HotelGuest.stay_id, HotelGuest.is_primary.desc()).all()
+            for stay_id, full_name, is_primary in guest_rows:
+                if stay_id not in primary_guests:
+                    primary_guests[stay_id] = full_name
 
         blocks = self.db.query(RoomBlock).filter(
             RoomBlock.branch_id == branch_id,
@@ -687,7 +716,7 @@ class InventoryService:
                 booking_by_room.setdefault(int(booking.assigned_room_id), []).append(booking)
             else:
                 unassigned_bookings.append(booking)
-        active_stays_by_room: Dict[int, List[HotelStay]] = {}
+        active_stays_by_room: Dict[int, list] = {}
         for stay in active_stays:
             active_stays_by_room.setdefault(int(stay.room_id), []).append(stay)
         blocks_by_room: Dict[int, List[RoomBlock]] = {}
@@ -707,8 +736,7 @@ class InventoryService:
                     "booking_id": booking.id,
                 })
             for stay in active_stays_by_room.get(room.id, []):
-                primary_guest = next((guest for guest in stay.guests if guest.is_primary), None)
-                guest_name = primary_guest.full_name if primary_guest else (stay.guests[0].full_name if stay.guests else "Đang ở")
+                guest_name = primary_guests.get(stay.id, "Đang ở")
                 check_in_at = stay.check_in_at.astimezone(VN_TZ) if stay.check_in_at.tzinfo else stay.check_in_at
                 check_out_at = stay.check_out_at.astimezone(VN_TZ) if stay.check_out_at and stay.check_out_at.tzinfo else stay.check_out_at
                 stay_start = check_in_at.date()
@@ -822,15 +850,6 @@ class InventoryService:
         ).order_by(HotelRoomType.sort_order, HotelRoomType.name).all()
         room_type_by_id = {int(room_type.id): room_type for room_type in room_types}
         end_date = start_date + timedelta(days=days)
-        inventories = self.db.query(RoomInventoryDaily).filter(
-            RoomInventoryDaily.branch_id == branch_id,
-            RoomInventoryDaily.room_type_id.in_(list(room_type_by_id) or [0]),
-            RoomInventoryDaily.date >= start_date,
-            RoomInventoryDaily.date < end_date,
-        ).all()
-        inventory_by_key = {(int(inv.room_type_id), inv.date): inv for inv in inventories}
-
-        self.generate_daily_inventory(branch_id, start_date, days, refresh_counts=True)
         inventories = self.db.query(RoomInventoryDaily).filter(
             RoomInventoryDaily.branch_id == branch_id,
             RoomInventoryDaily.room_type_id.in_(list(room_type_by_id) or [0]),

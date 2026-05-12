@@ -1,136 +1,62 @@
 <div x-show="currentTab === 'import'" class="inv-tab-page" x-cloak>
-    <div class="inv-tab-header">
-        <div>
-            <p class="inv-tab-eyebrow">Nhập kho</p>
-            <h2 class="inv-tab-title">Nhập trực tiếp</h2>
-            <p class="inv-tab-copy">Ghi nhận hàng vào kho, kiểm soát nhà cung cấp, tổng tiền và chứng từ theo từng phiếu.</p>
+
+    <div class="inv-kpi-grid">
+        <div class="inv-kpi-card" data-accent="teal">
+            <p class="inv-kpi-label">Tổng phiếu nhập</p>
+            <p class="inv-kpi-value" x-text="totalImportRecords || 0"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
-            <button @click="resetImportDateFilter()" class="inv-btn-secondary" title="Reset về tháng hiện tại">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        <div class="inv-kpi-card" data-accent="slate">
+            <p class="inv-kpi-label">Đang hiển thị</p>
+            <p class="inv-kpi-value" x-text="importsList.length || 0"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+            </svg>
+        </div>
+        <div class="inv-kpi-card" data-accent="coral">
+            <p class="inv-kpi-label">Tổng tiền trang</p>
+            <p class="inv-kpi-value" x-text="formatMoney(importsList.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0))"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+        </div>
+        <div class="inv-kpi-card" data-accent="yellow">
+            <p class="inv-kpi-label">Tổng sản phẩm</p>
+            <p class="inv-kpi-value" x-text="importsList.reduce((sum, r) => sum + (Number(r.items_count) || 0), 0)"></p>
+            <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+        </div>
+    </div>
+
+    <div class="inv-toolbar">
+        <div class="inv-import-filter-row">
+            <div class="relative inv-import-search">
+                <input type="text" x-model="importFilters.search" @keydown.enter="fetchImports(1)"
+                    class="inv-field-search w-full" placeholder="Tìm mã phiếu, NCC, ghi chú...">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+            <input type="date" x-model="importFilters.date_from" @change="fetchImports(1)" class="inv-field inv-import-date">
+            <input type="date" x-model="importFilters.date_to" @change="fetchImports(1)" class="inv-field inv-import-date">
+            <button @click="fetchImports(1)" class="inv-btn-secondary">Lọc</button>
+            <button @click="resetImportDateFilter()" class="inv-btn-secondary inv-import-reset" title="Reset về tháng hiện tại">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Tháng này
             </button>
-            <button @click="openImportModal()" class="inv-btn-primary">
+            <button @click="openImportModal()" class="inv-btn-primary inv-import-create">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
                 Tạo phiếu nhập
             </button>
-        </div>
-    </div>
-
-    <div class="inv-kpi-grid">
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Tổng phiếu nhập</p>
-                    <p class="inv-kpi-value text-green-600 dark:text-green-300" x-text="totalImportRecords || 0"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center dark:bg-green-950/50 dark:text-green-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Đang hiển thị</p>
-                    <p class="inv-kpi-value" x-text="importsList.length || 0"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center dark:bg-slate-800 dark:text-slate-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Tổng tiền trang</p>
-                    <p class="inv-kpi-value text-xl text-emerald-600 dark:text-emerald-300" x-text="formatMoney(importsList.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0))"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center dark:bg-emerald-950/50 dark:text-emerald-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-        <div class="inv-kpi-card">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <p class="inv-kpi-label">Tổng sản phẩm</p>
-                    <p class="inv-kpi-value text-indigo-600 dark:text-indigo-300" x-text="importsList.reduce((sum, r) => sum + (Number(r.items_count) || 0), 0)"></p>
-                </div>
-                <div class="h-10 w-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center dark:bg-indigo-950/50 dark:text-indigo-300">
-                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="inv-toolbar">
-        <!-- Filters & Actions -->
-        <div>
-            <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
-
-                <!-- Search & Filter Group -->
-                <!-- Search & Filter Group -->
-                <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1 flex-wrap">
-                    <div class="relative w-full sm:w-64">
-                        <input type="text" x-model="importFilters.search" @keydown.enter="fetchImports(1)"
-                            class="inv-field-search"
-                            placeholder="Tìm mã phiếu, NCC, ghi chú...">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                    </div>
-
-                    <input type="date" x-model="importFilters.date_from" @change="fetchImports(1)"
-                        class="inv-field w-full sm:w-40"
-                        placeholder="Từ ngày">
-
-                    <input type="date" x-model="importFilters.date_to" @change="fetchImports(1)"
-                        class="inv-field w-full sm:w-40"
-                        placeholder="Đến ngày">
-
-                    <button @click="fetchImports(1)"
-                        class="inv-btn-secondary">
-                        Lọc
-                    </button>
-
-                    <button @click="resetImportDateFilter()"
-                        class="inv-btn-secondary"
-                        title="Reset về tháng hiện tại">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- Actions Group -->
-                <div class="flex items-center gap-2 w-full lg:w-auto justify-end">
-                    <button @click="openImportModal()"
-                        class="inv-btn-primary">
-                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                        Tạo phiếu nhập
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 

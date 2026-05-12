@@ -123,7 +123,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                 // Lazy load non-active tabs after primary data is ready
                 const tab = this.currentTab;
                 if (tab === 'overview') {
-                    setTimeout(() => this.fetchStockOnly(), 100);
+                    setTimeout(() => this.initOverview(), 100);
                 } else if (tab === 'approvals') {
                     setTimeout(() => this.fetchApprovals(), 100);
                 } else if (tab === 'import') {

@@ -4,6 +4,7 @@
 {% block page_title %}Cấu hình Kho & Sản phẩm{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.2">
 <style>
     /* Toggle Checkbox Custom Styles */
     .toggle-checkbox:checked {
@@ -46,7 +47,7 @@
     }
 </script>
 
-<div x-data="masterDataLoader()" class="flex flex-col h-full">
+<div id="inventory-page" class="inv-page inv-page-master-data flex flex-col h-full" x-data="masterDataLoader()">
 
     <div x-show="!ready" class="flex items-center justify-center flex-1 h-full py-20">
         <svg class="animate-spin h-8 w-8 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none"
@@ -61,24 +62,23 @@
     <template x-if="ready">
         <div x-data="window.MasterDataAppFactory()" x-init="initApp()" class="flex flex-col h-full">
 
-            <div
-                class="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+            <div class="inv-master-header sticky top-0 z-10">
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-                    <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg self-start">
+                    <div class="inv-main-tabs self-start">
                         <button @click="currentTab = 'products'"
-                            :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'products', 'text-slate-500 hover:text-slate-700': currentTab !== 'products'}"
-                            class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                            :class="{'is-active': currentTab === 'products'}"
+                            class="inv-main-tab">
                             Sản phẩm
                         </button>
                         <button @click="currentTab = 'categories'"
-                            :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'categories', 'text-slate-500 hover:text-slate-700': currentTab !== 'categories'}"
-                            class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                            :class="{'is-active': currentTab === 'categories'}"
+                            class="inv-main-tab">
                             Danh mục
                         </button>
                         <button @click="currentTab = 'warehouses'; fetchWarehouses()"
-                            :class="{'bg-white dark:bg-slate-700 shadow text-primary-700 dark:text-primary-300 font-semibold': currentTab === 'warehouses', 'text-slate-500 hover:text-slate-700': currentTab !== 'warehouses'}"
-                            class="px-4 py-2 text-sm rounded-md transition-all duration-200">
+                            :class="{'is-active': currentTab === 'warehouses'}"
+                            class="inv-main-tab">
                             Kho hàng
                         </button>
                     </div>
@@ -125,7 +125,7 @@
 
                     <div x-show="currentTab === 'warehouses'" class="flex items-center gap-2" x-cloak>
                         <button @click="openWarehouseModal()"
-                            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm">
+                            class="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm inv-btn-primary">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                 <path d="M12 4v16m8-8H4" />
                             </svg>
