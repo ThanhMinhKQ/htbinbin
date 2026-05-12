@@ -114,7 +114,18 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     this.dashboardStats = d.stats;
                 }
 
-                setTimeout(() => this.fetchStockOnly(), 100);
+                const tab = this.currentTab;
+                if (tab === 'overview') {
+                    setTimeout(() => this.fetchStockOnly(), 100);
+                } else if (tab === 'approvals') {
+                    setTimeout(() => this.fetchApprovals(), 100);
+                } else if (tab === 'import') {
+                    setTimeout(() => this.fetchImports(1), 100);
+                } else if (tab === 'export') {
+                    setTimeout(() => this.fetchExports(1), 100);
+                } else {
+                    setTimeout(() => this.fetchStockOnly(), 2000);
+                }
             } catch (e) {
                 console.warn('Reception page-load failed, falling back to individual calls', e);
                 if (this.currentTab === 'approvals') {

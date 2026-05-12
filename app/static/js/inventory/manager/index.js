@@ -71,13 +71,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
             }
 
             if (this.currentWarehouseId) {
-                // Single page-load request replaces 3 parallel requests
                 this._pageLoad();
-
-                // Active tab specific data
-                if (this.currentTab === 'export') {
-                    setTimeout(() => this.fetchExports(1), 400);
-                }
             }
         },
 
@@ -126,8 +120,20 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                     };
                 }
 
-                // Load stock summary separately (heavier query, lower priority)
-                setTimeout(() => this.fetchStockOnly(), 100);
+                // Lazy load non-active tabs after primary data is ready
+                const tab = this.currentTab;
+                if (tab === 'overview') {
+                    setTimeout(() => this.fetchStockOnly(), 100);
+                } else if (tab === 'approvals') {
+                    setTimeout(() => this.fetchApprovals(), 100);
+                } else if (tab === 'import') {
+                    setTimeout(() => this.fetchImports(1), 100);
+                } else if (tab === 'export') {
+                    setTimeout(() => this.fetchExports(1), 100);
+                } else {
+                    // Default: requests tab — stock loads last at low priority
+                    setTimeout(() => this.fetchStockOnly(), 2000);
+                }
 
             } catch (e) {
                 console.error('Page load error:', e);
