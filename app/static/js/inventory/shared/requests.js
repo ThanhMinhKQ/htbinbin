@@ -491,3 +491,4 @@ export default function(config) {
     },
     closeChildModal() { this.viewingChildTicket = null; }
 };
+}
