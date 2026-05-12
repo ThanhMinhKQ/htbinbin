@@ -5,13 +5,16 @@ API quản lý thông tin khách hàng, phân loại thành viên, xem lịch s�
 """
 from __future__ import annotations
 
+import base64
 from datetime import datetime
 from decimal import Decimal
+import json
+import time
 from typing import Optional, List
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, or_, and_
 
 from ...db.models import (
@@ -45,6 +48,10 @@ from .guest_activity import ActivityType, ActivityGroup, ActorType, Source, log_
 from ...core.utils import VN_TZ
 
 router = APIRouter()
+_CRM_STATS_CACHE: dict[tuple, tuple[float, dict]] = {}
+_CRM_STATS_TTL_SECONDS = 30.0
+_CRM_SEARCH_CACHE: dict[tuple, tuple[float, dict]] = {}
+_CRM_SEARCH_STATS_TTL_SECONDS = 30.0
 
 
 class GuestBlacklistPayload(BaseModel):
@@ -179,6 +186,71 @@ def _active_branch_id(request: Request, db: Session) -> Optional[int]:
     return branch.id if branch else None
 
 
+def _json_cache_get(cache: dict[tuple, tuple[float, dict]], key: tuple, ttl_seconds: float) -> Optional[dict]:
+    cached = cache.get(key)
+    if not cached:
+        return None
+    cached_at, payload = cached
+    if (time.time() - cached_at) >= ttl_seconds:
+        cache.pop(key, None)
+        return None
+    return payload
+
+
+def _json_cache_set(cache: dict[tuple, tuple[float, dict]], key: tuple, payload: dict, max_items: int = 128) -> None:
+    cache[key] = (time.time(), payload)
+    if len(cache) > max_items:
+        oldest = min(cache.items(), key=lambda kv: kv[1][0])[0]
+        cache.pop(oldest, None)
+
+
+def _clear_crm_caches() -> None:
+    _CRM_STATS_CACHE.clear()
+    _CRM_SEARCH_CACHE.clear()
+
+
+def _encode_guest_cursor(guest: Guest) -> str:
+    payload = {
+        "last_seen_at": guest.last_seen_at.isoformat() if guest.last_seen_at else None,
+        "id": int(guest.id),
+    }
+    raw = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _decode_guest_cursor(cursor: Optional[str]) -> Optional[dict]:
+    if not cursor:
+        return None
+    try:
+        padded = cursor + ("=" * (-len(cursor) % 4))
+        payload = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+        guest_id = int(payload["id"])
+        last_seen_raw = payload.get("last_seen_at")
+        last_seen_at = datetime.fromisoformat(last_seen_raw) if last_seen_raw else None
+        return {"id": guest_id, "last_seen_at": last_seen_at}
+    except Exception:
+        return None
+
+
+def _apply_guest_cursor(query, cursor_data: Optional[dict]):
+    if not cursor_data:
+        return query
+
+    cursor_id = cursor_data["id"]
+    cursor_last_seen = cursor_data["last_seen_at"]
+    if cursor_last_seen is None:
+        return query.filter(
+            Guest.last_seen_at.is_(None),
+            Guest.id > cursor_id,
+        )
+
+    return query.filter(or_(
+        Guest.last_seen_at < cursor_last_seen,
+        and_(Guest.last_seen_at == cursor_last_seen, Guest.id > cursor_id),
+        Guest.last_seen_at.is_(None),
+    ))
+
+
 # ====================================================================
 # GUEST SEARCH & LIST
 # ====================================================================
@@ -193,6 +265,8 @@ def api_search_guests(
     tier: Optional[str] = Query(default=None),
     blacklist: Optional[bool] = Query(default=None),
     debt: Optional[str] = Query(default=None),
+    include_total: bool = Query(default=True),
+    cursor: Optional[str] = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -209,58 +283,87 @@ def api_search_guests(
 
     # Search conditions
     if cccd:
-        query = query.filter(Guest.cccd.ilike(f"%{cccd}%"))
+        query = query.filter(Guest.cccd.like(f"{cccd.strip()}%"))
+    elif phone:
+        query = query.filter(Guest.phone.like(f"{phone.strip()}%"))
     elif q_clean:
-        # Search by name, cccd, phone, email
-        query = query.filter(
-            or_(
-                func.lower(Guest.full_name).contains(q_clean),
-                Guest.cccd.ilike(f"%{q_clean}%"),
-                Guest.phone.ilike(f"%{q_clean}%"),
-                Guest.email.ilike(f"%{q_clean}%"),
-            )
-        )
+        prefix = f"{q_clean}%"
+        search_filters = [
+            Guest.normalized_name.like(prefix),
+            Guest.cccd.like(prefix),
+            Guest.phone.like(prefix),
+            Guest.email.like(prefix),
+            Guest.full_name.ilike(prefix),
+        ]
+        # For short tokens, keep strict prefix search so PostgreSQL can use
+        # text-pattern indexes. For more intentional queries, allow fuzzy name
+        # contains to preserve current operator expectations.
+        if len(q_clean) >= 3:
+            search_filters.append(Guest.full_name.ilike(f"%{q_clean}%"))
+        query = query.filter(or_(*search_filters))
 
     if blacklist is not None:
         query = query.filter(Guest.is_blacklisted == blacklist)
 
     if debt in ("unpaid", "paid"):
-        debt_guest_subq = db.query(GuestStaySummary.guest_id).filter(
+        debt_exists = db.query(GuestStaySummary.id).filter(
+            GuestStaySummary.guest_id == Guest.id,
             GuestStaySummary.debt_amount > 0,
             GuestStaySummary.debt_status.in_(["pending", "partial"]),
-        ).subquery()
+        ).exists()
         if debt == "unpaid":
-            query = query.filter(Guest.id.in_(debt_guest_subq))
+            query = query.filter(debt_exists)
         else:
-            query = query.filter(~Guest.id.in_(debt_guest_subq))
+            query = query.filter(~debt_exists)
 
     if tier:
-        # Filter by membership tier
-        subq = db.query(GuestMembership.guest_id).filter(
-            GuestMembership.tier == tier
-        ).subquery()
-        query = query.filter(Guest.id.in_(subq))
+        membership_exists = db.query(GuestMembership.id).filter(
+            GuestMembership.guest_id == Guest.id,
+            GuestMembership.tier == tier,
+        ).exists()
+        query = query.filter(membership_exists)
 
     # Exclude deleted
     query = query.filter(Guest.deleted_at.is_(None))
 
     # Order by last seen
-    query = query.order_by(Guest.last_seen_at.desc().nullslast())
+    query = query.order_by(Guest.last_seen_at.desc().nullslast(), Guest.id.asc())
 
-    # Count total
-    total = query.count()
+    cursor_data = _decode_guest_cursor(cursor)
+    if cursor and not cursor_data:
+        raise HTTPException(status_code=400, detail="Cursor không hợp lệ")
+    if cursor_data:
+        query = _apply_guest_cursor(query, cursor_data)
+
+    total = query.order_by(None).count() if include_total else None
 
     # Paginate
-    guests = query.offset((page - 1) * page_size).limit(page_size).all()
+    fetch_size = page_size if include_total else page_size + 1
+    if cursor_data:
+        guests = query.limit(fetch_size).all()
+    else:
+        guests = query.offset((page - 1) * page_size).limit(fetch_size).all()
+
+    has_next = False
+    if not include_total and len(guests) > page_size:
+        has_next = True
+        guests = guests[:page_size]
+    elif include_total and total is not None:
+        has_next = page * page_size < total
+
+    next_cursor = _encode_guest_cursor(guests[-1]) if has_next and guests else None
 
     if not guests:
         return JSONResponse({
             "guests": [],
             "items": [],  # Backward compatibility
             "total": total,
+            "total_exact": include_total,
             "page": page,
             "page_size": page_size,
-            "pages": (total + page_size - 1) // page_size if total else 0,
+            "pages": (total + page_size - 1) // page_size if include_total and total else 0,
+            "has_next": False,
+            "next_cursor": None,
         })
 
     # Batch load memberships
@@ -269,6 +372,7 @@ def api_search_guests(
         GuestMembership.guest_id.in_(guest_ids)
     ).all()
     membership_map = {m.guest_id: m for m in memberships}
+    tier_names = _tier_display_names(db)
 
     # Batch load most recent HotelGuest address data for each guest
     # Use subquery to get the most recent HotelGuest per guest_id
@@ -297,15 +401,6 @@ def api_search_guests(
         .all()
     )
     hotel_guest_map = {hg.guest_id: hg for hg in recent_hotel_guests}
-
-    # Batch load stay counts directly from GuestStaySummary
-    stay_counts = db.query(
-        GuestStaySummary.guest_id,
-        func.count(GuestStaySummary.id).label('stay_count')
-    ).filter(
-        GuestStaySummary.guest_id.in_(guest_ids)
-    ).group_by(GuestStaySummary.guest_id).all()
-    stay_count_map = {row[0]: row[1] for row in stay_counts}
 
     debt_rows = db.query(
         GuestStaySummary.guest_id,
@@ -343,44 +438,42 @@ def api_search_guests(
             "created_at": activity.created_at.isoformat() if activity.created_at else None,
         }
 
-    # Batch load last stays (using subquery for latest stay per guest)
+    # Batch load last stays from denormalized summary, no HotelStay/HotelRoom join.
     last_stay_subq = (
         db.query(
-            HotelGuest.guest_id,
-            func.max(HotelStay.check_in_at).label('max_checkin')
+            GuestStaySummary.guest_id,
+            func.max(GuestStaySummary.check_in_at).label("max_checkin"),
         )
-        .join(HotelStay, HotelStay.id == HotelGuest.stay_id)
-        .filter(HotelGuest.guest_id.in_(guest_ids))
-        .filter(HotelStay.status != HotelStayStatus.ACTIVE)
-        .group_by(HotelGuest.guest_id)
+        .filter(
+            GuestStaySummary.guest_id.in_(guest_ids),
+            GuestStaySummary.status != HotelStayStatus.ACTIVE.value,
+        )
+        .group_by(GuestStaySummary.guest_id)
         .subquery()
     )
 
     last_stays = (
-        db.query(HotelStay, HotelGuest.guest_id.label('stay_guest_id'))
-        .join(HotelGuest, HotelGuest.stay_id == HotelStay.id)
+        db.query(GuestStaySummary)
         .join(
             last_stay_subq,
             and_(
-                HotelGuest.guest_id == last_stay_subq.c.guest_id,
-                HotelStay.check_in_at == last_stay_subq.c.max_checkin
+                GuestStaySummary.guest_id == last_stay_subq.c.guest_id,
+                GuestStaySummary.check_in_at == last_stay_subq.c.max_checkin,
             )
         )
         .all()
     )
-    stay_map = {row[1]: row[0] for row in last_stays}
-    stay_ids = [row[0].id for row in last_stays]
+    stay_map = {}
+    for summary in last_stays:
+        if summary.guest_id not in stay_map:
+            stay_map[summary.guest_id] = summary
 
-    # Batch load rooms and branches
-    room_map = {}
+    # Batch load branches
     branch_map = {}
-    if stay_ids:
-        rooms = db.query(HotelRoom).filter(HotelRoom.id.in_([row[0].room_id for row in last_stays if row[0].room_id])).all()
-        room_map = {r.id: r.room_number for r in rooms}
-        branch_ids = list(set(row[0].branch_id for row in last_stays if row[0].branch_id))
-        if branch_ids:
-            branches = db.query(Branch).filter(Branch.id.in_(branch_ids)).all()
-            branch_map = {b.id: b.name for b in branches}
+    branch_ids = list({s.branch_id for s in last_stays if s.branch_id})
+    if branch_ids:
+        branches = db.query(Branch).filter(Branch.id.in_(branch_ids)).all()
+        branch_map = {b.id: b.name for b in branches}
 
     # Build response
     results = []
@@ -389,11 +482,7 @@ def api_search_guests(
         last_stay_data = stay_map.get(g.id)
         hg = hotel_guest_map.get(g.id)  # Most recent HotelGuest record
 
-        last_room = None
-        last_branch = None
-        if last_stay_data:
-            last_room = room_map.get(last_stay_data.room_id)
-            last_branch = branch_map.get(last_stay_data.branch_id)
+        last_branch = branch_map.get(last_stay_data.branch_id) if last_stay_data else None
 
         results.append({
             "id": g.id,
@@ -441,13 +530,13 @@ def api_search_guests(
                 ],
             },
             "last_seen_at": g.last_seen_at.isoformat() if g.last_seen_at else None,
-            "total_stays": stay_count_map.get(g.id, 0),
+            "total_stays": membership.total_stays if membership and membership.total_stays is not None else (g.total_stays or 0),
             "tier": membership.tier.value if membership else MemberTier.BASIC.value,
-            "tier_display": _tier_display_name(membership.tier if membership else MemberTier.BASIC, db),
+            "tier_display": tier_names.get(membership.tier.value if membership else MemberTier.BASIC.value, MemberTier.BASIC.value),
             "total_spent": float(membership.total_spent) if membership else 0,
             "loyalty_points": membership.points_balance if membership else 0,
             "last_stay": {
-                "room_number": last_room,
+                "room_number": last_stay_data.room_number,
                 "branch_name": last_branch,
                 "check_in": last_stay_data.check_in_at.isoformat() if last_stay_data and last_stay_data.check_in_at else None,
             } if last_stay_data else None,
@@ -457,9 +546,12 @@ def api_search_guests(
         "guests": results,
         "items": results,  # Backward compatibility
         "total": total,
+        "total_exact": include_total,
         "page": page,
         "page_size": page_size,
-        "pages": (total + page_size - 1) // page_size if total else 0,
+        "pages": (total + page_size - 1) // page_size if include_total and total else 0,
+        "has_next": has_next,
+        "next_cursor": next_cursor,
     })
 
 
@@ -501,29 +593,64 @@ def api_get_guest_profile(
     """
     user = _require_login(request)
 
-    guest = db.query(Guest).filter(Guest.id == guest_id).first()
+    # Single query: guest + membership + preferences
+    guest = (
+        db.query(Guest)
+        .options(
+            joinedload(Guest.membership),
+            selectinload(Guest.preferences),
+        )
+        .filter(Guest.id == guest_id)
+        .first()
+    )
     if not guest:
         raise HTTPException(status_code=404, detail="Không tìm thấy khách")
 
-    membership = db.query(GuestMembership).filter(
-        GuestMembership.guest_id == guest_id
-    ).first()
+    membership = guest.membership
+    preferences = guest.preferences or []
 
-    # Get all stats in a single query using subquery
-    stats_q = db.query(
-        func.count(GuestStaySummary.id).label('total_stays'),
-        func.coalesce(func.sum(GuestStaySummary.nights), 0).label('total_nights'),
-        func.coalesce(func.sum(
-            func.coalesce(GuestStaySummary.final_amount, 0) - func.coalesce(GuestStaySummary.debt_amount, 0)
-        ), 0).label('total_spent'),
-        func.coalesce(func.sum(GuestStaySummary.debt_amount), 0).label('total_debt'),
-    ).filter(GuestStaySummary.guest_id == guest_id).first()
+    # Use membership cached stats when available, else query GuestStaySummary once
+    if membership and membership.total_stays:
+        total_stays = membership.total_stays or 0
+        total_nights = membership.total_nights or 0
+        total_spent = Decimal(str(membership.total_spent or 0))
+        total_debt = Decimal(str(membership.total_debt or 0))
+    else:
+        stats_q = db.query(
+            func.count(GuestStaySummary.id).label('total_stays'),
+            func.coalesce(func.sum(GuestStaySummary.nights), 0).label('total_nights'),
+            func.coalesce(func.sum(
+                func.coalesce(GuestStaySummary.final_amount, 0) - func.coalesce(GuestStaySummary.debt_amount, 0)
+            ), 0).label('total_spent'),
+            func.coalesce(func.sum(GuestStaySummary.debt_amount), 0).label('total_debt'),
+        ).filter(GuestStaySummary.guest_id == guest_id).first()
+        total_stays = stats_q.total_stays or 0
+        total_nights = stats_q.total_nights or 0
+        total_spent = stats_q.total_spent or Decimal("0")
+        total_debt = stats_q.total_debt or Decimal("0")
 
-    total_stays = stats_q.total_stays or 0
-    total_nights = stats_q.total_nights or 0
-    total_spent = stats_q.total_spent or Decimal("0")
-    total_debt = stats_q.total_debt or Decimal("0")
-    risk_flags = get_guest_risk_flags(db, guest_id)
+    # Build risk flags from already-loaded guest data (avoid re-query)
+    debt_total = db.query(
+        func.coalesce(func.sum(GuestStaySummary.debt_amount), 0)
+    ).filter(
+        GuestStaySummary.guest_id == guest_id,
+        GuestStaySummary.debt_amount > 0,
+        GuestStaySummary.debt_status.in_(["pending", "partial"]),
+    ).scalar() or Decimal("0")
+
+    warnings = []
+    if guest.is_blacklisted:
+        warnings.append({"type": "blacklist", "level": "danger", "message": "Khách đang nằm trong danh sách đen."})
+    if debt_total > 0:
+        warnings.append({"type": "debt", "level": "warning", "amount": float(debt_total),
+                         "message": f"Khách còn nợ {float(debt_total):,.0f}đ chưa thanh toán."})
+    risk_flags = {
+        "guest_id": guest_id,
+        "is_blacklisted": bool(guest.is_blacklisted),
+        "has_unpaid_debt": debt_total > 0,
+        "unpaid_debt_amount": float(debt_total),
+        "warnings": warnings,
+    }
 
     avg_per_stay = float(total_spent) / total_stays if total_stays > 0 else 0
 
@@ -533,6 +660,8 @@ def api_get_guest_profile(
     
     # Get benefits for current tier
     benefits = get_tier_benefits(current_tier, db)
+    thresholds = get_membership_thresholds(db)
+    tier_names = _tier_display_names(db)
 
     # Build complete tier journey
     tier_order = list(MemberTier)
@@ -541,12 +670,12 @@ def api_get_guest_profile(
     # All tiers for journey display
     all_tiers = []
     for i, tier in enumerate(tier_order):
-        threshold = float(get_membership_thresholds(db)[tier])
+        threshold = float(thresholds[tier])
         tier_points = current_points if tier == current_tier else (threshold if threshold > 0 else 0)
         
         # Progress within this tier (0-100%)
         if i < len(tier_order) - 1:
-            next_threshold = float(get_membership_thresholds(db)[tier_order[i + 1]])
+            next_threshold = float(thresholds[tier_order[i + 1]])
             tier_range = next_threshold - threshold
             if tier_range > 0:
                 tier_progress = min(100, max(0, (current_points - threshold) / tier_range * 100))
@@ -557,7 +686,7 @@ def api_get_guest_profile(
         
         all_tiers.append({
             "tier": tier.value,
-            "tier_display": _tier_display_name(tier, db),
+            "tier_display": tier_names.get(tier.value, tier.value),
             "threshold": threshold,
             "threshold_display": f"{threshold:,.0f}" if threshold > 0 else "0",
             "is_current": tier == current_tier,
@@ -569,12 +698,12 @@ def api_get_guest_profile(
     next_tier = tier_order[current_idx + 1] if current_idx < len(tier_order) - 1 else None
     next_tier_info = None
     if next_tier:
-        next_threshold = float(get_membership_thresholds(db)[next_tier])
+        next_threshold = float(thresholds[next_tier])
         remaining = next_threshold - current_points
         progress_percent = min(100, max(0, (current_points / next_threshold) * 100)) if next_threshold > 0 else 0
         next_tier_info = {
             "tier": next_tier.value,
-            "tier_display": _tier_display_name(next_tier, db),
+            "tier_display": tier_names.get(next_tier.value, next_tier.value),
             "threshold": next_threshold,
             "threshold_display": f"{next_threshold:,.0f}",
             "remaining": max(0, remaining),
@@ -587,25 +716,25 @@ def api_get_guest_profile(
     favorite_room_type = membership.favorite_room_type if membership else None
     preferred_payment_method = membership.preferred_payment_method if membership else None
 
-    if not favorite_branch_id:
-        branch_row = db.query(
+    # Gộp 3 query favorite thành 1 query duy nhất nếu cần
+    if not favorite_branch_id or not favorite_room_type:
+        stay_agg = db.query(
             GuestStaySummary.branch_id,
-            func.count(GuestStaySummary.id).label("stay_count"),
-        ).filter(
-            GuestStaySummary.guest_id == guest_id,
-            GuestStaySummary.branch_id.isnot(None),
-        ).group_by(GuestStaySummary.branch_id).order_by(func.count(GuestStaySummary.id).desc()).first()
-        favorite_branch_id = branch_row.branch_id if branch_row else None
-
-    if not favorite_room_type:
-        room_row = db.query(
             GuestStaySummary.room_type_name,
-            func.count(GuestStaySummary.id).label("stay_count"),
+            func.count(GuestStaySummary.id).label("cnt"),
         ).filter(
             GuestStaySummary.guest_id == guest_id,
-            GuestStaySummary.room_type_name.isnot(None),
-        ).group_by(GuestStaySummary.room_type_name).order_by(func.count(GuestStaySummary.id).desc()).first()
-        favorite_room_type = room_row.room_type_name if room_row else None
+        ).group_by(
+            GuestStaySummary.branch_id,
+            GuestStaySummary.room_type_name,
+        ).order_by(func.count(GuestStaySummary.id).desc()).all()
+
+        if not favorite_branch_id and stay_agg:
+            favorite_branch_id = stay_agg[0].branch_id
+        if not favorite_room_type and stay_agg:
+            room_rows = [r for r in stay_agg if r.room_type_name]
+            if room_rows:
+                favorite_room_type = room_rows[0].room_type_name
 
     if not preferred_payment_method:
         payment_row = db.query(
@@ -623,9 +752,7 @@ def api_get_guest_profile(
         favorite_branch = db.query(Branch).filter(Branch.id == favorite_branch_id).first()
         favorite_branch_name = favorite_branch.name if favorite_branch else None
 
-    preferences = db.query(GuestPreference).filter(
-        GuestPreference.guest_id == guest_id
-    ).order_by(GuestPreference.preference_type.asc()).all()
+    # preferences already loaded via selectinload above
 
     # Get all tiers for journey visualization
     tier_journey = all_tiers
@@ -664,7 +791,7 @@ def api_get_guest_profile(
         },
         "membership": {
             "tier": current_tier.value,
-            "tier_display": _tier_display_name(current_tier, db),
+            "tier_display": tier_names.get(current_tier.value, current_tier.value),
             "total_spent": float(membership.total_spent or Decimal("0")) if membership else float(total_spent),
             "total_stays": total_stays,
             "total_nights": int(total_nights) if total_nights else 0,
@@ -1311,6 +1438,7 @@ def api_update_crm_membership_settings(
     try:
         settings = save_membership_settings(db, payload.model_dump(), user_id=user.get("id"))
         db.commit()
+        _clear_crm_caches()
         return JSONResponse({"status": "success", "settings": settings})
     except ValueError as exc:
         db.rollback()
@@ -1437,6 +1565,7 @@ def api_update_guest_blacklist(
     )
 
     db.commit()
+    _clear_crm_caches()
     return JSONResponse({
         "guest_id": guest.id,
         "is_blacklisted": guest.is_blacklisted,
@@ -1522,67 +1651,80 @@ def api_crm_stats(
     Thống kê CRM dashboard - alias cho /stats/overview
     """
     user = _require_login(request)
-    
-    # Total guests
-    total_guests = db.query(func.count(Guest.id)).filter(
-        Guest.deleted_at.is_(None)
-    ).scalar() or 0
-    
+
+    q_clean = q.strip().lower() if q else ""
+    cache_key = ("stats", q_clean)
+    cached = _json_cache_get(_CRM_SEARCH_CACHE, cache_key, _CRM_SEARCH_STATS_TTL_SECONDS)
+    if cached:
+        return JSONResponse(cached)
+
     # Search filter
     guest_filter = []
-    if q:
-        guest_filter = [
-            or_(
-                Guest.full_name.ilike(f"%{q}%"),
-                Guest.phone.ilike(f"%{q}%"),
-                Guest.cccd.ilike(f"%{q}%"),
-                Guest.email.ilike(f"%{q}%"),
-            )
+    if q_clean:
+        search_filters = [
+            Guest.normalized_name.like(f"{q_clean}%"),
+            Guest.phone.like(f"{q_clean}%"),
+            Guest.cccd.like(f"{q_clean}%"),
+            Guest.email.like(f"{q_clean}%"),
+            Guest.full_name.ilike(f"{q_clean}%"),
         ]
+        if len(q_clean) >= 3:
+            search_filters.append(Guest.full_name.ilike(f"%{q_clean}%"))
+        guest_filter = [or_(*search_filters)]
 
-    # Guests by tier
-    tier_counts = {}
-    for tier in MemberTier:
-        query = db.query(func.count(GuestMembership.id)).filter(
-            GuestMembership.tier == tier
-        )
-        if guest_filter:
-            query = query.join(Guest, Guest.id == GuestMembership.guest_id).filter(*guest_filter)
-        count = query.scalar() or 0
-        tier_counts[tier.value] = count
-
-    # Total stays & revenue from GuestStaySummary
-    stays_q = db.query(GuestStaySummary)
+    total_guests_q = db.query(func.count(Guest.id)).filter(Guest.deleted_at.is_(None))
     if guest_filter:
-        stays_q = stays_q.join(Guest, Guest.id == GuestStaySummary.guest_id).filter(*guest_filter)
-    
-    total_stays = stays_q.count()
-    total_revenue = stays_q.with_entities(
-        func.coalesce(func.sum(
-            func.coalesce(GuestStaySummary.final_amount, 0) - func.coalesce(GuestStaySummary.debt_amount, 0)
-        ), 0)
-    ).scalar() or Decimal("0")
-    total_nights = stays_q.with_entities(func.coalesce(func.sum(GuestStaySummary.nights), 0)).scalar() or 0
+        total_guests_q = total_guests_q.filter(*guest_filter)
+    total_guests = total_guests_q.scalar() or 0
 
-    # Average
+    # Guests by tier and loyalty totals from membership aggregate table.
+    membership_stats = db.query(
+        GuestMembership.tier,
+        func.count(GuestMembership.id).label("count"),
+        func.coalesce(func.sum(GuestMembership.points_balance), 0).label("total_points"),
+        func.coalesce(func.sum(GuestMembership.total_stays), 0).label("total_stays"),
+        func.coalesce(func.sum(GuestMembership.total_nights), 0).label("total_nights"),
+        func.coalesce(func.sum(GuestMembership.total_spent), 0).label("total_revenue"),
+    )
+    if guest_filter:
+        membership_stats = membership_stats.join(Guest, Guest.id == GuestMembership.guest_id).filter(*guest_filter)
+    membership_rows = membership_stats.group_by(GuestMembership.tier).all()
+
+    tier_counts = {tier.value: 0 for tier in MemberTier}
+    total_points = 0
+    total_stays = 0
+    total_nights = 0
+    total_revenue = Decimal("0")
+    for row in membership_rows:
+        tier_key = row.tier.value if hasattr(row.tier, "value") else str(row.tier)
+        tier_counts[tier_key] = row.count or 0
+        total_points += row.total_points or 0
+        total_stays += row.total_stays or 0
+        total_nights += row.total_nights or 0
+        total_revenue += row.total_revenue or Decimal("0")
+
+    # Historical behavior: this endpoint has no date window, so "new" equals
+    # current filtered guest count. Avoid a second identical COUNT(*).
+    new_guests = total_guests
+
+    avg_points = round(float(total_points) / total_guests, 0) if total_guests > 0 else 0
     avg_per_stay = float(total_revenue) / total_stays if total_stays > 0 else 0
 
-    # New guests
-    new_guests_q = db.query(func.count(Guest.id)).filter(Guest.deleted_at.is_(None))
-    if guest_filter:
-        new_guests_q = new_guests_q.filter(*guest_filter)
-    new_guests = new_guests_q.scalar() or 0
-
-    return JSONResponse({
+    payload = {
         "total_guests": total_guests,
         "tier_distribution": tier_counts,
-        "total_stays": total_stays,
+        "total_stays": int(total_stays),
         "total_revenue": float(total_revenue),
         "total_nights": int(total_nights) if total_nights else 0,
         "avg_per_stay": round(avg_per_stay, 0),
         "new_guests": new_guests,
         "repeat_guests": 0,
-    })
+        "total_points": int(total_points),
+        "avg_points": int(avg_points),
+        "vip_count": tier_counts.get(MemberTier.VIP.value, 0),
+    }
+    _json_cache_set(_CRM_SEARCH_CACHE, cache_key, payload)
+    return JSONResponse(payload)
 
 
 @router.get("/api/pms/crm/stats/overview", tags=["PMS - CRM"])
@@ -1597,6 +1739,12 @@ def api_crm_overview_stats(
     Thống kê tổng quan CRM
     """
     user = _require_login(request)
+
+    cache_key = (branch_id, date_from or "", date_to or "")
+    now_ts = time.time()
+    cached = _CRM_STATS_CACHE.get(cache_key)
+    if cached and (now_ts - cached[0]) < _CRM_STATS_TTL_SECONDS:
+        return JSONResponse(cached[1])
 
     # Base filters
     filter_args = []
@@ -1621,26 +1769,37 @@ def api_crm_overview_stats(
     ).scalar() or 0
 
     # Guests by tier
-    tier_counts = {}
-    for tier in MemberTier:
-        count = db.query(func.count(GuestMembership.id)).filter(
-            GuestMembership.tier == tier
-        ).scalar() or 0
-        tier_counts[tier.value] = count
+    membership_rows = db.query(
+        GuestMembership.tier,
+        func.count(GuestMembership.id).label("count"),
+    ).join(
+        Guest, Guest.id == GuestMembership.guest_id
+    ).filter(
+        Guest.deleted_at.is_(None)
+    ).group_by(GuestMembership.tier).all()
+    tier_counts = {tier.value: 0 for tier in MemberTier}
+    for row in membership_rows:
+        tier_key = row.tier.value if hasattr(row.tier, "value") else str(row.tier)
+        tier_counts[tier_key] = row.count or 0
 
     # Total stays & revenue
-    q = db.query(GuestStaySummary)
-    if filter_args:
-        q = q.filter(*filter_args)
+    aggregate_row = db.query(
+        func.count(GuestStaySummary.id).label("total_stays"),
+        func.coalesce(func.sum(
+            func.coalesce(GuestStaySummary.final_amount, 0) - func.coalesce(GuestStaySummary.debt_amount, 0)
+        ), 0).label("total_revenue"),
+        func.coalesce(func.sum(GuestStaySummary.nights), 0).label("total_nights"),
+    ).filter(*filter_args).first() if filter_args else db.query(
+        func.count(GuestStaySummary.id).label("total_stays"),
+        func.coalesce(func.sum(
+            func.coalesce(GuestStaySummary.final_amount, 0) - func.coalesce(GuestStaySummary.debt_amount, 0)
+        ), 0).label("total_revenue"),
+        func.coalesce(func.sum(GuestStaySummary.nights), 0).label("total_nights"),
+    ).first()
 
-    total_stays = q.count()
-    revenue_expr = func.sum(
-        func.coalesce(GuestStaySummary.final_amount, 0) - func.coalesce(GuestStaySummary.debt_amount, 0)
-    )
-    total_revenue = db.query(revenue_expr).filter(*filter_args).scalar() if filter_args else db.query(revenue_expr).scalar()
-    total_revenue = total_revenue or Decimal("0")
-    total_nights = db.query(func.sum(GuestStaySummary.nights)).filter(*filter_args).scalar() if filter_args else db.query(func.sum(GuestStaySummary.nights)).scalar()
-    total_nights = total_nights or 0
+    total_stays = aggregate_row.total_stays or 0
+    total_revenue = aggregate_row.total_revenue or Decimal("0")
+    total_nights = aggregate_row.total_nights or 0
 
     # Average
     avg_per_stay = float(total_revenue) / total_stays if total_stays > 0 else 0
@@ -1662,15 +1821,16 @@ def api_crm_overview_stats(
             pass
     new_guests = new_guests.scalar() or 0
 
-    # Repeat guests (more than 1 stay)
-    repeat_guests = db.query(
-        GuestStaySummary.guest_id,
-        func.count(GuestStaySummary.id).label("stay_count")
-    ).group_by(GuestStaySummary.guest_id).having(
-        func.count(GuestStaySummary.id) > 1
-    ).count()
+    # Repeat guests (more than 1 stay). Reuse membership aggregate instead of grouping
+    # the full stay summary table on every dashboard load.
+    repeat_guests = db.query(func.count(GuestMembership.id)).join(
+        Guest, Guest.id == GuestMembership.guest_id
+    ).filter(
+        Guest.deleted_at.is_(None),
+        GuestMembership.total_stays > 1,
+    ).scalar() or 0
 
-    return JSONResponse({
+    payload = {
         "total_guests": total_guests,
         "tier_distribution": tier_counts,
         "total_stays": total_stays,
@@ -1680,7 +1840,12 @@ def api_crm_overview_stats(
         "avg_per_night": round(avg_per_night, 0),
         "new_guests": new_guests,
         "repeat_guests": repeat_guests,
-    })
+    }
+    _CRM_STATS_CACHE[cache_key] = (now_ts, payload)
+    if len(_CRM_STATS_CACHE) > 64:
+        oldest = min(_CRM_STATS_CACHE.items(), key=lambda kv: kv[1][0])[0]
+        _CRM_STATS_CACHE.pop(oldest, None)
+    return JSONResponse(payload)
 
 
 @router.post("/api/pms/crm/admin/rebuild-memberships", tags=["PMS - CRM - Admin"])
@@ -1703,6 +1868,7 @@ def api_crm_rebuild_memberships(
         
         # 2. Recalculate stats based on all stay summaries
         result = recalculate_all_memberships(db)
+        _clear_crm_caches()
         
         return JSONResponse({
             "status": "success",
@@ -1723,19 +1889,23 @@ def api_crm_rebuild_memberships(
 # HELPER FUNCTIONS
 # ====================================================================
 
+def _tier_display_names(db: Optional[Session] = None) -> dict:
+    settings = get_membership_settings(db) if db else {"tiers": []}
+    names = {
+        MemberTier.BASIC.value: "Khách thường",
+        MemberTier.SILVER.value: "Thành viên Bạc",
+        MemberTier.GOLD.value: "Thành viên Vàng",
+        MemberTier.PLATINUM.value: "Thành viên Bạch Kim",
+        MemberTier.VIP.value: "Khách VIP",
+    }
+    for item in settings.get("tiers", []):
+        tier_value = item.get("tier")
+        if tier_value:
+            names[tier_value] = item.get("display_name") or tier_value
+    return names
+
+
 def _tier_display_name(tier: MemberTier, db: Optional[Session] = None) -> str:
     """Lấy tên hiển thị của tier"""
-    if db:
-        settings = get_membership_settings(db)
-        tier_value = tier.value if hasattr(tier, "value") else str(tier)
-        for item in settings.get("tiers", []):
-            if item.get("tier") == tier_value:
-                return item.get("display_name") or tier_value
-    names = {
-        MemberTier.BASIC: "Khách thường",
-        MemberTier.SILVER: "Thành viên Bạc",
-        MemberTier.GOLD: "Thành viên Vàng",
-        MemberTier.PLATINUM: "Thành viên Bạch Kim",
-        MemberTier.VIP: "Khách VIP",
-    }
-    return names.get(tier, tier.value)
+    tier_value = tier.value if hasattr(tier, "value") else str(tier)
+    return _tier_display_names(db).get(tier_value, tier_value)
