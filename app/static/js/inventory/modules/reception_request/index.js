@@ -114,7 +114,7 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     this.dashboardStats = d.stats;
                 }
 
-                setTimeout(() => this.fetchStock(), 100);
+                setTimeout(() => this.fetchStockOnly(), 100);
             } catch (e) {
                 console.warn('Reception page-load failed, falling back to individual calls', e);
                 if (this.currentTab === 'approvals') {

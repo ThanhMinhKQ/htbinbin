@@ -127,7 +127,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                 }
 
                 // Load stock summary separately (heavier query, lower priority)
-                setTimeout(() => this.fetchStock(), 100);
+                setTimeout(() => this.fetchStockOnly(), 100);
 
             } catch (e) {
                 console.error('Page load error:', e);

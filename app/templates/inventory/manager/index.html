@@ -144,7 +144,7 @@
             init() {
                 // Dynamically import the module
                 // Use new INVENTORY MANAGER module
-                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.2")
+                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.3")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.inventoryManagerApp;

@@ -281,6 +281,30 @@ export default function(config = {}) {
         return this.fetchOverview();
     },
 
+    async fetchStockOnly() {
+        if (!this.currentWarehouseId && !this.currentBranchId) return;
+        const wh = this.currentWarehouseId;
+        const br = this.currentBranchId;
+        const param = wh ? `warehouse_id=${wh}` : `branch_id=${br}`;
+        try {
+            const res = await fetch(`/api/inventory/report-realtime?${param}`);
+            if (res.ok) {
+                const json = await res.json();
+                this.stocks = (json.data || []).map(s => ({
+                    ...s,
+                    quantity: s.quantity_base
+                }));
+                this.groupStocksByCategory();
+                const warningCount = this.stocks.filter(s => s.status === 'Cảnh báo').length;
+                this.stats.stockWarningCount = warningCount;
+                this.stats.stockWarningPercentage = this.stocks.length > 0
+                    ? Math.round((warningCount / this.stocks.length) * 100) : 0;
+            }
+        } catch (e) {
+            console.error("Error fetching stock:", e);
+        }
+    },
+
     async fetchDashboardStats() {
         return this.fetchOverview();
     },
