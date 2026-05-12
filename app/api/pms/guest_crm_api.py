@@ -1034,14 +1034,20 @@ def api_get_guest_stays(
     branches = db.query(Branch).filter(Branch.id.in_(branch_ids)).all() if branch_ids else []
     branch_map = {b.id: b.name for b in branches}
 
+    # Batch load all activities for all stays in one query (avoid N+1)
+    stay_ids = [s.stay_id for s in summaries if s.stay_id]
+    all_activities = db.query(GuestActivity).filter(
+        GuestActivity.guest_id == guest_id,
+        GuestActivity.stay_id.in_(stay_ids),
+    ).order_by(GuestActivity.created_at.desc()).all() if stay_ids else []
+    activities_by_stay: dict = {}
+    for a in all_activities:
+        activities_by_stay.setdefault(a.stay_id, []).append(a)
+
     results = []
     for s in summaries:
         duration = _duration_payload(s.check_in_at, s.check_out_at)
-        activities = db.query(GuestActivity).filter(
-            GuestActivity.guest_id == guest_id,
-            GuestActivity.stay_id == s.stay_id,
-        ).order_by(GuestActivity.created_at.desc()).limit(20).all()
-        transfer_settlement = _stay_transfer_settlement_payload(db, s.stay_id)
+        activities = activities_by_stay.get(s.stay_id, [])[:20]
         results.append({
             "id": s.id,
             "stay_id": s.stay_id,
@@ -1068,7 +1074,6 @@ def api_get_guest_stays(
             "vehicle": s.vehicle,
             "source": s.source,
             "debt_status": s.debt_status,
-            "transfer_settlement": transfer_settlement,
             "activities": [_activity_payload(a) for a in activities],
         })
 
