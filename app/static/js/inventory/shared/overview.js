@@ -60,7 +60,6 @@ export default function(config = {}) {
                 [this.selectedCategory]: this.groupedStocks[this.selectedCategory] || []
             };
         }
-        }
 
         // Then, filter by search term if provided
         if (!this.stockSearch || this.stockSearch.trim() === '') {
