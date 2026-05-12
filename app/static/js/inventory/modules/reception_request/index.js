@@ -100,13 +100,13 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 const d = await res.json();
 
                 if (d.approvals) {
-                    this.approvalList = d.approvals.records || [];
+                    this.approvalsList = d.approvals.records || [];
                     this.totalApprovalRecords = d.approvals.totalRecords || 0;
                     this.totalApprovalPages = d.approvals.totalPages || 0;
                     this.pendingCount = d.approvals.pendingCount || 0;
                 }
                 if (d.imports) {
-                    this.importList = d.imports.records || [];
+                    this.importsList = d.imports.records || [];
                     this.totalImportRecords = d.imports.totalRecords || 0;
                     this.totalImportPages = d.imports.totalPages || 0;
                 }
