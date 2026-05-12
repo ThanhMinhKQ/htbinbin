@@ -1,4 +1,4 @@
-import createApprovals from '../shared/approvals.js?v=2.0';
+import createApprovals from '../shared/approvals.js';
 
 export default createApprovals({
     canFetch(app) {

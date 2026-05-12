@@ -1,1 +1,2 @@
-export { default } from '../shared/imports.js?v=2.0';
+import sharedImports from '../shared/imports.js';
+export default sharedImports;

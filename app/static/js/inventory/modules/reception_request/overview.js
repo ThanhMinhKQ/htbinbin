@@ -1,3 +1,3 @@
-import createOverview from '../../shared/overview.js?v=2.0';
+import createOverview from '../../shared/overview.js';
 
 export default createOverview();
