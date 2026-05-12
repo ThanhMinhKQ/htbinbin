@@ -15,14 +15,15 @@ export default {
     groupedStocks: {},
     stockSearch: '', // Search term for filtering stocks
     selectedCategory: '', // Selected category filter (empty = 'Tất cả')
+    stockViewMode: 'cards',
     selectedMonth: new Date().getMonth() + 1, // 1-12
     selectedYear: new Date().getFullYear(),
-    selectedMonthInput: '', // For input type="month" (YYYY-MM format)
+    selectedMonthInput: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // For input type="month" (YYYY-MM format)
+    loadingOverview: true,
 
     // Product History Modal State
     isHistoryModalOpen: false,
     viewingHistoryProduct: null,
-    loadingHistory: false,
     loadingHistory: false,
     productHistoryList: [],
     historyFilterType: 'ALL', // ALL, IMPORT, EXPORT, ADJUSTMENT
@@ -82,6 +83,46 @@ export default {
         return filtered;
     },
 
+    getFlatFilteredStocks() {
+        return Object.entries(this.filteredGroupedStocks()).flatMap(([categoryName, items]) => {
+            return items.map(item => ({ ...item, categoryName }));
+        });
+    },
+
+    getCashInflow() {
+        return Number(this.stats.cashflow?.inflow ?? this.stats.totalSalesAmount ?? 0);
+    },
+
+    getCashOutflow() {
+        return Number(this.stats.cashflow?.outflow ?? this.stats.totalImportAmount ?? 0);
+    },
+
+    getNetCashflow() {
+        return Number(this.stats.cashflow?.net ?? (this.getCashInflow() - this.getCashOutflow()));
+    },
+
+    getCashflowWidth(value) {
+        const max = Math.max(Math.abs(this.getCashInflow()), Math.abs(this.getCashOutflow()), Math.abs(this.getNetCashflow()), 1);
+        return `${Math.max(8, Math.round((Math.abs(Number(value) || 0) / max) * 100))}%`;
+    },
+
+    getStockProgress(item) {
+        const qty = Number(item.quantity ?? item.closing_balance ?? item.quantity_base ?? 0);
+        const min = Number(item.min_stock ?? 0);
+        if (min <= 0) return qty > 0 ? 100 : 0;
+        return Math.min(100, Math.round((qty / Math.max(min * 2, 1)) * 100));
+    },
+
+    getStockStatusClass(item) {
+        return item.status === 'Cảnh báo'
+            ? 'bg-[#F2EAE0] text-amber-800 border-amber-200'
+            : 'bg-[#B4D3D9]/40 text-teal-800 border-teal-200';
+    },
+
+    isOverviewMainScope() {
+        return Boolean(this.isCurrentWarehouseMain || this.isCurrentBranchAdmin);
+    },
+
     // Check if the selected month/year is the current month
     isCurrentMonth() {
         const now = new Date();
@@ -90,33 +131,48 @@ export default {
         return this.selectedMonth === currentMonth && this.selectedYear === currentYear;
     },
 
+    formatLocalDate(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    },
+
+    normalizeOverviewMonth() {
+        const monthValue = this.selectedMonthInput || `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
+        const match = String(monthValue).match(/^(\d{4})-(\d{2})$/);
+        if (!match) {
+            const now = new Date();
+            this.selectedYear = now.getFullYear();
+            this.selectedMonth = now.getMonth() + 1;
+            this.selectedMonthInput = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
+            return;
+        }
+
+        this.selectedYear = Number(match[1]);
+        this.selectedMonth = Number(match[2]);
+        this.selectedMonthInput = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
+    },
+
     async initOverview() {
         if (!this.currentWarehouseId) return;
-        // Initialize month input to current month
-        const now = new Date();
-        this.selectedMonthInput = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        await this.fetchStock();
-        await this.fetchDashboardStats();
+        this.normalizeOverviewMonth();
+        await this.fetchOverview();
     },
 
     getMonthDateRange() {
+        this.normalizeOverviewMonth();
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
         return {
-            dateFrom: firstDay.toISOString().split('T')[0],
-            dateTo: lastDay.toISOString().split('T')[0]
+            dateFrom: this.formatLocalDate(firstDay),
+            dateTo: this.formatLocalDate(lastDay)
         };
     },
 
     updateMonth() {
-        // Parse YYYY-MM format from input
-        if (this.selectedMonthInput) {
-            const [year, month] = this.selectedMonthInput.split('-');
-            this.selectedYear = parseInt(year);
-            this.selectedMonth = parseInt(month);
-            this.fetchDashboardStats();
-            this.fetchStock();
-        }
+        this.normalizeOverviewMonth();
+        this.fetchOverview();
     },
 
     resetToCurrentMonth() {
@@ -130,7 +186,11 @@ export default {
     },
 
     async fetchOverview() {
-        if (!this.currentWarehouseId) return;
+        if (!this.currentWarehouseId) {
+            this.loadingOverview = false;
+            return;
+        }
+        this.loadingOverview = true;
         const { dateFrom, dateTo } = this.getMonthDateRange();
         try {
             const res = await fetch(`/api/inventory/overview-combined?warehouse_id=${this.currentWarehouseId}&date_from=${dateFrom}&date_to=${dateTo}`);
@@ -160,8 +220,15 @@ export default {
             this.stats.recentImportsCount = data.imports?.total || 0;
             this.stats.totalExports = data.exports?.total || 0;
             this.stats.totalSalesAmount = data.sales?.total_amount || 0;
+            this.stats.cashflow = data.cashflow || {
+                inflow: this.stats.totalSalesAmount,
+                outflow: this.stats.totalImportAmount,
+                net: this.stats.totalSalesAmount - this.stats.totalImportAmount
+            };
         } catch (e) {
             console.error("Error fetching overview:", e);
+        } finally {
+            this.loadingOverview = false;
         }
     },
 

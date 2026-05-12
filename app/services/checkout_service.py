@@ -35,7 +35,7 @@ from ..db.models import (
     RoomCondition,
 )
 from .folio_service import get_folio_financial_totals, rebalance_folio
-from .inventory_service import InventoryService
+from .room_inventory_service import InventoryService
 from .pricing_service import (
     calculate_full_charge,
     detect_pricing_mode_from_breakdown,

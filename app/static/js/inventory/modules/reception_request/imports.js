@@ -27,6 +27,8 @@ export default {
     resetImportForm() {
         this.importForm.supplier_name = '';
         this.importForm.notes = '';
+        this.importForm.product_search = '';
+        this.importForm.is_search_open = false;
         this.importForm.itemGroups = [this.createEmptyGroup()];
     },
 
@@ -225,6 +227,47 @@ export default {
         this.importForm.itemGroups[groupIndex].items.push(this.createEmptyItem());
     },
 
+    getImportProductSearchResults() {
+        const query = (this.importForm.product_search || '').toLowerCase().trim();
+        if (!query) return [];
+
+        const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
+
+        return this.normalizedProducts
+            .filter(product => {
+                const categoryName = categoriesById.get(String(product.category_id)) || '';
+                const haystack = `${product.name || ''} ${product.code || ''} ${categoryName}`.toLowerCase();
+                return haystack.includes(query);
+            })
+            .slice(0, 10);
+    },
+
+    addImportProductQuick(product) {
+        const categoryId = product.category_id ? String(product.category_id) : '';
+        let group = this.importForm.itemGroups.find(g => String(g.category_id) === categoryId);
+
+        if (!group) {
+            group = {
+                id: Date.now() + Math.random(),
+                category_id: categoryId,
+                items: []
+            };
+            this.importForm.itemGroups.push(group);
+        }
+
+        const item = this.createEmptyItem();
+        item.product_id = String(product.id);
+        group.items.push(item);
+        this.onImportProductChange(this.importForm.itemGroups.indexOf(group), group.items.length - 1);
+        this.importForm.product_search = '';
+        this.importForm.is_search_open = false;
+    },
+
+    clearImportProductSearch() {
+        this.importForm.product_search = '';
+        this.importForm.is_search_open = false;
+    },
+
     removeItemFromImportGroup(groupIndex, itemIndex) {
         if (this.importForm.itemGroups[groupIndex].items.length > 1) {
             this.importForm.itemGroups[groupIndex].items.splice(itemIndex, 1);
@@ -387,6 +430,16 @@ export default {
         } finally {
             this.loadingImportDetail = false;
         }
+    },
+
+    getGroupedImportDetailItems(items) {
+        if (!items) return {};
+        return items.reduce((acc, item) => {
+            const cat = item.category_name || 'Khác';
+            if (!acc[cat]) acc[cat] = [];
+            acc[cat].push(item);
+            return acc;
+        }, {});
     },
 
     closeImportDetailModal() {

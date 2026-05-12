@@ -59,7 +59,7 @@ Object.assign(BookingHub, {
         this.text('bk-ota-failed', data.failed_emails || 0);
         this.text('bk-ota-agent-total', data.agent_total_count || 0);
         this.text('bk-ota-agent-ai', data.agent_ai_count ?? data.agent_gemini_count ?? 0);
-        this.text('bk-ota-agent-skipped', data.agent_skipped_count || 0);
+        this.text('bk-ota-agent-rule', data.agent_rule_count ?? data.agent_parse_count ?? 0);
         const windowText = document.getElementById('bk-ota-agent-window');
         if (windowText) windowText.textContent = `${data.agent_window_days || 1} ngày gần nhất`;
         const latest = document.getElementById('bk-ota-latest');
@@ -131,7 +131,7 @@ Object.assign(BookingHub, {
             if (!hasNewBooking && !hasCancel) return;
 
             this.updateOtaRealtimeBaseline(data);
-            if (hasCancel) pmsToast(this.otaRealtimeMessage(data.latest_cancel_booking, 'cancel'), false);
+            if (hasCancel) pmsToast(this.otaRealtimeMessage(data.latest_cancel_booking, 'cancel'), true);
             if (hasNewBooking) pmsToast(this.otaRealtimeMessage(data.latest_success_booking, 'new'), true);
             await Promise.all([this.loadStats(), this.loadReservations()]);
             if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
@@ -170,6 +170,7 @@ Object.assign(BookingHub, {
         const fields = [
             ['status', 'bk-ota-log-status-filter'],
             ['booking_source', 'bk-ota-log-source-filter'],
+            ['parser_method', 'bk-ota-log-method-filter'],
             ['action_type', 'bk-ota-log-action-filter'],
             ['from_date', 'bk-ota-log-from-date'],
             ['to_date', 'bk-ota-log-to-date'],
@@ -294,7 +295,7 @@ Object.assign(BookingHub, {
     },
 
     resetOtaLogFilters() {
-        ['bk-ota-log-status-filter', 'bk-ota-log-source-filter', 'bk-ota-log-action-filter', 'bk-ota-log-from-date', 'bk-ota-log-to-date', 'bk-ota-log-branch-filter', 'bk-ota-log-search'].forEach((id) => {
+        ['bk-ota-log-status-filter', 'bk-ota-log-source-filter', 'bk-ota-log-method-filter', 'bk-ota-log-action-filter', 'bk-ota-log-from-date', 'bk-ota-log-to-date', 'bk-ota-log-branch-filter', 'bk-ota-log-search'].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });

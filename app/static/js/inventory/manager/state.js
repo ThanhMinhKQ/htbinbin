@@ -97,6 +97,7 @@ export default function (totalRecords, currentPage, totalPages) {
         importsList: [],
         currentImportPage: 1,
         totalImportPages: 1,
+        totalImportRecords: 0,
         loadingImports: false,
 
         // Import Sorting & Selection
@@ -127,6 +128,8 @@ export default function (totalRecords, currentPage, totalPages) {
             warehouse_id: '',
             supplier_name: '',
             notes: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: [],
             images: []
         },
@@ -155,6 +158,8 @@ export default function (totalRecords, currentPage, totalPages) {
         exportForm: {
             dest_warehouse_id: '',
             notes: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: []
         },
 

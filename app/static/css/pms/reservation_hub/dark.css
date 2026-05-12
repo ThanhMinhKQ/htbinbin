@@ -67,10 +67,10 @@
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-option:hover,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-crm-item:hover,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card:hover:not(.sold-out) {
-  background: var(--bk-primary-soft) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
 }
 
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.needs-confirm td { background: var(--bk-row-warning-bg) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.needs-confirm td { background: transparent !important; }
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tr.ready-checkin td { background: var(--bk-row-success-bg) !important; }
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card.sold-out,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-cart-item-v4.over-capacity {
@@ -144,14 +144,18 @@
   backdrop-filter: blur(10px) saturate(125%);
 }
 
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog,
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-detail-dialog,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-confirm-dialog,
-:is(html.dark, body.dark, .dark-mode, .dark) .bk-dialog {
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dialog:not(.bk-detail-dialog) {
   background: var(--bk-surface) !important;
   color: var(--bk-text) !important;
   border: 1px solid var(--bk-line) !important;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.6) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-detail-dialog {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-dialog-head,
@@ -210,48 +214,99 @@
 }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card {
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.96)) !important;
-  border: 1px solid var(--bk-line) !important;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: 24px !important;
+  padding: 20px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-icon,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card::after {
+  content: "";
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 100px;
+  height: 100px;
+  background: currentColor;
+  opacity: 0.1 !important;
+  pointer-events: none;
+  -webkit-mask: var(--bk-stat-watermark) center / contain no-repeat;
+  mask: var(--bk-stat-watermark) center / contain no-repeat;
+  filter: drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card:hover {
+  transform: translateY(-6px) !important;
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-icon {
+  width: 52px !important;
+  height: 52px !important;
+  flex: 0 0 52px !important;
+  border-radius: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: rgba(148, 163, 184, 0.1) !important;
+  color: #94a3b8 !important;
+  border: 2px solid #000000 !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+}
+
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.arrival .bk-stat-icon,
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.departure .bk-stat-icon,
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.pending .bk-stat-icon,
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.revenue .bk-stat-icon {
-  background: rgba(93, 248, 216, 0.18) !important;
-  color: #7dd3fc !important;
-  border: 1px solid rgba(125, 211, 252, 0.38) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(14, 165, 233, 0.14) !important;
-}
-
-:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.arrival .bk-stat-icon {
-  color: #86efac !important;
-  background: rgba(34, 197, 94, 0.18) !important;
-  border-color: rgba(134, 239, 172, 0.42) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(34, 197, 94, 0.14) !important;
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.confirmed .bk-stat-icon {
+  color: #4ade80 !important;
+  background: rgba(34, 197, 94, 0.15) !important;
+  border-color: rgba(74, 222, 128, 0.2) !important;
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.1) !important;
 }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.departure .bk-stat-icon {
-  color: #fde68a !important;
-  background: rgba(245, 158, 11, 0.2) !important;
-  border-color: rgba(253, 230, 138, 0.44) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(245, 158, 11, 0.14) !important;
+  color: #fbbf24 !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: rgba(251, 191, 36, 0.2) !important;
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.1) !important;
 }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.pending .bk-stat-icon {
-  color: #fca5a5 !important;
-  background: rgba(239, 68, 68, 0.18) !important;
-  border-color: rgba(252, 165, 165, 0.42) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(248, 113, 113, 0.2) !important;
+  box-shadow: 0 8px 20px rgba(239, 68, 68, 0.1) !important;
 }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-card.revenue .bk-stat-icon {
-  color: #ddd6fe !important;
-  background: rgba(139, 92, 246, 0.22) !important;
-  border-color: rgba(221, 214, 254, 0.44) !important;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 24px rgba(139, 92, 246, 0.16) !important;
+  color: #a78bfa !important;
+  background: rgba(139, 92, 246, 0.15) !important;
+  border-color: rgba(167, 139, 250, 0.2) !important;
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.1) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-info span {
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #94a3b8 !important;
+  font-weight: 700 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-stat-info strong {
+  font-size: 26px !important;
+  color: #f8fafc !important;
+  font-weight: 850 !important;
+  line-height: 1.1 !important;
 }
 
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-ota-strip-metrics {
@@ -310,18 +365,25 @@
 
 
 #pms-booking-page {
-  background: transparent !important;
+  background: var(--bk-bg) !important;
 }
 
 #pms-booking-page .bk-ota-strip,
 #pms-booking-page .bk-avail-bar,
-#pms-booking-page .bk-card,
-#pms-booking-page .bk-table-wrap {
+#pms-booking-page .bk-card {
   background: var(--surface, var(--bk-surface)) !important;
   border: 1px solid var(--surface-border, var(--bk-line)) !important;
   border-radius: 22px !important;
   box-shadow: var(--surface-shadow, var(--bk-shadow-md)) !important;
   overflow: hidden;
+}
+
+#pms-booking-page .bk-table-wrap {
+  background: var(--surface, var(--bk-surface)) !important;
+  border: 1px solid var(--surface-border, var(--bk-line)) !important;
+  border-radius: 22px !important;
+  box-shadow: var(--surface-shadow, var(--bk-shadow-md)) !important;
+  overflow: auto !important;
 }
 
 #pms-booking-page .bk-stat-card,
@@ -407,6 +469,16 @@ html.dark #pms-booking-page .bk-avail-card {
   border-radius: 18px !important;
 }
 
+html.dark #pms-booking-page .bk-reservations-table tbody tr td,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-reservations-table tbody tr td {
+  background: transparent !important;
+}
+
+html.dark #pms-booking-page .bk-reservations-table tbody tr:nth-child(even) td,
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-reservations-table tbody tr:nth-child(even) td {
+  background: transparent !important;
+}
+
 html.dark #pms-booking-page .bk-avail-head,
 html.dark #pms-booking-page .bk-avail-controls,
 html.dark #pms-booking-page .bk-avail-dates,
@@ -419,18 +491,25 @@ html.dark #pms-booking-page .bk-tabs {
   box-shadow: none !important;
 }
 
-#pms-booking-page .bk-table tbody tr:hover td,
+#pms-booking-page .bk-table tbody tr:hover td {
+  background: #eff6ff !important;
+  color: #0f172a !important;
+}
+
 html.dark #pms-booking-page .bk-table tbody tr:hover td,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover td {
-  background: rgba(59, 130, 246, 0.10) !important;
-  color: var(--bk-text) !important;
+  background: #ffffff !important;
+  color: #000000 !important;
 }
 
 #pms-booking-page .bk-table tbody tr:hover .bk-main-cell strong,
 #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell strong,
 #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell strong,
 #pms-booking-page .bk-table tbody tr:hover .bk-guest-info strong,
-#pms-booking-page .bk-table tbody tr:hover .bk-money,
+#pms-booking-page .bk-table tbody tr:hover .bk-money {
+  color: #0f172a !important;
+}
+
 html.dark #pms-booking-page .bk-table tbody tr:hover .bk-main-cell strong,
 html.dark #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell strong,
 html.dark #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell strong,
@@ -441,7 +520,7 @@ html.dark #pms-booking-page .bk-table tbody tr:hover .bk-money,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell strong,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-guest-info strong,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-money {
-  color: #f8fafc !important;
+  color: #000000 !important;
 }
 
 #pms-booking-page .bk-table tbody tr:hover .bk-main-cell span,
@@ -453,7 +532,10 @@ html.dark #pms-booking-page .bk-table tbody tr:hover .bk-money,
 #pms-booking-page .bk-table tbody tr:hover .bk-room-extra,
 #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell span,
 #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell span,
-#pms-booking-page .bk-table tbody tr:hover .bk-guest-info span,
+#pms-booking-page .bk-table tbody tr:hover .bk-guest-info span {
+  color: #334155 !important;
+}
+
 html.dark #pms-booking-page .bk-table tbody tr:hover .bk-main-cell span,
 html.dark #pms-booking-page .bk-table tbody tr:hover .bk-row-muted,
 html.dark #pms-booking-page .bk-table tbody tr:hover .bk-subline span,
@@ -474,5 +556,235 @@ html.dark #pms-booking-page .bk-table tbody tr:hover .bk-guest-info span,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-branch-room-cell span,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-stay-cell span,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-table tbody tr:hover .bk-guest-info span {
-  color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+/* Create modal wizard dark mode */
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-wizard-v4 {
+  background: var(--bk-surface) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-wiz-nav {
+  background: var(--bk-surface-soft) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-nav-item {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-nav-item.active {
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-nav-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: var(--bk-text) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-nav-icon {
+  background: var(--bk-surface-muted) !important;
+  color: var(--bk-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-nav-item.active .bk-nav-icon {
+  background: var(--bk-primary) !important;
+  color: #ffffff !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-wiz-workspace {
+  background: var(--bk-surface) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-step-panel {
+  background: transparent !important;
+  color: var(--bk-text) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-selection-header-v4 h2 {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-selection-header-v4 p {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-form-section-v5 {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-section-title-v5 {
+  color: var(--bk-ink) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-field label {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-wiz-summary {
+  background: var(--bk-surface-soft) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-summary-label {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-box {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-box:focus-within,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-box:hover {
+  border-color: var(--bk-primary) !important;
+  box-shadow: 0 4px 12px rgba(244, 143, 104, 0.12) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-content label {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-content input {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-icon {
+  background: var(--bk-surface-soft) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-date-icon.co {
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-summary-fields,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-summary-extra {
+  background: transparent !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-sum-field label {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-sum-input,
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-sum-select {
+  background: var(--bk-surface) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-summary-cart {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-cart-header-v4 {
+  background: var(--bk-surface-soft) !important;
+  border-color: var(--bk-line) !important;
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-summary-total {
+  background: var(--bk-surface-soft) !important;
+  border-color: var(--bk-line) !important;
+  color: var(--bk-text) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-total-row span {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-total-row strong {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-total-status label {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-payment-dashboard-v5 {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dash-cell small {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dash-cell strong {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dash-cell.highlight strong {
+  color: var(--bk-primary-strong) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-dash-arrow {
+  color: var(--bk-muted) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-method-card-v2 {
+  background: var(--bk-surface-muted) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-method-card-v2:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: var(--bk-primary) !important;
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-method-card-v2.active {
+  background: var(--bk-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--bk-primary) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-deposit-mode-card {
+  background: var(--bk-surface-muted) !important;
+  color: var(--bk-text) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-deposit-mode-card.active {
+  background: var(--bk-primary) !important;
+  color: #ffffff !important;
+  border-color: var(--bk-primary) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-allocation-v5 {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-alloc-head strong {
+  color: var(--bk-ink) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-guest-workspace-v5 {
+  background: transparent !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-guest-toolbar-v5 {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-payment-body-v5 {
+  background: transparent !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-payment-room-summary {
+  background: var(--bk-surface-muted) !important;
+  border-color: var(--bk-line) !important;
+  color: var(--bk-text) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) .bk-method-section-v5 > label {
+  color: var(--bk-muted) !important;
 }

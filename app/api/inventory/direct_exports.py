@@ -47,93 +47,100 @@ async def create_direct_export_ticket(
     if source_warehouse.id == dest_warehouse.id:
         raise HTTPException(status_code=400, detail="Kho nguồn và kho đích không được trùng nhau.")
 
-    code = f"EXP_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-    ticket = InventoryTransfer(
-        code=code,
-        source_warehouse_id=source_warehouse.id,
-        dest_warehouse_id=dest_warehouse.id,
-        requester_id=user_data['id'],
-        approver_id=user_data['id'],
-        approved_at=datetime.now(timezone.utc),
-        status=TicketStatus.SHIPPING,
-        notes=payload.notes
-    )
-    db.add(ticket)
-    db.flush()
-
-    transit_wh = db.query(Warehouse).filter(Warehouse.type == 'TRANSIT').first()
-    if not transit_wh:
-        transit_wh = Warehouse(name="Kho Đang Vận Chuyển", type="TRANSIT", branch_id=None)
-        db.add(transit_wh)
+    try:
+        code = f"EXP_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+        ticket = InventoryTransfer(
+            code=code,
+            source_warehouse_id=source_warehouse.id,
+            dest_warehouse_id=dest_warehouse.id,
+            requester_id=user_data['id'],
+            approver_id=user_data['id'],
+            approved_at=datetime.now(timezone.utc),
+            status=TicketStatus.SHIPPING,
+            notes=payload.notes
+        )
+        db.add(ticket)
         db.flush()
 
-    for item in payload.items:
-        product = db.query(Product).get(item.product_id)
-        qty_base = Decimal(str(item.quantity))
-
-        if item.unit == product.packing_unit and product.conversion_rate > 1:
-            qty_base = qty_base * Decimal(product.conversion_rate)
-
-        t_item = InventoryTransferItem(
-            transfer_id=ticket.id,
-            product_id=item.product_id,
-            request_quantity=item.quantity,
-            request_unit=item.unit,
-            approved_quantity=qty_base
-        )
-        db.add(t_item)
-
-        source_stock = db.query(InventoryLevel).filter(
-            InventoryLevel.warehouse_id == source_warehouse.id,
-            InventoryLevel.product_id == product.id
-        ).first()
-
-        if not source_stock:
-            raise HTTPException(status_code=400, detail=f"Sản phẩm {product.name} chưa có trong kho nguồn (Tồn: 0)")
-
-        if source_stock.quantity < qty_base:
-            raise HTTPException(status_code=400, detail=f"Kho không đủ hàng: {product.name} (Tồn: {source_stock.quantity}, Cần: {qty_base})")
-
-        source_stock.quantity -= qty_base
-
-        trans_out = StockMovement(
-            warehouse_id=source_warehouse.id,
-            product_id=product.id,
-            transaction_type=TransactionTypeWMS.EXPORT_TRANSFER,
-            quantity_change=-qty_base,
-            balance_after=source_stock.quantity,
-            ref_ticket_id=ticket.id,
-            ref_ticket_type="DIRECT_EXPORT_OUT",
-            actor_id=user_data['id']
-        )
-        db.add(trans_out)
-
-        transit_stock = db.query(InventoryLevel).filter(
-            InventoryLevel.warehouse_id == transit_wh.id,
-            InventoryLevel.product_id == product.id
-        ).with_for_update().first()
-
-        if not transit_stock:
-            transit_stock = InventoryLevel(warehouse_id=transit_wh.id, product_id=product.id, quantity=0, min_stock=0)
-            db.add(transit_stock)
+        transit_wh = db.query(Warehouse).filter(Warehouse.type == 'TRANSIT').first()
+        if not transit_wh:
+            transit_wh = Warehouse(name="Kho Đang Vận Chuyển", type="TRANSIT", branch_id=None)
+            db.add(transit_wh)
             db.flush()
 
-        transit_stock.quantity += qty_base
+        for item in payload.items:
+            product = db.query(Product).get(item.product_id)
+            qty_base = Decimal(str(item.quantity))
 
-        trans_transit = StockMovement(
-            warehouse_id=transit_wh.id,
-            product_id=product.id,
-            transaction_type=TransactionTypeWMS.IMPORT_TRANSFER,
-            quantity_change=qty_base,
-            balance_after=transit_stock.quantity,
-            ref_ticket_id=ticket.id,
-            ref_ticket_type="DIRECT_EXPORT_TRANSIT",
-            actor_id=user_data['id']
-        )
-        db.add(trans_transit)
+            if item.unit == product.packing_unit and product.conversion_rate > 1:
+                qty_base = qty_base * Decimal(product.conversion_rate)
 
-    db.commit()
-    return {"status": "success", "message": "Đã tạo phiếu xuất kho thành công! Hàng đang được giao."}
+            t_item = InventoryTransferItem(
+                transfer_id=ticket.id,
+                product_id=item.product_id,
+                request_quantity=item.quantity,
+                request_unit=item.unit,
+                approved_quantity=qty_base
+            )
+            db.add(t_item)
+
+            source_stock = db.query(InventoryLevel).filter(
+                InventoryLevel.warehouse_id == source_warehouse.id,
+                InventoryLevel.product_id == product.id
+            ).with_for_update().first()
+
+            if not source_stock:
+                raise HTTPException(status_code=400, detail=f"Sản phẩm {product.name} chưa có trong kho nguồn (Tồn: 0)")
+
+            if source_stock.quantity < qty_base:
+                raise HTTPException(status_code=400, detail=f"Kho không đủ hàng: {product.name} (Tồn: {source_stock.quantity}, Cần: {qty_base})")
+
+            source_stock.quantity -= qty_base
+
+            trans_out = StockMovement(
+                warehouse_id=source_warehouse.id,
+                product_id=product.id,
+                transaction_type=TransactionTypeWMS.EXPORT_TRANSFER,
+                quantity_change=-qty_base,
+                balance_after=source_stock.quantity,
+                ref_ticket_id=ticket.id,
+                ref_ticket_type="DIRECT_EXPORT_OUT",
+                actor_id=user_data['id']
+            )
+            db.add(trans_out)
+
+            transit_stock = db.query(InventoryLevel).filter(
+                InventoryLevel.warehouse_id == transit_wh.id,
+                InventoryLevel.product_id == product.id
+            ).with_for_update().first()
+
+            if not transit_stock:
+                transit_stock = InventoryLevel(warehouse_id=transit_wh.id, product_id=product.id, quantity=0, min_stock=0)
+                db.add(transit_stock)
+                db.flush()
+
+            transit_stock.quantity += qty_base
+
+            trans_transit = StockMovement(
+                warehouse_id=transit_wh.id,
+                product_id=product.id,
+                transaction_type=TransactionTypeWMS.IMPORT_TRANSFER,
+                quantity_change=qty_base,
+                balance_after=transit_stock.quantity,
+                ref_ticket_id=ticket.id,
+                ref_ticket_type="DIRECT_EXPORT_TRANSIT",
+                actor_id=user_data['id']
+            )
+            db.add(trans_transit)
+
+        db.commit()
+        return {"status": "success", "message": "Đã tạo phiếu xuất kho thành công! Hàng đang được giao."}
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Lỗi hệ thống khi tạo phiếu xuất: {str(e)}")
 
 
 @router.put("/direct-export/{ticket_id}")

@@ -1,10 +1,86 @@
 <!-- TAB 2: APPROVALS (Updated with History) -->
-<div x-show="currentTab === 'approvals'" class="p-4 flex-1 overflow-auto animate-fade-in-up" x-cloak>
-    <div
-        class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+<div x-show="currentTab === 'approvals'" class="inv-tab-page" x-cloak>
+    <div class="inv-tab-header">
+        <div>
+            <p class="inv-tab-eyebrow">Hàng chờ duyệt</p>
+            <h2 class="inv-tab-title">Duyệt yêu cầu</h2>
+            <p class="inv-tab-copy">Ưu tiên phiếu chờ xử lý, xem nhanh lịch sử và mở chi tiết khi cần đối soát.</p>
+        </div>
+        <div class="inline-flex rounded-lg border border-orange-200 bg-white p-1 shadow-sm dark:border-orange-900/60 dark:bg-slate-950">
+            <button @click="approvalFilter = 'PENDING'; fetchApprovals()"
+                :class="approvalFilter === 'PENDING' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+                class="relative rounded-md px-3 py-2 text-sm font-bold transition">
+                Chờ duyệt
+                <span x-show="pendingCount > 0"
+                    class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] text-white font-bold"
+                    x-text="pendingCount"></span>
+            </button>
+            <button @click="approvalFilter = 'HISTORY'; fetchApprovals()"
+                :class="approvalFilter === 'HISTORY' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+                class="rounded-md px-3 py-2 text-sm font-bold transition">
+                Lịch sử
+            </button>
+        </div>
+    </div>
 
+    <div class="inv-kpi-grid">
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Chờ duyệt</p>
+                    <p class="inv-kpi-value text-orange-600 dark:text-orange-300" x-text="pendingCount || 0"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center dark:bg-orange-950/50 dark:text-orange-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Tổng phiếu</p>
+                    <p class="inv-kpi-value" x-text="totalApprovalRecords || approvalsList.length || 0"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center dark:bg-slate-800 dark:text-slate-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0119 9.414V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Đang hiển thị</p>
+                    <p class="inv-kpi-value text-blue-600 dark:text-blue-300" x-text="approvalsList.length || 0"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center dark:bg-blue-950/50 dark:text-blue-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Đã xử lý</p>
+                    <p class="inv-kpi-value text-indigo-600 dark:text-indigo-300" x-text="approvalsList.filter(t => t.status !== 'PENDING').length"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center dark:bg-indigo-950/50 dark:text-indigo-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inv-toolbar">
         <!-- Filters & Actions -->
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-orange-50 dark:bg-orange-900/10">
+        <div>
             <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
 
                 <!-- Search & Filter Group -->
@@ -12,7 +88,7 @@
                 <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1 flex-wrap">
                     <div class="relative w-full sm:w-64">
                         <input type="text" x-model="approvalFilters.search" @keydown.enter="fetchApprovals()"
-                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                            class="inv-field-search"
                             placeholder="Tìm mã phiếu, chi nhánh...">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -24,7 +100,7 @@
 
                     <select x-show="approvalFilter === 'HISTORY'" x-model="approvalFilters.status"
                         @change="fetchApprovals()"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500">
+                        class="inv-field w-full sm:w-40">
                         <option value="">Tất cả trạng thái</option>
                         <option value="APPROVED">Đã duyệt</option>
                         <option value="SHIPPING">Đang giao</option>
@@ -35,24 +111,24 @@
 
                     <input x-show="approvalFilter === 'PENDING'" type="text" x-model="approvalFilters.requester"
                         @keydown.enter="fetchApprovals()"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                        class="inv-field w-full sm:w-40"
                         placeholder="Người yêu cầu...">
 
                     <input type="date" x-model="approvalFilters.date_from" @change="fetchApprovals()"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                        class="inv-field w-full sm:w-40"
                         placeholder="Từ ngày">
 
                     <input type="date" x-model="approvalFilters.date_to" @change="fetchApprovals()"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-orange-500"
+                        class="inv-field w-full sm:w-40"
                         placeholder="Đến ngày">
 
                     <button @click="fetchApprovals()"
-                        class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm font-medium transition">
-                        Tìm kiếm
+                        class="inv-btn-secondary">
+                        Lọc
                     </button>
 
                     <button @click="resetApprovalDateFilter()"
-                        class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium transition"
+                        class="inv-btn-secondary"
                         title="Reset về tháng hiện tại">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -63,7 +139,7 @@
 
                 <!-- Title & Toggle Group -->
                 <div class="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
-                    <div class="text-center sm:text-right">
+                    <div class="hidden text-center sm:text-right">
                         <h3 class="font-bold text-orange-800 dark:text-orange-300 text-sm">Quản lý Yêu Cầu Đến</h3>
                         <p class="text-xs text-orange-600 dark:text-orange-400">
                             Yêu cầu từ chi nhánh khác
@@ -71,7 +147,7 @@
                     </div>
 
                     <div
-                        class="flex items-center gap-2 bg-white dark:bg-slate-800 p-1 rounded-lg border border-orange-200 dark:border-orange-800">
+                        class="hidden items-center gap-2 bg-white dark:bg-slate-800 p-1 rounded-lg border border-orange-200 dark:border-orange-800">
                         <button @click="approvalFilter = 'PENDING'; fetchApprovals()"
                             :class="approvalFilter === 'PENDING' ? 'bg-orange-100 text-orange-700 font-bold shadow-sm' : 'text-slate-500 hover:text-slate-700'"
                             class="px-3 py-1.5 rounded-md text-sm transition-all relative">
@@ -90,16 +166,18 @@
                 </div>
             </div>
         </div>
+    </div>
 
+    <div class="inv-table-card">
         <!-- Table -->
-        <div class="overflow-x-auto relative min-h-[300px]">
+        <div class="inv-table-scroll min-h-[300px]">
             <div x-show="loadingApprovals"
                 class="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-20 flex items-center justify-center backdrop-blur-sm">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
             </div>
 
-            <table class="w-full text-sm text-left">
-                <thead class="bg-slate-50 dark:bg-slate-700/50 text-xs uppercase text-slate-500">
+            <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 border-collapse">
+                <thead class="inv-table-head">
                     <tr>
                         <th class="px-4 py-3">Mã Phiếu</th>
                         <th class="px-4 py-3">Chi nhánh yêu cầu</th>
@@ -112,7 +190,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
                     <template x-for="t in approvalsList" :key="t.id">
-                        <tr class="hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-colors">
+                        <tr class="inv-row">
                             <td class="px-4 py-3 font-mono text-slate-600 dark:text-slate-400">
                                 <div class="flex items-center gap-1">
                                     <span x-text="t.code"></span>
@@ -136,21 +214,36 @@
                             <td class="px-4 py-3 text-right">
                                 <!-- Action: Approve (Only PENDING) -->
                                 <button x-show="t.status === 'PENDING'" @click="openApprovalModal(t)"
-                                    class="px-3 py-1.5 text-xs font-bold text-white bg-orange-500 rounded hover:bg-orange-600 shadow-sm transition transform hover:scale-105">
-                                    Duyệt ngay
+                                    class="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Duyệt
                                 </button>
                                 <!-- Action: View Detail (History) -->
                                 <button x-show="t.status !== 'PENDING'" @click="openApprovalDetailModal(t)"
-                                    class="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 shadow-sm transition">
-                                    Xem chi tiết
+                                    class="inv-action-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold shadow-sm transition hover:bg-slate-100 dark:hover:bg-slate-800">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    Chi tiết
                                 </button>
                             </td>
                         </tr>
                     </template>
                     <tr x-show="approvalsList.length === 0 && !loadingApprovals">
                         <td colspan="7" class="p-8 text-center text-slate-400">
-                            <span
-                                x-text="approvalFilter === 'PENDING' ? 'Không có yêu cầu nào cần duyệt.' : 'Chưa có lịch sử duyệt.'"></span>
+                            <div class="inv-empty-state">
+                                <div class="inv-empty-icon">
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                            d="M9 12l2 2 4-4M4 6h16M4 18h16" />
+                                    </svg>
+                                </div>
+                                <span
+                                    x-text="approvalFilter === 'PENDING' ? 'Không có yêu cầu nào cần duyệt.' : 'Chưa có lịch sử duyệt.'"></span>
+                            </div>
                         </td>
                     </tr>
                 </tbody>

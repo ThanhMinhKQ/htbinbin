@@ -10,10 +10,10 @@ import math
 
 from ...db.session import get_db
 from ...db.models import (
-    User, Branch, 
-    Product, ProductCategory, 
+    User, Branch,
+    Product, ProductCategory,
     StockMovement, InventoryLevel,
-    Warehouse, InventoryReceipt, InventoryTransfer
+    Warehouse, InventoryReceipt, InventoryTransfer, TicketStatus
 )
 
 router = APIRouter()
@@ -72,9 +72,12 @@ class WarehouseReorderSchema(BaseModel):
 # ====================================================================
 
 @router.get("/warehouses")
-async def get_warehouses(db: Session = Depends(get_db)):
+async def get_warehouses(active_only: bool = False, db: Session = Depends(get_db)):
     """Lấy danh sách kho"""
-    warehouses = db.query(Warehouse).options(joinedload(Warehouse.branch)).order_by(Warehouse.sort_order.asc()).all()
+    q = db.query(Warehouse).options(joinedload(Warehouse.branch))
+    if active_only:
+        q = q.filter(Warehouse.is_active == True)
+    warehouses = q.order_by(Warehouse.sort_order.asc()).all()
     data = []
     for w in warehouses:
         data.append({
@@ -83,7 +86,7 @@ async def get_warehouses(db: Session = Depends(get_db)):
             "type": w.type,
             "branch_id": w.branch_id,
             "branch_name": w.branch.name if w.branch else "Kho Tổng",
-            "is_active": w.is_active 
+            "is_active": w.is_active
         })
     return data
 
@@ -137,22 +140,46 @@ async def reorder_warehouses(
 
 @router.delete("/warehouses/{warehouse_id}")
 async def delete_warehouse(warehouse_id: int, db: Session = Depends(get_db)):
-    """Xóa kho: HARD DELETE (Xóa Vĩnh Viễn kèm dữ liệu liên quan)"""
+    """Vô hiệu hóa kho (soft-delete)"""
     wh = db.query(Warehouse).get(warehouse_id)
     if not wh:
         raise HTTPException(status_code=404, detail="Kho không tồn tại")
-        
-    db.query(InventoryLevel).filter(InventoryLevel.warehouse_id == warehouse_id).delete()
-    db.query(StockMovement).filter(StockMovement.warehouse_id == warehouse_id).delete()
-    db.query(InventoryReceipt).filter(InventoryReceipt.warehouse_id == warehouse_id).delete()
-    db.query(InventoryTransfer).filter(or_(
-        InventoryTransfer.source_warehouse_id == warehouse_id,
-        InventoryTransfer.dest_warehouse_id == warehouse_id
-    )).delete()
 
-    db.delete(wh)
+    if wh.type == 'TRANSIT':
+        raise HTTPException(status_code=400, detail="Không thể xóa kho vận chuyển hệ thống.")
+
+    active_tickets = db.query(InventoryTransfer).filter(
+        or_(
+            InventoryTransfer.source_warehouse_id == warehouse_id,
+            InventoryTransfer.dest_warehouse_id == warehouse_id
+        ),
+        InventoryTransfer.status.in_(['PENDING', 'SHIPPING'])
+    ).count()
+
+    if active_tickets > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không thể xóa kho: còn {active_tickets} phiếu đang xử lý."
+        )
+
+    wh.is_active = False
     db.commit()
-    return {"status": "success", "message": "Đã xóa vĩnh viễn kho và toàn bộ dữ liệu liên quan."}
+    return {"status": "success", "message": "Đã vô hiệu hóa kho."}
+
+
+@router.post("/warehouses/{warehouse_id}/reactivate")
+async def reactivate_warehouse(warehouse_id: int, db: Session = Depends(get_db)):
+    """Kích hoạt lại kho đã vô hiệu hóa"""
+    wh = db.query(Warehouse).get(warehouse_id)
+    if not wh:
+        raise HTTPException(status_code=404, detail="Kho không tồn tại")
+
+    if wh.is_active:
+        raise HTTPException(status_code=400, detail="Kho đang hoạt động, không cần kích hoạt lại.")
+
+    wh.is_active = True
+    db.commit()
+    return {"status": "success", "message": "Đã kích hoạt lại kho."}
 
 # ====================================================================
 # API: CATEGORIES

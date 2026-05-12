@@ -32,6 +32,47 @@ export default {
         this.exportForm.itemGroups[groupIndex].items.push(this.createEmptyItem());
     },
 
+    getExportProductSearchResults() {
+        const query = (this.exportForm.product_search || '').toLowerCase().trim();
+        if (!query) return [];
+
+        const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
+
+        return this.normalizedProducts
+            .filter(product => {
+                const categoryName = categoriesById.get(String(product.category_id)) || '';
+                const haystack = `${product.name || ''} ${product.code || ''} ${categoryName}`.toLowerCase();
+                return haystack.includes(query);
+            })
+            .slice(0, 10);
+    },
+
+    addExportProductQuick(product) {
+        const categoryId = product.category_id ? String(product.category_id) : '';
+        let group = this.exportForm.itemGroups.find(g => String(g.category_id) === categoryId);
+
+        if (!group) {
+            group = {
+                id: Date.now() + Math.random(),
+                category_id: categoryId,
+                items: []
+            };
+            this.exportForm.itemGroups.push(group);
+        }
+
+        const item = this.createEmptyItem();
+        item.product_id = String(product.id);
+        group.items.push(item);
+        this.onExportProductChange(this.exportForm.itemGroups.indexOf(group), group.items.length - 1);
+        this.exportForm.product_search = '';
+        this.exportForm.is_search_open = false;
+    },
+
+    clearExportProductSearch() {
+        this.exportForm.product_search = '';
+        this.exportForm.is_search_open = false;
+    },
+
     removeItemFromExportGroup(groupIndex, itemIndex) {
         if (this.exportForm.itemGroups[groupIndex].items.length > 1) {
             this.exportForm.itemGroups[groupIndex].items.splice(itemIndex, 1);
@@ -89,7 +130,7 @@ export default {
         this.isSubmitting = true;
         try {
             const payload = {
-                source_warehouse_id: this.currentBranchId, // Usually Admin Warehouse ID
+                source_warehouse_id: this.currentWarehouseId,
                 dest_warehouse_id: this.exportForm.dest_warehouse_id,
                 notes: this.exportForm.notes,
                 items: validItems
@@ -116,5 +157,53 @@ export default {
         } finally {
             this.isSubmitting = false;
         }
+    },
+
+    // --- EXPORT HISTORY (Read-only) ---
+    async fetchExports(page = 1) {
+        this.loadingExports = true;
+        this.currentExportPage = page;
+        try {
+            const params = new URLSearchParams({
+                page: page,
+                per_page: this.perPage || 10,
+                dest_warehouse_id: this.currentWarehouseId || ''
+            });
+            if (this.exportFilters.search) params.set('search', this.exportFilters.search);
+            if (this.exportFilters.status) params.set('status', this.exportFilters.status);
+            if (this.exportFilters.date_from) params.set('date_from', this.exportFilters.date_from);
+            if (this.exportFilters.date_to) params.set('date_to', this.exportFilters.date_to);
+
+            const res = await fetch(`/api/inventory/requests/list?${params.toString()}`, { credentials: 'same-origin' });
+            const data = await res.json();
+
+            if (res.ok) {
+                this.exportList = data.records || data || [];
+                this.totalExportRecords = data.totalRecords || this.exportList.length;
+                this.totalExportPages = data.totalPages || 1;
+            }
+        } catch (e) {
+            console.error("Error fetching export history:", e);
+        } finally {
+            this.loadingExports = false;
+        }
+    },
+
+    async openExportDetail(ticketId) {
+        this.isExportDetailModalOpen = true;
+        this.viewingExportTicket = null;
+        try {
+            const res = await fetch(`/api/inventory/request/${ticketId}`, { credentials: 'same-origin' });
+            if (res.ok) {
+                this.viewingExportTicket = await res.json();
+            }
+        } catch (e) {
+            console.error("Error fetching export detail:", e);
+        }
+    },
+
+    closeExportDetail() {
+        this.isExportDetailModalOpen = false;
+        this.viewingExportTicket = null;
     }
 };

@@ -1,0 +1,246 @@
+<div x-show="currentTab === 'export'" class="inv-tab-page" x-cloak>
+    <div class="inv-tab-header">
+        <div>
+            <p class="inv-tab-eyebrow">Xuất kho</p>
+            <h2 class="inv-tab-title">Lịch sử xuất kho</h2>
+            <p class="inv-tab-copy">Theo dõi các phiếu xuất kho đến chi nhánh của bạn.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button @click="openDirectExportModal()" class="inv-btn-primary">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo phiếu xuất
+            </button>
+        </div>
+    </div>
+
+    <div class="inv-kpi-grid">
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Tổng phiếu</p>
+                    <p class="inv-kpi-value text-red-600 dark:text-red-300" x-text="totalExportRecords || 0"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center dark:bg-red-900/30 dark:text-red-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Đang giao</p>
+                    <p class="inv-kpi-value text-amber-600 dark:text-amber-300"
+                        x-text="exportList.filter(r => r.status === 'SHIPPING').length"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center dark:bg-amber-950/50 dark:text-amber-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Hoàn tất</p>
+                    <p class="inv-kpi-value text-emerald-600 dark:text-emerald-300"
+                        x-text="exportList.filter(r => r.status === 'COMPLETED').length"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center dark:bg-emerald-950/50 dark:text-emerald-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="inv-toolbar">
+        <div class="inv-status-strip mb-3">
+            <button type="button" @click="exportFilters.status = ''; fetchExports(1)"
+                :class="{ 'is-active': exportFilters.status === '' }" class="inv-status-chip">
+                Tất cả
+            </button>
+            <button type="button" @click="exportFilters.status = 'SHIPPING'; fetchExports(1)"
+                :class="{ 'is-active': exportFilters.status === 'SHIPPING' }" class="inv-status-chip">
+                Đang giao
+            </button>
+            <button type="button" @click="exportFilters.status = 'COMPLETED'; fetchExports(1)"
+                :class="{ 'is-active': exportFilters.status === 'COMPLETED' }" class="inv-status-chip">
+                Hoàn tất
+            </button>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-2 w-full flex-wrap">
+            <div class="relative w-full sm:w-64">
+                <input type="text" x-model="exportFilters.search" @keydown.enter="fetchExports(1)"
+                    class="inv-field-search" placeholder="Tìm mã phiếu, ghi chú...">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+            </div>
+
+            <input type="date" x-model="exportFilters.date_from" @change="fetchExports(1)"
+                class="inv-field w-full sm:w-40">
+            <input type="date" x-model="exportFilters.date_to" @change="fetchExports(1)"
+                class="inv-field w-full sm:w-40">
+            <button @click="fetchExports(1)" class="inv-btn-secondary">Lọc</button>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="inv-table-card">
+        <div class="inv-table-scroll relative">
+            <div x-show="loadingExports"
+                class="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-20 flex items-center justify-center backdrop-blur-sm">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+            </div>
+
+            <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 border-collapse">
+                <thead class="inv-table-head">
+                    <tr>
+                        <th class="px-4 py-3">Mã phiếu</th>
+                        <th class="px-4 py-3">Kho nguồn</th>
+                        <th class="px-4 py-3">Kho đích</th>
+                        <th class="px-4 py-3">Trạng thái</th>
+                        <th class="px-4 py-3">Ngày tạo</th>
+                        <th class="px-4 py-3 text-center">Chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="ticket in exportList" :key="ticket.id">
+                        <tr class="inv-table-row">
+                            <td class="px-4 py-3 font-medium text-slate-900 dark:text-white" x-text="ticket.code"></td>
+                            <td class="px-4 py-3" x-text="ticket.source_warehouse_name || 'Kho Tổng'"></td>
+                            <td class="px-4 py-3" x-text="ticket.branch_name || ticket.dest_warehouse_name || ''"></td>
+                            <td class="px-4 py-3">
+                                <span class="inv-badge"
+                                    :class="{
+                                        'inv-badge-warning': ticket.status === 'SHIPPING',
+                                        'inv-badge-success': ticket.status === 'COMPLETED',
+                                        'inv-badge-info': ticket.status === 'PENDING'
+                                    }"
+                                    x-text="ticket.status === 'SHIPPING' ? 'Đang giao' : ticket.status === 'COMPLETED' ? 'Hoàn tất' : ticket.status === 'PENDING' ? 'Chờ duyệt' : ticket.status">
+                                </span>
+                            </td>
+                            <td class="px-4 py-3" x-text="ticket.created_at ? new Date(ticket.created_at).toLocaleDateString('vi-VN') : ''"></td>
+                            <td class="px-4 py-3 text-center">
+                                <button @click="openExportDetail(ticket.id)" class="inv-btn-icon" title="Xem chi tiết">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!loadingExports && exportList.length === 0">
+                        <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                            Chưa có phiếu xuất nào.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div x-show="totalExportPages > 1" class="inv-pagination">
+            <button @click="fetchExports(currentExportPage - 1)" :disabled="currentExportPage <= 1"
+                class="inv-btn-secondary" :class="{ 'opacity-50 cursor-not-allowed': currentExportPage <= 1 }">
+                Trước
+            </button>
+            <span class="text-sm text-slate-600 dark:text-slate-400"
+                x-text="`Trang ${currentExportPage} / ${totalExportPages}`"></span>
+            <button @click="fetchExports(currentExportPage + 1)" :disabled="currentExportPage >= totalExportPages"
+                class="inv-btn-secondary" :class="{ 'opacity-50 cursor-not-allowed': currentExportPage >= totalExportPages }">
+                Sau
+            </button>
+        </div>
+    </div>
+
+    <!-- Export Detail Modal -->
+    <div x-show="isExportDetailModalOpen" x-cloak
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        @click.self="closeExportDetail()">
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto mx-4">
+            <div class="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Chi tiết phiếu xuất</h3>
+                <button @click="closeExportDetail()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6" x-show="!viewingExportTicket">
+                <div class="flex justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                </div>
+            </div>
+            <div class="p-6 space-y-4" x-show="viewingExportTicket">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Mã phiếu:</span>
+                        <span class="ml-2 font-medium text-slate-900 dark:text-white" x-text="viewingExportTicket?.code"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Trạng thái:</span>
+                        <span class="ml-2 font-medium" x-text="viewingExportTicket?.status === 'SHIPPING' ? 'Đang giao' : viewingExportTicket?.status === 'COMPLETED' ? 'Hoàn tất' : viewingExportTicket?.status"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Kho nguồn:</span>
+                        <span class="ml-2 font-medium text-slate-900 dark:text-white" x-text="viewingExportTicket?.source_warehouse_name || 'Kho Tổng'"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Kho đích:</span>
+                        <span class="ml-2 font-medium text-slate-900 dark:text-white" x-text="viewingExportTicket?.dest_warehouse_name || ''"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Ngày tạo:</span>
+                        <span class="ml-2" x-text="viewingExportTicket?.created_at ? new Date(viewingExportTicket.created_at).toLocaleString('vi-VN') : ''"></span>
+                    </div>
+                    <div>
+                        <span class="text-slate-500 dark:text-slate-400">Ghi chú:</span>
+                        <span class="ml-2" x-text="viewingExportTicket?.notes || 'Không có'"></span>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h4 class="font-semibold text-slate-900 dark:text-white mb-2">Danh sách sản phẩm</h4>
+                    <table class="w-full text-sm border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-200 dark:border-slate-700">
+                                <th class="text-left py-2 px-2">Sản phẩm</th>
+                                <th class="text-right py-2 px-2">SL yêu cầu</th>
+                                <th class="text-right py-2 px-2">SL duyệt</th>
+                                <th class="text-right py-2 px-2">SL nhận</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="item in (viewingExportTicket?.items || [])" :key="item.id">
+                                <tr class="border-b border-slate-100 dark:border-slate-700/50">
+                                    <td class="py-2 px-2 text-slate-900 dark:text-white" x-text="item.product_name"></td>
+                                    <td class="py-2 px-2 text-right" x-text="`${item.request_quantity} ${item.request_unit || ''}`"></td>
+                                    <td class="py-2 px-2 text-right" x-text="item.approved_quantity != null ? item.approved_quantity : '-'"></td>
+                                    <td class="py-2 px-2 text-right" x-text="item.received_quantity != null ? item.received_quantity : '-'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

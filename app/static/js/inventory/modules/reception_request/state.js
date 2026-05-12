@@ -68,6 +68,7 @@ export default function (totalRecords, currentPage, totalPages) {
         },
         pendingCount: 0,
         loadingApprovals: false,
+        isLoadingApprovalDetails: false,
 
         // Selection
         selectedIds: [],
@@ -96,6 +97,7 @@ export default function (totalRecords, currentPage, totalPages) {
         importsList: [],
         currentImportPage: 1,
         totalImportPages: 1,
+        totalImportRecords: 0,
         loadingImports: false,
 
         // Import Sorting & Selection
@@ -126,6 +128,8 @@ export default function (totalRecords, currentPage, totalPages) {
             warehouse_id: '',
             supplier_name: '',
             notes: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: [],
             images: []
         },
@@ -154,8 +158,25 @@ export default function (totalRecords, currentPage, totalPages) {
         exportForm: {
             dest_warehouse_id: '',
             notes: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: []
         },
+
+        // Export History Tab
+        exportList: [],
+        currentExportPage: 1,
+        totalExportPages: 1,
+        totalExportRecords: 0,
+        loadingExports: false,
+        exportFilters: {
+            search: '',
+            status: '',
+            date_from: defaultStart,
+            date_to: defaultEnd
+        },
+        viewingExportTicket: null,
+        isExportDetailModalOpen: false,
 
         getAllSelectableChecked() {
             return this.historyList.length > 0 && this.selectedIds.length === this.historyList.length;
@@ -218,7 +239,7 @@ export default function (totalRecords, currentPage, totalPages) {
         // [NEW] Initialize currentTab from localStorage
         initCurrentTab() {
             const savedTab = localStorage.getItem('reception_currentTab');
-            const validTabs = ['requests', 'approvals', 'import', 'overview'];
+            const validTabs = ['requests', 'approvals', 'import', 'export', 'overview'];
             if (savedTab && validTabs.includes(savedTab)) {
                 this.currentTab = savedTab;
             }

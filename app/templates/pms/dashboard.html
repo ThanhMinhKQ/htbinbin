@@ -2623,21 +2623,6 @@
 
 {% block scripts %}
 <script>
-  // Theme toggle functionality
-  function pmsToggleTheme() {
-    const html = document.documentElement;
-    const isDark = html.classList.toggle('dark');
-    localStorage.setItem('pms-theme', isDark ? 'dark' : 'light');
-  }
-
-  // Initialize theme from localStorage
-  (function initPmsTheme() {
-    const saved = localStorage.getItem('pms-theme');
-    if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      document.documentElement.classList.add('dark');
-    }
-  })();
-
   (function initModalState() {
     localStorage.removeItem('pms_open_modal');
     document.querySelectorAll('.v-modal').forEach(m => {

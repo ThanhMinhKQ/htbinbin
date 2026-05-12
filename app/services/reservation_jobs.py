@@ -8,7 +8,7 @@ from ..core.utils import VN_TZ
 from ..db.models import Booking, Branch
 from ..db.session import SessionLocal
 from .booking_service import BookingService
-from .inventory_service import InventoryService
+from .room_inventory_service import InventoryService
 
 
 def generate_reservation_inventory(days: int = 365) -> None:

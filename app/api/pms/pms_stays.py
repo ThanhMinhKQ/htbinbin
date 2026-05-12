@@ -34,7 +34,7 @@ from ...db.models import (
 )
 from ...db.session import get_db
 from ...services.pricing_service import calculate_room_price, calculate_full_charge, detect_pricing_mode_from_breakdown, MODE_TO_STAY_TYPE, money
-from ...services.inventory_service import InventoryService
+from ...services.room_inventory_service import InventoryService
 from .pms_helpers import (
     _require_login, _is_admin, _active_branch, _now_vn,
     _get_occupied_rooms_for_dates, _room_to_dict, VN_TZ

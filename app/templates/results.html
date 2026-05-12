@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Lịch sử Điểm Danh - Bin Bin Hotel{% endblock %}
-{% set active_page = active_page or 'attendance-results' %}
-{% block page_title %}Lịch sử Điểm Danh{% endblock %}
+{% block title %}Nhật ký công việc - Bin Bin Hotel{% endblock %}
+{% set active_page = active_page or 'work-log' %}
+{% block page_title %}Nhật ký công việc{% endblock %}
+
+{% block app_header_actions %}
+<div class="inline-flex rounded-xl border border-slate-200 bg-white/80 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
+    <a href="/attendance/results" class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-bold text-white shadow-sm">Lịch sử điểm danh</a>
+    <a href="/attendance/calendar-view" class="rounded-lg px-3 py-1.5 text-sm font-bold text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">Lịch chấm công</a>
+</div>
+{% endblock %}
 
 {% block content %}
 <style>

@@ -14,7 +14,7 @@ from ..db.models import AttendanceRecord, ServiceRecord, User, Branch
 from ..core.security import require_checked_in_user
 from ..core.config import ROLE_MAP, BRANCHES, logger
 from fastapi.encoders import jsonable_encoder
-from ..core.utils import parse_form_datetime, format_datetime_display
+from ..core.utils import VN_TZ, parse_form_datetime, format_datetime_display
 
 from fastapi.templating import Jinja2Templates
 
@@ -208,17 +208,35 @@ async def api_get_attendance_results(request: Request, db: Session = Depends(get
     # 1. Lấy câu query cơ sở đã được lọc
     base_filtered_query, _ = _get_filtered_records_query(db, query_params, user_session)
     
-    # 2. Tạo truy vấn thống kê (không sắp xếp, không phân trang)
-    stats_subquery = base_filtered_query.subquery('stats_sq')
-    stats_query = select(
+    # 2. Tạo truy vấn thống kê dashboard theo tháng hiện tại và riêng user đang đăng nhập
+    user_id = user_session.get("id")
+    now = datetime.now(VN_TZ)
+    month_start = now.date().replace(day=1)
+    if now.month == 12:
+        next_month_start = now.date().replace(year=now.year + 1, month=1, day=1)
+    else:
+        next_month_start = now.date().replace(month=now.month + 1, day=1)
+
+    user_month_attendance_query = db.query(
         func.count().label("total_records"),
-        func.sum(case((stats_subquery.c.type == 'Điểm danh', stats_subquery.c.SoCong), else_=0)).label("total_work_units"),
-        func.count(case((stats_subquery.c.TangCa == True, 1), else_=None)).label("total_overtime"),
-        func.sum(case((stats_subquery.c.type == 'Dịch vụ', stats_subquery.c.SoLuong), else_=0)).label("total_services"),
-        func.count(case((and_(stats_subquery.c.type == 'Điểm danh', stats_subquery.c.SoCong == 0), 1), else_=None)).label("total_absences")
+        func.sum(AttendanceRecord.work_units).label("total_work_units"),
+        func.count(case((AttendanceRecord.is_overtime == True, 1), else_=None)).label("total_overtime"),
+        func.count(case((AttendanceRecord.work_units == 0, 1), else_=None)).label("total_absences")
+    ).filter(
+        AttendanceRecord.user_id == user_id,
+        cast(AttendanceRecord.attendance_datetime, Date) >= month_start,
+        cast(AttendanceRecord.attendance_datetime, Date) < next_month_start,
     )
-    # Thực thi truy vấn thống kê
-    stats_result = db.execute(stats_query).first()
+    attendance_stats = user_month_attendance_query.first()
+
+    user_month_services_query = db.query(
+        func.sum(ServiceRecord.quantity).label("total_services")
+    ).filter(
+        ServiceRecord.user_id == user_id,
+        cast(ServiceRecord.service_datetime, Date) >= month_start,
+        cast(ServiceRecord.service_datetime, Date) < next_month_start,
+    )
+    service_stats = user_month_services_query.first()
 
     # 3. Tạo và thực thi truy vấn lấy dữ liệu đã phân trang
     data_subquery = base_filtered_query.subquery('data_sq')
@@ -227,8 +245,9 @@ async def api_get_attendance_results(request: Request, db: Session = Depends(get
     paginated_query = select(data_subquery).order_by(sort_direction(sort_column)).offset((page - 1) * per_page).limit(per_page)
     records = db.execute(paginated_query).all()
 
-    # 4. Xử lý kết quả
-    total_records = stats_result.total_records if stats_result else 0
+    # 4. Đếm tổng số bản ghi (cho phân trang)
+    count_query = select(func.count()).select_from(data_subquery)
+    total_records = db.execute(count_query).scalar() or 0
     total_pages = math.ceil(total_records / per_page) if per_page > 0 else 1
 
     # Format kết quả trả về
@@ -259,11 +278,11 @@ async def api_get_attendance_results(request: Request, db: Session = Depends(get
         "totalRecords": total_records,
         # --- TỐI ƯU HÓA: Lấy dashboard_stats từ truy vấn thống kê riêng biệt ---
         "dashboard_stats": {
-            "total_records": total_records,
-            "total_work_units": float(stats_result.total_work_units or 0) if stats_result else 0,
-            "total_overtime": stats_result.total_overtime if stats_result else 0,
-            "total_services": int(stats_result.total_services or 0) if stats_result else 0,
-            "total_absences": stats_result.total_absences if stats_result else 0,
+            "total_records": attendance_stats.total_records if attendance_stats else 0,
+            "total_work_units": float(attendance_stats.total_work_units or 0) if attendance_stats else 0,
+            "total_overtime": attendance_stats.total_overtime if attendance_stats else 0,
+            "total_services": int(service_stats.total_services or 0) if service_stats else 0,
+            "total_absences": attendance_stats.total_absences if attendance_stats else 0,
         }
     })
 
@@ -345,7 +364,7 @@ def view_attendance_results(request: Request, db: Session = Depends(get_db)):
         "user": user_data,
         "branches": BRANCHES,
         "roles": roles_for_filter,
-        "active_page": "attendance-results", # Đã có
+        "active_page": "work-log",
     })
 
 @router.delete("/api/record/{record_type}/{record_id}", response_class=JSONResponse)

@@ -21,7 +21,7 @@ from ..db.models import (
     HotelStayStatus,
     RoomBlock,
 )
-from .inventory_service import InventoryService, iter_stay_dates
+from .room_inventory_service import InventoryService, iter_stay_dates
 from .shift_report_service import post_booking_deposit_to_shift
 
 
@@ -291,7 +291,7 @@ class BookingService:
             "room_type_id": int(room_type_id) if room_type_id else None,
             "check_in": date.fromisoformat(raw.get("reservation_reserved_check_in")) if raw.get("reservation_reserved_check_in") else booking.check_in,
             "check_out": date.fromisoformat(raw.get("reservation_reserved_check_out")) if raw.get("reservation_reserved_check_out") else booking.check_out,
-            "quantity": int(raw.get("reservation_reserved_qty") or raw.get("num_rooms") or 1),
+            "quantity": int(raw.get("reservation_reserved_qty") or (1 if raw.get("group_code") or raw.get("group_index") else raw.get("num_rooms") or 1)),
         }
 
     def _mark_reserved(self, booking: Booking, room_type_id: int, quantity: int = 1) -> None:
@@ -742,6 +742,7 @@ class BookingService:
                     "group_summary": group_summary,
                     "group_room_type_quantity": item["quantity"],
                     "group_room_type_index": qty_idx + 1,
+                    "num_rooms": 1,
                 })
                 if is_ota:
                     raw_data.update({
@@ -822,7 +823,9 @@ class BookingService:
         reserved_room_type_id = raw.get("reservation_reserved_room_type_id") or room_type_id
         reserved_check_in = raw.get("reservation_reserved_check_in") or (booking.check_in.isoformat() if booking.check_in else None)
         reserved_check_out = raw.get("reservation_reserved_check_out") or (booking.check_out.isoformat() if booking.check_out else None)
-        reserved_qty = int(raw.get("reservation_reserved_qty") or raw.get("num_rooms") or 1)
+        is_group_child = bool(raw.get("group_code") or raw.get("group_index"))
+        effective_qty = int(raw.get("reservation_reserved_qty") or (1 if is_group_child else raw.get("num_rooms") or 1))
+        reserved_qty = effective_qty
         should_reserve = (
             reserve_inventory
             and booking.reservation_status == "CONFIRMED"
@@ -836,7 +839,7 @@ class BookingService:
                 int(reserved_room_type_id or 0) != int(room_type_id or 0)
                 or reserved_check_in != (booking.check_in.isoformat() if booking.check_in else None)
                 or reserved_check_out != (booking.check_out.isoformat() if booking.check_out else None)
-                or reserved_qty != int(raw.get("num_rooms") or 1)
+                or reserved_qty != effective_qty
             )
         )
         if reserved_changed and reserved_room_type_id:
@@ -860,14 +863,14 @@ class BookingService:
                 int(room_type_id),
                 booking.check_in,
                 booking.check_out,
-                int(raw.get("num_rooms") or 1),
+                effective_qty,
                 user_id,
             )
             raw[old_reserved_key] = True
             raw["reservation_reserved_room_type_id"] = int(room_type_id)
             raw["reservation_reserved_check_in"] = booking.check_in.isoformat()
             raw["reservation_reserved_check_out"] = booking.check_out.isoformat()
-            raw["reservation_reserved_qty"] = int(raw.get("num_rooms") or 1)
+            raw["reservation_reserved_qty"] = effective_qty
         elif has_reserved and booking.reservation_status in {"CANCELLED", "NO_SHOW"}:
             if reserved_room_type_id:
                 self.inventory.release_booking(

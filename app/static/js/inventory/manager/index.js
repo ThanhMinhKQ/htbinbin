@@ -1,10 +1,10 @@
-import initialState from './state.js?v=1.6';
-import utils from './utils.js?v=1.6';
-import requests from './requests.js?v=1.6';
-import approvals from './approvals.js?v=1.6';
-import imports from './imports.js?v=1.6';
-import exports from './exports.js?v=1.6';
-import overview from './overview.js?v=1.6';
+import initialState from './state.js?v=1.8';
+import utils from './utils.js?v=1.8';
+import requests from './requests.js?v=1.8';
+import approvals from './approvals.js?v=1.8';
+import imports from './imports.js?v=1.8';
+import exports from './exports.js?v=1.8';
+import overview from './overview.js?v=1.8';
 
 function inventoryManagerApp(totalRecords, currentPage, totalPages) {
     return {
@@ -84,17 +84,11 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
 
         async _pageLoad() {
             if (!this.currentWarehouseId) return;
-            const now = new Date();
-            const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
-            const lastDay = new Date(y, now.getMonth() + 1, 0).getDate();
-            const dateFrom = `${y}-${m}-01`;
-            const dateTo = `${y}-${m}-${lastDay}`;
-            const ovFrom = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-            const ovFromStr = `${ovFrom.getFullYear()}-${String(ovFrom.getMonth()+1).padStart(2,'0')}-${String(ovFrom.getDate()).padStart(2,'0')}`;
+            const { dateFrom, dateTo } = this.getMonthDateRange();
 
             try {
                 const res = await fetch(
-                    `/api/inventory/page-load?warehouse_id=${this.currentWarehouseId}&date_from=${dateFrom}&date_to=${dateTo}&overview_date_from=${ovFromStr}&overview_date_to=${dateTo}`,
+                    `/api/inventory/page-load?warehouse_id=${this.currentWarehouseId}&date_from=${dateFrom}&date_to=${dateTo}&overview_date_from=${dateFrom}&overview_date_to=${dateTo}`,
                     { credentials: 'same-origin' }
                 );
                 if (!res.ok) return;
@@ -112,6 +106,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                 if (d.imports) {
                     this.importsList = d.imports.records || [];
                     this.totalImportPages = d.imports.totalPages || 1;
+                    this.totalImportRecords = d.imports.totalRecords || this.importsList.length || 0;
                 }
 
                 // Overview stats
@@ -124,6 +119,12 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                     this.stats.totalImports = d.stats.imports?.total || 0;
                     this.stats.totalImportAmount = d.stats.imports?.total_amount || 0;
                     this.stats.totalExports = d.stats.exports?.total || 0;
+                    this.stats.totalSalesAmount = d.stats.sales?.total_amount || 0;
+                    this.stats.cashflow = d.stats.cashflow || {
+                        inflow: this.stats.totalSalesAmount,
+                        outflow: this.stats.totalImportAmount,
+                        net: this.stats.totalSalesAmount - this.stats.totalImportAmount
+                    };
                 }
 
                 // Load stock summary separately (heavier query, lower priority)

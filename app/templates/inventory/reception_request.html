@@ -3,6 +3,54 @@
 {% block title %}Quản lý Yêu cầu Vật tư{% endblock %}
 {% block page_title %}Quản lý Yêu Cầu Kho{% endblock %}
 
+{% block app_header_actions %}
+<div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'requests' }" class="max-w-full overflow-x-auto">
+    <div
+        class="inv-main-tabs inline-flex min-h-11 items-center gap-1 rounded-lg border border-slate-200 bg-white/95 p-1 shadow-sm dark:border-slate-700 dark:bg-slate-900/95">
+        <button type="button" @click="tab = 'requests'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'requests' }))"
+            :class="tab === 'requests' ? 'is-active bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+            class="inv-main-tab inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586L19 8.414V19a2 2 0 01-2 2z" />
+            </svg>
+            Yêu cầu
+        </button>
+        <button type="button" @click="tab = 'approvals'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'approvals' }))"
+            :class="tab === 'approvals' ? 'is-active bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+            class="inv-main-tab inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M4 6h16M4 18h16" />
+            </svg>
+            Duyệt yêu cầu
+        </button>
+        <button type="button" @click="tab = 'import'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'import' }))"
+            :class="tab === 'import' ? 'is-active bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+            class="inv-main-tab inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" />
+            </svg>
+            Nhập trực tiếp
+        </button>
+        <button type="button" @click="tab = 'export'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'export' }))"
+            :class="tab === 'export' ? 'is-active bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+            class="inv-main-tab inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21V9m0 0l4 4m-4-4l-4 4M5 3h14" />
+            </svg>
+            Lịch sử xuất
+        </button>
+        <button type="button" @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
+            :class="tab === 'overview' ? 'is-active bg-slate-900 text-white shadow-sm dark:bg-white dark:text-slate-950' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'"
+            class="inv-main-tab inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold transition">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 13h6V4H4v9zm10 7h6V4h-6v16zM4 20h6v-3H4v3z" />
+            </svg>
+            Tổng quan
+        </button>
+    </div>
+</div>
+{% endblock %}
+
 {% block content %}
 <style>
     /* Sortable Styles - Keeping inline as they are specific to this page's table behavior */
@@ -68,7 +116,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=1.3")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=1.5")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;
@@ -110,44 +158,18 @@
             {{ total_records | default(0) }},
             {{ current_page | default(1) }},
             {{ total_pages | default(1) }}
-        )" x-init="initApp()" class="flex flex-col h-full space-y-4">
+        )" x-init="initApp()"
+            @inventory:set-tab.window="currentTab = $event.detail; if (currentTab === 'approvals') fetchApprovals(); if (currentTab === 'import') fetchImports(1); if (currentTab === 'export') fetchExports(1); if (currentTab === 'overview') initOverview();"
+            class="flex flex-col h-full space-y-4">
 
             <div class="flex flex-col h-full space-y-4">
-                <div
-                    class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-4 sticky top-0 z-10">
-                    <nav class="-mb-px flex space-x-8">
-                        <button @click="currentTab = 'requests'"
-                            :class="currentTab === 'requests' ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
-                            Danh sách Yêu cầu
-                        </button>
-                        <button @click="currentTab = 'approvals'; fetchApprovals()"
-                            :class="currentTab === 'approvals' ? 'border-orange-500 text-orange-600 dark:text-orange-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
-                            Duyệt Yêu Cầu Đến
-                            <span x-show="pendingCount > 0"
-                                class="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5 animate-pulse"
-                                x-text="pendingCount"></span>
-                        </button>
-                        <button @click="currentTab = 'import'"
-                            :class="currentTab === 'import' ? 'border-green-500 text-green-600 dark:text-green-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
-                            Nhập hàng trực tiếp
-                        </button>
-                        <button @click="currentTab = 'overview'; initOverview()"
-                            :class="currentTab === 'overview' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
-                            class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors flex items-center gap-2">
-                            Tổng quan Kho
-                        </button>
-                    </nav>
-                </div>
-
                 <!-- Partials -->
                 {% include "inventory/shared/requests/tab_requests.html" %}
                 {% include "inventory/shared/approvals/tab_approvals.html" %}
                 {% include "inventory/reception_request/overview/tab_overview.html" %}
                 {% include "inventory/reception_request/overview/modal_product_history.html" %}
                 {% include "inventory/shared/imports/tab_import.html" %}
+                {% include "inventory/reception_request/exports/tab_export.html" %}
 
                 <!-- Modals -->
                 {% include "inventory/shared/requests/modal_create.html" %}

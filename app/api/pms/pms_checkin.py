@@ -36,7 +36,7 @@ from .vn_address import convert_old_to_new_sync
 from .guest_activity import log_checkin, log_deposit
 from ...services.guest_crm_service import get_guest_risk_flags
 from ...services.booking_service import BookingService
-from ...services.inventory_service import InventoryService
+from ...services.room_inventory_service import InventoryService
 
 router = APIRouter()
 

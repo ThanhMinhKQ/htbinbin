@@ -66,9 +66,9 @@
             <span class="label"><i class="bi bi-robot"></i> GPT-5.4</span>
             <strong id="bk-ota-agent-ai">0</strong>
           </div>
-          <div class="bk-metric-card">
-            <span class="label"><i class="bi bi-skip-forward"></i> Bỏ qua</span>
-            <strong id="bk-ota-agent-skipped">0</strong>
+          <div class="bk-metric-card rule">
+            <span class="label"><i class="bi bi-braces"></i> Rule</span>
+            <strong id="bk-ota-agent-rule">0</strong>
           </div>
         </div>
       </div>
@@ -159,6 +159,11 @@
               <option value="Airbnb">Airbnb</option>
               <option value="Mytour">Mytour</option>
               <option value="Website">Website</option>
+            </select>
+            <select class="bk-select" id="bk-ota-log-method-filter" onchange="BookingHub.loadOtaLogs()">
+              <option value="">Mọi cách xử lý</option>
+              <option value="ai">GPT-5.4</option>
+              <option value="rule">Rule</option>
             </select>
             <select class="bk-select" id="bk-ota-log-action-filter" onchange="BookingHub.loadOtaLogs()">
               <option value="">Mọi loại</option>
@@ -296,7 +301,7 @@
                 <th style="width:110px;">Mã đơn</th>
                 <th style="width:105px;">Kênh OTA</th>
                 <th style="width:160px;">Khách hàng</th>
-                <th style="width:150px;">Phòng</th>
+                <th style="width:150px;">Chi nhánh & phòng</th>
                 <th style="width:170px;">Lưu trú</th>
                 <th style="width:120px;">Trạng thái</th>
                 <th style="width:120px;">Tổng tiền</th>

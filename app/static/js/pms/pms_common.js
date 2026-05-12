@@ -489,103 +489,130 @@ function pmsEnsureToastStyles() {
             bottom: auto !important;
             left: auto !important;
             z-index: 2147483647 !important;
-            width: min(420px, calc(100vw - 28px)) !important;
+            width: min(400px, calc(100vw - 28px)) !important;
             display: flex !important;
             flex-direction: column !important;
-            gap: 10px !important;
+            gap: 8px !important;
             pointer-events: none !important;
         }
         .pms-toast-card {
             --toast-accent: #2563eb;
-            --toast-soft: rgba(37, 99, 235, .1);
+            --toast-bg: rgba(239, 246, 255, 0.97);
+            --toast-border: rgba(37, 99, 235, 0.20);
+            --toast-icon-bg: rgba(37, 99, 235, 0.10);
+            --toast-icon-color: #1d4ed8;
+            --toast-title-color: #0f172a;
+            --toast-msg-color: #475569;
             position: relative;
             display: grid;
-            grid-template-columns: 38px minmax(0, 1fr) 28px;
+            grid-template-columns: 36px minmax(0, 1fr) 24px;
             align-items: start;
-            gap: 12px;
-            min-height: 64px;
-            padding: 14px 14px 13px;
+            gap: 10px;
+            padding: 14px 12px 14px 14px;
             overflow: hidden;
             pointer-events: auto;
-            border: 1px solid rgba(148, 163, 184, .30);
-            border-left: 5px solid var(--toast-accent);
-            border-radius: 18px;
-            background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,250,252,.92));
-            color: #0f172a;
-            box-shadow: 0 24px 70px rgba(15, 23, 42, .22), 0 8px 22px rgba(15, 23, 42, .10);
-            backdrop-filter: blur(18px) saturate(1.25);
-            -webkit-backdrop-filter: blur(18px) saturate(1.25);
-            isolation: isolate;
-            animation: pmsToastEnter .24s cubic-bezier(.16, 1, .3, 1) both;
-        }
-        .pms-toast-card::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at 0 0, var(--toast-soft), transparent 44%);
-            opacity: .9;
-            pointer-events: none;
-            z-index: -1;
-        }
-        .pms-toast-card.ok { --toast-accent: #16a34a; --toast-soft: rgba(22, 163, 74, .13); }
-        .pms-toast-card.err { --toast-accent: #dc2626; --toast-soft: rgba(220, 38, 38, .13); }
-        .pms-toast-card.warn { --toast-accent: #d97706; --toast-soft: rgba(217, 119, 6, .15); }
-        .pms-toast-card.info { --toast-accent: #2563eb; --toast-soft: rgba(37, 99, 235, .12); }
-        .pms-toast-card.is-leaving { animation: pmsToastExit .18s ease-in forwards; }
-        .pms-toast-icon-badge {
-            width: 38px;
-            height: 38px;
+            border: 1px solid var(--toast-border);
+            border-left: 4px solid var(--toast-accent);
             border-radius: 14px;
+            background: var(--toast-bg);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 10px 28px -4px rgba(0,0,0,.10);
+            backdrop-filter: blur(16px) saturate(1.4);
+            -webkit-backdrop-filter: blur(16px) saturate(1.4);
+            isolation: isolate;
+            animation: pmsToastEnter .22s cubic-bezier(.16, 1, .3, 1) both;
+        }
+        .pms-toast-card.ok {
+            --toast-accent: #16a34a;
+            --toast-bg: rgba(240, 253, 244, 0.97);
+            --toast-border: rgba(22, 163, 74, 0.20);
+            --toast-icon-bg: rgba(22, 163, 74, 0.10);
+            --toast-icon-color: #15803d;
+        }
+        .pms-toast-card.err {
+            --toast-accent: #dc2626;
+            --toast-bg: rgba(254, 242, 242, 0.97);
+            --toast-border: rgba(220, 38, 38, 0.20);
+            --toast-icon-bg: rgba(220, 38, 38, 0.10);
+            --toast-icon-color: #b91c1c;
+        }
+        .pms-toast-card.warn {
+            --toast-accent: #d97706;
+            --toast-bg: rgba(255, 251, 235, 0.97);
+            --toast-border: rgba(217, 119, 6, 0.22);
+            --toast-icon-bg: rgba(217, 119, 6, 0.10);
+            --toast-icon-color: #92400e;
+        }
+        .pms-toast-card.info {
+            --toast-accent: #0284c7;
+            --toast-bg: rgba(240, 249, 255, 0.97);
+            --toast-border: rgba(2, 132, 199, 0.20);
+            --toast-icon-bg: rgba(2, 132, 199, 0.10);
+            --toast-icon-color: #0369a1;
+        }
+        .pms-toast-card.is-leaving { animation: pmsToastExit .16s ease-in forwards; }
+        .pms-toast-icon-badge {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: var(--toast-accent);
-            background: color-mix(in srgb, var(--toast-accent) 11%, white);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--toast-accent) 18%, transparent);
+            flex-shrink: 0;
+            color: var(--toast-icon-color);
+            background: var(--toast-icon-bg);
+            margin-top: 1px;
         }
-        .pms-toast-content { min-width: 0; padding-top: 1px; }
+        .pms-toast-content { min-width: 0; padding-top: 2px; }
         .pms-toast-title {
-            margin: 0 0 4px;
-            color: #0f172a;
+            margin: 0 0 3px;
+            color: var(--toast-title-color);
             font-size: 13px;
-            font-weight: 850;
+            font-weight: 700;
             letter-spacing: -.01em;
+            line-height: 1.3;
         }
         .pms-toast-msg {
-            color: #475569;
-            font-size: 13px;
-            line-height: 1.42;
+            color: var(--toast-msg-color);
+            font-size: 12.5px;
+            line-height: 1.5;
             overflow-wrap: anywhere;
         }
         .pms-toast-close {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             border: 0;
-            border-radius: 999px;
-            color: #64748b;
+            border-radius: 6px;
+            color: var(--toast-msg-color);
             background: transparent;
-            font-size: 20px;
+            font-size: 18px;
             line-height: 1;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+            transition: background .12s, color .12s;
         }
-        .pms-toast-close:hover { color: #0f172a; background: rgba(226, 232, 240, .8); }
+        .pms-toast-close:hover {
+            color: var(--toast-title-color);
+            background: rgba(0, 0, 0, .06);
+        }
         .pms-toast-progress {
             position: absolute;
-            right: 14px;
-            bottom: 7px;
-            left: 56px;
-            height: 3px;
+            right: 0;
+            bottom: 0;
+            left: 4px;
+            height: 2px;
             overflow: hidden;
-            border-radius: 999px;
-            background: rgba(148, 163, 184, .22);
+            border-radius: 0 0 14px 0;
+            background: transparent;
         }
         .pms-toast-progress span {
             display: block;
             width: 100%;
             height: 100%;
-            border-radius: inherit;
             background: var(--toast-accent);
-            opacity: .55;
+            opacity: .35;
             transform-origin: left center;
             animation: pmsToastProgress var(--toast-duration, 4200ms) linear forwards;
         }
@@ -593,44 +620,58 @@ function pmsEnsureToastStyles() {
         body.dark .pms-toast-card,
         .dark-mode .pms-toast-card,
         .dark .pms-toast-card {
-            border-color: rgba(148, 163, 184, .24);
-            background: linear-gradient(135deg, rgba(15, 23, 42, .97), rgba(30, 41, 59, .92));
-            color: #e2e8f0;
-            box-shadow: 0 24px 70px rgba(0, 0, 0, .48), 0 8px 22px rgba(0, 0, 0, .30);
+            --toast-bg: rgba(15, 23, 42, 0.96);
+            --toast-border: rgba(148, 163, 184, 0.16);
+            --toast-title-color: #f1f5f9;
+            --toast-msg-color: #94a3b8;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,.3), 0 10px 28px -4px rgba(0,0,0,.4);
         }
-        html.dark .pms-toast-card::before,
-        body.dark .pms-toast-card::before,
-        .dark-mode .pms-toast-card::before,
-        .dark .pms-toast-card::before { opacity: .72; }
-        html.dark .pms-toast-title,
-        body.dark .pms-toast-title,
-        .dark-mode .pms-toast-title,
-        .dark .pms-toast-title { color: #f8fafc; }
-        html.dark .pms-toast-msg,
-        body.dark .pms-toast-msg,
-        .dark-mode .pms-toast-msg,
-        .dark .pms-toast-msg { color: #cbd5e1; }
-        html.dark .pms-toast-icon-badge,
-        body.dark .pms-toast-icon-badge,
-        .dark-mode .pms-toast-icon-badge,
-        .dark .pms-toast-icon-badge {
-            background: color-mix(in srgb, var(--toast-accent) 18%, #0f172a);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--toast-accent) 32%, transparent);
+        html.dark .pms-toast-card.ok,
+        body.dark .pms-toast-card.ok,
+        .dark-mode .pms-toast-card.ok,
+        .dark .pms-toast-card.ok {
+            --toast-bg: rgba(5, 46, 22, 0.95);
+            --toast-border: rgba(22, 163, 74, 0.28);
+            --toast-icon-bg: rgba(22, 163, 74, 0.18);
+            --toast-icon-color: #4ade80;
         }
-        html.dark .pms-toast-close,
-        body.dark .pms-toast-close,
-        .dark-mode .pms-toast-close,
-        .dark .pms-toast-close { color: #94a3b8; }
+        html.dark .pms-toast-card.err,
+        body.dark .pms-toast-card.err,
+        .dark-mode .pms-toast-card.err,
+        .dark .pms-toast-card.err {
+            --toast-bg: rgba(69, 10, 10, 0.95);
+            --toast-border: rgba(220, 38, 38, 0.28);
+            --toast-icon-bg: rgba(220, 38, 38, 0.18);
+            --toast-icon-color: #f87171;
+        }
+        html.dark .pms-toast-card.warn,
+        body.dark .pms-toast-card.warn,
+        .dark-mode .pms-toast-card.warn,
+        .dark .pms-toast-card.warn {
+            --toast-bg: rgba(69, 26, 3, 0.95);
+            --toast-border: rgba(217, 119, 6, 0.28);
+            --toast-icon-bg: rgba(217, 119, 6, 0.18);
+            --toast-icon-color: #fbbf24;
+        }
+        html.dark .pms-toast-card.info,
+        body.dark .pms-toast-card.info,
+        .dark-mode .pms-toast-card.info,
+        .dark .pms-toast-card.info {
+            --toast-bg: rgba(3, 30, 56, 0.95);
+            --toast-border: rgba(2, 132, 199, 0.28);
+            --toast-icon-bg: rgba(2, 132, 199, 0.18);
+            --toast-icon-color: #38bdf8;
+        }
         html.dark .pms-toast-close:hover,
         body.dark .pms-toast-close:hover,
         .dark-mode .pms-toast-close:hover,
-        .dark .pms-toast-close:hover { color: #f8fafc; background: rgba(148, 163, 184, .14); }
+        .dark .pms-toast-close:hover { background: rgba(255,255,255,.08); }
         @keyframes pmsToastEnter {
-            from { opacity: 0; transform: translate3d(18px, -8px, 0) scale(.97); }
-            to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+            from { opacity: 0; transform: translate3d(16px, -6px, 0) scale(.96); }
+            to   { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
         }
         @keyframes pmsToastExit {
-            to { opacity: 0; transform: translate3d(20px, -6px, 0) scale(.98); }
+            to { opacity: 0; transform: translate3d(16px, -4px, 0) scale(.97); }
         }
         @keyframes pmsToastProgress { to { transform: scaleX(0); } }
         @media (max-width: 720px) {
@@ -683,6 +724,79 @@ function pmsNormalizeToastOptions(input, status) {
     };
 }
 
+// ── Web Audio sound system ──────────────────────────────────────────
+let _pmsAudioCtx = null;
+function _pmsGetAudioCtx() {
+    if (!_pmsAudioCtx || _pmsAudioCtx.state === 'closed') {
+        try { _pmsAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    }
+    return _pmsAudioCtx;
+}
+
+function pmsPlaySound(type) {
+    try {
+        const ctx = _pmsGetAudioCtx();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') ctx.resume();
+        const gain = ctx.createGain();
+        gain.connect(ctx.destination);
+        const osc = ctx.createOscillator();
+        osc.connect(gain);
+        const now = ctx.currentTime;
+        if (type === 'ok' || type === 'success') {
+            // Two-tone ascending chime
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523, now);
+            osc.frequency.setValueAtTime(784, now + 0.1);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.18, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+            osc.start(now);
+            osc.stop(now + 0.38);
+        } else if (type === 'err' || type === 'error') {
+            // Low descending tone
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(330, now);
+            osc.frequency.setValueAtTime(220, now + 0.12);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.20, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+            osc.start(now);
+            osc.stop(now + 0.36);
+        } else if (type === 'warn') {
+            // Double pulse
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, now);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.16, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+            gain.gain.setValueAtTime(0, now + 0.18);
+            gain.gain.linearRampToValueAtTime(0.14, now + 0.20);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+            osc.start(now);
+            osc.stop(now + 0.34);
+        } else if (type === 'click') {
+            // Soft click
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.exponentialRampToValueAtTime(300, now + 0.06);
+            gain.gain.setValueAtTime(0.10, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+            osc.start(now);
+            osc.stop(now + 0.06);
+        } else {
+            // Info — soft single tone
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(660, now);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.14, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.start(now);
+            osc.stop(now + 0.28);
+        }
+    } catch (e) {}
+}
+
 function pmsPlayToastSound(src) {
     if (!src) return;
     try {
@@ -691,6 +805,32 @@ function pmsPlayToastSound(src) {
         audio.play().catch(() => {});
     } catch (e) {}
 }
+
+// Attach click sound to buttons — call once after DOM ready
+function pmsInitButtonSounds() {
+    if (document.getElementById('pms-btn-sound-init')) return;
+    const marker = document.createElement('meta');
+    marker.id = 'pms-btn-sound-init';
+    document.head.appendChild(marker);
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('button, .bk-btn, .bk-mini-btn, .bk-icon-btn, .bk-method-card-v2, .bk-deposit-mode-card, .bk-nav-item, .bk-avail-card:not(.sold-out), .bk-assign-room, .bk-waitlist-item, .rs-date-header, .rs-avail-tile, .rs-booking-bar, .ci-btn, .ci-action-btn');
+        if (!btn) return;
+        if (btn.disabled || btn.getAttribute('aria-disabled') === 'true') return;
+
+        // Determine sound type from button context
+        const isPrimary = btn.classList.contains('primary') || btn.classList.contains('success') || btn.classList.contains('bk-avail-card') || btn.classList.contains('bk-assign-room');
+        const isDanger = btn.classList.contains('danger') || btn.classList.contains('bk-assign-danger') || btn.classList.contains('rs-assign-danger');
+        const isClose = btn.classList.contains('bk-close') || btn.classList.contains('pms-toast-close') || btn.classList.contains('bk-wiz-back');
+
+        if (isDanger) pmsPlaySound('warn');
+        else if (isPrimary) pmsPlaySound('click');
+        else if (isClose) pmsPlaySound('click');
+        else pmsPlaySound('click');
+    }, { passive: true });
+}
+
+window.pmsPlaySound = pmsPlaySound;
 
 function pmsToast(input, status = true) {
     pmsEnsureToastStyles();
@@ -732,7 +872,8 @@ function pmsToast(input, status = true) {
     stack.appendChild(el);
     while (stack.children.length > 4) stack.firstElementChild?.remove();
     el._t = setTimeout(dismiss, duration);
-    pmsPlayToastSound(config.sound);
+    if (config.sound) pmsPlayToastSound(config.sound);
+    else pmsPlaySound(config.type);
     return el;
 }
 
@@ -848,7 +989,13 @@ window.pmsChangeBranch = pmsChangeBranch;
 window.pmsFormatDurLive = pmsFormatDurLive;
 window.pmsFdtLong = pmsFdtLong;
 window.pmsRenderPricingBreakdown = pmsRenderPricingBreakdown;
+window.pmsInitButtonSounds = pmsInitButtonSounds;
 
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', pmsInitButtonSounds);
+} else {
+    pmsInitButtonSounds();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CCCD / Căn Cước QR Scan Utility

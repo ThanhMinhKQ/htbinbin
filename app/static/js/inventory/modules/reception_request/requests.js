@@ -236,13 +236,15 @@ export default {
 
     getCreateProductSearchResults() {
         const query = (this.createForm.product_search || '').toLowerCase().trim();
+        if (!query) return [];
+
         const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
 
         return this.normalizedProducts
             .filter(product => {
                 const categoryName = categoriesById.get(String(product.category_id)) || '';
                 const haystack = `${product.name || ''} ${categoryName}`.toLowerCase();
-                return !query || haystack.includes(query);
+                return haystack.includes(query);
             })
             .slice(0, 10);
     },

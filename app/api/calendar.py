@@ -498,5 +498,6 @@ def view_attendance_calendar(
         "num_days": num_days,
         "employee_data": sorted_employee_data,
         "employee_data_for_js": sorted_employee_data, # Sửa lỗi: Cung cấp dữ liệu cho dashboard
+        "active_page": "work-log",
         "current_day": now.day if now.month == current_month and now.year == current_year else None,
     })

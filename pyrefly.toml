@@ -1,0 +1,3 @@
+project-excludes = [
+    "app/services/inventory_service.py",
+]

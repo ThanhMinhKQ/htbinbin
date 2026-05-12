@@ -1,10 +1,11 @@
+# type: ignore
 """Room inventory management for PMS reservations."""
 from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload, Session
@@ -50,16 +51,20 @@ class InventoryService:
 
     def _reserved_booking_quantity(self, booking: Booking) -> int:
         raw = booking.raw_data or {}
-        return int(raw.get("reservation_reserved_qty") or raw.get("num_rooms") or 1)
+        if raw.get("reservation_reserved_qty"):
+            return int(raw["reservation_reserved_qty"])
+        # Group bookings (split from multi-room OTA) always represent 1 room each
+        if raw.get("group_code") or raw.get("group_index"):
+            return 1
+        return int(raw.get("num_rooms") or 1)
 
     def _recalculate_available(self, inv: RoomInventoryDaily) -> None:
-        inv.available_rooms = (
-            (inv.total_rooms or 0)
-            - (inv.reserved_rooms or 0)
-            - (inv.sold_rooms or 0)
-            - (inv.out_of_order_rooms or 0)
-            + (inv.overbooking_limit or 0)
-        )
+        total_rooms = cast(int, inv.total_rooms or 0)
+        reserved_rooms = cast(int, inv.reserved_rooms or 0)
+        sold_rooms = cast(int, inv.sold_rooms or 0)
+        out_of_order_rooms = cast(int, inv.out_of_order_rooms or 0)
+        overbooking_limit = cast(int, inv.overbooking_limit or 0)
+        inv.available_rooms = cast(Any, total_rooms - reserved_rooms - sold_rooms - out_of_order_rooms + overbooking_limit)
 
     def _physical_counts(self, branch_id: int, room_type_id: int, target_date: date) -> Dict[str, int]:
         total_rooms = self.db.query(func.count(HotelRoom.id)).filter(
@@ -265,9 +270,42 @@ class InventoryService:
             if room_type_id:
                 total_by_type[int(room_type_id)] += 1
 
+        day_start = datetime.combine(start_date, time.min)
+        day_end = datetime.combine(end_date, time.min)
+        if day_start.tzinfo is None:
+            day_start = VN_TZ.localize(day_start)
+            day_end = VN_TZ.localize(day_end)
+
+        stays = self.db.query(
+            HotelStay.room_id,
+            HotelStay.check_in_at,
+            HotelStay.check_out_at,
+        ).filter(
+            HotelStay.branch_id == branch_id,
+            HotelStay.status == HotelStayStatus.ACTIVE,
+            HotelStay.check_in_at < day_end,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+        ).all()
+        occupied_room_dates: set[tuple[int, date]] = set()
+        if refresh_counts:
+            for room_id, check_in_at, check_out_at in stays:
+                room_type_id = room_type_for_room.get(int(room_id))
+                if not room_type_id:
+                    continue
+                first_date = max(start_date, check_in_at.astimezone(VN_TZ).date())
+                co_date = check_out_at.astimezone(VN_TZ).date() if check_out_at else end_date
+                # ensure same-day stays (check-in and check-out on same date) count as 1 sold night
+                if co_date <= first_date:
+                    co_date = first_date + timedelta(days=1)
+                last_date = min(end_date, co_date)
+                for target_date in iter_stay_dates(first_date, last_date):
+                    sold_by_key[(room_type_id, target_date)].add(int(room_id))
+                    occupied_room_dates.add((int(room_id), target_date))
+
         bookings = self.db.query(Booking).filter(
             Booking.branch_id == branch_id,
             Booking.reservation_status == "CONFIRMED",
+            Booking.stay_id.is_(None),
             Booking.check_in < end_date,
             Booking.check_out > start_date,
         ).all()
@@ -279,34 +317,11 @@ class InventoryService:
             last_date = min(end_date, booking.check_out)
             quantity = self._reserved_booking_quantity(booking)
             for target_date in iter_stay_dates(first_date, last_date):
+                if booking.assigned_room_id and (int(booking.assigned_room_id), target_date) in occupied_room_dates:
+                    continue
                 reserved_by_key[(room_type_id, target_date)] += quantity
 
         if refresh_counts:
-            day_start = datetime.combine(start_date, time.min)
-            day_end = datetime.combine(end_date, time.min)
-            if day_start.tzinfo is None:
-                day_start = VN_TZ.localize(day_start)
-                day_end = VN_TZ.localize(day_end)
-
-            stays = self.db.query(
-                HotelStay.room_id,
-                HotelStay.check_in_at,
-                HotelStay.check_out_at,
-            ).filter(
-                HotelStay.branch_id == branch_id,
-                HotelStay.status == HotelStayStatus.ACTIVE,
-                HotelStay.check_in_at < day_end,
-                or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
-            ).all()
-            for room_id, check_in_at, check_out_at in stays:
-                room_type_id = room_type_for_room.get(int(room_id))
-                if not room_type_id:
-                    continue
-                first_date = max(start_date, check_in_at.astimezone(VN_TZ).date())
-                last_date = min(end_date, (check_out_at.astimezone(VN_TZ).date() if check_out_at else end_date))
-                for target_date in iter_stay_dates(first_date, last_date):
-                    sold_by_key[(room_type_id, target_date)].add(int(room_id))
-
             blocks = self.db.query(
                 RoomBlock.room_id,
                 RoomBlock.start_date,
@@ -765,6 +780,10 @@ class InventoryService:
 
         room_type_ids = [int(room_type.id) for room_type in room_types]
         stay_dates = list(iter_stay_dates(check_in, check_out))
+        days = len(stay_dates)
+        if days > 0:
+            self.generate_daily_inventory(branch_id, check_in, days, refresh_counts=True)
+
         inventories = self.db.query(RoomInventoryDaily).filter(
             RoomInventoryDaily.branch_id == branch_id,
             RoomInventoryDaily.room_type_id.in_(room_type_ids),
@@ -773,45 +792,14 @@ class InventoryService:
         ).all()
         inventory_by_key = {(int(inv.room_type_id), inv.date): inv for inv in inventories}
 
-        # Batch: tìm ngày nào thiếu inventory → tính physical counts 1 lần cho tất cả types
-        missing_dates = set()
-        for target_date in stay_dates:
-            for type_id in room_type_ids:
-                if (type_id, target_date) not in inventory_by_key:
-                    missing_dates.add(target_date)
-
-        # Pre-compute batch counts cho các ngày thiếu (3 query/ngày thay vì 3×N)
-        batch_counts_by_date: Dict[date, Dict[int, Dict[str, int]]] = {}
-        for target_date in missing_dates:
-            batch_counts_by_date[target_date] = self._physical_counts_batch(
-                branch_id, room_type_ids, target_date
-            )
-
         result = []
         for room_type in room_types:
             type_id = int(room_type.id)
-            type_inventories = []
-            for target_date in stay_dates:
-                inv = inventory_by_key.get((type_id, target_date))
-                if not inv:
-                    counts = batch_counts_by_date[target_date][type_id]
-                    inv = RoomInventoryDaily(
-                        branch_id=branch_id,
-                        room_type_id=type_id,
-                        date=target_date,
-                        total_rooms=counts["total_rooms"],
-                        reserved_rooms=0,
-                        sold_rooms=counts["sold_rooms"],
-                        out_of_order_rooms=counts["out_of_order_rooms"],
-                        base_price=room_type.price_per_night if room_type else Decimal("0"),
-                    )
-                    self._recalculate_available(inv)
-                    self.db.add(inv)
-                    inventory_by_key[(type_id, target_date)] = inv
-                else:
-                    self._recalculate_available(inv)
-                type_inventories.append(inv)
-            self.db.flush()
+            type_inventories = [
+                inventory_by_key[key]
+                for key in [(type_id, d) for d in stay_dates]
+                if key in inventory_by_key
+            ]
             min_available = min([i.available_rooms for i in type_inventories], default=0)
             total_rooms = type_inventories[0].total_rooms if type_inventories else 0
             result.append({
@@ -902,7 +890,10 @@ class InventoryService:
         ).all()
         for room_id, check_in_at, check_out_at in active_stays:
             first_date = max(start_date, check_in_at.astimezone(VN_TZ).date())
-            last_date = min(end_date, (check_out_at.astimezone(VN_TZ).date() if check_out_at else end_date))
+            co_date = check_out_at.astimezone(VN_TZ).date() if check_out_at else end_date
+            if co_date <= first_date:
+                co_date = first_date + timedelta(days=1)
+            last_date = min(end_date, co_date)
             for target_date in iter_stay_dates(first_date, last_date):
                 unavailable_room_ids[target_date].add(int(room_id))
 

@@ -57,7 +57,7 @@ class UpdateDirectExportSchema(BaseModel):
 
 
 class ReceiveItemSchema(BaseModel):
-    id: Optional[int] = None
+    id: int
     product_id: int
     received_quantity: float
     loss_quantity: float = 0.0

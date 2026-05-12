@@ -1,7 +1,3 @@
-#pms-booking-page {
-    /* Rely on the default app-main > * card styles from base.html */
-}
-
 .bk-shell {
     display: flex;
     flex-direction: column;

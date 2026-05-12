@@ -1,8 +1,85 @@
-<div x-show="currentTab === 'import'" class="p-4 flex-1 overflow-auto animate-fade-in-up" x-cloak>
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
+<div x-show="currentTab === 'import'" class="inv-tab-page" x-cloak>
+    <div class="inv-tab-header">
+        <div>
+            <p class="inv-tab-eyebrow">Nhập kho</p>
+            <h2 class="inv-tab-title">Nhập trực tiếp</h2>
+            <p class="inv-tab-copy">Ghi nhận hàng vào kho, kiểm soát nhà cung cấp, tổng tiền và chứng từ theo từng phiếu.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button @click="resetImportDateFilter()" class="inv-btn-secondary" title="Reset về tháng hiện tại">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Tháng này
+            </button>
+            <button @click="openImportModal()" class="inv-btn-primary">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                Tạo phiếu nhập
+            </button>
+        </div>
+    </div>
 
+    <div class="inv-kpi-grid">
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Tổng phiếu nhập</p>
+                    <p class="inv-kpi-value text-green-600 dark:text-green-300" x-text="totalImportRecords || 0"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center dark:bg-green-950/50 dark:text-green-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Đang hiển thị</p>
+                    <p class="inv-kpi-value" x-text="importsList.length || 0"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center dark:bg-slate-800 dark:text-slate-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Tổng tiền trang</p>
+                    <p class="inv-kpi-value text-xl text-emerald-600 dark:text-emerald-300" x-text="formatMoney(importsList.reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0))"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center dark:bg-emerald-950/50 dark:text-emerald-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="inv-kpi-card">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <p class="inv-kpi-label">Tổng sản phẩm</p>
+                    <p class="inv-kpi-value text-indigo-600 dark:text-indigo-300" x-text="importsList.reduce((sum, r) => sum + (Number(r.items_count) || 0), 0)"></p>
+                </div>
+                <div class="h-10 w-10 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center dark:bg-indigo-950/50 dark:text-indigo-300">
+                    <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inv-toolbar">
         <!-- Filters & Actions -->
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+        <div>
             <div class="flex flex-col lg:flex-row gap-4 justify-between items-center">
 
                 <!-- Search & Filter Group -->
@@ -10,7 +87,7 @@
                 <div class="flex flex-col sm:flex-row gap-2 w-full lg:w-auto flex-1 flex-wrap">
                     <div class="relative w-full sm:w-64">
                         <input type="text" x-model="importFilters.search" @keydown.enter="fetchImports(1)"
-                            class="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-green-500"
+                            class="inv-field-search"
                             placeholder="Tìm mã phiếu, NCC, ghi chú...">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -21,20 +98,20 @@
                     </div>
 
                     <input type="date" x-model="importFilters.date_from" @change="fetchImports(1)"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-green-500"
+                        class="inv-field w-full sm:w-40"
                         placeholder="Từ ngày">
 
                     <input type="date" x-model="importFilters.date_to" @change="fetchImports(1)"
-                        class="w-full sm:w-40 py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-green-500"
+                        class="inv-field w-full sm:w-40"
                         placeholder="Đến ngày">
 
                     <button @click="fetchImports(1)"
-                        class="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 rounded-lg text-slate-700 dark:text-slate-200 text-sm font-medium transition">
-                        Tìm kiếm
+                        class="inv-btn-secondary">
+                        Lọc
                     </button>
 
                     <button @click="resetImportDateFilter()"
-                        class="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 text-sm font-medium transition"
+                        class="inv-btn-secondary"
                         title="Reset về tháng hiện tại">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -45,37 +122,40 @@
 
                 <!-- Actions Group -->
                 <div class="flex items-center gap-2 w-full lg:w-auto justify-end">
-                    <button x-show="selectedImportIds.length > 0 && userRole !== 'letan'" @click="batchDeleteImports"
-                        class="px-4 py-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg text-sm font-bold transition flex items-center gap-2"
-                        x-cloak>
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Xóa (<span x-text="selectedImportIds.length"></span>)
-                    </button>
-
                     <button @click="openImportModal()"
-                        class="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg text-sm font-bold shadow-md flex items-center gap-2 transition transform hover:scale-105">
+                        class="inv-btn-primary">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
-                        Nhập hàng trực tiếp
+                        Tạo phiếu nhập
                     </button>
                 </div>
             </div>
         </div>
+    </div>
 
+    <div x-show="selectedImportIds.length > 0 && userRole !== 'letan'" class="inv-selection-bar mb-4" x-cloak>
+        <span>Đã chọn <span x-text="selectedImportIds.length"></span> phiếu nhập. Xóa sẽ hoàn tác tồn kho.</span>
+        <button type="button" @click="batchDeleteImports" class="inv-btn-danger">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Xóa đã chọn
+        </button>
+    </div>
+
+    <div class="inv-table-card">
         <!-- Table -->
-        <div class="overflow-x-auto relative min-h-[400px]">
+        <div class="inv-table-scroll">
             <div x-show="loadingImports"
                 class="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-20 flex items-center justify-center backdrop-blur-sm">
                 <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
             </div>
 
-            <table class="w-full text-sm text-left border-collapse">
+            <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 border-collapse">
                 <thead
-                    class="sticky top-0 z-10 text-xs text-slate-700 uppercase dark:text-slate-400 bg-gradient-to-b from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-700 border-b border-slate-200 dark:border-slate-700 shadow-sm">
+                    class="inv-table-head">
                     <tr>
                         <th class="w-12 px-4 py-3 text-center">
                             <input x-show="userRole !== 'letan'" type="checkbox" @click="toggleSelectAllImports"
@@ -186,11 +266,12 @@
                             </div>
                         </th>
                         <th class="px-4 py-3 text-left">Ghi chú</th>
+                        <th class="px-4 py-3 text-right">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                <tbody>
                     <template x-for="(r, index) in importsList" :key="r.id">
-                        <tr class="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
+                        <tr class="inv-row cursor-pointer"
                             :class="{'bg-red-50 dark:bg-red-900/10': selectedImportIds.includes(r.id)}"
                             @click="openImportDetail(r.id)">
 
@@ -210,18 +291,37 @@
                             <td class="px-4 py-3 text-right font-bold text-green-600"
                                 x-text="formatMoney(r.total_amount)"></td>
                             <td class="px-4 py-3 text-slate-500 italic" x-text="r.notes"></td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" @click.stop="openImportDetail(r.id)"
+                                    class="inv-action-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold shadow-sm transition hover:bg-slate-100 dark:hover:bg-slate-800">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    Chi tiết
+                                </button>
+                            </td>
                         </tr>
                     </template>
                     <tr x-show="importsList.length === 0 && !loadingImports">
-                        <td colspan="8" class="p-12 text-center text-slate-400">
-                            Chưa có lịch sử nhập hàng nào.
+                        <td colspan="9" class="p-12 text-center text-slate-400">
+                            <div class="inv-empty-state">
+                                <div class="inv-empty-icon">
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                    </svg>
+                                </div>
+                                <span>Chưa có lịch sử nhập hàng nào.</span>
+                            </div>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
 
-        <!-- Pagination -->
         <!-- Pagination -->
         <div
             class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row justify-between items-center gap-4">

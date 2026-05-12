@@ -18,7 +18,7 @@ from ...core.utils import VN_TZ
 from ...db.models import Booking, Branch, Guest, HotelRoomType, OTAParsingLog, OTAParsingStatus, RoomBlock
 from ...db.session import get_db
 from ...services.booking_service import BookingService, is_ota_like_booking
-from ...services.inventory_service import InventoryService
+from ...services.room_inventory_service import InventoryService
 from ...services.ota_agent.mapper import HotelMapper
 from ...services.ota_agent.ota_service import ota_dashboard_service
 from .pms_helpers import _active_branch, _get_branch_by_code, _is_admin, _require_login
@@ -582,6 +582,7 @@ def api_ota_status(
             "cancelled_emails": 0,
             "agent_ai_count": 0,
             "agent_gemini_count": 0,
+            "agent_rule_count": 0,
             "agent_skipped_count": 0,
             "agent_parse_count": 0,
             "agent_total_count": 0,
@@ -600,6 +601,7 @@ def api_ota_status(
     success_booking_logs = [log for log in relevant_logs if _is_success_booking_log(log)]
     cancel_booking_logs = [log for log in relevant_logs if _is_cancel_booking_log(log)]
     ai_count = sum(1 for log in relevant_logs if _log_parser_method(log) in ("gemini", "ai"))
+    rule_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule")
     skipped_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule_skip" or (log.extracted_data or {}).get("status") == "SKIPPED")
     latest_relevant_log = success_booking_logs[0] if success_booking_logs else None
     latest_relevant_payload = _serialize_ota_log(latest_relevant_log) if latest_relevant_log else None
@@ -618,9 +620,10 @@ def api_ota_status(
         "cancelled_emails": len(cancel_booking_logs),
         "agent_ai_count": ai_count,
         "agent_gemini_count": ai_count,
+        "agent_rule_count": rule_count,
         "agent_skipped_count": skipped_count,
-        "agent_parse_count": 0,
-        "agent_total_count": ai_count + skipped_count,
+        "agent_parse_count": rule_count,
+        "agent_total_count": ai_count + rule_count + skipped_count,
         "agent_window_days": days,
         "latest_email_at": _iso_vn(latest_log.received_at) if latest_log else None,
         "latest_email_status": latest_log.status.value if latest_log and hasattr(latest_log.status, "value") else None,
@@ -643,6 +646,7 @@ def api_ota_logs(
     request: Request,
     status: Optional[str] = None,
     booking_source: Optional[str] = None,
+    parser_method: Optional[str] = None,
     action_type: Optional[str] = None,
     branch_id: Optional[int] = None,
     search: Optional[str] = None,
@@ -710,6 +714,9 @@ def api_ota_logs(
 
     raw_logs = q.limit(max(limit * 3, 80)).all()
     logs = [log for log in raw_logs if _is_relevant_ota_log(log) and _ota_log_matches_branch(log, target_branch)]
+    if parser_method and parser_method.lower() not in {"all", ""}:
+        normalized_method = parser_method.lower()
+        logs = [log for log in logs if _log_parser_method(log) == normalized_method]
     if action_type and action_type.upper() not in {"ALL", ""}:
         logs = [log for log in logs if _ota_log_action_type(log) == action_type.upper()]
 
@@ -728,6 +735,7 @@ def api_ota_logs(
         "filters": {
             "status": status,
             "booking_source": booking_source,
+            "parser_method": parser_method,
             "action_type": action_type,
             "branch_id": target_branch,
             "from_date": from_date,

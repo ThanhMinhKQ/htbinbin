@@ -1,10 +1,10 @@
-import initialState from './state.js?v=1.3';
-import utils from './utils.js?v=1.3';
-import requests from './requests.js?v=1.3';
-import approvals from './approvals.js?v=1.3';
-import imports from './imports.js?v=1.3';
-import exports from './exports.js?v=1.3';
-import overview from './overview.js?v=1.3';
+import initialState from './state.js?v=1.5';
+import utils from './utils.js?v=1.5';
+import requests from './requests.js?v=1.5';
+import approvals from './approvals.js?v=1.5';
+import imports from './imports.js?v=1.5';
+import exports from './exports.js?v=1.5';
+import overview from './overview.js?v=1.5';
 
 function receptionRequestApp(totalRecords, currentPage, totalPages) {
     return {
@@ -80,7 +80,40 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
             }, 0);
 
             if (this.currentBranchId || this.currentWarehouseId) {
-                // Priority 1: active tab first
+                this._pageLoad();
+            }
+        },
+
+        async _pageLoad() {
+            const whId = this.currentWarehouseId || '';
+            const dateFrom = this.filterDateFrom || '';
+            const dateTo = this.filterDateTo || '';
+            try {
+                const res = await fetch(
+                    `/api/inventory/reception-page-load?warehouse_id=${whId}&date_from=${dateFrom}&date_to=${dateTo}&overview_date_from=${dateFrom}&overview_date_to=${dateTo}`,
+                    { credentials: 'same-origin' }
+                );
+                if (!res.ok) throw new Error('page-load failed');
+                const d = await res.json();
+
+                if (d.approvals) {
+                    this.approvalList = d.approvals.records || [];
+                    this.totalApprovalRecords = d.approvals.totalRecords || 0;
+                    this.totalApprovalPages = d.approvals.totalPages || 0;
+                    this.pendingCount = d.approvals.pendingCount || 0;
+                }
+                if (d.imports) {
+                    this.importList = d.imports.records || [];
+                    this.totalImportRecords = d.imports.totalRecords || 0;
+                    this.totalImportPages = d.imports.totalPages || 0;
+                }
+                if (d.stats) {
+                    this.dashboardStats = d.stats;
+                }
+
+                setTimeout(() => this.fetchStock(), 100);
+            } catch (e) {
+                console.warn('Reception page-load failed, falling back to individual calls', e);
                 if (this.currentTab === 'approvals') {
                     this.fetchApprovals();
                 } else if (this.currentTab === 'import') {
@@ -88,8 +121,6 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 } else if (this.currentTab === 'overview') {
                     this.initOverview();
                 }
-
-                // Priority 2: background loads staggered
                 setTimeout(() => {
                     if (this.currentTab !== 'approvals') this.fetchPendingApprovals();
                 }, 100);

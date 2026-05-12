@@ -182,10 +182,10 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 
 .rs-stat-icon-bg {
   position: absolute;
-  right: -15px;
-  bottom: -20px;
-  font-size: 80px;
-  opacity: 0.05;
+  right: -18px;
+  bottom: -24px;
+  font-size: 88px;
+  opacity: 0.12;
   transform: rotate(-10deg);
   pointer-events: none;
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -193,8 +193,8 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 }
 
 .rs-stat-card:hover .rs-stat-icon-bg {
-  transform: scale(1.1);
-  opacity: 0.1;
+  transform: scale(1.1) rotate(-6deg);
+  opacity: 0.18;
 }
 
 .rs-stat-icon-bg.blue { color: #635bff; }
@@ -271,6 +271,14 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 
 :is(html.dark, .dark-mode, .dark) .rs-circle-bg { stroke: var(--rs-progress-bg); }
 :is(html.dark, .dark-mode, .dark) .rs-stat-card { background: var(--rs-surface-card); border-color: var(--rs-border); }
+
+:is(html.dark, .dark-mode, .dark) .rs-stat-icon-bg { opacity: 0.22; }
+:is(html.dark, .dark-mode, .dark) .rs-stat-card:hover .rs-stat-icon-bg { opacity: 0.32; }
+:is(html.dark, .dark-mode, .dark) .rs-stat-icon-bg.blue   { color: #818cf8; }
+:is(html.dark, .dark-mode, .dark) .rs-stat-icon-bg.green  { color: #4ade80; }
+:is(html.dark, .dark-mode, .dark) .rs-stat-icon-bg.indigo { color: #a5b4fc; }
+:is(html.dark, .dark-mode, .dark) .rs-stat-icon-bg.yellow { color: #fbbf24; }
+:is(html.dark, .dark-mode, .dark) .rs-stat-icon-bg.gray   { color: #94a3b8; }
 
 /* Toolbar Layout Reorganized */
 .rs-toolbar {
@@ -1611,26 +1619,25 @@ html.dark ::-webkit-scrollbar-thumb:hover,
   font-size: 8px;
 }
 
-.rs-booking-bar.booked { background: linear-gradient(135deg, #2dd4bf, #0f766e); box-shadow: 0 4px 10px rgba(15, 118, 110, 0.2); }
-.rs-booking-bar.occupied { 
-  background: linear-gradient(135deg, #60a5fa, #1d4ed8); 
-  box-shadow: 0 4px 10px rgba(29, 78, 216, 0.2);
+.rs-booking-bar.booked { background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2); }
+.rs-booking-bar.occupied {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2);
   z-index: 5;
 }
-/* Phòng giờ / lố giờ: màu đỏ để phân biệt với ở đêm (xanh lá) */
 .rs-booking-bar.occupied.is-hourly {
-  background: linear-gradient(135deg, #f87171, #ef4444);
-  box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.2);
 }
 .rs-booking-bar.occupied.is-hourly:hover {
-  box-shadow: 0 12px 20px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 12px 20px rgba(220, 38, 38, 0.35);
 }
-.rs-booking-bar.cleaning { background: linear-gradient(135deg, #fde047, #eab308); color: #854d0e; }
+.rs-booking-bar.cleaning { background: linear-gradient(135deg, #f59e0b, #ea580c); color: #ffffff; }
 .rs-booking-bar.maintenance { background: linear-gradient(135deg, #64748b, #475569); }
-.rs-booking-bar.pending { background: linear-gradient(135deg, #a78bfa, #8b5cf6); }
+.rs-booking-bar.pending { background: linear-gradient(135deg, #6366f1, #4f46e5); }
 .rs-booking-bar.waitlist-group {
   border: 1px solid rgba(255, 255, 255, 0.32);
-  background: linear-gradient(135deg, #c084fc, #7c3aed);
+  background: linear-gradient(135deg, #0d9488, #0f766e);
 }
 
 /* Unassigned bookings: Modern Teal theme */
@@ -2668,19 +2675,27 @@ html.dark .rs-booking-bar {
   background: var(--rs-coral);
 }
 
-#pms-room-status-page .rs-booking-bar.booked,
-#pms-room-status-page .rs-timeline-row.unassigned .rs-booking-bar {
-  background: linear-gradient(135deg, var(--rs-aqua), #0f766e) !important;
+#pms-room-status-page .rs-booking-bar.booked {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
 }
 
 #pms-room-status-page .rs-booking-bar.occupied {
-  background: linear-gradient(135deg, var(--rs-coral), #dc6f4b);
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
 }
 
-#pms-room-status-page .rs-booking-bar.pending,
-#pms-room-status-page .rs-booking-bar.waitlist-group {
-  background: linear-gradient(135deg, var(--rs-sun), var(--rs-coral));
-  color: #78350f;
+#pms-room-status-page .rs-booking-bar.occupied.is-hourly {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+#pms-room-status-page .rs-booking-bar.pending {
+  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+  color: #ffffff;
+}
+
+#pms-room-status-page .rs-booking-bar.waitlist-group,
+#pms-room-status-page .rs-timeline-row.unassigned .rs-booking-bar {
+  background: linear-gradient(135deg, #0d9488, #0f766e) !important;
+  color: #ffffff !important;
 }
 
 #pms-room-status-page .rs-booking-bar:hover {

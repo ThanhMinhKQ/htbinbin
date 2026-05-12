@@ -27,6 +27,8 @@ export default {
     exportForm: {
         dest_warehouse_id: '',
         notes: '',
+        product_search: '',
+        is_search_open: false,
         itemGroups: []
     },
 
@@ -66,6 +68,8 @@ export default {
     resetDirectExportForm() {
         this.exportForm.dest_warehouse_id = '';
         this.exportForm.notes = '';
+        this.exportForm.product_search = '';
+        this.exportForm.is_search_open = false;
         this.exportForm.itemGroups = [this.createEmptyGroup()];
     },
 
@@ -192,6 +196,47 @@ export default {
 
     addItemToExportGroup(groupIndex) {
         this.exportForm.itemGroups[groupIndex].items.push(this.createEmptyItem());
+    },
+
+    getExportProductSearchResults() {
+        const query = (this.exportForm.product_search || '').toLowerCase().trim();
+        if (!query) return [];
+
+        const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
+
+        return this.normalizedProducts
+            .filter(product => {
+                const categoryName = categoriesById.get(String(product.category_id)) || '';
+                const haystack = `${product.name || ''} ${product.code || ''} ${categoryName}`.toLowerCase();
+                return haystack.includes(query);
+            })
+            .slice(0, 10);
+    },
+
+    addExportProductQuick(product) {
+        const categoryId = product.category_id ? String(product.category_id) : '';
+        let group = this.exportForm.itemGroups.find(g => String(g.category_id) === categoryId);
+
+        if (!group) {
+            group = {
+                id: Date.now() + Math.random(),
+                category_id: categoryId,
+                items: []
+            };
+            this.exportForm.itemGroups.push(group);
+        }
+
+        const item = this.createEmptyItem();
+        item.product_id = String(product.id);
+        group.items.push(item);
+        this.onExportProductChange(this.exportForm.itemGroups.indexOf(group), group.items.length - 1);
+        this.exportForm.product_search = '';
+        this.exportForm.is_search_open = false;
+    },
+
+    clearExportProductSearch() {
+        this.exportForm.product_search = '';
+        this.exportForm.is_search_open = false;
     },
 
     removeItemFromExportGroup(groupIndex, itemIndex) {

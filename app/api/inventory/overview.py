@@ -265,6 +265,9 @@ async def get_dashboard_stats(
 
     row = db.execute(sql, params).fetchone()
 
+    import_amount = float(row.imp_amount or 0) + float(row.incoming_val or 0)
+    sales_amount = float(row.sales_amount or 0)
+
     return {
         "requests": {
             "total": row.req_total or 0,
@@ -274,13 +277,18 @@ async def get_dashboard_stats(
         },
         "imports": {
             "total": row.imp_count or 0,
-            "total_amount": float(row.imp_amount or 0) + float(row.incoming_val or 0)
+            "total_amount": import_amount
         },
         "exports": {
             "total": row.exp_count or 0
         },
         "sales": {
-            "total_amount": float(row.sales_amount or 0)
+            "total_amount": sales_amount
+        },
+        "cashflow": {
+            "inflow": sales_amount,
+            "outflow": import_amount,
+            "net": sales_amount - import_amount
         }
     }
 

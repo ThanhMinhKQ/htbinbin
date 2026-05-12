@@ -818,116 +818,11 @@ async def approve_ticket(
     request: Request,
     db: Session = Depends(get_db)
 ):
+    """Duyệt phiếu chuyển kho"""
+    from ...services.inventory_transfer_service import approve_ticket as svc_approve
     user_data = request.session.get("user")
-    
-    ticket = db.query(InventoryTransfer).get(ticket_id)
-    if not ticket or ticket.status != TicketStatus.PENDING:
-        raise HTTPException(status_code=400, detail="Phiếu không tồn tại hoặc không ở trạng thái chờ duyệt")
+    return svc_approve(db, ticket_id, payload, user_data['id'])
 
-    ticket.status = TicketStatus.SHIPPING # [MODIFIED] Chuyển trạng thái sang ĐANG GIAO
-    ticket.approver_id = user_data['id']
-    ticket.approved_at = datetime.now(timezone.utc)
-    ticket.approver_notes = payload.approver_notes
-
-    for app_item in payload.items:
-        db_item = None
-        if app_item.id:
-            db_item = next((i for i in ticket.items if i.id == app_item.id), None)
-        
-        if not db_item:
-            db_item = next((i for i in ticket.items if i.product_id == app_item.product_id), None)
-
-        if db_item:
-            product = db_item.product
-            
-            approved_qty_base = Decimal(str(app_item.approved_quantity))
-            
-            if db_item.request_unit == product.packing_unit and product.conversion_rate > 1:
-                approved_qty_base = approved_qty_base * Decimal(product.conversion_rate)
-            
-            db_item.approved_quantity = approved_qty_base 
-
-            # [FIX] Only deduct stock if we are actually approving a quantity > 0
-            if approved_qty_base > 0:
-                source_stock = db.query(InventoryLevel).filter(
-                    InventoryLevel.warehouse_id == ticket.source_warehouse_id,
-                    InventoryLevel.product_id == product.id
-                ).first()
-                
-                if source_stock:
-                    # [STRICT] Check Availability
-                    if source_stock.quantity < approved_qty_base:
-                        raise HTTPException(status_code=400, detail=f"Kho không đủ hàng để duyệt: {product.name} (Tồn: {source_stock.quantity}, Duyệt: {approved_qty_base})")
-
-                    source_stock.quantity -= approved_qty_base 
-                    
-                    trans_out = StockMovement(
-                        warehouse_id=ticket.source_warehouse_id,
-                        product_id=product.id,
-                        transaction_type=TransactionTypeWMS.EXPORT_TRANSFER,
-                        quantity_change=-approved_qty_base,
-                        balance_after=source_stock.quantity,
-                        ref_ticket_id=ticket.id,
-                        ref_ticket_type="TRANSFER_OUT",
-                        actor_id=user_data['id']
-                    )
-                    db.add(trans_out)
-                    
-                    # [NEW] Move to In-Transit Warehouse
-                    transit_wh = db.query(Warehouse).filter(Warehouse.type == 'TRANSIT').first()
-                    if not transit_wh:
-                        transit_wh = Warehouse(name="Kho Đang Vận Chuyển", type="TRANSIT", branch_id=None)
-                        db.add(transit_wh)
-                        db.flush()
-                    
-                    transit_stock = db.query(InventoryLevel).filter(
-                        InventoryLevel.warehouse_id == transit_wh.id,
-                        InventoryLevel.product_id == product.id
-                    ).first()
-                    
-                    if not transit_stock:
-                        transit_stock = InventoryLevel(
-                            warehouse_id=transit_wh.id,  
-                            product_id=product.id, 
-                            quantity=0, 
-                            min_stock=0
-                        )
-                        db.add(transit_stock)
-                        db.flush()
-                        
-                    transit_stock.quantity += approved_qty_base
-                    
-                    trans_transit = StockMovement(
-                        warehouse_id=transit_wh.id,
-                        product_id=product.id,
-                        transaction_type=TransactionTypeWMS.IMPORT_TRANSFER, # Technically import to transit
-                        quantity_change=approved_qty_base,
-                        balance_after=transit_stock.quantity,
-                        ref_ticket_id=ticket.id,
-                        ref_ticket_type="TRANSFER_TO_TRANSIT",
-                        actor_id=user_data['id']
-                    )
-                    db.add(trans_transit)
-
-                else:
-                     # Cho phép xuất âm hoặc báo lỗi tùy policy. Ở đây báo lỗi nếu không có record stock
-                    raise HTTPException(status_code=400, detail=f"Sản phẩm {product.name} chưa được khởi tạo ở kho nguồn")
-             
-             # [REMOVED] Logic cộng kho đích đã được dời sang bước Nhận Hàng (confirm_receipt)
-
-    db.commit()
-    return {"status": "success", "message": "Đã duyệt và chuyển hàng sang Kho 'Đang vận chuyển'"}
-
-class ReceiveItemSchema(BaseModel):
-    id: int # [FIX] Require ID to distinguish multiple lines of same product
-    product_id: int
-    received_quantity: float
-    loss_quantity: float = 0.0
-    loss_reason: Optional[str] = None
-    
-class ReceiveTicketSchema(BaseModel):
-    items: List[ReceiveItemSchema]
-    compensation_mode: str = "none"
 
 @router.post("/receive/{ticket_id}")
 async def confirm_receipt(
@@ -936,203 +831,11 @@ async def confirm_receipt(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """
-    Xác nhận nhận hàng từ Phiếu Đang Giao (SHIPPING)
-    """
+    """Xác nhận nhận hàng từ Phiếu Đang Giao (SHIPPING)"""
+    from ...services.inventory_transfer_service import confirm_receipt as svc_confirm
     user_data = request.session.get("user")
-    
-    ticket = db.query(InventoryTransfer).get(ticket_id)
-    if not ticket or ticket.status != TicketStatus.SHIPPING:
-        raise HTTPException(status_code=400, detail="Phiếu không tồn tại hoặc không ở trạng thái Đang giao")
+    return svc_confirm(db, ticket_id, payload, user_data['id'])
 
-    # Chỉ người yêu cầu mới được xác nhận nhận hàng (hoặc admin)
-    # if ticket.requester_id != user_data['id']: ... (Tùy chọn check quyền)
-
-    transit_wh = db.query(Warehouse).filter(Warehouse.type == 'TRANSIT').first()
-    
-    compensation_items = []
-    
-    for rec_item in payload.items:
-        # [FIX] Match by Ticket Item ID, not just Product ID
-        db_item = db.query(InventoryTransferItem).get(rec_item.id)
-        
-        # Security check: ensure item belongs to this ticket
-        if not db_item or db_item.transfer_id != ticket.id:
-            continue
-        
-        product = db_item.product
-        
-        # Parse received/loss quantities
-        received_qty_base = Decimal(str(rec_item.received_quantity))
-        loss_qty_base = Decimal(str(rec_item.loss_quantity))
-
-        # Quy đổi nếu nhập theo đơn vị đóng gói (Logic FE cần gửi đúng unit hoặc BE quy đổi lại)
-        # Giả sử FE gửi số lượng đã quy đổi hoặc base. Ở đây giả sử FE gửi base unit hoặc BE tự lo.
-        # Simple Logic: Assume base unit for now as per previous logic.
-        if db_item.request_unit == product.packing_unit and product.conversion_rate > 1:
-             received_qty_base = received_qty_base * Decimal(product.conversion_rate)
-             loss_qty_base = loss_qty_base * Decimal(product.conversion_rate)
-
-        # Update Ticket Item with Discrepancy Info
-        db_item.received_quantity = received_qty_base
-        db_item.loss_quantity = loss_qty_base
-        db_item.loss_reason = rec_item.loss_reason
-
-        # 1. Trừ Kho In-Transit (Chỉ trừ số thực nhận, số loss treo lại theo yêu cầu)
-        if transit_wh:
-            transit_stock = db.query(InventoryLevel).filter(
-                InventoryLevel.warehouse_id == transit_wh.id,
-                InventoryLevel.product_id == product.id
-            ).first()
-            
-            if transit_stock:
-                # IMPORTANT: Only subtract Actual Received. Loss remains in Transit as "Zombie/Lost" stock.
-                transit_stock.quantity -= received_qty_base
-
-                trans_transit_out = StockMovement(
-                    warehouse_id=transit_wh.id,
-                    product_id=product.id,
-                    transaction_type=TransactionTypeWMS.EXPORT_TRANSFER,
-                    quantity_change=-received_qty_base,
-                    balance_after=transit_stock.quantity,
-                    ref_ticket_id=ticket.id,
-                    ref_ticket_type="TRANSIT_TO_DEST",
-                    actor_id=user_data['id']
-                )
-                db.add(trans_transit_out)
-
-        # 2. Cộng Kho Đích (Số thực nhận)
-        dest_stock = db.query(InventoryLevel).filter(
-            InventoryLevel.warehouse_id == ticket.dest_warehouse_id,
-            InventoryLevel.product_id == product.id
-        ).first()
-
-        if not dest_stock:
-            dest_stock = InventoryLevel(
-                warehouse_id=ticket.dest_warehouse_id,
-                product_id=product.id,
-                quantity=0,
-                min_stock=0
-            )
-            db.add(dest_stock)
-            db.flush() 
-        
-        dest_stock.quantity += received_qty_base
-
-        trans_in = StockMovement(
-            warehouse_id=ticket.dest_warehouse_id,
-            product_id=product.id,
-            transaction_type=TransactionTypeWMS.IMPORT_TRANSFER,
-            quantity_change=received_qty_base,
-            balance_after=dest_stock.quantity,
-            ref_ticket_id=ticket.id,
-            ref_ticket_type="TRANSFER_IN",
-            actor_id=user_data['id'] 
-        )
-        db.add(trans_in)
-        
-        # 3. Tính toán Bù Hàng
-        if payload.compensation_mode == 'loss':
-            # Chỉ bù số lượng khai báo mất
-            if loss_qty_base > 0:
-                # Convert back to Request Unit
-                qty_to_compensate = float(loss_qty_base)
-                if db_item.request_unit == product.packing_unit and product.conversion_rate > 1:
-                     qty_to_compensate = qty_to_compensate / float(product.conversion_rate)
-
-                compensation_items.append({
-                    "product_id": product.id,
-                    "quantity": qty_to_compensate,
-                    "unit": db_item.request_unit
-                })
-        elif payload.compensation_mode == 'full':
-            # Bù đủ gốc: Logic Item-Based để hỗ trợ nhiều đơn vị tính (Box vs Bottle)
-            # 1. Tìm Root Item tương ứng (Match Product + Unit)
-            root_ticket = ticket.related_transfer if ticket.related_transfer_id else ticket
-            
-            # Match by Product AND Unit to distinguish lines (e.g. Box vs Bottle)
-            root_item = next((
-                i for i in root_ticket.items 
-                if i.product_id == product.id and i.request_unit == db_item.request_unit
-            ), None)
-            
-            if root_item:
-                # 2. Tính tổng đã nhận (Cumulative Received) cho Line này
-                # Query trực tiếp TransferTicketItem từ các phiếu liên quan
-                all_ticket_ids = [root_ticket.id] + [t.id for t in root_ticket.compensation_transfers]
-                
-                related_items = db.query(InventoryTransferItem).filter(
-                    InventoryTransferItem.transfer_id.in_(all_ticket_ids),
-                    InventoryTransferItem.product_id == product.id,
-                    InventoryTransferItem.request_unit == root_item.request_unit # Strict Unit Match
-                ).all()
-                
-                total_received_base = 0.0
-                for ri in related_items:
-                    r_qty = Decimal(str(ri.received_quantity)) if ri.received_quantity is not None else Decimal(0)
-                    
-                    # Convert to Base if needed (though usually stored as Base?)
-                    # Model definition says `received_quantity` is NUMERIC. 
-                    # Assuming it stores the value consistent with logic elsewhere.
-                    # Previous logic: stored as Base.
-                    total_received_base += float(r_qty)
-
-                # 3. Tính số lượng gốc yêu cầu (Base Unit)
-                root_req_qty_base = Decimal(str(root_item.request_quantity))
-                if root_item.request_unit == product.packing_unit and product.conversion_rate > 1:
-                    root_req_qty_base = root_req_qty_base * Decimal(product.conversion_rate)
-                
-                # 4. Tính thiếu (Shortage)
-                shortage_base = float(root_req_qty_base) - total_received_base
-                
-                if shortage_base > 0.01: # Tolerance
-                    # 5. Quy đổi ngược về đơn vị yêu cầu
-                    qty_to_compensate = shortage_base
-                    if root_item.request_unit == product.packing_unit and product.conversion_rate > 1:
-                         qty_to_compensate = qty_to_compensate / float(product.conversion_rate)
-                    
-                    compensation_items.append({
-                        "product_id": product.id,
-                        "quantity": qty_to_compensate,
-                        "unit": root_item.request_unit
-                    })
-
-    # 4. Cập nhật Status Phiếu (Current)
-    ticket.status = TicketStatus.COMPLETED
-    
-    # 5. Tạo Phiếu Bù (Nếu có)
-    message = "Đã nhận hàng thành công."
-    if compensation_items:
-        root_ticket = ticket.related_transfer if ticket.related_transfer_id else ticket
-        
-        new_code = f"REQ_COMP_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-        comp_ticket = InventoryTransfer(
-            code=new_code,
-            source_warehouse_id=root_ticket.source_warehouse_id,
-            dest_warehouse_id=root_ticket.dest_warehouse_id,
-            requester_id=user_data['id'],
-            status=TicketStatus.PENDING,
-            related_transfer_id=root_ticket.id, # ALWAYS LINK TO ROOT
-            notes=f"Bù hàng cho phiếu {root_ticket.code}"
-        )
-        db.add(comp_ticket)
-        db.flush()
-        
-        for m_item in compensation_items:
-            # Create item
-            t_item = InventoryTransferItem(
-                transfer_id=comp_ticket.id,
-                product_id=m_item['product_id'],
-                request_quantity=m_item['quantity'],
-                request_unit=m_item['unit']
-            )
-            db.add(t_item)
-            
-        message += f" Hệ thống đã tạo yêu cầu bù hàng mới ({new_code})."
-
-
-    db.commit()
-    return {"status": "success", "message": message}
 
 @router.post("/reject/{ticket_id}")
 async def reject_ticket(
@@ -1141,23 +844,10 @@ async def reject_ticket(
     db: Session = Depends(get_db),
     rejection_notes: str = None
 ):
-    """
-    Từ chối yêu cầu chuyển kho
-    """
+    """Từ chối yêu cầu chuyển kho"""
+    from ...services.inventory_transfer_service import reject_ticket as svc_reject
     user_data = request.session.get("user")
-    
-    ticket = db.query(InventoryTransfer).get(ticket_id)
-    if not ticket or ticket.status != TicketStatus.PENDING:
-        raise HTTPException(status_code=400, detail="Phiếu không tồn tại hoặc không ở trạng thái chờ duyệt")
-
-    # Cập nhật trạng thái thành REJECTED
-    ticket.status = TicketStatus.REJECTED
-    ticket.approver_id = user_data['id']
-    ticket.approved_at = datetime.now(timezone.utc)
-    ticket.approver_notes = rejection_notes or "Đã từ chối yêu cầu"
-
-    db.commit()
-    return {"status": "success", "message": "Đã từ chối yêu cầu"}
+    return svc_reject(db, ticket_id, user_data['id'], rejection_notes)
 
 
 @router.post("/transfers/direct")
@@ -1456,7 +1146,10 @@ async def get_page_init(
         })
 
     # 2. Imports
-    iq = db.query(InventoryReceipt)
+    iq = db.query(InventoryReceipt).options(
+        joinedload(InventoryReceipt.creator),
+        selectinload(InventoryReceipt.items)
+    )
     if warehouse_id:
         iq = iq.filter(InventoryReceipt.warehouse_id == warehouse_id)
     if start_time:
@@ -1466,9 +1159,16 @@ async def get_page_init(
 
     total_imports = iq.count()
     imports = iq.order_by(desc(InventoryReceipt.created_at)).offset((page - 1) * per_page).limit(per_page).all()
-    imports_data = [{"id": r.id, "code": r.code, "supplier_name": r.supplier_name or "",
-                     "total_amount": float(r.total_amount or 0), "notes": r.notes or "",
-                     "created_at": r.created_at.isoformat() if r.created_at else ""} for r in imports]
+    imports_data = [{
+        "id": r.id,
+        "code": r.code,
+        "supplier_name": r.supplier_name or "",
+        "creator_name": r.creator.name if r.creator else "N/A",
+        "total_amount": float(r.total_amount or 0),
+        "notes": r.notes or "",
+        "items_count": len(r.items),
+        "created_at": r.created_at.isoformat() if r.created_at else ""
+    } for r in imports]
 
     return {
         "approvals": {"records": approvals_data, "totalRecords": total_approvals,
@@ -1550,7 +1250,10 @@ async def get_page_load(
         })
 
     # ── 2. Imports ──
-    iq = db.query(InventoryReceipt)
+    iq = db.query(InventoryReceipt).options(
+        joinedload(InventoryReceipt.creator),
+        selectinload(InventoryReceipt.items)
+    )
     if warehouse_id:
         iq = iq.filter(InventoryReceipt.warehouse_id == warehouse_id)
     if start_time:
@@ -1559,9 +1262,16 @@ async def get_page_load(
         iq = iq.filter(InventoryReceipt.created_at <= end_time)
     total_imports = iq.count()
     imports = iq.order_by(desc(InventoryReceipt.created_at)).offset((page - 1) * per_page).limit(per_page).all()
-    imports_data = [{"id": r.id, "code": r.code, "supplier_name": r.supplier_name or "",
-                     "total_amount": float(r.total_amount or 0), "notes": r.notes or "",
-                     "created_at": r.created_at.isoformat() if r.created_at else ""} for r in imports]
+    imports_data = [{
+        "id": r.id,
+        "code": r.code,
+        "supplier_name": r.supplier_name or "",
+        "creator_name": r.creator.name if r.creator else "N/A",
+        "total_amount": float(r.total_amount or 0),
+        "notes": r.notes or "",
+        "items_count": len(r.items),
+        "created_at": r.created_at.isoformat() if r.created_at else ""
+    } for r in imports]
 
     # ── 3. Overview stats (raw SQL single query) ──
     ov_params: dict = {}
@@ -1571,26 +1281,39 @@ async def get_page_load(
     ov_wh_sm = f"sm.warehouse_id = :wh_id" if warehouse_id else "1=1"
     if warehouse_id:
         ov_params["wh_id"] = warehouse_id
-    ov_date = ""
+    ov_date_it = ""
+    ov_date_ir = ""
+    ov_date_sm = ""
     if ov_start:
-        ov_date += " AND it.created_at >= :ov_start"
+        ov_date_it += " AND it.created_at >= :ov_start"
+        ov_date_ir += " AND ir.created_at >= :ov_start"
+        ov_date_sm += " AND sm.created_at >= :ov_start"
         ov_params["ov_start"] = ov_start
     if ov_end:
-        ov_date += " AND it.created_at <= :ov_end"
+        ov_date_it += " AND it.created_at <= :ov_end"
+        ov_date_ir += " AND ir.created_at <= :ov_end"
+        ov_date_sm += " AND sm.created_at <= :ov_end"
         ov_params["ov_end"] = ov_end
 
     from sqlalchemy import text as sa_text
     stats_sql = sa_text(f"""
         SELECT
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} {ov_date.replace('it.created_at','it.created_at')}) AS req_total,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING' {ov_date}) AS req_pending,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING' {ov_date}) AS req_shipping,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date}) AS req_completed,
-            (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir}) AS imp_count,
-            (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir}) AS imp_amount,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh} AND it.status='COMPLETED' {ov_date}) AS exp_count
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} {ov_date_it}) AS req_total,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING' {ov_date_it}) AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING' {ov_date_it}) AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS req_completed,
+            (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_count,
+            (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_amount,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh} AND it.status='COMPLETED' {ov_date_it}) AS exp_count,
+            (SELECT COALESCE(ABS(SUM(sm.quantity_change * p.sell_price)),0)
+             FROM stock_movements sm
+             JOIN products p ON sm.product_id = p.id
+             WHERE sm.transaction_type IN ('EXPORT_SERVICE', 'VOID_SERVICE')
+             AND {ov_wh_sm} {ov_date_sm}) AS sales_amount
     """)
     stats_row = db.execute(stats_sql, ov_params).fetchone()
+    import_amount = float(stats_row.imp_amount or 0)
+    sales_amount = float(stats_row.sales_amount or 0)
 
     return {
         "approvals": {
@@ -1609,8 +1332,176 @@ async def get_page_load(
         "stats": {
             "requests": {"total": stats_row.req_total or 0, "pending": stats_row.req_pending or 0,
                          "shipping": stats_row.req_shipping or 0, "completed": stats_row.req_completed or 0},
-            "imports": {"total": stats_row.imp_count or 0, "total_amount": float(stats_row.imp_amount or 0)},
+            "imports": {"total": stats_row.imp_count or 0, "total_amount": import_amount},
             "exports": {"total": stats_row.exp_count or 0},
-            "sales": {"total_amount": 0}
+            "sales": {"total_amount": sales_amount},
+            "cashflow": {
+                "inflow": sales_amount,
+                "outflow": import_amount,
+                "net": sales_amount - import_amount
+            }
+        }
+    }
+
+
+@router.get("/reception-page-load")
+async def get_reception_page_load(
+    request: Request,
+    warehouse_id: int = None,
+    branch_id: int = None,
+    date_from: str = None,
+    date_to: str = None,
+    overview_date_from: str = None,
+    overview_date_to: str = None,
+    page: int = 1,
+    per_page: int = 10,
+    db: Session = Depends(get_db)
+):
+    """Single endpoint for reception page init: approvals (by dest) + imports + overview stats."""
+    from ...core.utils import VN_TZ
+    from ...db.models import InventoryReceipt, Product
+    from sqlalchemy import text as sa_text
+
+    start_time = end_time = ov_start = ov_end = None
+    try:
+        if date_from:
+            start_time = datetime.combine(datetime.strptime(date_from, "%Y-%m-%d").date(), datetime.min.time()).replace(tzinfo=VN_TZ)
+        if date_to:
+            end_time = datetime.combine(datetime.strptime(date_to, "%Y-%m-%d").date(), datetime.max.time()).replace(tzinfo=VN_TZ)
+        if overview_date_from:
+            ov_start = datetime.combine(datetime.strptime(overview_date_from, "%Y-%m-%d").date(), datetime.min.time()).replace(tzinfo=VN_TZ)
+        if overview_date_to:
+            ov_end = datetime.combine(datetime.strptime(overview_date_to, "%Y-%m-%d").date(), datetime.max.time()).replace(tzinfo=VN_TZ)
+    except ValueError:
+        pass
+
+    # ── 1. Approvals (PENDING) — filter by DEST warehouse (reception receives goods) ──
+    aq = db.query(InventoryTransfer).options(
+        selectinload(InventoryTransfer.items).joinedload(InventoryTransferItem.product),
+        joinedload(InventoryTransfer.dest_warehouse),
+        joinedload(InventoryTransfer.source_warehouse),
+        joinedload(InventoryTransfer.requester),
+        selectinload(InventoryTransfer.compensation_transfers)
+    ).filter(InventoryTransfer.status == TicketStatus.PENDING)
+    if warehouse_id:
+        aq = aq.filter(InventoryTransfer.dest_warehouse_id == warehouse_id)
+    if start_time:
+        aq = aq.filter(InventoryTransfer.created_at >= start_time)
+    if end_time:
+        aq = aq.filter(InventoryTransfer.created_at <= end_time)
+
+    total_approvals = aq.count()
+    approvals = aq.order_by(desc(InventoryTransfer.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+    approvals_data = []
+    for t in approvals:
+        items = [{"id": i.id, "product_id": i.product_id, "product_name": i.product.name,
+                  "category_id": i.product.category_id,
+                  "category_name": i.product.category.name if i.product.category else "Other",
+                  "request_quantity": float(i.request_quantity), "request_unit": i.request_unit,
+                  "approved_quantity": float(i.approved_quantity) if i.approved_quantity else None,
+                  "received_quantity": float(i.received_quantity) if i.received_quantity is not None else 0,
+                  "current_stock": 0, "loss_quantity": 0, "loss_reason": ""} for i in t.items]
+        approvals_data.append({
+            "id": t.id, "code": t.code, "is_comp": False,
+            "branch_name": t.dest_warehouse.name if t.dest_warehouse else "Unknown",
+            "source_warehouse_name": t.source_warehouse.name if t.source_warehouse else "Kho Tổng",
+            "source_warehouse_id": t.source_warehouse_id,
+            "requester_name": t.requester.name if t.requester else "Unknown",
+            "approver_name": "", "created_at": t.created_at.isoformat() if t.created_at else "",
+            "approved_at": "", "approver_notes": t.approver_notes, "status": t.status,
+            "notes": t.notes, "items": items, "has_shortage": False, "has_excess": False,
+            "is_compensated_enough": False, "has_compensation": len(t.compensation_transfers) > 0,
+            "compensation_history": [], "images": []
+        })
+
+    # ── 2. Imports ──
+    iq = db.query(InventoryReceipt).options(
+        joinedload(InventoryReceipt.creator),
+        selectinload(InventoryReceipt.items)
+    )
+    if warehouse_id:
+        iq = iq.filter(InventoryReceipt.warehouse_id == warehouse_id)
+    if start_time:
+        iq = iq.filter(InventoryReceipt.created_at >= start_time)
+    if end_time:
+        iq = iq.filter(InventoryReceipt.created_at <= end_time)
+    total_imports = iq.count()
+    imports = iq.order_by(desc(InventoryReceipt.created_at)).offset((page - 1) * per_page).limit(per_page).all()
+    imports_data = [{
+        "id": r.id,
+        "code": r.code,
+        "supplier_name": r.supplier_name or "",
+        "creator_name": r.creator.name if r.creator else "N/A",
+        "total_amount": float(r.total_amount or 0),
+        "notes": r.notes or "",
+        "items_count": len(r.items),
+        "created_at": r.created_at.isoformat() if r.created_at else ""
+    } for r in imports]
+
+    # ── 3. Overview stats ──
+    ov_params: dict = {}
+    ov_wh_dest = f"it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
+    ov_wh_ir = f"ir.warehouse_id = :wh_id" if warehouse_id else "1=1"
+    ov_wh_sm = f"sm.warehouse_id = :wh_id" if warehouse_id else "1=1"
+    if warehouse_id:
+        ov_params["wh_id"] = warehouse_id
+    ov_date_it = ""
+    ov_date_ir = ""
+    ov_date_sm = ""
+    if ov_start:
+        ov_date_it += " AND it.created_at >= :ov_start"
+        ov_date_ir += " AND ir.created_at >= :ov_start"
+        ov_date_sm += " AND sm.created_at >= :ov_start"
+        ov_params["ov_start"] = ov_start
+    if ov_end:
+        ov_date_it += " AND it.created_at <= :ov_end"
+        ov_date_ir += " AND ir.created_at <= :ov_end"
+        ov_date_sm += " AND sm.created_at <= :ov_end"
+        ov_params["ov_end"] = ov_end
+
+    stats_sql = sa_text(f"""
+        SELECT
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} {ov_date_it}) AS req_total,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING' {ov_date_it}) AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING' {ov_date_it}) AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS req_completed,
+            (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_count,
+            (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_amount,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS exp_count,
+            (SELECT COALESCE(ABS(SUM(sm.quantity_change * p.sell_price)),0)
+             FROM stock_movements sm
+             JOIN products p ON sm.product_id = p.id
+             WHERE sm.transaction_type IN ('EXPORT_SERVICE', 'VOID_SERVICE')
+             AND {ov_wh_sm} {ov_date_sm}) AS sales_amount
+    """)
+    stats_row = db.execute(stats_sql, ov_params).fetchone()
+    import_amount = float(stats_row.imp_amount or 0)
+    sales_amount = float(stats_row.sales_amount or 0)
+
+    return {
+        "approvals": {
+            "records": approvals_data,
+            "totalRecords": total_approvals,
+            "totalPages": (total_approvals + per_page - 1) // per_page,
+            "currentPage": page,
+            "pendingCount": total_approvals
+        },
+        "imports": {
+            "records": imports_data,
+            "totalRecords": total_imports,
+            "totalPages": (total_imports + per_page - 1) // per_page,
+            "currentPage": page
+        },
+        "stats": {
+            "requests": {"total": stats_row.req_total or 0, "pending": stats_row.req_pending or 0,
+                         "shipping": stats_row.req_shipping or 0, "completed": stats_row.req_completed or 0},
+            "imports": {"total": stats_row.imp_count or 0, "total_amount": import_amount},
+            "exports": {"total": stats_row.exp_count or 0},
+            "sales": {"total_amount": sales_amount},
+            "cashflow": {
+                "inflow": sales_amount,
+                "outflow": import_amount,
+                "net": sales_amount - import_amount
+            }
         }
     }
