@@ -125,8 +125,7 @@ async def manager_dashboard(
                  user_role = user_obj.role
 
     # 5. Fetch Initial Requests
-    # Reuse get_request_tickets from exports
-    from .exports import get_request_tickets
+    from .requests import get_request_tickets
     
     initial_data = await get_request_tickets(
         # branch_id=current_branch_id, # Deprecated
@@ -179,7 +178,7 @@ async def master_data_page(request: Request, db: Session = Depends(get_db)):
         "active_page": "inventory_master"
     })
 
-from .exports import get_request_tickets
+from .requests import get_request_tickets
 
 @router.get("/reception", response_class=HTMLResponse)
 async def reception_request_page(
