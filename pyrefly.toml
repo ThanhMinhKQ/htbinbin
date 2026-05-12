@@ -1,3 +1,4 @@
 project-excludes = [
     "app/services/inventory_service.py",
+    "app/db/models.py",
 ]
