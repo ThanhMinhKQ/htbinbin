@@ -55,6 +55,8 @@ def _active_branch(request: Request) -> str:
                 u = db.query(User).filter(User.id == user_id).first()
                 if u and u.last_active_branch_id and u.last_active_branch:
                     return u.last_active_branch.branch_code
+                if u and u.main_branch_id and u.main_branch:
+                    return u.main_branch.branch_code
     return ""
 
 
@@ -69,6 +71,8 @@ def _get_active_branch_code(request: Request, db: Session) -> str:
         u = db.query(User).filter(User.id == user["id"]).first()
         if u and u.last_active_branch_id and u.last_active_branch:
             return u.last_active_branch.branch_code
+        if u and u.main_branch_id and u.main_branch:
+            return u.main_branch.branch_code
     return ""
 
 
