@@ -237,6 +237,7 @@ export default function(config) {
 
     // --- RECEIPT/INBOUND ---
     openReceiptModal(t) {
+        if (!t || t.status !== 'SHIPPING') return;
         const parent = this.viewingRequestTicket || this.viewingApprovalTicket || {};
         this.receivingTicket = {
             ...t,
@@ -289,6 +290,12 @@ export default function(config) {
 
     async submitReceipt() {
         if (!this.receivingTicket) return;
+        if (this.isSubmitting) return;
+        if (this.receivingTicket.status !== 'SHIPPING') {
+            alert("Phiếu này không ở trạng thái Đang giao, không thể nhận.");
+            this.closeReceiptModal();
+            return;
+        }
 
         this.isSubmitting = true;
         try {
