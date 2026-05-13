@@ -255,7 +255,7 @@ async def reception_request_page(
     
     # [NEW] Fetch initial requests data
     initial_data = await get_request_tickets(
-        branch_id=current_branch_id,
+        dest_warehouse_id=current_warehouse_id,
         page=page,
         per_page=per_page,
         db=db
