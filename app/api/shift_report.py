@@ -1639,10 +1639,10 @@ async def get_shift_close_details(
 
     log_details = {
         "id": log_entry.id,
-        "pms_revenue": log_entry.pms_revenue,
-        "closed_online_revenue": log_entry.closed_online_revenue,
-        "closed_branch_revenue": log_entry.closed_branch_revenue,
-        "cash_revenue": (log_entry.pms_revenue or 0) - (log_entry.closed_online_revenue or 0) - (log_entry.closed_branch_revenue or 0),
+        "pms_revenue": float(log_entry.pms_revenue or 0),
+        "closed_online_revenue": float(log_entry.closed_online_revenue or 0),
+        "closed_branch_revenue": float(log_entry.closed_branch_revenue or 0),
+        "cash_revenue": float((log_entry.pms_revenue or 0) - (log_entry.closed_online_revenue or 0) - (log_entry.closed_branch_revenue or 0)),
         "closed_datetime": log_entry.closed_datetime.isoformat(),
         "branch_code": log_entry.branch.branch_code if log_entry.branch else "N/A",
         "closer_name": log_entry.closer.name if log_entry.closer else "N/A"

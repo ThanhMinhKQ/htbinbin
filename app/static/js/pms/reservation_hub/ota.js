@@ -303,15 +303,24 @@ Object.assign(BookingHub, {
     },
 
     async retryOtaLog(id) {
+        const btn = document.querySelector(`button[onclick*="retryOtaLog(${id})"]`);
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Đang xử lý...';
+        }
         try {
             await pmsApi(`/api/pms/reservations/ota/retry/${id}`, { method: 'POST' });
             pmsToast('Đã xử lý lại email OTA', true);
-            await this.refreshAfterMutation({ availability: true });
+            this.refreshAfterMutation({ availability: true });
             if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
-                await this.loadOtaLogs();
+                this.loadOtaLogs();
             }
         } catch (err) {
             pmsToast(err.message || 'Không retry được email OTA', false);
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Retry';
+            }
         }
     }
 });
