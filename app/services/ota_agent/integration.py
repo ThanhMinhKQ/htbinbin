@@ -219,12 +219,19 @@ class OTAAgent:
             return None
 
         action_type = data.get('action_type', 'NEW').upper()
-        
-        # Check existing
+
+        # Check existing — tìm theo booking_source + external_id (chính xác)
         existing_booking = db.query(Booking).filter(
             Booking.booking_source == data.get('booking_source', 'Unknown'),
             Booking.external_id == external_id,
         ).first()
+
+        # Fallback: nếu MODIFY/CANCEL mà không tìm thấy theo booking_source,
+        # thử tìm chỉ theo external_id để tránh INSERT gây UniqueViolation
+        if not existing_booking and action_type in ('MODIFY', 'CANCEL'):
+            existing_booking = db.query(Booking).filter(
+                Booking.external_id == external_id,
+            ).first()
 
         if not existing_booking and int(data.get('num_rooms') or 1) > 1 and action_type != 'CANCEL':
             room_type_id = BookingService(db)._resolve_room_type_id(data.get('branch_id'), data.get('room_type'))
