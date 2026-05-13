@@ -121,8 +121,8 @@ class OTADashboardService:
             db.commit()
 
         # Check retry limit
-        if (log.retry_count or 0) >= 3:
-            return {"success": False, "error": "Maximum retry attempts (3) reached. Email moved to Dead Letter Queue."}
+        if (log.retry_count or 0) >= 999:
+            return {"success": False, "error": "Email này đã được đánh dấu Dead Letter Queue, không thể retry."}
 
         try:
             logger.info(f"[OTA Dashboard] Retrying email log ID: {log_id}")

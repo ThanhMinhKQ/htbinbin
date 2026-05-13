@@ -812,8 +812,8 @@ def api_retry_ota_log(
         raise HTTPException(status_code=404, detail="Không tìm thấy log OTA")
     if log.status != OTAParsingStatus.FAILED:
         raise HTTPException(status_code=400, detail="Chỉ có thể retry email đã thất bại")
-    if (log.retry_count or 0) >= 3:
-        raise HTTPException(status_code=400, detail="Đã vượt quá giới hạn retry (3 lần)")
+    if (log.retry_count or 0) >= 999:
+        raise HTTPException(status_code=400, detail="Email này đã được đánh dấu Dead Letter Queue, không thể retry.")
     if (log.error_message or "").startswith("[RETRYING]"):
         return JSONResponse({
             "success": True,
