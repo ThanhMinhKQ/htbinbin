@@ -1,4 +1,4 @@
-import sharedUtils from '../../shared/utils.js';
+import sharedUtils from '../../shared/utils.js?v=3.1';
 
 export default {
     ...sharedUtils,
