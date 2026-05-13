@@ -4,12 +4,30 @@
 {% block page_title %}Quản lý Yêu Cầu Kho{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.2">
+<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.3">
 {% endblock %}
 
 {% block app_header_actions %}
-<div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'requests' }" class="max-w-full overflow-x-auto">
+<div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'overview' }" class="flex items-center gap-3 max-w-full overflow-x-auto">
+    <select
+        class="form-select text-xs rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] py-2 pl-2 pr-7 min-w-0 w-auto max-w-[160px] sm:max-w-[200px]"
+        onchange="window.location.href='?warehouse_id=' + this.value">
+        <option value="">Chọn Kho</option>
+        {% for w in warehouses %}
+        <option value="{{ w.id }}" {% if current_warehouse_id == w.id %}selected{% endif %}>
+            {{ w.name }}
+        </option>
+        {% endfor %}
+    </select>
     <div class="inv-main-tabs inline-flex min-h-11 items-center gap-1 p-1">
+        <button type="button" @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
+            :class="tab === 'overview' ? 'is-active' : ''"
+            class="inv-main-tab">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 13h6V4H4v9zm10 7h6V4h-6v16zM4 20h6v-3H4v3z" />
+            </svg>
+            Tổng quan
+        </button>
         <button type="button" @click="tab = 'requests'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'requests' }))"
             :class="tab === 'requests' ? 'is-active' : ''"
             class="inv-main-tab">
@@ -41,14 +59,6 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21V9m0 0l4 4m-4-4l-4 4M5 3h14" />
             </svg>
             Lịch sử xuất
-        </button>
-        <button type="button" @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
-            :class="tab === 'overview' ? 'is-active' : ''"
-            class="inv-main-tab">
-            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 13h6V4H4v9zm10 7h6V4h-6v16zM4 20h6v-3H4v3z" />
-            </svg>
-            Tổng quan
         </button>
     </div>
 </div>
@@ -97,6 +107,18 @@
 <script id="categories-data" type="application/json">{{ categories_json | safe }}</script>
 <script id="branch-id-data" type="application/json">{{ current_branch_id }}</script>
 <script id="warehouse-id-data" type="application/json">{{ current_warehouse_id }}</script>
+<script id="warehouses-data" type="application/json">
+    [
+    {% for w in warehouses %}
+        {
+            "id": {{ w.id }},
+            "name": "{{ w.name }}",
+            "branch_id": {{ w.branch_id if w.branch_id else 'null' }},
+            "branch_name": "{{ w.branch.name if w.branch else 'Kho Tổng' }}"
+        }{{ "," if not loop.last }}
+    {% endfor %}
+    ]
+</script>
 <script id="user-role-data" type="application/json">{{ user_role | tojson | safe }}</script>
 
 <!-- Initialize Global Data from Script Tags -->
@@ -119,7 +141,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=2.4")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.0")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;

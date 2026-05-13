@@ -121,8 +121,9 @@
                                     <div class="flex items-start gap-3 relative group/item">
                                         <div class="flex-1 grid grid-cols-12 gap-3">
                                             <div class="col-span-4">
-                                                <select x-model="item.product_id"
-                                                    @change="onEditImportProductChange(gIdx, iIdx)"
+                                                <select
+                                                    x-effect="$el.value = item.product_id"
+                                                    @change="item.product_id = $event.target.value; onEditImportProductChange(gIdx, iIdx)"
                                                     :disabled="!group.category_id"
                                                     class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-sm font-medium text-slate-700 dark:text-white py-2.5 pl-3 focus:ring-1 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed">
                                                     <option value=""

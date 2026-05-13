@@ -1,10 +1,16 @@
 <div x-show="currentTab === 'overview'" class="inv-tab-page" x-cloak>
     <!-- Tab Header -->
     <div class="inv-tab-header inv-overview-header">
-        <div class="min-w-0">
-            <span class="inv-tab-eyebrow">Tổng quan kho</span>
-            <h2 class="inv-tab-title">Tồn kho & luồng vật tư</h2>
-            <p class="inv-tab-copy">Theo dõi yêu cầu, dòng tiền và sức khỏe tồn kho theo tháng.</p>
+        <div class="min-w-0 flex items-center gap-3 inv-overview-warehouse-selector">
+            <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Kho:</label>
+            <select x-model="currentWarehouseId"
+                @change="initOverview()"
+                class="form-select text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] w-full sm:w-64">
+                <option value="">Chọn Kho Hàng</option>
+                <template x-for="w in allWarehouses" :key="w.id">
+                    <option :value="w.id" x-text="w.name + (w.branch_name ? ' (' + w.branch_name + ')' : ' (Kho Tổng)')"></option>
+                </template>
+            </select>
         </div>
         <div class="flex flex-col sm:flex-row gap-3 items-end sm:items-center">
             <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm shadow-sm">

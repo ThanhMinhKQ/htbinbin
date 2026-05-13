@@ -515,7 +515,7 @@ Object.assign(BookingHub, {
     },
 
     getDefaultDepositSplitAmounts(lines = this.getDepositAllocationTypeLines()) {
-        const deposit = Number(this.value('bk-form-deposit') || 0);
+        const deposit = this.getMoneyValue('bk-form-deposit');
         const totalQty = lines.reduce((sum, line) => sum + Number(line.quantity || 0), 0);
         if (!totalQty || deposit <= 0) return {};
         const baseAmount = Math.round(deposit / totalQty);
@@ -546,7 +546,7 @@ Object.assign(BookingHub, {
 
     rebalanceDepositSplitAmounts(changedKey = '') {
         const lines = this.getDepositAllocationTypeLines();
-        const deposit = Number(this.value('bk-form-deposit') || 0);
+        const deposit = this.getMoneyValue('bk-form-deposit');
         if (!lines.length || deposit <= 0) {
             this.state.depositSplitAmounts = {};
             this.state.depositSplitTouched = false;
@@ -599,6 +599,15 @@ Object.assign(BookingHub, {
         this.renderPaymentRoomSummary();
     },
 
+    onSplitMoneyInput(el) {
+        let val = el.value.replace(/\D/g, '');
+        if (val === '') {
+            el.value = '0';
+        } else {
+            el.value = Number(val).toLocaleString('vi-VN');
+        }
+    },
+
     setDepositAllocationMode(mode) {
         this.state.depositAllocationMode = mode === 'single' ? 'single' : 'split';
         if (this.state.depositAllocationMode === 'single' && !this.state.depositTargetRoomKey) {
@@ -645,7 +654,7 @@ Object.assign(BookingHub, {
                         </span>
                         <span class="bk-split-money-editor">
                             <small>Tổng cọc loại phòng</small>
-                            <input class="bk-input" type="text" inputmode="numeric" value="${this.formatDepositSplitInput(amounts[line.key] || 0)}" onchange="BookingHub.setDepositSplitAmount('${this.escape(line.key)}', this.value)">
+                            <input class="bk-input" type="text" inputmode="numeric" value="${this.formatDepositSplitInput(amounts[line.key] || 0)}" oninput="BookingHub.onSplitMoneyInput(this)" onblur="BookingHub.setDepositSplitAmount('${this.escape(line.key)}', this.value)">
                         </span>
                     </label>
                 `;
@@ -665,7 +674,7 @@ Object.assign(BookingHub, {
 
     getDepositAllocationPayload() {
         const totalQty = this.getRoomCartQuantity();
-        const deposit = Number(this.value('bk-form-deposit') || 0);
+        const deposit = this.getMoneyValue('bk-form-deposit');
         const roomLines = this.getDepositAllocationRoomLines();
         if (totalQty <= 1 || deposit <= 0 || !roomLines.length) return null;
         const mode = this.state.depositAllocationMode === 'single' ? 'single' : 'split';
@@ -1670,6 +1679,8 @@ Object.assign(BookingHub, {
     },
 
     onDepositInput(input) {
+        this.state.depositSplitTouched = false;
+        this.rebalanceDepositSplitAmounts();
         this.renderPaymentRoomSummary();
     },
 
@@ -1677,12 +1688,12 @@ Object.assign(BookingHub, {
         const total = this.getMoneyValue('bk-form-total');
         const depositEl = document.getElementById('bk-form-deposit');
         if (!depositEl) return;
-        
+
         let amount = 0;
         if (percent === 100) amount = total;
         else if (percent === 50) amount = Math.round(total / 2);
-        
-        depositEl.value = amount;
+
+        depositEl.value = amount ? amount.toLocaleString('vi-VN') : '0';
         
         // Update presets UI
         document.querySelectorAll('.bk-deposit-presets button').forEach(btn => {

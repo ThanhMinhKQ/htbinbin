@@ -82,13 +82,18 @@
                                 <div class="flex-1 max-w-md">
                                     <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Danh mục
                                         nhóm</label>
-                                    <select x-model="group.category_id"
-                                        class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 py-2.5 pl-3 focus:ring-1 focus:ring-green-500 cursor-pointer">
-                                        <option value="">Chọn danh mục</option>
-                                        <template x-for="c in normalizedCategories" :key="c.id">
-                                            <option :value="c.id" x-text="c.name"></option>
-                                        </template>
-                                    </select>
+                                    <template x-if="group.source === 'quick'">
+                                        <div class="text-sm font-bold text-slate-700 dark:text-slate-200 py-2.5 pl-3" x-text="group.category_name || 'Danh mục'"></div>
+                                    </template>
+                                    <template x-if="group.source !== 'quick'">
+                                        <select x-model="group.category_id"
+                                            class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 py-2.5 pl-3 focus:ring-1 focus:ring-green-500 cursor-pointer">
+                                            <option value="">Chọn danh mục</option>
+                                            <template x-for="c in normalizedCategories" :key="c.id">
+                                                <option :value="c.id" x-text="c.name"></option>
+                                            </template>
+                                        </select>
+                                    </template>
                                 </div>
                                 <button @click="removeCategoryGroupFromImport(gIdx)"
                                     class="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors ml-4">
@@ -118,19 +123,26 @@
                                     <div class="flex items-start gap-3 relative group/item">
                                         <div class="flex-1 grid grid-cols-12 gap-3">
                                             <div class="col-span-4">
-                                                <select x-model="item.product_id"
-                                                    @change="onImportProductChange(gIdx, iIdx)"
-                                                    :disabled="!group.category_id"
-                                                    class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-sm font-medium text-slate-700 dark:text-white py-2.5 pl-3 focus:ring-1 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
-                                                    <option value=""
-                                                        x-text="group.category_id ? 'Chọn sản phẩm' : 'Chọn danh mục trước'">
-                                                    </option>
-                                                    <template
-                                                        x-for="p in normalizedProducts.filter(x => x.category_id == group.category_id)"
-                                                        :key="p.id">
-                                                        <option :value="p.id" x-text="p.name + ' (' + p.code + ')'">
+                                                <template x-if="item.source === 'quick'">
+                                                    <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-white py-2.5 pl-3 truncate" x-text="item.product_name"></div>
+                                                </template>
+                                                <template x-if="item.source !== 'quick'">
+                                                    <select
+                                                        x-effect="$el.value = item.product_id"
+                                                        @change="item.product_id = $event.target.value; onImportProductChange(gIdx, iIdx)"
+                                                        :disabled="!group.category_id"
+                                                        class="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-lg text-sm font-medium text-slate-700 dark:text-white py-2.5 pl-3 focus:ring-1 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                        <option value=""
+                                                            x-text="group.category_id ? 'Chọn sản phẩm' : 'Chọn danh mục trước'">
                                                         </option>
-                                                    </template>
+                                                        <template
+                                                            x-for="p in normalizedProducts.filter(x => x.category_id == group.category_id)"
+                                                            :key="p.id">
+                                                            <option :value="p.id" x-text="p.name + ' (' + p.code + ')'">
+                                                            </option>
+                                                        </template>
+                                                    </select>
+                                                </template>
                                                 </select>
                                             </div>
                                             <div class="col-span-2">

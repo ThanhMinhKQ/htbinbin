@@ -4,53 +4,71 @@
 {% block page_title %}Quản lý Kho Tổng hợp{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.2">
+<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.3">
 {% endblock %}
 
 {% block app_header_actions %}
+<div class="flex items-center gap-2 shrink-0">
+    <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Kho:</label>
+    <select
+        class="form-select text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] w-44"
+        onchange="changeWarehouse(this)">
+        <option value="">Chọn Kho Hàng</option>
+        {% for w in warehouses %}
+        <option value="{{ w.id }}" {% if current_warehouse_id==w.id %}selected{% endif %}>
+            {{ w.name }} ({{ w.branch.name if w.branch else 'Kho Tổng' }})
+        </option>
+        {% endfor %}
+    </select>
+</div>
 <div x-data="{ tab: localStorage.getItem('manager_currentTab') || 'requests' }" class="max-w-full overflow-x-auto">
     <div class="inv-main-tabs inline-flex min-h-11 items-center gap-1 p-1">
-        <button type="button" @click="tab = 'requests'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'requests' }))"
-            :class="tab === 'requests' ? 'is-active' : ''"
-            class="inv-main-tab">
+        <button type="button"
+            @click="tab = 'requests'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'requests' }))"
+            :class="tab === 'requests' ? 'is-active' : ''" class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586L19 8.414V19a2 2 0 01-2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586L19 8.414V19a2 2 0 01-2 2z" />
             </svg>
             Yêu cầu
         </button>
-        <button type="button" @click="tab = 'approvals'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'approvals' }))"
-            :class="tab === 'approvals' ? 'is-active' : ''"
-            class="inv-main-tab">
+        <button type="button"
+            @click="tab = 'approvals'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'approvals' }))"
+            :class="tab === 'approvals' ? 'is-active' : ''" class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M4 6h16M4 18h16" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4M4 6h16M4 18h16" />
             </svg>
             Duyệt yêu cầu
         </button>
-        <button type="button" @click="tab = 'import'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'import' }))"
-            :class="tab === 'import' ? 'is-active' : ''"
-            class="inv-main-tab">
+        <button type="button"
+            @click="tab = 'import'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'import' }))"
+            :class="tab === 'import' ? 'is-active' : ''" class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" />
             </svg>
             Nhập trực tiếp
         </button>
         {% for w in warehouses %}
         {% if current_warehouse_id == w.id and w.type == 'MAIN' %}
-        <button type="button" @click="tab = 'export'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'export' }))"
-            :class="tab === 'export' ? 'is-active' : ''"
-            class="inv-main-tab">
+        <button type="button"
+            @click="tab = 'export'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'export' }))"
+            :class="tab === 'export' ? 'is-active' : ''" class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 21V9m0 0l-4 4m4-4l4 4M5 3h14" />
             </svg>
             Xuất trực tiếp
         </button>
         {% endif %}
         {% endfor %}
-        <button type="button" @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
-            :class="tab === 'overview' ? 'is-active' : ''"
-            class="inv-main-tab">
+        <button type="button"
+            @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
+            :class="tab === 'overview' ? 'is-active' : ''" class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 13h6V4H4v9zm10 7h6V4h-6v16zM4 20h6v-3H4v3z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 13h6V4H4v9zm10 7h6V4h-6v16zM4 20h6v-3H4v3z" />
             </svg>
             Tổng quan
         </button>
@@ -147,7 +165,7 @@
             init() {
                 // Dynamically import the module
                 // Use new INVENTORY MANAGER module
-                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.4")
+                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.5")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.inventoryManagerApp;
@@ -194,24 +212,6 @@
             class="flex flex-col h-full space-y-4">
 
             <div class="flex flex-col h-full space-y-4">
-                <div
-                    class="inv-context-strip sticky top-0 z-10">
-                    <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
-                        <div class="flex items-center gap-2 w-full sm:w-auto">
-                            <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Kho:</label>
-                            <select
-                                class="form-select text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] w-full sm:w-64"
-                                onchange="changeWarehouse(this)">
-                                <option value="">Chọn Kho Hàng</option>
-                                {% for w in warehouses %}
-                                <option value="{{ w.id }}" {% if current_warehouse_id==w.id %}selected{% endif %}>
-                                    {{ w.name }} ({{ w.branch.name if w.branch else 'Kho Tổng' }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Partials -->
                 {% include "inventory/shared/requests/tab_requests.html" %}

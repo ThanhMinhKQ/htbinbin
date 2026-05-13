@@ -240,21 +240,64 @@ export default {
 
     addImportProductQuick(product) {
         const categoryId = product.category_id ? String(product.category_id) : '';
-        let group = this.importForm.itemGroups.find(g => String(g.category_id) === categoryId);
 
-        if (!group) {
-            group = {
-                id: Date.now() + Math.random(),
-                category_id: categoryId,
-                items: []
-            };
-            this.importForm.itemGroups.push(group);
+        // Build a fully-hydrated item upfront (no post-mutation needed)
+        const available_units = [product.base_unit];
+        if (product.packing_unit && product.conversion_rate > 1) {
+            available_units.unshift(product.packing_unit);
+        }
+        const unit = available_units[0];
+        let unit_price = product.cost_price || 0;
+        if (unit === product.packing_unit && product.conversion_rate > 1) {
+            unit_price = Math.round((product.cost_price || 0) * (product.conversion_rate || 1));
         }
 
-        const item = this.createEmptyItem();
-        item.product_id = String(product.id);
-        group.items.push(item);
-        this.onImportProductChange(this.importForm.itemGroups.indexOf(group), group.items.length - 1);
+        const newItem = {
+            id: Date.now() + Math.random(),
+            product_id: String(product.id),
+            product_name: product.name,
+            quantity: 1,
+            unit: unit,
+            unit_price: unit_price,
+            available_units: available_units,
+            source: 'quick'
+        };
+
+        // Find existing group with same category
+        let groupIndex = this.importForm.itemGroups.findIndex(g => g.category_id == categoryId);
+
+        const category = this.normalizedCategories.find(c => String(c.id) === categoryId);
+        const categoryName = category ? category.name : '';
+
+        if (groupIndex !== -1) {
+            // Group exists — just push item
+            this.importForm.itemGroups[groupIndex].items.push(newItem);
+        } else {
+            // No matching group — check for empty placeholder group
+            const emptyIndex = this.importForm.itemGroups.findIndex(g =>
+                !g.category_id && g.items.length === 1 && !g.items[0].product_id
+            );
+            if (emptyIndex !== -1) {
+                // Replace the empty group entirely with new data and NEW id
+                this.importForm.itemGroups.splice(emptyIndex, 1, {
+                    id: Date.now() + Math.random(),
+                    category_id: categoryId,
+                    category_name: categoryName,
+                    source: 'quick',
+                    items: [newItem]
+                });
+            } else {
+                // Create brand new group
+                this.importForm.itemGroups.push({
+                    id: Date.now() + Math.random(),
+                    category_id: categoryId,
+                    category_name: categoryName,
+                    source: 'quick',
+                    items: [newItem]
+                });
+            }
+        }
+
         this.importForm.product_search = '';
         this.importForm.is_search_open = false;
     },

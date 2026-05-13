@@ -1,4 +1,4 @@
-import createRequests from '../../shared/requests.js';
+import createRequests from '../../shared/requests.js?v=3.0';
 
 export default createRequests({
     buildFetchUrl(app, page) {

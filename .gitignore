@@ -76,3 +76,4 @@ node_modules/
 # Beads global data (symlink to ~/.beads)
 .beads
 .gitnexus
+.claude/

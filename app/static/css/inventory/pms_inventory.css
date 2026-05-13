@@ -250,6 +250,12 @@ html.dark #inventory-page .inv-overview-header {
   z-index: 1;
 }
 
+/* Hide overview warehouse selector when page already has one in header */
+.inv-page-manager .inv-overview-warehouse-selector,
+.inv-page-reception .inv-overview-warehouse-selector {
+  display: none;
+}
+
 /* ── Context strip action buttons row ── */
 #inventory-page .inv-context-actions {
   display: flex;

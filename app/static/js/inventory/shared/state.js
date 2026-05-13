@@ -224,6 +224,8 @@ export default function (totalRecords, currentPage, totalPages, config = {}) {
             const validTabs = config.validTabs || ['requests', 'approvals', 'import', 'export', 'overview'];
             if (savedTab && validTabs.includes(savedTab)) {
                 this.currentTab = savedTab;
+            } else if (config.defaultTab && validTabs.includes(config.defaultTab)) {
+                this.currentTab = config.defaultTab;
             }
         },
 

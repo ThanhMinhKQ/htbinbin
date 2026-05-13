@@ -1,15 +1,16 @@
-import initialState from '../../shared/state.js';
-import utils from './utils.js';
-import requests from './requests.js';
-import approvals from './approvals.js';
-import imports from './imports.js';
-import exports from './exports.js';
-import overview from './overview.js';
+import initialState from '../../shared/state.js?v=3.0';
+import utils from './utils.js?v=3.0';
+import requests from './requests.js?v=3.0';
+import approvals from './approvals.js?v=3.0';
+import imports from './imports.js?v=3.0';
+import exports from './exports.js?v=3.0';
+import overview from './overview.js?v=3.0';
 
 function receptionRequestApp(totalRecords, currentPage, totalPages) {
     return {
         ...initialState(totalRecords, currentPage, totalPages, {
             storageKey: 'reception_currentTab',
+            defaultTab: 'overview',
             validTabs: ['requests', 'approvals', 'import', 'export', 'overview']
         }),
         ...utils,
