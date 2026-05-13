@@ -107,8 +107,8 @@
 </script>
 <script id="products-data" type="application/json">{{ products_json | safe }}</script>
 <script id="categories-data" type="application/json">{{ categories_json | safe }}</script>
-<script id="branch-id-data" type="application/json">{{ current_branch_id }}</script>
-<script id="warehouse-id-data" type="application/json">{{ current_warehouse_id }}</script>
+<script id="branch-id-data" type="application/json">{{ current_branch_id | tojson }}</script>
+<script id="warehouse-id-data" type="application/json">{{ current_warehouse_id | tojson }}</script>
 <script id="warehouses-data" type="application/json">
     [
     {% for w in warehouses %}

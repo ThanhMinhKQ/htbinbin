@@ -91,9 +91,15 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
             const whId = this.currentWarehouseId || '';
             const dateFrom = this.filterDateFrom || '';
             const dateTo = this.filterDateTo || '';
+            let params = new URLSearchParams();
+            if (whId) params.set('warehouse_id', whId);
+            if (dateFrom) params.set('date_from', dateFrom);
+            if (dateTo) params.set('date_to', dateTo);
+            if (dateFrom) params.set('overview_date_from', dateFrom);
+            if (dateTo) params.set('overview_date_to', dateTo);
             try {
                 const res = await fetch(
-                    `/api/inventory/reception-page-load?warehouse_id=${whId}&date_from=${dateFrom}&date_to=${dateTo}&overview_date_from=${dateFrom}&overview_date_to=${dateTo}`,
+                    `/api/inventory/reception-page-load?${params.toString()}`,
                     { credentials: 'same-origin' }
                 );
                 if (!res.ok) throw new Error('page-load failed');
