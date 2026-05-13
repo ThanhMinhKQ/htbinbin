@@ -34,7 +34,6 @@ const RoomStatus = {
         this.bindEvents();
         this.syncDateControls();
         document.getElementById('rs-stat-cleaning').closest('.rs-stat-card')?.toggleAttribute('hidden', this.state.mode === 'month');
-        document.getElementById('rs-block-open-btn')?.toggleAttribute('hidden', this.state.mode !== 'month');
         this.refresh();
         this.startPolling();
     },
@@ -69,7 +68,6 @@ const RoomStatus = {
         document.getElementById('rs-mode-month').classList.toggle('active', mode === 'month');
         
         document.getElementById('rs-stat-cleaning').closest('.rs-stat-card')?.toggleAttribute('hidden', mode === 'month');
-        document.getElementById('rs-block-open-btn')?.toggleAttribute('hidden', mode !== 'month');
         document.getElementById('rs-day-panel').style.display = mode === 'day' ? 'flex' : 'none';
         document.getElementById('rs-month-panel').style.display = mode === 'month' ? 'flex' : 'none';
         this.syncDateControls();
@@ -855,7 +853,6 @@ const RoomStatus = {
     },
 
     async openBlockModal(roomId = null) {
-        if (this.state.mode !== 'month') return;
         const modal = document.getElementById('rs-block-modal');
         const loading = document.getElementById('rs-block-loading');
         const error = document.getElementById('rs-block-error');
