@@ -14,6 +14,8 @@ let lastKnownCount = null;  // số booking lần poll trước
 let lastChangeToken = null; // token thay đổi mới nhất từ API stats
 let newBookingCount = 0;    // số booking mới chưa xem
 let lastCancelledCount = null; // số booking huỷ lần poll trước
+let lastModificationLogId = null; // log id modification lần poll trước
+let _modificationPollTick = 0;  // đếm tick để poll modification mỗi 30s (6 tick × 5s)
 let _soundUnlocked = false; // Web Audio đã được unlock bởi user gesture
 
 // ── Sound ──────────────────────────────────────────────────────────────
@@ -164,6 +166,13 @@ async function checkForNewBookings(force = false) {
             loadBookings(false);
         }
 
+        // Poll modification mỗi 30s (mỗi 6 tick × 5s)
+        _modificationPollTick++;
+        if (_modificationPollTick >= 6) {
+            _modificationPollTick = 0;
+            _checkForModifications();
+        }
+
     } catch (e) {
         // Silently ignore polling errors
     }
@@ -193,7 +202,37 @@ function dismissNewBookingBanner() {
     updatePageBadge();
 }
 
-function showNewBookingBanner(count) {
+async function _checkForModifications() {
+    try {
+        const config = window.OTA_CONFIG || {};
+        let url = '/api/pms/reservations/ota/status?fresh=true';
+        if (!config.isAdmin && config.currentBranch) {
+            const branchId = config.currentBranch;
+            if (branchId) url += `&branch_id=${encodeURIComponent(branchId)}`;
+        }
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const d = await res.json();
+        const latestModLogId = Number(d.latest_modification_log_id || 0) || null;
+        if (!latestModLogId) return;
+
+        // Lần đầu — lưu baseline, không notify
+        if (lastModificationLogId === null) {
+            lastModificationLogId = latestModLogId;
+            return;
+        }
+
+        if (latestModLogId > lastModificationLogId && d.latest_modification_booking) {
+            lastModificationLogId = latestModLogId;
+            // Trigger popup bắt buộc
+            if (typeof openModificationModal === 'function') {
+                openModificationModal(d.latest_modification_booking);
+            }
+        }
+    } catch (e) { }
+}
+
+
     const existing = document.getElementById('newBookingBanner');
     if (existing) existing.remove();
 
