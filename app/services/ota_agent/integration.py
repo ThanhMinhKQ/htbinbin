@@ -264,6 +264,15 @@ class OTAAgent:
                 logger.info(f"Cancelled booking {external_id}")
             else:
                 # MODIFY or NEW (Duplicate NEW -> Update info)
+
+                # ── Snapshot trước khi overwrite để build change_note ──
+                old_check_in = existing_booking.check_in
+                old_check_out = existing_booking.check_out
+                old_room_type = existing_booking.room_type
+                old_total_price = existing_booking.total_price
+                old_guest_name = existing_booking.guest_name
+                old_num_guests = existing_booking.num_guests
+
                 existing_booking.guest_name = self._safe_text(data.get('guest_name'), 255) or existing_booking.guest_name
                 existing_booking.guest_phone = self._safe_text(data.get('guest_phone'), 50) or existing_booking.guest_phone
                 existing_booking.checkin_code = self._safe_text(data.get('checkin_code'), 50) or existing_booking.checkin_code
@@ -282,7 +291,59 @@ class OTAAgent:
                 # OTA tự động không dùng tiền đặt cọc; chỉ giữ total_price.
                 existing_booking.deposit_amount = 0
                 existing_booking.branch_id = data.get('branch_id') or existing_booking.branch_id
-                existing_booking.raw_data = self._json_safe({**data, **normalized_dates})
+
+                # ── Build change_note nếu là MODIFY hoặc có thay đổi thực sự ──
+                now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+                change_lines = []
+                def _fmt_date(d):
+                    return d.strftime('%d/%m/%Y') if d else '—'
+                def _fmt_price(p):
+                    try:
+                        return f"{int(p):,}".replace(',', '.') + ' VND'
+                    except Exception:
+                        return str(p) if p else '—'
+
+                if old_check_in != existing_booking.check_in:
+                    change_lines.append(f"- Ngày check-in: {_fmt_date(old_check_in)} → {_fmt_date(existing_booking.check_in)}")
+                if old_check_out != existing_booking.check_out:
+                    change_lines.append(f"- Ngày check-out: {_fmt_date(old_check_out)} → {_fmt_date(existing_booking.check_out)}")
+                if old_room_type and existing_booking.room_type and old_room_type != existing_booking.room_type:
+                    change_lines.append(f"- Loại phòng: {old_room_type} → {existing_booking.room_type}")
+                if old_total_price and existing_booking.total_price and abs(float(old_total_price) - float(existing_booking.total_price)) > 0.01:
+                    change_lines.append(f"- Tổng tiền: {_fmt_price(old_total_price)} → {_fmt_price(existing_booking.total_price)}")
+                if old_guest_name and existing_booking.guest_name and old_guest_name != existing_booking.guest_name:
+                    change_lines.append(f"- Tên khách: {old_guest_name} → {existing_booking.guest_name}")
+                if old_num_guests and existing_booking.num_guests and old_num_guests != existing_booking.num_guests:
+                    change_lines.append(f"- Số khách: {old_num_guests} → {existing_booking.num_guests}")
+
+                is_real_modify = action_type == 'MODIFY' or bool(change_lines)
+                raw_merged = self._json_safe({**data, **normalized_dates})
+
+                if is_real_modify:
+                    ai_summary = data.get('modification_summary') or ''
+                    change_note_parts = [f"[Cập nhật OTA {now_str}]"]
+                    if change_lines:
+                        change_note_parts.extend(change_lines)
+                    else:
+                        change_note_parts.append("- Thông tin đặt phòng được cập nhật từ OTA")
+                    if ai_summary:
+                        change_note_parts.append(f"- Ghi chú AI: {ai_summary}")
+                    change_note = '\n'.join(change_note_parts)
+
+                    # Append vào special_requests (giữ nội dung cũ)
+                    old_sr = (existing_booking.special_requests or '').strip()
+                    existing_booking.special_requests = f"{old_sr}\n\n{change_note}".strip() if old_sr else change_note
+
+                    # Đánh dấu raw_data để frontend poll
+                    raw_merged['is_modification'] = True
+                    raw_merged['has_unread_modification'] = True
+                    raw_merged['modification_summary'] = change_note
+                    raw_merged['modification_at'] = datetime.now().isoformat()
+                    logger.info(f"[OTA Agent] MODIFY detected for {external_id}: {len(change_lines)} field(s) changed")
+                else:
+                    raw_merged['is_modification'] = False
+
+                existing_booking.raw_data = raw_merged
                 existing_booking.updated_at = datetime.now()
                 # Status? If was cancelled, maybe reopen? Usually MODIFY implies Valid.
                 existing_booking.status = BookingStatus.CONFIRMED

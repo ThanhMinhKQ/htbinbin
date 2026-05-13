@@ -269,7 +269,24 @@ def _is_cancel_booking_log(log: OTAParsingLog) -> bool:
     return bool(log.booking_id or data.get("external_id") or data.get("booking_source"))
 
 
-def _ota_log_matches_branch(log: OTAParsingLog, target_branch: Optional[int]) -> bool:
+def _is_modification_booking_log(log: OTAParsingLog) -> bool:
+    """Log có action_type=MODIFY và booking có has_unread_modification=true."""
+    if log.status != OTAParsingStatus.SUCCESS or not log.booking_id:
+        return False
+    data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
+    if data.get("status") == "SKIPPED" or data.get("non_booking"):
+        return False
+    action_type = str(data.get("action_type") or "").upper()
+    if action_type != "MODIFY":
+        return False
+    booking = log.booking
+    if not booking:
+        return False
+    raw = booking.raw_data if isinstance(booking.raw_data, dict) else {}
+    return bool(raw.get("has_unread_modification"))
+
+
+
     if not target_branch:
         return True
     booking = log.booking
@@ -602,6 +619,7 @@ def api_ota_status(
     latest_log = relevant_logs[0] if relevant_logs else None
     success_booking_logs = [log for log in relevant_logs if _is_success_booking_log(log)]
     cancel_booking_logs = [log for log in relevant_logs if _is_cancel_booking_log(log)]
+    modification_booking_logs = [log for log in relevant_logs if _is_modification_booking_log(log)]
     ai_count = sum(1 for log in relevant_logs if _log_parser_method(log) in ("gemini", "ai"))
     rule_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule")
     skipped_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule_skip" or (log.extracted_data or {}).get("status") == "SKIPPED")
@@ -609,6 +627,15 @@ def api_ota_status(
     latest_relevant_payload = _serialize_ota_log(latest_relevant_log) if latest_relevant_log else None
     latest_cancel_log = cancel_booking_logs[0] if cancel_booking_logs else None
     latest_cancel_payload = _serialize_ota_log(latest_cancel_log) if latest_cancel_log else None
+    latest_modification_log = modification_booking_logs[0] if modification_booking_logs else None
+    latest_modification_payload = None
+    if latest_modification_log and latest_modification_log.booking:
+        raw = latest_modification_log.booking.raw_data if isinstance(latest_modification_log.booking.raw_data, dict) else {}
+        base = _serialize_ota_log(latest_modification_log)
+        base['modification_summary'] = raw.get('modification_summary') or ''
+        base['modification_at'] = raw.get('modification_at') or ''
+        base['booking_db_id'] = latest_modification_log.booking.id
+        latest_modification_payload = base
     payload = {
         "booking_stats": {},
         "branch_id": target_branch,
@@ -633,6 +660,8 @@ def api_ota_status(
         "latest_success_booking": latest_relevant_payload,
         "latest_cancel_log_id": latest_cancel_log.id if latest_cancel_log else None,
         "latest_cancel_booking": latest_cancel_payload,
+        "latest_modification_log_id": latest_modification_log.id if latest_modification_log else None,
+        "latest_modification_booking": latest_modification_payload,
     }
     if not fresh:
         _OTA_STATUS_CACHE[cache_key] = (now_ts, payload)
@@ -643,7 +672,28 @@ def api_ota_status(
     return JSONResponse(payload)
 
 
-@router.get("/api/pms/reservations/ota/logs", tags=["PMS Reservations"])
+@router.post("/api/pms/reservations/ota/mark-modification-read/{booking_id}", tags=["PMS Reservations"])
+def api_mark_modification_read(
+    booking_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Đánh dấu booking modification đã được đọc — xóa flag has_unread_modification."""
+    _require_login(request)
+    booking = db.query(Booking).filter(Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Không tìm thấy booking.")
+    raw = dict(booking.raw_data or {})
+    raw["has_unread_modification"] = False
+    raw["modification_read_at"] = datetime.now(VN_TZ).isoformat()
+    booking.raw_data = raw
+    db.commit()
+    # Xóa cache để lần poll tiếp theo không trả về modification cũ
+    _OTA_STATUS_CACHE.clear()
+    return JSONResponse({"ok": True, "booking_id": booking_id})
+
+
+
 def api_ota_logs(
     request: Request,
     status: Optional[str] = None,

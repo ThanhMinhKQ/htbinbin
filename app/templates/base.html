@@ -1471,14 +1471,17 @@
             let globalStorageKey = 'otaNewCount';
             let globalLastLogKey = 'otaLastSuccessLogId';
             let globalLastCancelLogKey = 'otaLastCancelLogId';
+            let globalLastModificationLogKey = 'otaLastModificationLogId';
             const globalCfg = window.GLOBAL_USER_CONFIG || {};
             if (!globalCfg.isAdmin && globalCfg.currentBranch) {
                 globalStorageKey = `otaNewCount:${globalCfg.currentBranch}`;
                 globalLastLogKey = `otaLastSuccessLogId:${globalCfg.currentBranch}`;
                 globalLastCancelLogKey = `otaLastCancelLogId:${globalCfg.currentBranch}`;
+                globalLastModificationLogKey = `otaLastModificationLogId:${globalCfg.currentBranch}`;
             }
             let globalLastSuccessLogId = Number(localStorage.getItem(globalLastLogKey) || '0') || null;
             let globalLastCancelLogId = Number(localStorage.getItem(globalLastCancelLogKey) || '0') || null;
+            let globalLastModificationLogId = Number(localStorage.getItem(globalLastModificationLogKey) || '0') || null;
             let globalAudio = null;
             let audioUnlocked = false;
 
@@ -1621,7 +1624,20 @@
                             globalLastCancelLogId = latestCancelLogId;
                             localStorage.setItem(globalLastCancelLogKey, String(latestCancelLogId));
                         }
+                        const latestModLogId = Number(d.latest_modification_log_id || 0) || null;
+                        if (!globalLastModificationLogId && latestModLogId) {
+                            globalLastModificationLogId = latestModLogId;
+                            localStorage.setItem(globalLastModificationLogKey, String(latestModLogId));
+                        }
                         return;
+                    }
+
+                    const latestModificationLogId = Number(d.latest_modification_log_id || 0) || null;
+                    const isNewModification = latestModificationLogId && (!globalLastModificationLogId || latestModificationLogId > globalLastModificationLogId);
+                    if (isNewModification && d.latest_modification_booking) {
+                        globalLastModificationLogId = latestModificationLogId;
+                        localStorage.setItem(globalLastModificationLogKey, String(latestModificationLogId));
+                        window.dispatchEvent(new CustomEvent('ota:modification', { detail: d.latest_modification_booking }));
                     }
 
                     const isNewCancel = latestCancelLogId && (!globalLastCancelLogId || latestCancelLogId > globalLastCancelLogId);

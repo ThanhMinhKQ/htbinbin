@@ -103,7 +103,8 @@ Required JSON Structure:
     "is_prepaid": boolean,
     "payment_method": "string",
     "deposit_amount": 0,
-    "notes": "string"
+    "notes": "string",
+    "modification_summary": "string"
 }}
 
 Rules:
@@ -118,7 +119,7 @@ Rules:
    - Airbnb: ALWAYS use "Bạn kiếm được" (host payout). NEVER use "Tổng (VND)" or "Phí phòng".
    - Mytour: use "Tổng tiền trả khách sạn" (total amount paid to hotel).
    - Other OTAs: use the main booking total shown in the confirmation.
-6. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" → MODIFY | "Cancelled / Cancellation" → CANCEL.
+6. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" / "Booking amendment" / "Thay đổi đặt phòng" / "Cập nhật đặt phòng" → MODIFY | "Cancelled / Cancellation" → CANCEL.
 7. For booking_source, infer from sender email domain or email branding:
    - @agoda.com → "Agoda"
    - @go2joy.vn → "Go2Joy"
@@ -132,6 +133,7 @@ Rules:
 10. IMPORTANT: Always set "deposit_amount": 0 for all OTA bookings.
 11. checkin_code: A short PIN/access code for room check-in. Leave null if not present.
 12. Return ONLY the JSON object. No markdown formatting, no explanation.
+13. modification_summary: ONLY fill when action_type is MODIFY. Write a concise Vietnamese summary of what changed (e.g. "Đổi ngày check-in từ 15/05 sang 17/05, loại phòng từ Deluxe sang Superior"). Set null for NEW and CANCEL.
 
 Email Content:
 {cleaned_body}"""
