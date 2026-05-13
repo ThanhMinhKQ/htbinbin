@@ -55,7 +55,7 @@ window.onload = () => {
     startSmartPolling();
 
     // User đang xem OTA Dashboard → clear badge và reset title
-    localStorage.setItem('otaNewCount', '0');
+    localStorage.setItem(_getOtaStorageKey(), '0');
     updateTabTitle(0);
     // Nếu badge vẫn còn trong cùng tab (ít xảy ra)
     const navBadge = document.getElementById('ota-nav-badge');
@@ -128,8 +128,12 @@ async function checkForNewBookings(force = false) {
             playSound('Add.mp3');
 
             // Cập nhật localStorage để badge hiển thị trên các trang khác
-            const prev = parseInt(localStorage.getItem('otaNewCount') || '0', 10);
-            localStorage.setItem('otaNewCount', prev + delta);
+            // Dùng key theo chi nhánh để khớp với base.html (lễ tân chỉ nhận badge của chi nhánh mình)
+            const _storageKey = (!config.isAdmin && config.currentBranch)
+                ? `otaNewCount:${config.currentBranch}`
+                : 'otaNewCount';
+            const prev = parseInt(localStorage.getItem(_storageKey) || '0', 10);
+            localStorage.setItem(_storageKey, prev + delta);
 
             // Cập nhật title tab trình duyệt
             updateTabTitle(prev + delta);
@@ -165,9 +169,36 @@ async function checkForNewBookings(force = false) {
     }
 }
 
+function _getActiveBranchLabel() {
+    const config = window.OTA_CONFIG || {};
+    if (!config.isAdmin && config.currentBranch) return config.currentBranch;
+    const el = document.getElementById('branchFilter');
+    return el ? (el.value || '') : '';
+}
+
+function _getOtaStorageKey() {
+    const config = window.OTA_CONFIG || {};
+    return (!config.isAdmin && config.currentBranch)
+        ? `otaNewCount:${config.currentBranch}`
+        : 'otaNewCount';
+}
+
+function dismissNewBookingBanner() {
+    const banner = document.getElementById('newBookingBanner');
+    if (banner) banner.remove();
+    newBookingCount = 0;
+    localStorage.setItem(_getOtaStorageKey(), '0');
+    const nb = document.getElementById('ota-nav-badge');
+    if (nb) nb.style.display = 'none';
+    updatePageBadge();
+}
+
 function showNewBookingBanner(count) {
     const existing = document.getElementById('newBookingBanner');
     if (existing) existing.remove();
+
+    const branchLabel = _getActiveBranchLabel();
+    const branchNote = branchLabel ? ` tại <strong>${branchLabel}</strong>` : '';
 
     const banner = document.createElement('div');
     banner.id = 'newBookingBanner';
@@ -184,9 +215,9 @@ function showNewBookingBanner(count) {
         <span style="font-size:20px;">🔔</span>
         <div>
             <div style="font-weight:700; font-size:13px; color:#fff;">Đặt phòng mới!</div>
-            <div style="font-size:12px; color:rgba(255,255,255,0.85);">${count} đặt phòng vừa được thêm — Đang tải...</div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.85);">${count} đặt phòng vừa được thêm${branchNote} — Đang tải...</div>
         </div>
-        <button onclick="document.getElementById('newBookingBanner').remove(); newBookingCount=0; localStorage.setItem('otaNewCount', '0'); const nb = document.getElementById('ota-nav-badge'); if(nb) nb.style.display='none'; updatePageBadge();"
+        <button onclick="dismissNewBookingBanner();"
             style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px;">✕</button>
     `;
 
@@ -210,6 +241,9 @@ function showCancellationBanner(count, latest_cancelled_id) {
     const existing = document.getElementById('cancellationBanner');
     if (existing) existing.remove();
 
+    const branchLabel = _getActiveBranchLabel();
+    const branchNote = branchLabel ? ` tại <strong>${branchLabel}</strong>` : '';
+
     const banner = document.createElement('div');
     banner.id = 'cancellationBanner';
     banner.style.cssText = `
@@ -222,14 +256,13 @@ function showCancellationBanner(count, latest_cancelled_id) {
         cursor: pointer;
     `;
 
-    // Nếu có mã đơn phòng, hiển thị mã đơn
     const idText = latest_cancelled_id ? `[Mã đơn: ${latest_cancelled_id}]` : `${count} đơn phòng`;
 
     banner.innerHTML = `
         <span style="font-size:20px;">⚠️</span>
         <div>
             <div style="font-weight:700; font-size:13px; color:#fff;">Phòng vừa bị huỷ!</div>
-            <div style="font-size:12px; color:rgba(255,255,255,0.85);">${idText} vừa bị huỷ trên OTA.</div>
+            <div style="font-size:12px; color:rgba(255,255,255,0.85);">${idText} vừa bị huỷ trên OTA${branchNote}.</div>
         </div>
         <button onclick="document.getElementById('cancellationBanner').remove();"
             style="background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:6px; padding:4px 8px; cursor:pointer; font-size:11px;">✕</button>

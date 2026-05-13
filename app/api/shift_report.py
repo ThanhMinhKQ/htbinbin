@@ -1595,11 +1595,13 @@ async def get_dashboard_summary(
                         "closer_name": r.closer_name
                     } for r in recent_closes] if recent_closes else []),
                 "by_type": {
-                    "closed_online": float(closed_summary["non_cash"] or 0),
+                    # closed_online/closed_branch lấy từ ShiftCloseLog để khớp với Biên bản giao ca
+                    # (classify_log_revenues dùng transaction_type, summarize dùng payment_method — hai cách cho kết quả khác nhau)
+                    "closed_online": float(log_summary.total_closed_online or 0) if log_summary else 0,
                     "pending_online": float(pending_summary["non_cash"] or 0),
                     "closed_expense": float(closed_summary["refund_outflow"] or 0),
                     "pending_expense": float(pending_summary["refund_outflow"] or 0),
-                    "closed_branch": float(closed_summary["cash"] or 0),
+                    "closed_branch": float(log_summary.total_closed_branch or 0) if log_summary else 0,
                     "pending_branch": float(pending_summary["cash"] or 0),
                     "closed_card": float(closed_summary["card"] or 0),
                     "pending_card": float(pending_summary["card"] or 0),
