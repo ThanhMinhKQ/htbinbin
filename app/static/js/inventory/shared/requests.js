@@ -19,15 +19,11 @@ export default function(config) {
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                if (data.records) {
-                    this.historyList = data.records;
-                    this.totalRecords = data.totalRecords;
-                    this.totalPages = data.totalPages;
-                } else {
-                    this.historyList = data;
-                    this.totalRecords = data.length;
-                    this.totalPages = 1;
-                }
+                const records = Array.isArray(data.records) ? data.records : [];
+                this.historyList = records;
+                this.totalRecords = data.totalRecords ?? records.length;
+                this.totalPages = data.totalPages ?? 1;
+                this.currentPage = data.currentPage ?? page;
                 this.updateSortIndicators();
             }
         } catch (e) {
