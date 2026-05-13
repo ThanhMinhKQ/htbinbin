@@ -823,18 +823,17 @@ Object.assign(BookingHub, {
                 [tools, closeBtn, footer].forEach((el) => { if (el) el.style.display = ''; });
                 if (!blob) return;
                 const filename = `xac-nhan-dat-phong-${this.state.detailBookingId || 'booking'}.png`;
-                try {
-                    if (navigator.clipboard && window.ClipboardItem) {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    try {
                         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                        pmsToast('Đã chụp ảnh phiếu xác nhận vào bộ nhớ tạm', true);
-                    } else {
-                        this.downloadBlob(blob, filename);
-                        pmsToast('Đã tải ảnh phiếu xác nhận', true);
+                        pmsToast('Đã sao chép ảnh phiếu vào clipboard — dán vào Zalo/Viber để gửi khách', true);
+                        return;
+                    } catch (clipErr) {
+                        // clipboard bị block (HTTP hoặc permission denied) → fallback download
                     }
-                } catch (err) {
-                    this.downloadBlob(blob, filename);
-                    pmsToast('Đã tải ảnh phiếu xác nhận', true);
                 }
+                this.downloadBlob(blob, filename);
+                pmsToast('Trình duyệt không hỗ trợ clipboard — đã tải ảnh về máy', true);
             }, 'image/png');
         } catch (err) {
             [tools, closeBtn, footer].forEach((el) => { if (el) el.style.display = ''; });
