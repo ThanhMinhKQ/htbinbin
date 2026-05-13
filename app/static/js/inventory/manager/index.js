@@ -62,12 +62,19 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
             } catch (e) { console.error("Error initializing app data", e); }
 
             setTimeout(() => {
-                this.renderPagination();
                 this.updateSortIndicators();
             }, 0);
 
             if (window.INITIAL_RECORDS) {
-                this.historyList = window.INITIAL_RECORDS;
+                if (window.INITIAL_RECORDS.records) {
+                    this.historyList = window.INITIAL_RECORDS.records;
+                    this.totalRecords = window.INITIAL_RECORDS.totalRecords || 0;
+                    this.totalPages = window.INITIAL_RECORDS.totalPages || 1;
+                } else if (Array.isArray(window.INITIAL_RECORDS)) {
+                    this.historyList = window.INITIAL_RECORDS;
+                    this.totalRecords = window.INITIAL_RECORDS.length;
+                    this.totalPages = 1;
+                }
             }
 
             if (this.currentWarehouseId) {

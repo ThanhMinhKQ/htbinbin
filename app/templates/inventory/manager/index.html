@@ -267,8 +267,11 @@
     function changeWarehouse(el) {
         try {
             const currentUrl = new window.URL(window.location.href);
-            currentUrl.searchParams.set('warehouse_id', el.value);
-            // Reset page on context switch
+            if (el.value) {
+                currentUrl.searchParams.set('warehouse_id', el.value);
+            } else {
+                currentUrl.searchParams.delete('warehouse_id');
+            }
             currentUrl.searchParams.set('page', 1);
             window.location.href = currentUrl.toString();
         } catch (e) {
