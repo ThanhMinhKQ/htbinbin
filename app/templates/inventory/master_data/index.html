@@ -33,7 +33,7 @@
         return {
             ready: false,
             init() {
-                import("{{ url_for('static', path='/js/inventory/master_data/index.js') }}?v=1.0")
+                import("{{ url_for('static', path='/js/inventory/master_data/index.js') }}?v=1.1")
                     .then(module => {
                         window.MasterDataAppFactory = module.masterDataApp;
                         this.ready = true;
