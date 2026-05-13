@@ -103,7 +103,7 @@
 
 <!-- Data Injection -->
 <script id="initial-data" type="application/json">
-    {{ initial_records | tojson | safe }}
+    {"records": {{ initial_records | tojson | safe }}, "totalRecords": {{ total_records | default(0) }}, "totalPages": {{ total_pages | default(1) }}}
 </script>
 <script id="products-data" type="application/json">{{ products_json | safe }}</script>
 <script id="categories-data" type="application/json">{{ categories_json | safe }}</script>
