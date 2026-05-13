@@ -9,6 +9,7 @@
 
 {% block app_header_actions %}
 <div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'overview' }" class="flex items-center gap-3 max-w-full overflow-x-auto">
+    {% if user_role not in ('letan',) %}
     <select
         class="form-select text-xs rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] py-2 pl-2 pr-7 min-w-0 w-auto max-w-[160px] sm:max-w-[200px]"
         onchange="window.location.href='?warehouse_id=' + this.value">
@@ -19,6 +20,7 @@
         </option>
         {% endfor %}
     </select>
+    {% endif %}
     <div class="inv-main-tabs inline-flex min-h-11 items-center gap-1 p-1">
         <button type="button" @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
             :class="tab === 'overview' ? 'is-active' : ''"

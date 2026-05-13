@@ -78,10 +78,10 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
 
             } catch (e) { console.error("Error initializing app data", e); }
 
-            setTimeout(() => {
+            this.$nextTick(() => {
                 this.renderPagination();
                 this.updateSortIndicators();
-            }, 0);
+            });
 
             if (this.currentBranchId || this.currentWarehouseId) {
                 this._pageLoad();
@@ -125,6 +125,10 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 } else if (tab === 'export') {
                     setTimeout(() => this.fetchExports(1), 100);
                 } else {
+                    this.$nextTick(() => {
+                        this.renderPagination();
+                        this.updateSortIndicators();
+                    });
                     setTimeout(() => this.fetchStockOnly(), 2000);
                 }
             } catch (e) {

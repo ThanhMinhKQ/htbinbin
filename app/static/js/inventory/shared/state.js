@@ -163,7 +163,8 @@ export default function (totalRecords, currentPage, totalPages, config = {}) {
         isExportDetailModalOpen: false,
 
         getAllSelectableChecked() {
-            return this.historyList.length > 0 && this.selectedIds.length === this.historyList.length;
+            const selectable = this.historyList.filter(t => t.status === 'PENDING');
+            return selectable.length > 0 && this.selectedIds.length === selectable.length;
         },
 
         getAllImportsSelected() {

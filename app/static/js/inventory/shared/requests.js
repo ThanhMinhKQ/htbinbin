@@ -147,7 +147,9 @@ export default function(config) {
             if (lastIndex !== -1 && currentIndex !== -1) {
                 const start = Math.min(lastIndex, currentIndex);
                 const end = Math.max(lastIndex, currentIndex);
-                const idsToSelect = this.historyList.slice(start, end + 1).map(t => t.id);
+                const idsToSelect = this.historyList.slice(start, end + 1)
+                    .filter(t => t.status === 'PENDING')
+                    .map(t => t.id);
                 this.selectedIds = [...new Set([...this.selectedIds, ...idsToSelect])];
             }
         } else {
@@ -157,10 +159,11 @@ export default function(config) {
     },
 
     toggleSelectAll() {
-        if (this.selectedIds.length === this.historyList.length) {
+        const selectable = this.historyList.filter(t => t.status === 'PENDING');
+        if (selectable.length > 0 && this.selectedIds.length === selectable.length) {
             this.selectedIds = [];
         } else {
-            this.selectedIds = this.historyList.filter(t => t.status === 'PENDING').map(t => t.id);
+            this.selectedIds = selectable.map(t => t.id);
         }
     },
 
