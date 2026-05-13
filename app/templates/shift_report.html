@@ -264,7 +264,7 @@
                                 <span>Doang Thu Online</span>
                             </div>
                             <div class="flex items-baseline justify-end gap-1.5">
-                                <p class="text-2xl font-semibold text-blue-800 dark:text-blue-200" x-text="formatCurrency(onlineRevenueValue)"></p>
+                                <p class="text-2xl font-semibold text-blue-800 dark:text-blue-200" x-text="formatCurrency(liveOnlineRevenue)"></p>
                                 <span class="text-sm font-medium text-blue-500 dark:text-blue-400">VNĐ</span>
                             </div>
                         </div>
@@ -275,7 +275,7 @@
                                 <span>Doanh Thu Chi nhánh</span>
                             </div>
                             <div class="flex items-baseline justify-end gap-1.5">
-                                <p class="text-2xl font-semibold text-green-800 dark:text-green-200" x-text="formatCurrency(branchRevenueValue)"></p>
+                                <p class="text-2xl font-semibold text-green-800 dark:text-green-200" x-text="formatCurrency(liveBranchRevenue)"></p>
                                 <span class="text-sm font-medium text-green-500 dark:text-green-400">VNĐ</span>
                             </div>
                         </div>
@@ -286,7 +286,7 @@
                                 <span>Tiền mặt</span>
                             </div>
                             <div class="flex items-baseline justify-end gap-1.5">
-                                <p class="text-2xl font-semibold text-amber-600 dark:text-amber-400" x-text="letanShiftClose.pmsRevenue.trim() !== '' ? formatCurrency(letanPmsRevenueValue - (charts.data.by_type.pending_online || 0) - (charts.data.by_type.pending_branch || 0)) : '-'"></p>
+                                <p class="text-2xl font-semibold text-amber-600 dark:text-amber-400" x-text="letanShiftClose.pmsRevenue.trim() !== '' ? formatCurrency(letanPmsRevenueValue - liveOnlineRevenue - liveBranchRevenue) : '-'"></p>
                                 <span x-show="letanPmsRevenueValue > 0" class="text-sm font-medium text-amber-500 dark:text-amber-400">VNĐ</span>
                             </div>
                         </div>
@@ -300,7 +300,7 @@
                                 TỔNG TIỀN QUẦY
                             </span>
                             <div class="flex items-baseline justify-end gap-1.5">
-                                <span class="text-3xl font-bold text-amber-400 dark:text-amber-600" x-text="letanShiftClose.pmsRevenue.trim() !== '' ? formatCurrency(letanPmsRevenueValue - (charts.data.by_type.pending_online || 0) - (charts.data.by_type.pending_branch || 0) + 1500000) : '-'"></span>
+                                <span class="text-3xl font-bold text-amber-400 dark:text-amber-600" x-text="letanShiftClose.pmsRevenue.trim() !== '' ? formatCurrency(letanPmsRevenueValue - liveOnlineRevenue - liveBranchRevenue + 1500000) : '-'"></span>
                                 <span x-show="letanPmsRevenueValue > 0" class="text-base font-medium text-amber-400 dark:text-amber-600">VNĐ</span>
                             </div>
                         </div>
@@ -423,12 +423,12 @@
                     <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700">
                         <p class="font-medium text-slate-500 dark:text-slate-400">Quầy</p>
                         <p class="mt-1 text-lg font-bold text-slate-800 dark:text-slate-100"
-                           x-text="formatCurrency(letanPmsRevenueValue - (charts.data.by_type.pending_online || 0) - (charts.data.by_type.pending_branch || 0))"></p>
+                           x-text="formatCurrency(letanPmsRevenueValue - liveOnlineRevenue - liveBranchRevenue)"></p>
                     </div>
                     <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-700">
                         <p class="font-medium text-slate-500 dark:text-slate-400">Tổng quầy</p>
                         <p class="mt-1 text-lg font-bold text-slate-800 dark:text-slate-100"
-                           x-text="formatCurrency(letanPmsRevenueValue - (charts.data.by_type.pending_online || 0) - (charts.data.by_type.pending_branch || 0) + 1500000)"></p>
+                           x-text="formatCurrency(letanPmsRevenueValue - liveOnlineRevenue - liveBranchRevenue + 1500000)"></p>
                     </div>
                 </div>
 
@@ -1985,6 +1985,16 @@
                 }
                 return this.charts.data.by_type.closed_branch;
             },
+            get liveOnlineRevenue() {
+                const list = this.handoverTransactions.list || [];
+                return list.filter(t => t.transaction_type !== 'BRANCH_ACCOUNT')
+                           .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            },
+            get liveBranchRevenue() {
+                const list = this.handoverTransactions.list || [];
+                return list.filter(t => t.transaction_type === 'BRANCH_ACCOUNT')
+                           .reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+            },
             // THÊM: Getter để tính tổng doanh thu đang chờ xử lý
             get totalPendingRevenue() {
                 return this.charts.data.by_type.pending_net || 0;
@@ -1999,9 +2009,7 @@
             // --- SỬA QUAN TRỌNG Ở ĐÂY ---
             get letanCounterCash() {
                 const pms = this.letanPmsRevenueValue;
-                const online = this.charts.data.by_type.pending_online || 0;
-                const branch = this.charts.data.by_type.pending_branch || 0;
-                return pms - online - branch;
+                return pms - this.liveOnlineRevenue - this.liveBranchRevenue;
             },
             get letanTotalCounter() {
                 return this.letanCounterCash + 1500000;
@@ -2223,7 +2231,9 @@
 
                 // Tải dữ liệu cho dashboard (cho mọi vai trò)
                 // Hàm này giờ đã được cập nhật, nó sẽ tự động lấy filter mặc định khi tải trang
-                this.fetchDashboardSummary(); 
+                this.fetchDashboardSummary();
+                // Fetch pending transactions để Bảng Đối Soát khớp với biên bản giao ca
+                this.fetchHandoverDataInternal();
                 this.updateSortIndicators(); // THÊM: Cập nhật chỉ báo sắp xếp khi tải trang
 
                 window.addEventListener('themeChanged', () => {
