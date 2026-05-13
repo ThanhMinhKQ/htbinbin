@@ -145,13 +145,16 @@ async def detect_branch(
             status_code=400,
         )
 
-    # Tìm chi nhánh trong bán kính 200m
+    # Tìm chi nhánh trong bán kính 200m — đọc từ DB thay vì BRANCH_COORDINATES hardcode
     nearby_branches = []
-    # SỬA: Dùng biến BRANCH_COORDINATES đã import từ config.py
-    for branch, coords in BRANCH_COORDINATES.items():
-        dist = haversine(lat, lng, coords[0], coords[1])
-        if dist <= 0.2:  # trong 200m
-            nearby_branches.append((branch, dist))
+    all_branches = db.query(Branch).filter(
+        Branch.gps_lat.isnot(None),
+        Branch.gps_lng.isnot(None)
+    ).all()
+    for branch_obj in all_branches:
+        dist = haversine(lat, lng, float(branch_obj.gps_lat), float(branch_obj.gps_lng))
+        if dist <= 0.2:
+            nearby_branches.append((branch_obj.branch_code, dist))
 
     if not nearby_branches:
         return JSONResponse(
@@ -195,8 +198,9 @@ async def select_branch(
     chosen_branch = payload.branch
     
     # Kiểm tra xem chi nhánh có hợp lệ không
-    if chosen_branch not in BRANCH_COORDINATES:
-         raise HTTPException(status_code=400, detail="Chi nhánh không hợp lệ.")
+    branch_obj = db.query(Branch).filter(Branch.branch_code == chosen_branch).first()
+    if not branch_obj:
+        raise HTTPException(status_code=400, detail="Chi nhánh không hợp lệ.")
 
     # Lưu vào session
     request.session["active_branch"] = chosen_branch
