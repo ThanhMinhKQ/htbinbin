@@ -323,6 +323,11 @@ export default function(config) {
 
                 this.closeReceiptModal();
                 alert(data.message);
+
+                // Nếu đang filter SHIPPING, chuyển về Tất cả để tránh ticket vừa nhận biến mất
+                if (this.filters && this.filters.status === 'SHIPPING') {
+                    this.filters.status = '';
+                }
                 await this.fetchHistory(this.currentPage);
                 await this.fetchApprovals();
             } else {
