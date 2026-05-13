@@ -318,8 +318,8 @@ export default function(config) {
 
                 alert(data.message);
                 this.closeReceiptModal();
-                this.fetchHistory(this.currentPage);
-                this.fetchApprovals(); // Refresh approvals tab too if needed
+                await this.fetchHistory(this.currentPage);
+                await this.fetchApprovals(); // Refresh approvals tab too if needed
             } else {
                 alert(data.detail || "Lỗi khi nhận hàng");
             }
