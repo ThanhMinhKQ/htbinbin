@@ -497,7 +497,7 @@ const RoomStatus = {
     renderTimelineStats(rooms) {
         const physicalRooms = rooms.filter(room => !room.is_unassigned);
         const occupiedRooms = physicalRooms.filter(room => (room.events || []).some(ev => ev.status === 'CHECKED_IN'));
-        const bookedEvents = rooms.flatMap(room => room.events || []).filter(ev => ['PENDING', 'CONFIRMED'].includes(ev.status));
+        const bookedEvents = rooms.flatMap(room => room.events || []).filter(ev => ev.status === 'CONFIRMED');
         const maintenanceEvents = rooms.flatMap(room => room.events || []).filter(ev => ev.type === 'block');
 
         document.getElementById('rs-stat-total').textContent = physicalRooms.length || 0;
