@@ -233,7 +233,7 @@ class OTAAgent:
                 Booking.external_id == external_id,
             ).first()
 
-        if not existing_booking and int(data.get('num_rooms') or 1) > 1 and action_type != 'CANCEL':
+        if not existing_booking and int(data.get('num_rooms') or 1) > 1 and action_type not in ('CANCEL', 'MODIFY'):
             room_type_id = BookingService(db)._resolve_room_type_id(data.get('branch_id'), data.get('room_type'))
             if room_type_id:
                 payload = self._booking_payload_from_data(data, room_type_id)
