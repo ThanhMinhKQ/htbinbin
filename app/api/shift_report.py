@@ -8,9 +8,30 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Tuple, TypedDict, cast as typing_cast, Any
 from datetime import datetime, timedelta
 import math
+import json
 import random
+from decimal import Decimal
 from pydantic import BaseModel
 import string # THÊM: Để tạo mã giao dịch
+
+
+class _DecimalEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return super().default(o)
+
+
+class DecimalSafeJSONResponse(JSONResponse):
+    def render(self, content) -> bytes:
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=None,
+            separators=(",", ":"),
+            cls=_DecimalEncoder,
+        ).encode("utf-8")
 
 # Import từ các module đã tái cấu trúc
 from ..db.session import get_db
@@ -630,7 +651,7 @@ async def api_check_changes(
 
     result = query.first()
 
-    return JSONResponse({
+    return DecimalSafeJSONResponse({
         "has_changes": result.count > 0 if result else False,
         "max_id": result.max_id if result else since_id,
         "new_count": result.count if result else 0,
@@ -1026,7 +1047,7 @@ async def update_shift_transaction_status( # SỬA
 # ----------------------------------------------------------------------
 # ENDPOINT XÓA (SỬA: Chỉ đổi tên model/status)
 # ----------------------------------------------------------------------
-@router.post("/delete/{item_id}", response_class=JSONResponse)
+@router.post("/delete/{item_id}", response_class=DecimalSafeJSONResponse)
 async def delete_shift_transaction( # SỬA
     item_id: int, 
     request: Request, 
@@ -1097,7 +1118,7 @@ async def delete_shift_transaction( # SỬA
 
         db.delete(item)
         db.commit()
-        return JSONResponse({
+        return DecimalSafeJSONResponse({
             "status": "success",
             "message": "Đã xóa vĩnh viễn giao dịch.",
             "deleted_id": item_id_to_delete,
@@ -1111,7 +1132,7 @@ async def delete_shift_transaction( # SỬA
         _set_model_attr(item, "deleted_datetime", now)
         db.commit()
         db.refresh(item, ["branch", "recorder", "closer", "deleter"]) # SỬA
-        return JSONResponse({
+        return DecimalSafeJSONResponse({
             "status": "success",
             "message": "Đã xóa giao dịch thành công.",
             "item": _serialize_transaction(item), # SỬA
@@ -1134,7 +1155,7 @@ async def batch_delete_shift_transactions( # SỬA
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     if not payload.ids:
-        return JSONResponse({"status": "noop", "message": "Không có mục nào được chọn."})
+        return DecimalSafeJSONResponse({"status": "noop", "message": "Không có mục nào được chọn."})
 
     try:
         if user_role in ["admin", "boss"]:
@@ -1146,7 +1167,7 @@ async def batch_delete_shift_transactions( # SỬA
             ).all()
             
             if not transactions_to_delete:
-                return JSONResponse({
+                return DecimalSafeJSONResponse({
                     "status": "noop", 
                     "message": "Không có giao dịch hợp lệ nào để xóa (các giao dịch đã kết ca không thể xóa).",
                 })
@@ -1199,7 +1220,7 @@ async def batch_delete_shift_transactions( # SỬA
                 db.delete(item)
                 deleted_ids.append(item_id_to_delete)
             db.commit()
-            return JSONResponse({
+            return DecimalSafeJSONResponse({
                 "status": "success", 
                 "message": f"Đã xóa vĩnh viễn {len(deleted_ids)} mục.",
                 "ids": ids_to_process,
@@ -1218,7 +1239,7 @@ async def batch_delete_shift_transactions( # SỬA
             ids_to_process = [item[0] for item in valid_ids_query.all()]
 
             if not ids_to_process:
-                return JSONResponse({"status": "noop", "message": "Không có giao dịch nào ở trạng thái 'Chờ xử lý' để xóa."})
+                return DecimalSafeJSONResponse({"status": "noop", "message": "Không có giao dịch nào ở trạng thái 'Chờ xử lý' để xóa."})
 
             num_updated = db.query(ShiftReportTransaction).filter(
                 ShiftReportTransaction.id.in_(ids_to_process)
@@ -1240,7 +1261,7 @@ async def batch_delete_shift_transactions( # SỬA
             
             serialized_items = [_serialize_transaction(item) for item in updated_items] # SỬA
 
-            return JSONResponse({
+            return DecimalSafeJSONResponse({
                 "status": "success", 
                 "message": f"Đã xóa thành công {num_updated} mục.",
                 "ids": ids_to_process,
@@ -1558,38 +1579,38 @@ async def get_dashboard_summary(
                 })
 
         # --- 6. TRẢ VỀ KẾT QUẢ ---
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "success",
             "data": {
                 "by_branch": final_branch_ranking,
-                "total_pms_revenue": total_pms_revenue,
-                "total_cash_revenue": total_cash_revenue,
+                "total_pms_revenue": float(total_pms_revenue or 0),
+                "total_cash_revenue": float(total_cash_revenue or 0),
                 "recent_closes": ([{
                         "id": r.id,
-                        "pms_revenue": r.pms_revenue,
-                        "closed_online_revenue": r.closed_online_revenue,
-                        "closed_branch_revenue": r.closed_branch_revenue,
+                        "pms_revenue": float(r.pms_revenue or 0),
+                        "closed_online_revenue": float(r.closed_online_revenue or 0),
+                        "closed_branch_revenue": float(r.closed_branch_revenue or 0),
                         "closed_datetime": r.closed_datetime.isoformat(),
                         "branch_code": r.branch_code,
                         "closer_name": r.closer_name
                     } for r in recent_closes] if recent_closes else []),
                 "by_type": {
-                    "closed_online": closed_summary["non_cash"] or 0.0,
-                    "pending_online": pending_summary["non_cash"] or 0.0,
-                    "closed_expense": closed_summary["refund_outflow"] or 0.0,
-                    "pending_expense": pending_summary["refund_outflow"] or 0.0,
-                    "closed_branch": closed_summary["cash"] or 0.0,
-                    "pending_branch": pending_summary["cash"] or 0.0,
-                    "closed_card": closed_summary["card"] or 0.0,
-                    "pending_card": pending_summary["card"] or 0.0,
-                    "closed_ota": closed_summary["ota"] or 0.0,
-                    "pending_ota": pending_summary["ota"] or 0.0,
-                    "closed_company_unc": closed_summary["company_unc"] or 0.0,
-                    "pending_company_unc": pending_summary["company_unc"] or 0.0,
-                    "closed_debt": closed_summary["debt"] or 0.0,
-                    "pending_debt": pending_summary["debt"] or 0.0,
-                    "closed_net": closed_summary["net_total"] or 0.0,
-                    "pending_net": pending_summary["net_total"] or 0.0,
+                    "closed_online": float(closed_summary["non_cash"] or 0),
+                    "pending_online": float(pending_summary["non_cash"] or 0),
+                    "closed_expense": float(closed_summary["refund_outflow"] or 0),
+                    "pending_expense": float(pending_summary["refund_outflow"] or 0),
+                    "closed_branch": float(closed_summary["cash"] or 0),
+                    "pending_branch": float(pending_summary["cash"] or 0),
+                    "closed_card": float(closed_summary["card"] or 0),
+                    "pending_card": float(pending_summary["card"] or 0),
+                    "closed_ota": float(closed_summary["ota"] or 0),
+                    "pending_ota": float(pending_summary["ota"] or 0),
+                    "closed_company_unc": float(closed_summary["company_unc"] or 0),
+                    "pending_company_unc": float(pending_summary["company_unc"] or 0),
+                    "closed_debt": float(closed_summary["debt"] or 0),
+                    "pending_debt": float(pending_summary["debt"] or 0),
+                    "closed_net": float(closed_summary["net_total"] or 0),
+                    "pending_net": float(pending_summary["net_total"] or 0),
                 }
             }
         })
@@ -1597,7 +1618,7 @@ async def get_dashboard_summary(
     except Exception as e:
         logger.error(f"Lỗi khi lấy dữ liệu dashboard giao ca: {e}", exc_info=True)
         # Trả về data rỗng thay vì 500 để Frontend không bị crash
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "error", 
             "message": str(e),
             "data": { 
@@ -1648,7 +1669,7 @@ async def get_shift_close_details(
         "closer_name": log_entry.closer.name if log_entry.closer else "N/A"
     }
 
-    return JSONResponse(content={
+    return DecimalSafeJSONResponse(content={
         "status": "success",
         "log_details": log_details,
         "transactions": [_serialize_transaction(tx) for tx in transactions]
@@ -1792,7 +1813,7 @@ async def get_monthly_summary(
             for i in range(1, 13)
         ]
 
-        return JSONResponse(content={"status": "success", "data": final_summary})
+        return DecimalSafeJSONResponse(content={"status": "success", "data": final_summary})
     except Exception as e:
         logger.error(f"Lỗi khi lấy báo cáo tháng: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Lỗi server khi lấy báo cáo tháng.")
@@ -1877,7 +1898,7 @@ async def get_pending_summary(
         ).all()
         summary = summarize_shift_transactions(pending_transactions)
 
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "success",
             "total_pending_amount": summary["net_total"],
             "summary": summary,
@@ -1941,14 +1962,14 @@ async def get_all_pending_for_branch(
         
         results = [_serialize_transaction(item) for item in items]
 
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "success", 
             "transactions": results 
         })
     except Exception as e:
         logger.error(f"Lỗi khi lấy tất cả giao dịch chờ xử lý cho chi nhánh '{branch}': {e}", exc_info=True)
         # Sửa lại return để Frontend nhận được thông báo lỗi rõ ràng hơn thay vì crash
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        return DecimalSafeJSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.post("/api/delete-transaction-from-log/{transaction_id}", response_model=dict)
 async def delete_transaction_from_log(
@@ -2062,7 +2083,7 @@ async def get_pms_pending_summary(
 
         result = get_unclosed_pms_checkouts(db, _model_value(branch_obj.id))
 
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "success",
             "total_pms_revenue": float(result["total"]),
             "by_method": {k: float(v) for k, v in result["by_method"].items()},
@@ -2342,7 +2363,7 @@ async def get_shift_analytics(
                 })
 
         period_label = f"Năm {filter_year}" if view_mode == "year" else f"Tháng {filter_month}/{filter_year}"
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "success",
             "data": {
                 "period": {"view": view_mode, "month": filter_month, "year": filter_year, "label": period_label},
@@ -2369,7 +2390,7 @@ async def get_shift_analytics(
         })
     except Exception as e:
         logger.error(f"Lỗi API Analytics: {e}", exc_info=True)
-        return JSONResponse(content={
+        return DecimalSafeJSONResponse(content={
             "status": "error",
             "message": str(e),
             "data": {}
