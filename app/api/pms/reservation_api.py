@@ -289,7 +289,7 @@ def _is_modification_booking_log(log: OTAParsingLog) -> bool:
         return False
 
 
-
+def _ota_log_matches_branch(log: OTAParsingLog, target_branch: Optional[int]) -> bool:
     if not target_branch:
         return True
     booking = log.booking
