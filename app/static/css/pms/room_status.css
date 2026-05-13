@@ -1899,6 +1899,10 @@ html.dark ::-webkit-scrollbar-thumb:hover,
   font-weight: 700;
 }
 
+.rs-assign-loading[hidden] {
+  display: none !important;
+}
+
 .rs-assign-loading {
   display: flex;
   flex-direction: column;
