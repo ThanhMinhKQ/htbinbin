@@ -346,6 +346,11 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 
 /* Date Controls Modern (Centered) */
 .rs-date-nav-group-modern,
+.rs-range-group-modern[hidden],
+.rs-date-nav-group-modern[hidden] {
+  display: none !important;
+}
+
 .rs-range-group-modern {
   display: flex;
   align-items: center;

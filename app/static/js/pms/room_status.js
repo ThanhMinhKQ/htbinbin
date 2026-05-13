@@ -153,15 +153,22 @@ const RoomStatus = {
     },
 
     async loadInventory(silent) {
-        const params = new URLSearchParams({ 
-            start_date: this.state.startDate, 
-            days: 7 
+        const params = new URLSearchParams({
+            start_date: this.state.startDate,
+            days: 7
         });
         if (this.state.branchId) params.set('branch_id', this.state.branchId);
 
         try {
             const data = await this.api(`/api/pms/inventory/calendar?${params.toString()}`);
-            this.state.rawData = data.calendar || [];
+            const calendar = data.calendar || [];
+            if (calendar.length === 0 && !silent) {
+                await this.api(`/api/pms/inventory/generate?${params.toString()}`, { method: 'POST' });
+                const retry = await this.api(`/api/pms/inventory/calendar?${params.toString()}`);
+                this.state.rawData = retry.calendar || [];
+            } else {
+                this.state.rawData = calendar;
+            }
             this.renderOverview(this.state.rawData);
             this.renderDayTable(this.state.rawData);
             this.renderDayDetail(this.state.rawData);
@@ -868,11 +875,11 @@ const RoomStatus = {
             next.setDate(next.getDate() + 1);
             end.value = this.state.endDate || this.toDateInput(next);
         }
-        if (loading) loading.hidden = false;
         if (modal) {
             modal.hidden = false;
             modal.setAttribute('aria-hidden', 'false');
         }
+        if (loading) loading.hidden = false;
         try {
             await this.loadBlockRooms();
             if (roomId) {
@@ -881,9 +888,8 @@ const RoomStatus = {
             }
         } catch (err) {
             this.showBlockError(err.message || 'Không tải được danh sách phòng');
-        } finally {
-            if (loading) loading.hidden = true;
         }
+        if (loading) loading.hidden = true;
     },
 
     closeBlockModal() {
