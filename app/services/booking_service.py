@@ -795,20 +795,16 @@ class BookingService:
                 booking.special_requests = raw.get(key)
                 break
 
-        guest_payload = {
-            "guest_name": booking.guest_name,
-            "guest_phone": booking.guest_phone,
-            "guest_email": raw.get("guest_email") or raw.get("email"),
-            "guest_cccd": raw.get("guest_cccd") or raw.get("cccd") or raw.get("id_number"),
-            "date_of_birth": raw.get("date_of_birth") or raw.get("birth_date"),
-            "gender": raw.get("gender"),
-            "nationality": raw.get("nationality"),
-            "id_expire": raw.get("id_expire") or raw.get("id_expiry"),
-            "default_address": raw.get("address") or raw.get("guest_address"),
-        }
-        guest = self._find_or_create_guest(guest_payload, user_id)
-        if guest:
-            booking.guest_id = guest.id
+        # Chỉ link CRM khi user chủ động chọn guest từ CRM (selected_crm_guest_id).
+        # Không tự động tạo guest mới khi tạo/cập nhật booking — CRM chỉ được tạo khi check-in.
+        selected_crm_guest_id = raw.get("selected_crm_guest_id")
+        if selected_crm_guest_id and not booking.guest_id:
+            existing_guest = self.db.query(Guest).filter(
+                Guest.id == int(selected_crm_guest_id),
+                Guest.deleted_at.is_(None)
+            ).first()
+            if existing_guest:
+                booking.guest_id = existing_guest.id
 
         if isinstance(booking.check_in, str):
             booking.check_in = date.fromisoformat(booking.check_in[:10])
