@@ -3092,11 +3092,13 @@ function pmsRdRenderServiceList(filter = '', cat = null) {
 
     if (filtered.length === 0) {
         list.className = 'rd-sv-grid rd-sv-empty-state';
+        const noProductsAtAll = _invProducts.length === 0;
         list.innerHTML = `<div class="rd-sv-empty">
             <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
             </svg>
-            <p>Không tìm thấy sản phẩm</p>
+            <p>${noProductsAtAll ? 'Chưa có sản phẩm nào được bật bán tại PMS' : 'Không tìm thấy sản phẩm'}</p>
+            ${noProductsAtAll ? '<small style="opacity:0.7">Vào Kho → Danh mục sản phẩm → bật toggle "Bán tại PMS" cho sản phẩm muốn bán</small>' : ''}
         </div>`;
     } else {
         list.className = 'rd-sv-grid';
