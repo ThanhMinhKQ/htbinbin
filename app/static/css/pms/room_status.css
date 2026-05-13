@@ -3,12 +3,12 @@
   --rs-text-primary: #112D4E;
   --rs-text-secondary: #3F72AF;
   --rs-text-muted: #475569;
-  --rs-surface-page: #F9F7F7;
+  --rs-surface-page: #ffffff;
   --rs-surface-card: #ffffff;
-  --rs-surface-muted: #DBE2EF;
+  --rs-surface-muted: #f1f5f9;
   --rs-surface-soft: #f8fafc;
   --rs-surface-raised: #ffffff;
-  --rs-border: #DBE2EF;
+  --rs-border: #e2e8f0;
   --rs-border-light: #f1f5f9;
   
   --rs-accent: #3F72AF;
@@ -120,12 +120,7 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 .rs-page-wrap {
   display: flex;
   height: 100%;
-  background:
-    radial-gradient(ellipse 80% 60% at 5% 40%, rgba(63, 114, 175, 0.15), transparent 67%),
-    radial-gradient(ellipse 70% 60% at 45% 45%, rgba(219, 226, 239, 0.4), transparent 67%),
-    radial-gradient(ellipse 62% 52% at 83% 76%, rgba(17, 45, 78, 0.05), transparent 63%),
-    linear-gradient(135deg, #F9F7F7 0%, #DBE2EF 100%);
-  background-attachment: fixed;
+  background: var(--rs-surface-page);
   color: var(--rs-text-primary);
   font-family: var(--rs-font-family);
   margin: -16px;
@@ -600,15 +595,15 @@ html.dark ::-webkit-scrollbar-thumb:hover,
   content: "";
   position: absolute;
   inset: 0;
-  background-image:
-      linear-gradient(45deg, transparent 49%, var(--sidebar-grid-color, #e5e7eb) 49%, var(--sidebar-grid-color, #e5e7eb) 51%, transparent 51%),
-      linear-gradient(-45deg, transparent 49%, var(--sidebar-grid-color, #e5e7eb) 49%, var(--sidebar-grid-color, #e5e7eb) 51%, transparent 51%);
+  background-image: 
+    linear-gradient(45deg, transparent 49%, var(--rs-border-light) 49%, var(--rs-border-light) 51%, transparent 51%),
+    linear-gradient(-45deg, transparent 49%, var(--rs-border-light) 49%, var(--rs-border-light) 51%, transparent 51%);
   background-size: 40px 40px;
   -webkit-mask-image: radial-gradient(ellipse 80% 80% at 0% 0%, #000 50%, transparent 90%);
   mask-image: radial-gradient(ellipse 80% 80% at 0% 0%, #000 50%, transparent 90%);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.6;
+  opacity: 0.7;
 }
 
 .rs-day-card > * {
@@ -634,17 +629,7 @@ html.dark ::-webkit-scrollbar-thumb:hover,
 }
 
 .rs-day-sidebar::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-      linear-gradient(to right, var(--sidebar-grid-color, #d1d5db) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--sidebar-grid-color, #d1d5db) 1px, transparent 1px);
-  background-size: 32px 32px;
-  -webkit-mask-image: radial-gradient(ellipse 80% 80% at 100% 100%, #000 50%, transparent 90%);
-  mask-image: radial-gradient(ellipse 80% 80% at 100% 100%, #000 50%, transparent 90%);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 .rs-day-sidebar > * {
@@ -2299,7 +2284,7 @@ html.dark .rs-booking-bar {
 
 /* Room Status skin aligned with requested Blue/Navy palette */
 #pms-room-status-page {
-  --rs-white: #F9F7F7;
+  --rs-white: #ffffff;
   --rs-blue-light: #DBE2EF;
   --rs-blue-mid: #3F72AF;
   --rs-blue-dark: #112D4E;
@@ -2308,7 +2293,7 @@ html.dark .rs-booking-bar {
   --rs-accent-hover: var(--rs-blue-dark);
   --rs-accent-soft: rgba(63, 114, 175, 0.12);
   
-  --rs-surface-page: var(--rs-white);
+  --rs-surface-page: #ffffff;
   --rs-surface-card: #ffffff;
   --rs-surface-muted: var(--rs-blue-light);
   --rs-surface-soft: rgba(219, 226, 239, 0.3);
@@ -2708,6 +2693,22 @@ body.dark #pms-room-status-page,
   --rs-glass-border: rgba(255, 255, 255, 0.1);
   --rs-toolbar-bg: rgba(30, 41, 59, 0.8);
   background: var(--rs-surface-page);
+}
+
+/* Enhanced Stat Icons for Dark Mode */
+html.dark #pms-room-status-page .rs-stat-card::after {
+  opacity: 0.22 !important;
+  filter: brightness(1.8) saturate(0.8);
+}
+
+html.dark #pms-room-status-page .rs-stat-icon-bg {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  filter: brightness(1.1);
+}
+
+html.dark #pms-room-status-page .rs-stat-card::before {
+  opacity: 0.15;
 }
 
 html.dark #pms-room-status-page .rs-stat-card,
