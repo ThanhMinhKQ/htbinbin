@@ -233,6 +233,31 @@ class OTAAgent:
                 Booking.external_id == external_id,
             ).first()
 
+        # Fallback 2: group booking — Trip.com gửi MODIFY với external_id gốc (không suffix -01/-02)
+        # Tìm tất cả booking có external_id bắt đầu bằng external_id gốc và update tất cả
+        if not existing_booking and action_type == 'MODIFY':
+            group_bookings = db.query(Booking).filter(
+                Booking.external_id.like(f"{external_id}-%")
+            ).all()
+            if group_bookings:
+                # Update tất cả booking trong group, trả về booking đầu tiên
+                for gb in group_bookings:
+                    gb.guest_name = self._safe_text(data.get('guest_name'), 255) or gb.guest_name
+                    gb.guest_phone = self._safe_text(data.get('guest_phone'), 50) or gb.guest_phone
+                    gb.updated_at = datetime.now()
+                    now_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+                    ai_summary = data.get('modification_summary') or ''
+                    change_note = f"[Cập nhật OTA {now_str}]\n- Tên khách: {ai_summary or data.get('guest_name', '')}"
+                    old_sr = (gb.special_requests or '').strip()
+                    gb.special_requests = f"{old_sr}\n\n{change_note}".strip() if old_sr else change_note
+                    raw_gb = dict(gb.raw_data or {})
+                    raw_gb['has_unread_modification'] = True
+                    raw_gb['modification_summary'] = change_note
+                    raw_gb['modification_at'] = datetime.now().isoformat()
+                    gb.raw_data = raw_gb
+                    logger.info(f"[OTA Agent] Group MODIFY: updated booking {gb.external_id}")
+                return group_bookings[0]
+
         if not existing_booking and int(data.get('num_rooms') or 1) > 1 and action_type not in ('CANCEL', 'MODIFY'):
             room_type_id = BookingService(db)._resolve_room_type_id(data.get('branch_id'), data.get('room_type'))
             if room_type_id:
