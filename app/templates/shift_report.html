@@ -2674,8 +2674,8 @@
                         this.formatDate(log.closed_datetime)
                     ],
                     pmsRevenue: log.pms_revenue || 0,
-                    totalCounter: (log.cash_revenue || 0) + 1500000,
-                    cashRevenue: log.cash_revenue || 0,
+                    totalCounter: ((log.pms_revenue || 0) - (log.closed_online_revenue || 0) - (log.closed_branch_revenue || 0)) + 1500000,
+                    cashRevenue: (log.pms_revenue || 0) - (log.closed_online_revenue || 0) - (log.closed_branch_revenue || 0),
                     fixedCapital: 1500000,
                     branchRevenue: log.closed_branch_revenue || 0,
                     onlineRevenue: log.closed_online_revenue || 0,
