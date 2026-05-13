@@ -309,7 +309,12 @@ Object.assign(BookingHub, {
             btn.textContent = 'Đang xử lý...';
         }
         try {
-            await pmsApi(`/api/pms/reservations/ota/retry/${id}`, { method: 'POST' });
+            const res = await pmsApi(`/api/pms/reservations/ota/retry/${id}`, { method: 'POST' });
+            if (res?.status === 'processing') {
+                pmsToast(res.message || 'Đang xử lý lại email OTA trong nền', true);
+                this.pollOtaRetryStatus(id);
+                return;
+            }
             pmsToast('Đã xử lý lại email OTA', true);
             this.refreshAfterMutation({ availability: true });
             if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
@@ -322,5 +327,32 @@ Object.assign(BookingHub, {
                 btn.textContent = 'Retry';
             }
         }
+    },
+
+    pollOtaRetryStatus(id) {
+        const poll = async (attempt = 0) => {
+            try {
+                const res = await pmsApi(`/api/pms/reservations/ota/retry/${id}/status`);
+                if (res?.status === 'processing' && attempt < 60) {
+                    window.setTimeout(() => poll(attempt + 1), 2000);
+                    return;
+                }
+                if (res?.status === 'SUCCESS') {
+                    pmsToast('Đã xử lý lại email OTA thành công', true);
+                    this.refreshAfterMutation({ availability: true });
+                } else if (res?.status) {
+                    pmsToast(res.error_message || 'Retry email OTA chưa thành công', false);
+                }
+                if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
+                    this.loadOtaLogs();
+                }
+            } catch (err) {
+                pmsToast(err.message || 'Không kiểm tra được trạng thái retry OTA', false);
+                if (document.getElementById('bk-ota-log-modal')?.classList.contains('show')) {
+                    this.loadOtaLogs();
+                }
+            }
+        };
+        window.setTimeout(() => poll(), 2000);
     }
 });

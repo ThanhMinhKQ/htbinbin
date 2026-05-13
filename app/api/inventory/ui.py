@@ -1,5 +1,7 @@
 import os
 import json
+from datetime import date, timedelta
+from typing import Optional
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -39,8 +41,8 @@ async def manager_dashboard(
     request: Request, 
     page: int = 1,
     per_page: int = 10,
-    branch_id: int = None,
-    warehouse_id: int = None, # [NEW]
+    branch_id: Optional[int] = None,
+    warehouse_id: Optional[int] = None, # [NEW]
     db: Session = Depends(get_db)
 ):
     """Dashboard dành riêng cho Quản lý Kho (Updated: UI giống Reception + Chọn chi nhánh)"""
@@ -78,20 +80,20 @@ async def manager_dashboard(
             # Simplification: Just pick first warehouse linked to this branch
             wh = db.query(Warehouse).filter(Warehouse.branch_id == branch_id).first()
             if wh: 
-                current_warehouse_id = wh.id
+                current_warehouse_id = int(wh.id)  # type: ignore[arg-type]
         
         # Fallback 2: Default Admin Warehouse (Kho Tổng)
         if not current_warehouse_id:
              # Find "Kho Tổng"
              main_wh = db.query(Warehouse).filter(Warehouse.type == 'MAIN').first()
              if main_wh:
-                 current_warehouse_id = main_wh.id
+                 current_warehouse_id = int(main_wh.id)  # type: ignore[arg-type]
     
     # Fallback 3: First available warehouse
     if not current_warehouse_id:
         first_wh = db.query(Warehouse).first()
         if first_wh:
-            current_warehouse_id = first_wh.id
+            current_warehouse_id = int(first_wh.id)  # type: ignore[arg-type]
 
     # 3. Fetch Master Data
     products = db.query(Product).options(joinedload(Product.category)).filter(Product.is_active == True).all()
@@ -108,7 +110,7 @@ async def manager_dashboard(
             "conversion_rate": p.conversion_rate,
             "category_id": p.category_id,
             "category_name": p.category.name if p.category else "Khác",
-            "cost_price": float(p.cost_price or 0)
+            "cost_price": float(p.cost_price) if p.cost_price else 0.0  # type: ignore[arg-type]
         } for p in products
     ]
     products_json = json.dumps(products_data)
@@ -124,12 +126,23 @@ async def manager_dashboard(
              else:
                  user_role = user_obj.role
 
-    # 5. Fetch Initial Requests
+    # 5. Fetch Initial Requests (with date filter matching client defaults)
     from .requests import get_request_tickets
     
+    # [FIX] Sync date filter with client-side Alpine defaults (current month)
+    today = date.today()
+    default_date_from = date(today.year, today.month, 1).strftime('%Y-%m-%d')
+    if today.month == 12:
+        next_month_first = date(today.year + 1, 1, 1)
+    else:
+        next_month_first = date(today.year, today.month + 1, 1)
+    last_day = (next_month_first - timedelta(days=1))
+    default_date_to = last_day.strftime('%Y-%m-%d')
+    
     initial_data = await get_request_tickets(
-        # branch_id=current_branch_id, # Deprecated
-        dest_warehouse_id=current_warehouse_id, # [NEW]
+        dest_warehouse_id=current_warehouse_id,  # type: ignore[arg-type]
+        date_from=default_date_from,
+        date_to=default_date_to,
         page=page,
         per_page=per_page,
         db=db
@@ -206,14 +219,13 @@ async def reception_request_page(
             "conversion_rate": p.conversion_rate,
             "category_id": p.category_id,
             "category_name": p.category.name if p.category else "Khác",
-            "cost_price": float(p.cost_price or 0)
+            "cost_price": float(p.cost_price) if p.cost_price else 0.0  # type: ignore[arg-type]
         } for p in products
     ]
     products_json = json.dumps(products_data)
     
     # [FIX] Get user's actual branch from database instead of session
     from ...db.models import User, AttendanceRecord
-    from datetime import date
     
     current_branch_id = None
     user_role = None
@@ -250,12 +262,23 @@ async def reception_request_page(
         # Find the first warehouse belonging to this branch
         branch_warehouse = db.query(Warehouse).filter(Warehouse.branch_id == current_branch_id).first()
         if branch_warehouse:
-            current_warehouse_id = branch_warehouse.id
+            current_warehouse_id = int(branch_warehouse.id)  # type: ignore[arg-type]
 
     
-    # [NEW] Fetch initial requests data
+    # [FIX] Fetch initial requests data (with date filter matching client defaults)
+    today_r = date.today()
+    default_date_from_r = date(today_r.year, today_r.month, 1).strftime('%Y-%m-%d')
+    if today_r.month == 12:
+        next_month_first_r = date(today_r.year + 1, 1, 1)
+    else:
+        next_month_first_r = date(today_r.year, today_r.month + 1, 1)
+    last_day_r = (next_month_first_r - timedelta(days=1))
+    default_date_to_r = last_day_r.strftime('%Y-%m-%d')
+    
     initial_data = await get_request_tickets(
-        dest_warehouse_id=current_warehouse_id,
+        dest_warehouse_id=current_warehouse_id,  # type: ignore[arg-type]
+        date_from=default_date_from_r,
+        date_to=default_date_to_r,
         page=page,
         per_page=per_page,
         db=db

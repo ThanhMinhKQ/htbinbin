@@ -116,11 +116,14 @@ class OTADashboardService:
         
         if log.status != OTAParsingStatus.FAILED:
             return {"success": False, "error": "Only failed emails can be retried"}
-        
+        if (log.error_message or "").startswith("[RETRYING]"):
+            log.error_message = None
+            db.commit()
+
         # Check retry limit
-        if log.retry_count >= 3:
+        if (log.retry_count or 0) >= 3:
             return {"success": False, "error": "Maximum retry attempts (3) reached. Email moved to Dead Letter Queue."}
-        
+
         try:
             logger.info(f"[OTA Dashboard] Retrying email log ID: {log_id}")
 

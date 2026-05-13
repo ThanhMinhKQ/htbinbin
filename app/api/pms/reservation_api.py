@@ -1,8 +1,9 @@
 """Reservation Hub API for PMS booking management."""
 from __future__ import annotations
 
+import logging
 import re
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -27,6 +28,7 @@ from .pms_helpers import _active_branch, _get_branch_by_code, _is_admin, _requir
 router = APIRouter()
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+logger = logging.getLogger(__name__)
 
 
 class ReservationPayload(BaseModel):
@@ -748,13 +750,89 @@ def api_ota_logs(
 def api_retry_ota_log(
     log_id: int,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     _require_login(request)
-    result = ota_dashboard_service.retry_failed_email(db=db, log_id=log_id)
-    if not result.get("success"):
-        raise HTTPException(status_code=400, detail=result.get("error") or "Không xử lý lại được email OTA")
-    return _json_success(result, "Đã xử lý lại email OTA")
+    log = db.query(OTAParsingLog).filter(OTAParsingLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy log OTA")
+    if log.status != OTAParsingStatus.FAILED:
+        raise HTTPException(status_code=400, detail="Chỉ có thể retry email đã thất bại")
+    if (log.retry_count or 0) >= 3:
+        raise HTTPException(status_code=400, detail="Đã vượt quá giới hạn retry (3 lần)")
+    if (log.error_message or "").startswith("[RETRYING]"):
+        return JSONResponse({
+            "success": True,
+            "status": "processing",
+            "message": "Email OTA này đang được xử lý lại trong nền",
+            "log_id": log_id,
+        }, status_code=202)
+
+    log.error_message = "[RETRYING] Đang xử lý lại trong nền..."
+    log.last_retry_at = datetime.now(timezone.utc)
+    db.commit()
+    background_tasks.add_task(_run_retry_in_background, log_id)
+    return JSONResponse({
+        "success": True,
+        "status": "processing",
+        "message": "Đang xử lý lại email OTA trong nền",
+        "log_id": log_id,
+    }, status_code=202)
+
+
+@router.get("/api/pms/reservations/ota/retry/{log_id}/status", tags=["PMS Reservations"])
+def api_retry_status(
+    log_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    _require_login(request)
+    log = db.query(OTAParsingLog).filter(OTAParsingLog.id == log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Không tìm thấy log OTA")
+    is_processing = (log.error_message or "").startswith("[RETRYING]")
+    if is_processing and log.last_retry_at:
+        started_at = log.last_retry_at
+        if started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - started_at > timedelta(minutes=10):
+            log.error_message = "Retry email OTA quá thời gian xử lý"
+            db.commit()
+            is_processing = False
+    return JSONResponse({
+        "log_id": log_id,
+        "status": "processing" if is_processing else (log.status.value if hasattr(log.status, "value") else str(log.status)),
+        "error_message": log.error_message if not is_processing else None,
+        "booking_id": log.booking_id,
+        "retry_count": log.retry_count or 0,
+    })
+
+
+def _run_retry_in_background(log_id: int):
+    from ...db.session import SessionLocal
+    db = SessionLocal()
+    try:
+        result = ota_dashboard_service.retry_failed_email(db=db, log_id=log_id)
+        if not result.get("success"):
+            log = db.query(OTAParsingLog).filter(OTAParsingLog.id == log_id).first()
+            if log and (log.error_message or "").startswith("[RETRYING]"):
+                log.error_message = result.get("error") or "Không xử lý lại được email OTA"
+                db.commit()
+            logger.warning("[OTA Retry BG] log_id=%s failed: %s", log_id, result.get("error"))
+        else:
+            logger.info("[OTA Retry BG] log_id=%s succeeded, booking_id=%s", log_id, result.get("booking_id"))
+    except Exception:
+        logger.exception("[OTA Retry BG] log_id=%s exception", log_id)
+        try:
+            log = db.query(OTAParsingLog).filter(OTAParsingLog.id == log_id).first()
+            if log and (log.error_message or "").startswith("[RETRYING]"):
+                log.error_message = "Retry email OTA bị lỗi trong nền"
+                db.commit()
+        except Exception:
+            logger.exception("[OTA Retry BG] log_id=%s failed to clear retry marker", log_id)
+    finally:
+        db.close()
 
 
 @router.post("/api/pms/reservations/ota/scan-today", tags=["PMS Reservations"])
