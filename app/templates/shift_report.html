@@ -2276,7 +2276,8 @@
                     
                     const result = await response.json();
                     if (result.status === 'success') {
-                        this.charts.data = result.data; 
+                        this.charts.data = result.data;
+                        this.charts.loading = false;
                         this.renderBranchChart();
                     }
                 } catch (error) {
@@ -2762,7 +2763,7 @@
                     }
 
                     if (!branchToSend) {
-                        alert("Lỗi: Không xác định được chi nhánh để giao ca. Vui lòng tải lại trang.");
+                        // Admin/boss chưa chọn chi nhánh cụ thể — bỏ qua fetch
                         return;
                     }
 
