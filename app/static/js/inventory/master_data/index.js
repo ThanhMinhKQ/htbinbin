@@ -309,12 +309,14 @@ export function masterDataApp() {
             try {
                 const payload = {
                     name: product.name,
-                    category_id: product.category_id,
+                    code: product.code || null,
+                    category_id: product.category_id || null,
                     base_unit: product.base_unit,
-                    packing_unit: product.packing_unit,
-                    conversion_rate: product.conversion_rate,
-                    cost_price: product.cost_price,
-                    sell_price: product.sell_price,
+                    packing_unit: product.packing_unit || null,
+                    conversion_rate: product.conversion_rate || 1,
+                    min_stock_global: product.min_stock_global || 0,
+                    cost_price: product.cost_price || 0,
+                    sell_price: product.sell_price || 0,
                     is_active: product.is_active,
                     is_sellable: product.is_sellable,
                 };

@@ -33,10 +33,10 @@ class CategoryUpdateSchema(BaseModel):
 class ProductSchema(BaseModel):
     name: str
     code: Optional[str] = None
-    category_id: int
-    base_unit: str              
-    packing_unit: Optional[str] = None 
-    conversion_rate: int = 1    
+    category_id: Optional[int] = None
+    base_unit: str
+    packing_unit: Optional[str] = None
+    conversion_rate: int = 1
     min_stock_global: int = 0
     cost_price: float = 0
     sell_price: float = 0
