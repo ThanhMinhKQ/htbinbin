@@ -262,7 +262,14 @@
         <div
             class="inventory-request-pagination p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-4">
-                <div class="inventory-request-muted text-sm text-slate-500" id="request-record-count"></div>
+                <div class="inventory-request-muted text-sm text-slate-500">
+                    <template x-if="totalRecords > 0">
+                        <span>Hiển thị <span class="font-bold text-slate-700 dark:text-slate-300" x-text="historyList.length"></span> / <span class="font-bold text-slate-700 dark:text-slate-300" x-text="totalRecords"></span> phiếu</span>
+                    </template>
+                    <template x-if="totalRecords === 0">
+                        <span>Không có yêu cầu nào.</span>
+                    </template>
+                </div>
                 <select x-model="perPage" @change="fetchHistory(1)"
                     class="inventory-request-select ml-2 text-sm border-slate-200 dark:border-slate-700 rounded-lg focus:ring-blue-500 bg-white dark:bg-slate-800">
                     <option value="10">10 / trang</option>
@@ -272,7 +279,26 @@
                 </select>
             </div>
 
-            <div id="request-pagination-controls" class="flex items-center gap-1" x-show="totalPages > 1"></div>
+            <div class="flex items-center gap-1" x-show="totalPages > 1">
+                <button @click="changePage(1)" :disabled="currentPage === 1"
+                    class="px-3 py-1 rounded-lg border text-sm font-semibold transition-colors"
+                    :class="currentPage === 1 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'">&laquo;</button>
+                <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1"
+                    class="px-3 py-1 rounded-lg border text-sm font-semibold transition-colors"
+                    :class="currentPage === 1 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'">&lsaquo;</button>
+                <template x-for="p in getPaginationPages()" :key="'page-'+p">
+                    <button x-show="p !== '...'" @click="changePage(p)"
+                        class="px-3 py-1 rounded-lg border text-sm font-semibold transition-colors"
+                        :class="p === currentPage ? 'bg-blue-600 text-white border-blue-600 cursor-default shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'"
+                        x-text="p"></button>
+                </template>
+                <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalPages"
+                    class="px-3 py-1 rounded-lg border text-sm font-semibold transition-colors"
+                    :class="currentPage === totalPages ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'">&rsaquo;</button>
+                <button @click="changePage(totalPages)" :disabled="currentPage === totalPages"
+                    class="px-3 py-1 rounded-lg border text-sm font-semibold transition-colors"
+                    :class="currentPage === totalPages ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'">&raquo;</button>
+            </div>
         </div>
     </div>
 </div>

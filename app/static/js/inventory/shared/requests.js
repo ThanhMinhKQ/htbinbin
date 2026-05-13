@@ -28,7 +28,6 @@ export default function(config) {
                     this.totalRecords = data.length;
                     this.totalPages = 1;
                 }
-                this.renderPagination();
                 this.updateSortIndicators();
             }
         } catch (e) {
@@ -79,63 +78,21 @@ export default function(config) {
     },
 
     // --- PAGINATION UI ---
-    renderPagination() {
-        const paginationEl = document.getElementById('request-pagination-controls');
-        const countEl = document.getElementById('request-record-count');
-        if (!paginationEl || !countEl) return;
-
-        paginationEl.innerHTML = '';
-
-        if (this.totalRecords === 0) {
-            countEl.textContent = 'Không có yêu cầu nào.';
-            return;
+    getPaginationPages() {
+        const total = this.totalPages;
+        const current = this.currentPage;
+        if (total <= 5) {
+            return Array.from({length: total}, (_, i) => i + 1);
         }
-
-        countEl.innerHTML = `Hiển thị <span class="font-bold text-slate-700 dark:text-slate-300">${this.historyList.length}</span> / <span class="font-bold text-slate-700 dark:text-slate-300">${this.totalRecords}</span> phiếu`;
-
-        if (this.totalPages <= 1) return;
-
-        const createButton = (text, page, isDisabled = false, isCurrent = false) => {
-            const button = document.createElement('button');
-            button.innerHTML = text;
-            let baseClasses = 'px-3 py-1 rounded-lg border text-sm font-semibold transition-colors';
-            if (isCurrent) button.className = `${baseClasses} bg-blue-600 text-white border-blue-600 cursor-default shadow-sm`;
-            else if (isDisabled) button.className = `${baseClasses} bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700 cursor-not-allowed`;
-            else button.className = `${baseClasses} bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300`;
-
-            if (!isDisabled && !isCurrent) {
-                button.addEventListener('click', () => {
-                    this.changePage(page);
-                });
-            }
-            return button;
-        };
-
-        paginationEl.appendChild(createButton('&laquo;', 1, this.currentPage === 1));
-        paginationEl.appendChild(createButton('&lsaquo;', this.currentPage - 1, this.currentPage === 1));
-
-        let startPage = Math.max(1, this.currentPage - 2);
-        let endPage = Math.min(this.totalPages, this.currentPage + 2);
-
-        if (this.currentPage <= 3) endPage = Math.min(5, this.totalPages);
-        if (this.currentPage > this.totalPages - 3) startPage = Math.max(1, this.totalPages - 4);
-
-        if (startPage > 1) {
-            paginationEl.appendChild(createButton('1', 1));
-            if (startPage > 2) paginationEl.insertAdjacentHTML('beforeend', `<span class="px-2 text-slate-400">...</span>`);
+        let pages = [];
+        let start = Math.max(1, current - 2);
+        let end = Math.min(total, current + 2);
+        if (current <= 3) end = Math.min(5, total);
+        if (current > total - 3) start = Math.max(1, total - 4);
+        for (let i = start; i <= end; i++) {
+            pages.push(i);
         }
-
-        for (let i = startPage; i <= endPage; i++) {
-            paginationEl.appendChild(createButton(i, i, false, i === this.currentPage));
-        }
-
-        if (endPage < this.totalPages) {
-            if (endPage < this.totalPages - 1) paginationEl.insertAdjacentHTML('beforeend', `<span class="px-2 text-slate-400">...</span>`);
-            paginationEl.appendChild(createButton(this.totalPages, this.totalPages));
-        }
-
-        paginationEl.appendChild(createButton('&rsaquo;', this.currentPage + 1, this.currentPage === this.totalPages));
-        paginationEl.appendChild(createButton('&raquo;', this.totalPages, this.currentPage === this.totalPages));
+        return pages;
     },
 
     // --- SELECTION ---

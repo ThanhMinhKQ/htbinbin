@@ -79,7 +79,6 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
             } catch (e) { console.error("Error initializing app data", e); }
 
             this.$nextTick(() => {
-                this.renderPagination();
                 this.updateSortIndicators();
             });
 
@@ -125,10 +124,6 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 } else if (tab === 'export') {
                     setTimeout(() => this.fetchExports(1), 100);
                 } else {
-                    this.$nextTick(() => {
-                        this.renderPagination();
-                        this.updateSortIndicators();
-                    });
                     setTimeout(() => this.fetchStockOnly(), 2000);
                 }
             } catch (e) {
