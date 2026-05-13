@@ -316,10 +316,15 @@ export default function(config) {
                     await this.uploadReceiptImages(this.receivingTicket.id);
                 }
 
-                alert(data.message);
+                // Cập nhật status local ngay để ẩn nút Nhận trước khi fetch
+                const receivedId = this.receivingTicket.id;
+                const idx = this.historyList.findIndex(t => t.id === receivedId);
+                if (idx !== -1) this.historyList[idx].status = 'COMPLETED';
+
                 this.closeReceiptModal();
+                alert(data.message);
                 await this.fetchHistory(this.currentPage);
-                await this.fetchApprovals(); // Refresh approvals tab too if needed
+                await this.fetchApprovals();
             } else {
                 alert(data.detail || "Lỗi khi nhận hàng");
             }
