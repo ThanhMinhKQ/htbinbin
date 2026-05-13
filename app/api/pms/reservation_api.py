@@ -271,19 +271,22 @@ def _is_cancel_booking_log(log: OTAParsingLog) -> bool:
 
 def _is_modification_booking_log(log: OTAParsingLog) -> bool:
     """Log có action_type=MODIFY và booking có has_unread_modification=true."""
-    if log.status != OTAParsingStatus.SUCCESS or not log.booking_id:
+    try:
+        if log.status != OTAParsingStatus.SUCCESS or not log.booking_id:
+            return False
+        data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
+        if data.get("status") == "SKIPPED" or data.get("non_booking"):
+            return False
+        action_type = str(data.get("action_type") or "").upper()
+        if action_type != "MODIFY":
+            return False
+        booking = log.booking
+        if not booking:
+            return False
+        raw = booking.raw_data if isinstance(booking.raw_data, dict) else {}
+        return bool(raw.get("has_unread_modification"))
+    except Exception:
         return False
-    data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
-    if data.get("status") == "SKIPPED" or data.get("non_booking"):
-        return False
-    action_type = str(data.get("action_type") or "").upper()
-    if action_type != "MODIFY":
-        return False
-    booking = log.booking
-    if not booking:
-        return False
-    raw = booking.raw_data if isinstance(booking.raw_data, dict) else {}
-    return bool(raw.get("has_unread_modification"))
 
 
 
@@ -693,7 +696,7 @@ def api_mark_modification_read(
     return JSONResponse({"ok": True, "booking_id": booking_id})
 
 
-
+@router.get("/api/pms/reservations/ota/logs", tags=["PMS Reservations"])
 def api_ota_logs(
     request: Request,
     status: Optional[str] = None,
