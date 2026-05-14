@@ -18,6 +18,27 @@ router = APIRouter()
 APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 templates = Jinja2Templates(directory=os.path.join(APP_ROOT, "app", "templates"))
 
+
+def _natural_branch_key(branch_code: Optional[str]) -> tuple[int, int, str]:
+    code = (branch_code or "").upper()
+    if code == "ADMIN":
+        return (0, 0, code)
+    if code.startswith("B") and code[1:].isdigit():
+        return (1, int(code[1:]), code)
+    if code:
+        return (2, 0, code)
+    return (3, 0, "")
+
+
+def _warehouse_sort_key(warehouse: Warehouse) -> tuple[int, int, int, str, int, str]:
+    branch = getattr(warehouse, "branch", None)
+    branch_code = getattr(branch, "branch_code", None)
+    branch_rank, branch_number, branch_text = _natural_branch_key(branch_code)
+    warehouse_type = (warehouse.type or "").upper()
+    special_rank = 0 if warehouse_type == "MAIN" or branch_rank == 0 else 1 if warehouse_type == "TRANSIT" else 2
+    type_rank = 0 if special_rank < 2 else 1
+    return (type_rank, special_rank, branch_number, branch_text, warehouse.sort_order or 0, warehouse.name or "")
+
 @router.get("/", response_class=HTMLResponse)
 async def inventory_page(request: Request, db: Session = Depends(get_db)):
     """Trang chủ kho: Hiển thị Dashboard tồn kho"""
@@ -56,10 +77,13 @@ async def manager_dashboard(
     # [MODIFIED] Filter: Only show ADMIN and "Bin Bin Hotel" branches (B1...B17)
     # Hide: KTV, QL, BOSS, DI DONG
     all_branches = db.query(Branch).order_by(Branch.id).all()
-    branches = [
-        b for b in all_branches 
-        if b.branch_code.upper() == 'ADMIN' or (b.branch_code.upper().startswith('B') and b.branch_code[1:].isdigit())
-    ]
+    branches = sorted(
+        [
+            b for b in all_branches
+            if b.branch_code.upper() == 'ADMIN' or (b.branch_code.upper().startswith('B') and b.branch_code[1:].isdigit())
+        ],
+        key=lambda b: _natural_branch_key(b.branch_code)
+    )
     
     # [NEW] 2. Determine Current Branch ID & Warehouse ID
     current_branch_id = branch_id # Deprecated but kept for compatibility
@@ -98,7 +122,10 @@ async def manager_dashboard(
     # 3. Fetch Master Data
     products = db.query(Product).options(joinedload(Product.category)).filter(Product.is_active == True).all()
     categories = db.query(ProductCategory).all()
-    warehouses = db.query(Warehouse).order_by(Warehouse.type.desc(), Warehouse.sort_order).all()
+    warehouses = sorted(
+        db.query(Warehouse).options(joinedload(Warehouse.branch)).all(),
+        key=_warehouse_sort_key
+    )
 
     products_data = [
         {
@@ -254,7 +281,10 @@ async def reception_request_page(
             if user_obj.department:
                 user_role = user_obj.department.role_code
 
-    warehouses = db.query(Warehouse).order_by(Warehouse.type.desc(), Warehouse.sort_order).all()
+    warehouses = sorted(
+        db.query(Warehouse).options(joinedload(Warehouse.branch)).all(),
+        key=_warehouse_sort_key
+    )
     
     # [NEW] Find warehouse ID for the current branch
     current_warehouse_id = None

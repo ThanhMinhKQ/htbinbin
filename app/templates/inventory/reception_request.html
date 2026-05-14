@@ -10,16 +10,17 @@
 {% block app_header_actions %}
 <div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'overview' }" class="flex items-center gap-3 max-w-full overflow-x-auto">
     {% if user_role not in ('letan',) %}
-    <select
-        class="form-select text-xs rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] py-2 pl-2 pr-7 min-w-0 w-auto max-w-[160px] sm:max-w-[200px]"
-        onchange="window.location.href='?warehouse_id=' + this.value">
+    <div class="inv-header-warehouse-control">
+        <label class="inv-header-warehouse-label">Kho</label>
+        <select class="inv-header-warehouse-select" onchange="changeReceptionWarehouse(this)">
         <option value="">Chọn Kho</option>
         {% for w in warehouses %}
         <option value="{{ w.id }}" {% if current_warehouse_id == w.id %}selected{% endif %}>
             {{ w.name }}
         </option>
         {% endfor %}
-    </select>
+        </select>
+    </div>
     {% endif %}
     <div class="inv-main-tabs inline-flex min-h-11 items-center gap-1 p-1">
         <button type="button" @click="tab = 'overview'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'overview' }))"
@@ -125,6 +126,17 @@
 
 <!-- Initialize Global Data from Script Tags -->
 <script>
+    function changeReceptionWarehouse(el) {
+        const currentUrl = new window.URL(window.location.href);
+        if (el.value) {
+            currentUrl.searchParams.set('warehouse_id', el.value);
+        } else {
+            currentUrl.searchParams.delete('warehouse_id');
+        }
+        currentUrl.searchParams.set('page', 1);
+        window.location.href = currentUrl.toString();
+    }
+
     try {
         window.INITIAL_RECORDS = JSON.parse(document.getElementById('initial-data').textContent || '{}');
         window.PRODUCT_DB = JSON.parse(document.getElementById('products-data').textContent || '[]');
@@ -143,7 +155,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.2")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.3")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;

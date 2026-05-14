@@ -93,9 +93,8 @@ async def checkin_success(request: Request, db: Session = Depends(get_db)):
     # Boss & Admin vào thẳng, không cần xử lý log
     if session_user.get("role") in ["boss", "admin"]:
         request.session["user"] = dict(session_user)
-        request.session["after_checkin"] = "choose_function"
         request.session.pop("pending_user", None)
-        return JSONResponse({"success": True, "redirect_to": str(request.url_for('choose_function'))})
+        return JSONResponse({"success": True, "redirect_to": "/pms"})
 
     # Các role khác cần cập nhật AttendanceLog
     data = await request.json()
@@ -113,10 +112,9 @@ async def checkin_success(request: Request, db: Session = Depends(get_db)):
 
     # Cập nhật session chính thức
     request.session["user"] = session_user
-    request.session["after_checkin"] = "choose_function"
     request.session.pop("pending_user", None)
 
-    return JSONResponse({"success": True, "redirect_to": str(request.url_for('choose_function'))})
+    return JSONResponse({"success": True, "redirect_to": "/pms"})
 
 @router.get("/checkin_status")
 async def checkin_status(request: Request, token: str, db: Session = Depends(get_db)):
@@ -147,7 +145,7 @@ async def checkin_status(request: Request, token: str, db: Session = Depends(get
 
         request.session.pop("pending_user", None)
         request.session.pop("qr_token", None)
-        return JSONResponse(content={"checked_in": True, "redirect_to": str(request.url_for('choose_function'))})
+        return JSONResponse(content={"checked_in": True, "redirect_to": "/pms"})
 
     return JSONResponse(content={"checked_in": False})
 
@@ -177,7 +175,7 @@ async def show_qr(request: Request, db: Session = Depends(get_db)):
             # Nếu đã check-in, cập nhật session và chuyển hướng
             request.session["user"] = user_session
             request.session.pop("pending_user", None)
-            return RedirectResponse("/choose-function", status_code=303)
+            return RedirectResponse("/pms", status_code=303)
         else:
             # Nếu log đã tồn tại nhưng chưa check-in, dùng lại token cũ
             qr_token = log.token

@@ -168,39 +168,7 @@ def view_attendance_calendar(
                 employee_data[emp_code]["role_key"] = normalized_key
                 employee_data[emp_code]["role"] = ROLE_MAP.get(rec.role_snapshot, rec.role_snapshot)
 
-        # --- GIAI ĐOẠN 3: BỔ SUNG NHÂN VIÊN HIỆN TẠI (CHƯA CÓ CÔNG) ---
-        # Mục đích: Hiển thị nhân viên mới hoặc nhân viên nghỉ làm cả tháng nhưng vẫn thuộc biên chế
-        if True: 
-            # Thêm filter(User.is_active == True) để loại bỏ nhân viên đã nghỉ
-            current_user_query = db.query(User).filter(User.is_active == True).options(joinedload(User.department), joinedload(User.main_branch))
-            
-            if chi_nhanh in role_map_filter:
-                current_user_query = current_user_query.join(User.department).filter(Department.role_code == role_map_filter[chi_nhanh])
-            elif chi_nhanh in code_prefix_filter:
-                current_user_query = current_user_query.filter(User.employee_code.startswith(code_prefix_filter[chi_nhanh]))
-            elif chi_nhanh == 'DI DONG':
-                # [MỚI] Thêm logic lọc riêng cho DI DONG
-                current_user_query = current_user_query.join(User.main_branch).filter(Branch.branch_code == 'DI DONG')
-            else:
-                 # Lọc theo chi nhánh chính hiện tại (B1, B2...)
-                current_user_query = current_user_query.join(User.main_branch).filter(Branch.branch_code == chi_nhanh)
-            
-            # Loại bỏ những người đã được thêm từ lịch sử
-            if target_emp_codes:
-                current_user_query = current_user_query.filter(User.employee_code.notin_(target_emp_codes))
-            
-            current_employees = current_user_query.all()
-            
-            for emp in current_employees:
-                emp_code = emp.employee_code
-                if emp_code not in employee_data:
-                    employee_data[emp_code]["name"] = emp.name
-                    employee_data[emp_code]["main_branch"] = emp.main_branch.branch_code if emp.main_branch else ''
-                    role_code = emp.department.role_code if emp.department else 'khac'
-                    employee_data[emp_code]["role_key"] = role_code
-                    employee_data[emp_code]["role"] = ROLE_MAP.get(role_code, role_code)
-
-        # --- GIAI ĐOẠN 4: MAPPING DỮ LIỆU CÔNG VÀO VIEW (GIỮ NGUYÊN LOGIC CŨ) ---
+        # --- GIAI ĐOẠN 3: MAPPING DỮ LIỆU CÔNG VÀO VIEW (GIỮ NGUYÊN LOGIC CŨ) ---
         for rec in all_records:
             is_att = isinstance(rec, AttendanceRecord)
             dt = rec.attendance_datetime if is_att else rec.service_datetime
@@ -249,6 +217,19 @@ def view_attendance_calendar(
                 if "service_summary" in day_data:
                     summary = day_data.pop("service_summary")
                     day_data["services"] = [f"{k}: {v}" for k, v in summary.items()]
+
+        # Chỉ hiển thị nhân viên có ít nhất một công thực tế trong tháng đang xem.
+        # Các record work_units = 0 hoặc chỉ có dữ liệu phụ không tạo hàng trên bảng lịch.
+        empty_work_employee_codes = [
+            emp_code
+            for emp_code, emp_details in employee_data.items()
+            if not any(
+                (day_data.get("work_units") or 0) > 0
+                for day_data in emp_details["daily_work"].values()
+            )
+        ]
+        for emp_code in empty_work_employee_codes:
+            employee_data.pop(emp_code, None)
 
         # === BƯỚC 4: TỐI ƯU HÓA - LẤY DỮ LIỆU THỐNG KÊ MỘT LẦN ===
         # 1. Xác định danh sách nhân viên chính của view này để lấy dữ liệu

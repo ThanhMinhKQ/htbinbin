@@ -147,12 +147,14 @@
                             <td class="px-4 py-3 text-center font-bold" x-text="t.items.length"></td>
                             <td class="px-4 py-3 text-right">
                                 <!-- Action: Approve (Only PENDING) -->
-                                <button x-show="t.status === 'PENDING'" @click="openApprovalModal(t)"
-                                    class="px-3 py-1.5 text-xs font-bold text-white bg-orange-500 rounded hover:bg-orange-600 shadow-sm transition transform hover:scale-105">
-                                    Duyệt ngay
-                                </button>
+                                <template x-if="approvalFilter === 'PENDING' && t.status === 'PENDING'">
+                                    <button @click="openApprovalModal(t)"
+                                        class="px-3 py-1.5 text-xs font-bold text-white bg-orange-500 rounded hover:bg-orange-600 shadow-sm transition transform hover:scale-105">
+                                        Duyệt ngay
+                                    </button>
+                                </template>
                                 <!-- Action: View Detail (History) -->
-                                <button x-show="t.status !== 'PENDING'" @click="openApprovalDetailModal(t)"
+                                <button x-show="approvalFilter === 'HISTORY' || t.status !== 'PENDING'" @click="openApprovalDetailModal(t)"
                                     class="px-3 py-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 rounded hover:bg-slate-200 shadow-sm transition">
                                     Xem chi tiết
                                 </button>

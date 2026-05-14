@@ -85,7 +85,16 @@
                     </tr>
                 </template>
                 <tr x-show="products.length === 0">
-                    <td colspan="9" class="px-6 py-8 text-center text-slate-500">Không tìm thấy sản phẩm nào
+                    <td colspan="9" class="p-12 text-center text-slate-500">
+                        <div class="inv-empty-state">
+                            <div class="inv-empty-icon">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                            </div>
+                            <span>Không tìm thấy sản phẩm nào</span>
+                        </div>
                     </td>
                 </tr>
             </tbody>

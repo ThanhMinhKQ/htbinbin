@@ -8,11 +8,9 @@
 {% endblock %}
 
 {% block app_header_actions %}
-<div class="flex items-center gap-2 shrink-0">
-    <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Kho:</label>
-    <select
-        class="form-select text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] w-44"
-        onchange="changeWarehouse(this)">
+<div class="inv-header-warehouse-control">
+    <label class="inv-header-warehouse-label">Kho</label>
+    <select class="inv-header-warehouse-select" onchange="changeWarehouse(this)">
         <option value="">Chọn Kho Hàng</option>
         {% for w in warehouses %}
         <option value="{{ w.id }}" {% if current_warehouse_id==w.id %}selected{% endif %}>
@@ -165,7 +163,7 @@
             init() {
                 // Dynamically import the module
                 // Use new INVENTORY MANAGER module
-                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.6")
+                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.7")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.inventoryManagerApp;

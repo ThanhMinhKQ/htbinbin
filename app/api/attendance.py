@@ -532,13 +532,12 @@ async def attendance_checkin_bulk(
             
             # Chuyển Session từ Pending -> User chính thức
             request.session["user"] = session_user
-            request.session["after_checkin"] = "choose_function"
             request.session.pop("pending_user", None)
-            
+
             return {
-                "status": "success", 
-                "inserted": len(new_records), 
-                "redirect_to": str(request.url_for('choose_function'))
+                "status": "success",
+                "inserted": len(new_records),
+                "redirect_to": "/pms"
             }
 
         return {"status": "success", "inserted": len(new_records)}

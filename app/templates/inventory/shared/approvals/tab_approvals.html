@@ -133,15 +133,17 @@
                             <td class="px-4 py-3 text-center font-bold" x-text="t.items.length"></td>
                             <td class="px-4 py-3 text-right">
                                 <!-- Action: Approve (Only PENDING) -->
-                                <button x-show="t.status === 'PENDING'" @click="openApprovalModal(t)"
-                                    class="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600">
-                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    Duyệt
-                                </button>
+                                <template x-if="approvalFilter === 'PENDING' && t.status === 'PENDING'">
+                                    <button @click="openApprovalModal(t)"
+                                        class="inline-flex items-center gap-1.5 rounded-full bg-orange-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-orange-600">
+                                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        Duyệt
+                                    </button>
+                                </template>
                                 <!-- Action: View Detail (History) -->
-                                <button x-show="t.status !== 'PENDING'" @click="openApprovalDetailModal(t)"
+                                <button x-show="approvalFilter === 'HISTORY' || t.status !== 'PENDING'" @click="openApprovalDetailModal(t)"
                                     class="inv-action-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold shadow-sm transition hover:bg-slate-100 dark:hover:bg-slate-800">
                                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />

@@ -64,6 +64,24 @@ class OTAExtractor:
             logger.error(f"[OTA Extractor] Cleaning error: {e}")
             return html_content
 
+    def _parse_json_content(self, content):
+        if isinstance(content, dict):
+            return content
+        if not isinstance(content, str):
+            raise json.JSONDecodeError("Expected string JSON content", repr(content), 0)
+        text = content.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text, flags=re.IGNORECASE)
+            text = re.sub(r"\s*```$", "", text).strip()
+        return json.loads(text)
+
+    def _response_preview(self, value) -> str:
+        try:
+            preview = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+        except Exception:
+            preview = repr(value)
+        return re.sub(r"\s+", " ", preview).strip()[:300]
+
     def extract_data(self, html_content: str, sender: str, subject: str) -> dict:
         if not self.client:
             return {"error": "Missing GATECHEAP_API_KEY", "status": "FAILED"}
@@ -178,7 +196,15 @@ Email Content:
                 response.raise_for_status()
                 result = response.json()
                 content = result["choices"][0]["message"]["content"]
-                data = json.loads(content)
+                if not content or not str(content).strip():
+                    logger.warning(
+                        f"[OTA Extractor] Empty content from API; response preview: {self._response_preview(result)}"
+                    )
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delays[attempt])
+                        continue
+                    return {"error": "AI response content was empty after max retries", "status": "FAILED"}
+                data = self._parse_json_content(content)
                 data["status"] = "SUCCESS"
                 return data
 
@@ -192,7 +218,13 @@ Email Content:
                     return {"error": "Rate limit exceeded after max retries", "status": "FAILED"}
                 logger.error(f"[OTA Extractor] API Error: {e}")
                 return {"error": str(e), "status": "FAILED"}
-            except (json.JSONDecodeError, KeyError, IndexError) as e:
+            except json.JSONDecodeError as e:
+                logger.warning(f"[OTA Extractor] Invalid JSON content: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delays[attempt])
+                    continue
+                return {"error": f"Response parse error after max retries: {e}", "status": "FAILED"}
+            except (KeyError, IndexError) as e:
                 logger.error(f"[OTA Extractor] Parse Error: {e}")
                 return {"error": f"Response parse error: {e}", "status": "FAILED"}
             except Exception as e:

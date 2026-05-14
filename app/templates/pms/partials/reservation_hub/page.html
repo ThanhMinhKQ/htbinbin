@@ -9,9 +9,8 @@
             <label>Chi nhánh</label>
             <select id="bk-branch" class="bk-select bk-branch-select" onchange="BookingHub.changeBranch(this.value)">
               {% for b in branches %}
-              {% set code = b.branch_code or '' %}
               <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% elif not branch and loop.first %}selected{% endif %}>
-                {% if code and code[0] == 'B' and code[1:].isdigit() %}Bin Bin Hotel {{ code[1:] }}{% else %}{{ b.name }}{% endif %}
+                {{ b.name }}
               </option>
               {% endfor %}
             </select>
@@ -177,8 +176,7 @@
             <select class="bk-select" id="bk-ota-log-branch-filter" onchange="BookingHub.loadOtaLogs()">
               <option value="">Tất cả chi nhánh</option>
               {% for b in branches %}
-              {% set code = b.branch_code or '' %}
-              <option value="{{ b.id }}">{% if code and code[0] == 'B' and code[1:].isdigit() %}Bin Bin Hotel {{ code[1:] }}{% else %}{{ b.name }}{% endif %}</option>
+              <option value="{{ b.id }}">{{ b.name }}</option>
               {% endfor %}
             </select>
             {% endif %}

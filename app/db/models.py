@@ -979,6 +979,15 @@ class HotelRoomType(Base):
     # --- Hybrid pricing config ---
     grace_minutes       = Column(Integer, default=10)     # Dư > N phút → làm tròn +1h
     day_threshold_hours = Column(Integer, default=8)     # >= N giờ → tính ngày
+    hourly_to_daily_threshold = Column(Integer, default=8)
+
+    # --- Night short-stay config ---
+    night_short_stay_enabled = Column(Boolean, default=False)
+    night_short_stay_start = Column(Time, nullable=True)
+    night_short_stay_end = Column(Time, nullable=True)
+    night_short_stay_max_hours = Column(Integer, default=8)
+    night_short_stay_price = Column(NUMERIC(15, 2), nullable=True)
+    night_audit_hour = Column(Integer, nullable=True)
 
     branch = relationship("Branch")
     rooms  = relationship("HotelRoom", back_populates="room_type_obj")
@@ -1005,6 +1014,7 @@ class HotelRoom(Base):
     is_active      = Column(Boolean, default=True)
     sort_order     = Column(Integer, default=0)
     created_at     = Column(DateTime(timezone=True), server_default=func.now())
+    housekeeping_status = Column(String(50), default="CLEAN")
 
     branch        = relationship("Branch")
     room_type_obj = relationship("HotelRoomType", back_populates="rooms")

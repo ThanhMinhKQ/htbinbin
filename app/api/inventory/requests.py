@@ -137,17 +137,27 @@ async def get_request_detail(
         # Since it's a single detail view, we can just query for this family specifically
         tx_map = {}
         if t.status != TicketStatus.PENDING:
+            for i in t.items:
+                if i.received_quantity is not None:
+                    tx_map.setdefault(t.id, {})[i.product_id] = tx_map.setdefault(t.id, {}).get(i.product_id, 0.0) + float(i.received_quantity)
+
+            for ct in t.compensation_transfers:
+                for cti in ct.items:
+                    if cti.received_quantity is not None:
+                        tx_map.setdefault(ct.id, {})[cti.product_id] = tx_map.setdefault(ct.id, {}).get(cti.product_id, 0.0) + float(cti.received_quantity)
+
             batch_txs = db.query(StockMovement).filter(
                 StockMovement.ref_ticket_id.in_(related_ids_family),
                 StockMovement.transaction_type == TransactionTypeWMS.IMPORT_TRANSFER,
-                StockMovement.ref_ticket_type == 'TRANSFER_IN'
+                StockMovement.ref_ticket_type.in_(['TRANSFER_IN', 'InventoryTransfer'])
             ).all()
             for tx in batch_txs:
                 tid = tx.ref_ticket_id
                 if tid not in tx_map: tx_map[tid] = {}
                 pid = tx.product_id
                 qty = float(tx.quantity_change)
-                tx_map[tid][pid] = tx_map[tid].get(pid, 0.0) + qty
+                if pid not in tx_map[tid]:
+                    tx_map[tid][pid] = qty
 
         def get_received_qty_from_map_local(ticket_ids_to_check, product_id):
             total = 0.0
@@ -490,23 +500,34 @@ async def get_request_tickets(
     # 2. Batch Fetch Transactions (SKIP IF PENDING ONLY)
     # PENDING tickets have no transactions yet, so we can save a huge DB query here.
     tx_map = {}
-    if not is_pending_only: 
+    if not is_pending_only:
+        for t in tickets:
+            for i in t.items:
+                if i.received_quantity is not None:
+                    tx_map.setdefault(t.id, {})[i.product_id] = tx_map.setdefault(t.id, {}).get(i.product_id, 0.0) + float(i.received_quantity)
+            if t.compensation_transfers:
+                for ct in t.compensation_transfers:
+                    for cti in ct.items:
+                        if cti.received_quantity is not None:
+                            tx_map.setdefault(ct.id, {})[cti.product_id] = tx_map.setdefault(ct.id, {}).get(cti.product_id, 0.0) + float(cti.received_quantity)
+
         batch_txs = []
         if all_ticket_ids:
             batch_txs = db.query(StockMovement).filter(
                 StockMovement.ref_ticket_id.in_(all_ticket_ids),
                 StockMovement.transaction_type == TransactionTypeWMS.IMPORT_TRANSFER,
-                StockMovement.ref_ticket_type == 'TRANSFER_IN'
+                StockMovement.ref_ticket_type.in_(['TRANSFER_IN', 'InventoryTransfer'])
             ).all()
-            
+
         # 3. Map Transactions by Ticket ID -> Product ID
         for tx in batch_txs:
             tid = tx.ref_ticket_id
             if tid not in tx_map: tx_map[tid] = {}
-            
+
             pid = tx.product_id
             qty = float(tx.quantity_change)
-            tx_map[tid][pid] = tx_map[tid].get(pid, 0.0) + qty
+            if pid not in tx_map[tid]:
+                tx_map[tid][pid] = qty
 
     def get_received_qty_from_map(ticket_ids_to_check, product_id):
         if is_pending_only: return 0.0 # Optimization

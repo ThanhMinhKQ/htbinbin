@@ -117,7 +117,17 @@
 
         <!-- Giao diện chung cho tất cả các vai trò có quyền xem dashboard -->
         <div x-show="userRole === 'admin' || userRole === 'boss' || userRole === 'quanly'" class="space-y-6 mb-6" x-cloak>
-            <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-sm p-5" x-show="userRole !== 'letan'">
+            <div class="relative bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-2xl shadow-sm p-5" x-show="userRole !== 'letan'">
+                <div x-show="charts.moneyRefreshing" x-transition.opacity class="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm">
+                    <div class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-lg">
+                        <div class="flex items-center gap-1.5" aria-hidden="true">
+                            <span class="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:-0.2s]"></span>
+                            <span class="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:-0.1s]"></span>
+                            <span class="h-2 w-2 animate-bounce rounded-full bg-blue-500"></span>
+                        </div>
+                        <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Đang cập nhật số tiền...</span>
+                    </div>
+                </div>
                 <h3 class="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-4">Tổng Quan Doanh Thu</h3>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <!-- Card Tổng Doanh Thu (Theo PMS) -->
@@ -250,7 +260,17 @@
                 </div>
 
                 <!-- Bảng Đối Soát -->
-                <div class="lg:col-span-2 bg-white dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50 p-6">
+                <div class="relative lg:col-span-2 bg-white dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50 p-6">
+                    <div x-show="charts.moneyRefreshing" x-transition.opacity class="absolute inset-0 z-20 flex items-center justify-center rounded-2xl bg-white/80 dark:bg-slate-900/70 backdrop-blur-sm">
+                        <div class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 shadow-lg">
+                            <div class="flex items-center gap-1.5" aria-hidden="true">
+                                <span class="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:-0.2s]"></span>
+                                <span class="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:-0.1s]"></span>
+                                <span class="h-2 w-2 animate-bounce rounded-full bg-blue-500"></span>
+                            </div>
+                            <span class="text-sm font-semibold text-slate-700 dark:text-slate-200">Đang cập nhật số tiền...</span>
+                        </div>
+                    </div>
                     <div class="flex items-center gap-2.5 mb-4">
                         <svg class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75l-2.489-2.489m0 0a3.375 3.375 0 10-4.773-4.773 3.375 3.375 0 004.774 4.774zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                         <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-100">Bảng Đối Soát</h3>
@@ -1868,7 +1888,8 @@
 
             charts: {
                 loading: true,
-                data: { 
+                moneyRefreshing: false,
+                data: {
                     by_branch: [], 
                     by_type: {
                         closed_online: 0, pending_online: 0,
@@ -2158,8 +2179,7 @@
                         
                         if (data.has_changes) {
                             this.lastKnownMaxId = data.max_id;
-                            await this.fetchData();
-                            await this.fetchDashboardSummary();
+                            await this.refreshShiftReportState();
                         }
                     } catch (e) {
                         // Silently fail polling
@@ -2245,6 +2265,18 @@
             // ==========================================================
             // ============ LOGIC DASHBOARD (MỚI) =======================
             // ==========================================================
+            async refreshShiftReportState({ resetPage = false } = {}) {
+                if (resetPage) this.currentPage = 1;
+                this.charts.moneyRefreshing = true;
+                try {
+                    await this.fetchData();
+                    await this.fetchDashboardSummary();
+                    await this.fetchHandoverDataInternal();
+                } finally {
+                    this.charts.moneyRefreshing = false;
+                }
+            },
+
             async fetchDashboardSummary() {
                 this.charts.loading = true;
 
@@ -3113,13 +3145,7 @@
                     if (result.status === 'success') {
                         showToast('add');
                         this.closeAddModal();
-                        
-                        // Instant UI
-                        this.records.unshift(result.item); 
-                        this.records = [...this.records];
-                        this.totalRecords++;
-                        this.renderPagination(this.currentPage, Math.ceil(this.totalRecords / this.recordsPerPage), this.totalRecords, this.records.length);
-                        this.fetchDashboardSummary(); // CẬP NHẬT: Tải lại dashboard
+                        await this.refreshShiftReportState({ resetPage: true });
                     } else {
                         alert('Lỗi: ' + (result.message || 'Không nhận được dữ liệu hợp lệ.'));
                     }
@@ -3177,14 +3203,7 @@
                     if (result.status === 'success') {
                         showToast('update');
                         this.closeEditModal();
-
-                        // Instant UI
-                        const index = this.records.findIndex(r => r.id === this.editItem.id);
-                        if (index !== -1) {
-                            this.records.splice(index, 1, result.item);
-                            this.records = [...this.records];
-                        }
-                        this.fetchDashboardSummary(); // CẬP NHẬT: Tải lại dashboard
+                        await this.refreshShiftReportState();
 
                         // Cascade toast: Folio cũng được cập nhật
                         if (result.cascade_folio_updated) {
@@ -3322,8 +3341,7 @@
                     if (!response.ok) throw new Error(result.detail || 'Lỗi server');
                     
                     showToast('update', result.message); // Giả sử bạn có toast 'update'
-                    this.fetchData(); // Tải lại bảng chính
-                    this.fetchDashboardSummary(); // Tải lại dashboard
+                    await this.refreshShiftReportState({ resetPage: true });
                 } catch (error) {
                     alert('Lỗi khi hoàn tác: ' + error.message);
                 }
@@ -3342,8 +3360,7 @@
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.detail || 'Lỗi server');
                     showToast('delete', result.message);
-                    this.fetchData();
-                    this.fetchDashboardSummary();
+                    await this.refreshShiftReportState({ resetPage: true });
                 } catch (error) {
                     alert('Lỗi khi xóa kết ca: ' + error.message);
                 }
@@ -3367,14 +3384,11 @@
                     // SỬA: Chúng ta chỉ xử lý 'success' (vì backend đã sửa, không còn 'noop')
                     if (result.status === 'success') {
                         showToast('close', result.message);
-                        // Cập nhật UI
-                        const updatedItemsMap = new Map(result.items.map(item => [item.id, item]));
-                        this.records = this.records.map(record => updatedItemsMap.has(record.id) ? updatedItemsMap.get(record.id) : record);
                         this.selectedIds = [];
-                        this.fetchDashboardSummary();
-                        
+                        await this.refreshShiftReportState({ resetPage: true });
+
                         // SỬA: TRẢ VỀ LOG ID ĐỂ MỞ CHI TIẾT
-                        return result.log_id || null; 
+                        return result.log_id || null;
                     } else {
                         // Xử lý các trường hợp 'fail' hoặc status lạ khác
                         throw new Error(result.message || 'Trạng thái trả về không thành công.');
@@ -3414,21 +3428,7 @@
                     if (result.status === 'success') {
                         showToast('delete');
                         this.closeDetailsModal();
-
-                        // Instant UI (giữ nguyên logic)
-                        if (result.hard_delete) {
-                            this.records = this.records.filter(r => r.id !== result.deleted_id);
-                            this.totalRecords--;
-                        } else {
-                            const index = this.records.findIndex(r => r.id === itemId);
-                            if (index !== -1) {
-                                this.records.splice(index, 1, result.item);
-                                this.records = [...this.records];
-                            }
-                        }
-
-                        this.renderPagination(this.currentPage, Math.ceil(this.totalRecords / this.recordsPerPage), this.totalRecords, this.records.length);
-                        this.fetchDashboardSummary();
+                        await this.refreshShiftReportState({ resetPage: true });
 
                         // Cascade toast: thông báo Folio đã được void cùng lúc
                         if (result.cascade_folio_voided) {
@@ -3470,23 +3470,8 @@
                     showToast('delete');
                     
                     if (result.status === 'success') {
-                        // Instant UI (giữ nguyên logic)
-                        if (result.hard_delete) {
-                            this.records = this.records.filter(r => !result.ids.includes(r.id));
-                            this.totalRecords -= result.ids.length;
-                        } else {
-                            const updatedItemsMap = new Map(result.items.map(item => [item.id, item]));
-                            this.records = this.records.map(record => {
-                                if (updatedItemsMap.has(record.id)) {
-                                    return updatedItemsMap.get(record.id);
-                                }
-                                return record;
-                            });
-                        }
-                        
                         this.selectedIds = [];
-                        this.renderPagination(this.currentPage, Math.ceil(this.totalRecords / this.recordsPerPage), this.totalRecords, this.records.length);
-                        this.fetchDashboardSummary();
+                        await this.refreshShiftReportState({ resetPage: true });
                     }
                 } catch (error) {
                     alert('Lỗi khi xóa hàng loạt: ' + error.message);

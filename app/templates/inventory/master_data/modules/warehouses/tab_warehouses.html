@@ -48,8 +48,17 @@
                     </tr>
                 </template>
                 <tr x-show="warehouses.length === 0">
-                    <td colspan="6" class="px-6 py-8 text-center text-slate-500">Chưa có kho nào. Vui lòng tạo
-                        mới.</td>
+                    <td colspan="6" class="p-12 text-center text-slate-500">
+                        <div class="inv-empty-state">
+                            <div class="inv-empty-icon">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
+                                </svg>
+                            </div>
+                            <span>Chưa có kho nào. Vui lòng tạo mới.</span>
+                        </div>
+                    </td>
                 </tr>
             </tbody>
         </table>

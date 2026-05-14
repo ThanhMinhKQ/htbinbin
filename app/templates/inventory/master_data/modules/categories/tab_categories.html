@@ -39,7 +39,17 @@
                     </tr>
                 </template>
                 <tr x-show="categories.length === 0">
-                    <td colspan="4" class="px-6 py-8 text-center text-slate-500">Chưa có danh mục nào</td>
+                    <td colspan="4" class="p-12 text-center text-slate-500">
+                        <div class="inv-empty-state">
+                            <div class="inv-empty-icon">
+                                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 6h16M4 12h16M4 18h7" />
+                                </svg>
+                            </div>
+                            <span>Chưa có danh mục nào</span>
+                        </div>
+                    </td>
                 </tr>
             </tbody>
         </table>

@@ -89,6 +89,13 @@
     </thead>
     <tbody class="text-gray-800 dark:text-gray-300">
       {% for code, emp in employee_data.items() %}
+      {% set work_state = namespace(has_work=false) %}
+      {% for day_data in emp.daily_work.values() %}
+        {% if day_data.work_units > 0 %}
+          {% set work_state.has_work = true %}
+        {% endif %}
+      {% endfor %}
+      {% if work_state.has_work %}
       <tr class="employee-row border-b border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50 transition">
         <td id="employee-cell-{{ code }}" class="sticky left-0 bg-white dark:bg-slate-900 px-4 py-3 break-words z-10 border-r border-gray-200 dark:border-slate-700 group-hover:bg-gray-50 dark:group-hover:bg-slate-800/50">
           <div class="flex items-center justify-between">
@@ -218,6 +225,7 @@
             </div>
         </td>
       </tr>
+      {% endif %}
       {% endif %}
       {% else %}
       <tr>

@@ -1,4 +1,9 @@
 export default {
+    normalizeTicketStatus(status) {
+        if (status === null || status === undefined) return '';
+        if (typeof status === 'object' && 'value' in status) return String(status.value).trim().toUpperCase();
+        return String(status).trim().toUpperCase();
+    },
     formatMoney(amount) {
         return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
     },

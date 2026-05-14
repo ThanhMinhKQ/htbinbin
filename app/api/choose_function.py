@@ -27,7 +27,7 @@ async def choose_function(request: Request, db: Session = Depends(get_db)):
     if user_data:
         user_dict = {
             "id": user_data.get("id"),
-            "full_name": user_data.get("full_name"),
+            "full_name": user_data.get("name"),
             "role": user_data.get("role"),
         }
 

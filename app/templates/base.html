@@ -1065,16 +1065,6 @@
                         <span class="ml-3 nav-text">Lịch sử Phòng</span>
                     </a>
 
-                    <a href="/pms/crm"
-                        class="{{ nav_link_base }} {% if request.url.path.startswith('/pms/crm') %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
-                        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0"></path>
-                            <circle cx="12" cy="8" r="4"></circle>
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 8v6M16 11h6"></path>
-                        </svg>
-                        <span class="ml-3 nav-text">Khách hàng</span>
-                    </a>
-
                     <a href="/pms/booking"
                         class="{{ nav_link_base }} {% if request.url.path == '/pms/booking' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
                         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -1084,6 +1074,16 @@
                         </svg>
                         <span class="ml-3 nav-text">Quản lý Đặt phòng</span>
                         <span id="ota-nav-badge" class="ml-auto hidden min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white nav-text"></span>
+                    </a>
+
+                    <a href="/pms/crm"
+                        class="{{ nav_link_base }} {% if request.url.path.startswith('/pms/crm') %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
+                        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 19a4 4 0 0 0-8 0"></path>
+                            <circle cx="12" cy="8" r="4"></circle>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 8v6M16 11h6"></path>
+                        </svg>
+                        <span class="ml-3 nav-text">Khách hàng</span>
                     </a>
 
                     <a href="/pms/room-status"
@@ -1107,7 +1107,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round"
                             d="M9 4h6M8 9l1.5 1.5L13 7m-5 8l1.5 1.5L13 13" />
                     </svg>
-                    <span class="ml-3 nav-text">Công việc</span>
+                    <span class="ml-3 nav-text">Sửa chữa bảo trì</span>
                 </a>
 
                 {% if user and user.role|lower != 'ktv' %}
@@ -1186,7 +1186,7 @@
 
 
 
-                {% if user and user.role|lower in ['admin', 'manager', 'quanly'] %}
+                {% if user and user.role|lower in ['admin', 'manager', 'quanly', 'boss'] %}
 
                 <a href="/inventory/manager"
                     class="{{ nav_link_base }} {% if 'inventory/manager' in request.url.path %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
