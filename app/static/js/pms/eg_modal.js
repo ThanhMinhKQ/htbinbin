@@ -768,3 +768,13 @@ window.egCheckIdExpire = egCheckIdExpire;
 window.egCheckBirth = egCheckBirth;
 window.egSwitchMode = egSwitchMode;
 window.egToggleIdFields = egToggleIdFields;
+
+(function initEgVietnameseDateInputs() {
+    const init = () => {
+        if (typeof pmsEnsureVietnameseDateInputs === 'function') {
+            pmsEnsureVietnameseDateInputs(['eg-id-expire', 'eg-birth']);
+        }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();

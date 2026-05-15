@@ -3415,3 +3415,13 @@ document.addEventListener('DOMContentLoaded', () => {
         new ShadDateTimePicker(el);
     });
 });
+
+(function initCiVietnameseDateInputs() {
+    const init = () => {
+        if (typeof pmsEnsureVietnameseDateInputs === 'function') {
+            pmsEnsureVietnameseDateInputs(['ci-id-expire', 'ci-birth']);
+        }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();

@@ -2112,13 +2112,119 @@ function pmsScanDateToISO(dateStr) {
     return `${m[3]}-${m[2]}-${m[1]}`;
 }
 
+function pmsBuildISODate(year, month, day) {
+    const y = Number(year);
+    const m = Number(month);
+    const d = Number(day);
+    if (!y || !m || !d || m < 1 || m > 12 || d < 1 || d > 31) return "";
+    const dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return "";
+    return `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+}
+
+function pmsDateToISO(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return pmsBuildISODate(iso[1], iso[2], iso[3]);
+    const display = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+    if (display) return pmsBuildISODate(display[3], display[2], display[1]);
+    return "";
+}
+
+function pmsISODateToDisplay(value) {
+    const iso = pmsDateToISO(value);
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+}
+
+function pmsFormatDateTyping(value) {
+    const raw = String(value || "");
+    if (!raw || /^\d{4}-\d{1,2}-\d{0,2}$/.test(raw)) return raw;
+    if (!/^[\d\/.-]+$/.test(raw)) return raw;
+    const digits = raw.replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function pmsInstallVietnameseDateInput(input) {
+    if (!input || input.dataset.pmsDateDisplayInstalled === "1") return;
+
+    const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    if (!valueDescriptor?.get || !valueDescriptor?.set) return;
+
+    const currentValue = valueDescriptor.get.call(input);
+    input.dataset.pmsDateDisplayInstalled = "1";
+    input.dataset.pmsIsoValue = pmsDateToISO(currentValue);
+
+    try { input.type = "text"; } catch (_) {}
+    input.placeholder = "dd/mm/yyyy";
+    input.inputMode = "numeric";
+    input.autocomplete = "off";
+    input.setAttribute("data-date-format", "dd/mm/yyyy");
+    valueDescriptor.set.call(input, input.dataset.pmsIsoValue ? pmsISODateToDisplay(input.dataset.pmsIsoValue) : currentValue);
+
+    Object.defineProperty(input, "value", {
+        configurable: true,
+        get() {
+            const displayValue = valueDescriptor.get.call(this);
+            return pmsDateToISO(displayValue) || "";
+        },
+        set(nextValue) {
+            const raw = String(nextValue || "");
+            const iso = pmsDateToISO(raw);
+            this.dataset.pmsIsoValue = iso;
+            valueDescriptor.set.call(this, iso ? pmsISODateToDisplay(iso) : raw);
+        },
+    });
+
+    input.addEventListener("input", () => {
+        const raw = valueDescriptor.get.call(input);
+        const formatted = pmsFormatDateTyping(raw);
+        if (formatted !== raw) valueDescriptor.set.call(input, formatted);
+        input.dataset.pmsIsoValue = pmsDateToISO(valueDescriptor.get.call(input));
+    });
+
+    input.addEventListener("blur", () => {
+        const raw = valueDescriptor.get.call(input).trim();
+        const iso = pmsDateToISO(raw);
+        input.dataset.pmsIsoValue = iso;
+        if (iso) valueDescriptor.set.call(input, pmsISODateToDisplay(iso));
+    });
+}
+
+function pmsEnsureVietnameseDateInputs(ids = window.PMS_VN_DATE_INPUT_IDS || []) {
+    ids.forEach(id => pmsInstallVietnameseDateInput(document.getElementById(id)));
+}
+
+window.PMS_VN_DATE_INPUT_IDS = [
+    "ci-id-expire", "ci-birth",
+    "ag-id-expire", "ag-birth",
+    "eg-id-expire", "eg-birth",
+];
+
+function pmsInitVietnameseDateInputs() {
+    pmsEnsureVietnameseDateInputs(window.PMS_VN_DATE_INPUT_IDS);
+}
+
 window.pmsParseScanCCCD = pmsParseScanCCCD;
 window.pmsExpiryStatus = pmsExpiryStatus;
 window.pmsBindScanCCCD = pmsBindScanCCCD;
 window.pmsScanDateToISO = pmsScanDateToISO;
+window.pmsDateToISO = pmsDateToISO;
+window.pmsISODateToDisplay = pmsISODateToDisplay;
+window.pmsEnsureVietnameseDateInputs = pmsEnsureVietnameseDateInputs;
 window.pmsMatchAddressToForm = pmsMatchAddressToForm;
 window.pmsValidateAddressAfterScan = pmsValidateAddressAfterScan;
 window.pmsShowAddressValidationIssues = pmsShowAddressValidationIssues;
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", pmsInitVietnameseDateInputs);
+} else {
+    pmsInitVietnameseDateInputs();
+}
 
 // ─── Address Cache & Loading Exports ─────────────────────────────────────────
 window.PMS_ADDR_CACHE = PMS_ADDR_CACHE;

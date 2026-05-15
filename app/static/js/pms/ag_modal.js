@@ -1189,3 +1189,12 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
+(function initAgVietnameseDateInputs() {
+    const init = () => {
+        if (typeof pmsEnsureVietnameseDateInputs === 'function') {
+            pmsEnsureVietnameseDateInputs(['ag-id-expire', 'ag-birth']);
+        }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
