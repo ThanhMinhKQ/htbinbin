@@ -82,6 +82,35 @@ class OTAExtractor:
             preview = repr(value)
         return re.sub(r"\s+", " ", preview).strip()[:300]
 
+    def ping(self) -> bool:
+        if not self.client:
+            return False
+        try:
+            _wait_for_api_slot()
+            response = httpx.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": "ping"}],
+                    "max_tokens": 1,
+                    "temperature": 0,
+                },
+                timeout=30.0,
+            )
+            ok = response.status_code == 200
+            if ok:
+                logger.info("[OTA Extractor] Keep-alive ping OK")
+            else:
+                logger.warning(f"[OTA Extractor] Keep-alive ping non-200: {response.status_code}")
+            return ok
+        except Exception as e:
+            logger.warning(f"[OTA Extractor] Keep-alive ping error: {e}")
+            return False
+
     def extract_data(self, html_content: str, sender: str, subject: str) -> dict:
         if not self.client:
             return {"error": "Missing GATECHEAP_API_KEY", "status": "FAILED"}

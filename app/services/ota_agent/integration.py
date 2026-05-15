@@ -218,7 +218,7 @@ class OTAAgent:
             logger.info(f"[OTA Agent] ⏭️ Bỏ qua email không có external_id (có thể là email admin/thông báo)")
             return None
 
-        action_type = data.get('action_type', 'NEW').upper()
+        action_type = (data.get('action_type') or 'NEW').upper()
 
         # Check existing — tìm theo booking_source + external_id (chính xác)
         existing_booking = db.query(Booking).filter(

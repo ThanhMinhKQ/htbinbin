@@ -298,6 +298,27 @@ async def startup_event():
             )
             logger.info("📧 OTA Polling Fallback đã đăng ký (mỗi 30 phút)")
 
+            # --- GATECHEAP KEEP-ALIVE (Mỗi 3 phút) ---
+            # Provider gatecheap.io.vn ngủ đông sau idle, request đầu fail/chậm.
+            # Ping nhẹ để giữ kết nối ấm.
+            def keep_alive_gatecheap():
+                try:
+                    if not settings.OTA_ENABLED or not settings.GATECHEAP_API_KEY:
+                        return
+                    from app.services.ota_agent.extractor import OTAExtractor
+                    OTAExtractor().ping()
+                except Exception as e:
+                    logger.warning(f"[Scheduler] Keep-alive gatecheap error: {e}")
+
+            scheduler.add_job(
+                keep_alive_gatecheap,
+                'interval', minutes=3,
+                misfire_grace_time=120,
+                id="gatecheap_keep_alive",
+            )
+            logger.info("🔥 Gatecheap Keep-Alive đã đăng ký (mỗi 3 phút)")
+            keep_alive_gatecheap()
+
             scheduler.start()
             atexit.register(lambda: scheduler.shutdown())
             logger.info("✅ Các tác vụ nền (Scheduler) đã được lập lịch.")
