@@ -15,6 +15,7 @@ class OTAAIExtractorRetryTests(unittest.TestCase):
         self.extractor = OTAExtractor()
         self.extractor.api_key = "test-key"
         self.extractor.client = True
+        self.extractor.fallback_models = []
         self.request = httpx.Request("POST", "https://gatecheap.io.vn/v1/chat/completions")
 
     def _response(self, payload, status_code=200):
@@ -75,6 +76,59 @@ class OTAAIExtractorRetryTests(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 5)
         self.assertEqual(mock_sleep.call_count, 4)
         mock_sleep.assert_called_with(30)
+
+    @patch("app.services.ota_agent.extractor.time.sleep")
+    @patch("app.services.ota_agent.extractor._wait_for_api_slot")
+    @patch("app.services.ota_agent.extractor.httpx.post")
+    def test_uses_fallback_model_after_primary_model_retries_fail(self, mock_post, _mock_wait, mock_sleep):
+        self.extractor.model = "gpt-5.5"
+        self.extractor.fallback_models = ["deepseek-v4-pro"]
+        valid_payload = {
+            "action_type": "NEW",
+            "booking_source": "Go2Joy",
+            "external_id": "4505305",
+        }
+        mock_post.side_effect = [
+            self._response({"choices": [{"message": {"content": "Menu"}}]}),
+            self._response({"choices": [{"message": {"content": "Menu"}}]}),
+            self._response({"choices": [{"message": {"content": "Menu"}}]}),
+            self._response({"choices": [{"message": {"content": "Menu"}}]}),
+            self._response({"choices": [{"message": {"content": "Menu"}}]}),
+            self._response({"choices": [{"message": {"content": json.dumps(valid_payload)}}]}),
+        ]
+
+        data = self.extractor.extract_data("<p>booking</p>", "info.mail@go2joy.vn", "Go2Joy booking")
+
+        self.assertEqual(data["status"], "SUCCESS")
+        self.assertEqual(data["external_id"], "4505305")
+        called_models = [call.kwargs["json"]["model"] for call in mock_post.call_args_list]
+        self.assertEqual(called_models[:5], ["gpt-5.5"] * 5)
+        self.assertEqual(called_models[5], "deepseek-v4-pro")
+        self.assertEqual(mock_sleep.call_count, 4)
+
+    @patch("app.services.ota_agent.extractor.time.sleep")
+    @patch("app.services.ota_agent.extractor._wait_for_api_slot")
+    @patch("app.services.ota_agent.extractor.httpx.post")
+    def test_tries_second_fallback_after_first_fallback_fails(self, mock_post, _mock_wait, _mock_sleep):
+        self.extractor.model = "gpt-5.5"
+        self.extractor.fallback_models = ["deepseek-v4-pro", "gpt-5.4"]
+        valid_payload = {
+            "action_type": "NEW",
+            "booking_source": "Go2Joy",
+            "external_id": "4505305",
+        }
+        mock_post.side_effect = [
+            *[self._response({"choices": [{"message": {"content": "Menu"}}]}) for _ in range(10)],
+            self._response({"choices": [{"message": {"content": json.dumps(valid_payload)}}]}),
+        ]
+
+        data = self.extractor.extract_data("<p>booking</p>", "info.mail@go2joy.vn", "Go2Joy booking")
+
+        self.assertEqual(data["status"], "SUCCESS")
+        called_models = [call.kwargs["json"]["model"] for call in mock_post.call_args_list]
+        self.assertEqual(called_models[:5], ["gpt-5.5"] * 5)
+        self.assertEqual(called_models[5:10], ["deepseek-v4-pro"] * 5)
+        self.assertEqual(called_models[10], "gpt-5.4")
 
 
 class OTAAIAgentValidationTests(unittest.TestCase):

@@ -43,6 +43,14 @@ class OTAExtractor:
     def __init__(self):
         self.api_key = settings.GATECHEAP_API_KEY
         self.model = settings.GATECHEAP_MODEL
+        self.fallback_models = [
+            model.strip()
+            for model in (
+                settings.GATECHEAP_FALLBACK_MODEL,
+                settings.GATECHEAP_SECOND_FALLBACK_MODEL,
+            )
+            if model and model.strip() and model.strip() != self.model
+        ]
         self.base_url = "https://gatecheap.io.vn/v1"
         if not self.api_key:
             logger.warning("[OTA Extractor] GATECHEAP_API_KEY is missing!")
@@ -110,6 +118,13 @@ class OTAExtractor:
         except Exception as e:
             logger.warning(f"[OTA Extractor] Keep-alive ping error: {e}")
             return False
+
+    def _models_to_try(self) -> list[str]:
+        models = []
+        for model in [self.model, *getattr(self, "fallback_models", [])]:
+            if model and model not in models:
+                models.append(model)
+        return models
 
     def extract_data(self, html_content: str, sender: str, subject: str) -> dict:
         if not self.client:
@@ -191,6 +206,18 @@ Email Content:
         max_retries = 5
         retry_delay = 30
 
+        last_error = {"error": "Max retries exceeded", "status": "FAILED"}
+        for model in self._models_to_try():
+            result = self._extract_data_with_model(model, prompt, subject, max_retries, retry_delay)
+            if result.get("status") == "SUCCESS":
+                result["model_used"] = model
+                return result
+            last_error = result
+            if model != self._models_to_try()[-1]:
+                logger.warning(f"[OTA Extractor] Model {model} failed after retries; trying fallback model")
+        return last_error
+
+    def _extract_data_with_model(self, model: str, prompt: str, subject: str, max_retries: int, retry_delay: int) -> dict:
         for attempt in range(max_retries):
             try:
                 _wait_for_api_slot()
@@ -203,7 +230,7 @@ Email Content:
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": self.model,
+                        "model": model,
                         "messages": [{"role": "user", "content": prompt}],
                         "temperature": 0.1,
                         "response_format": {"type": "json_object"},
