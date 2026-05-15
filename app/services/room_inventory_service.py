@@ -877,6 +877,12 @@ class InventoryService:
         ).order_by(HotelRoomType.sort_order, HotelRoomType.name).all()
         room_type_by_id = {int(room_type.id): room_type for room_type in room_types}
         end_date = start_date + timedelta(days=days)
+
+        # Luôn refresh counts từ thực tế trước khi đọc cache
+        # để sold_rooms/reserved_rooms/available_rooms phản ánh đúng trạng thái hiện tại
+        if room_type_by_id and days > 0:
+            self.generate_daily_inventory(branch_id, start_date, days, refresh_counts=True)
+
         inventories = self.db.query(RoomInventoryDaily).filter(
             RoomInventoryDaily.branch_id == branch_id,
             RoomInventoryDaily.room_type_id.in_(list(room_type_by_id) or [0]),
