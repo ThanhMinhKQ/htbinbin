@@ -5,6 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hóa đơn - {{ folio.folio_code }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&display=swap&subset=vietnamese" rel="stylesheet">
     <style>
         @page {
             size: A4;
@@ -307,7 +310,7 @@
         }
 
         .main-table .money {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
             font-weight: bold;
         }
 
@@ -482,13 +485,13 @@
         }
 
         .prepared-signature-name {
-            margin: 22px 0 0 0;
+            margin: 14px 0 0 0;
             color: #111;
-            font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Arial", sans-serif;
-            font-size: 18px;
-            font-weight: 600;
-            line-height: 1.2;
-            letter-spacing: .2px;
+            font-family: "Dancing Script", "Segoe UI", Arial, sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.1;
+            letter-spacing: .3px;
         }
 
         .page-footer {
@@ -585,7 +588,7 @@
                     </div>
                     <div class="info-row">
                         <span class="info-label">Loại phòng / Type</span>
-                        <span class="info-val">{{ stay.room.room_type or '—' }}</span>
+                        <span class="info-val">{{ stay.room.room_type_obj.name if stay.room and stay.room.room_type_obj else '—' }}</span>
                     </div>
                     <div class="info-row">
                         <span class="info-label">Nhận phòng / Check-in</span>
@@ -661,7 +664,7 @@
                 <tfoot>
                     <tr class="table-total-row">
                         <td colspan="4" class="right">Tổng chi phí / Total Charges</td>
-                        <td class="right money">{{ '{:,.0f}'.format(folio.total_charge|float).replace(',', '.') }}</td>
+                        <td class="right money">{{ '{:,.0f}'.format(total_charge|float).replace(',', '.') }}</td>
                     </tr>
                     {% if discount_total|float > 0 %}
                     <tr>
@@ -710,10 +713,10 @@
                 <div class="bank-info">
                     <h4>Thông tin chuyển khoản / Bank Transfer</h4>
                     <div class="bank-line">
-                        <div class="bank-item"><span class="bank-label">Ngân hàng / Bank</span><span class="bank-value">MB Bank</span></div>
-                        <div class="bank-item"><span class="bank-label">Số TK / A/C</span><span class="bank-value">0123456789</span></div>
-                        <div class="bank-item"><span class="bank-label">Chủ TK / Name</span><span class="bank-value">BIN BIN HOTEL</span></div>
-                        <div class="bank-item memo"><span class="bank-label">Nội dung / Memo</span><span class="bank-value">Thanh toan {{ folio.folio_code }}</span></div>
+                        <div class="bank-item"><span class="bank-label">Ngân hàng / Bank</span><span class="bank-value">{{ stay.branch.personal_bank_name or 'Ngân hàng ACB' }}</span></div>
+                        <div class="bank-item"><span class="bank-label">Số TK / A/C</span><span class="bank-value">{{ stay.branch.personal_bank_account or '' }}</span></div>
+                        <div class="bank-item"><span class="bank-label">Chủ TK / Name</span><span class="bank-value">{{ stay.branch.personal_bank_holder or '' }}</span></div>
+                        <div class="bank-item memo"><span class="bank-label">Nội dung / Memo</span><span class="bank-value">&nbsp;</span></div>
                     </div>
                 </div>
             </div>
@@ -756,6 +759,29 @@
             });
         }
 
+        function canvasToBlob(canvas) {
+            return new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1.0));
+        }
+
+        async function copyBlobToClipboard(blob) {
+            if (!navigator.clipboard || typeof ClipboardItem === 'undefined') return false;
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                return true;
+            } catch (err) {
+                console.warn('Copy clipboard failed:', err);
+                return false;
+            }
+        }
+
+        function showToast(msg) {
+            const el = document.createElement('div');
+            el.textContent = msg;
+            el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2400);
+        }
+
         async function downloadSheetImage() {
             const sheet = document.querySelector('.sheet');
             const ready = await ensureHtml2Canvas();
@@ -763,16 +789,21 @@
                 alert('Không tải được thư viện chụp ảnh. Vui lòng thử lại hoặc dùng Xuất PDF.');
                 return;
             }
+            if (document.fonts && document.fonts.ready) {
+                try { await document.fonts.ready; } catch (_) {}
+            }
             const guestSignature = sheet.querySelector('.guest-signature-box');
             const originalBoxShadow = sheet.style.boxShadow;
             const originalGuestVisibility = guestSignature ? guestSignature.style.visibility : '';
             sheet.style.boxShadow = 'none';
             if (guestSignature) guestSignature.style.visibility = 'hidden';
             const canvas = await html2canvas(sheet, {
-                scale: 2,
+                scale: 3,
                 backgroundColor: '#ffffff',
                 useCORS: true,
                 allowTaint: true,
+                imageTimeout: 0,
+                logging: false,
                 scrollX: 0,
                 scrollY: -window.scrollY,
                 width: sheet.scrollWidth,
@@ -782,10 +813,16 @@
             });
             sheet.style.boxShadow = originalBoxShadow;
             if (guestSignature) guestSignature.style.visibility = originalGuestVisibility;
+
+            const blob = await canvasToBlob(canvas);
+            const copied = blob ? await copyBlobToClipboard(blob) : false;
+
             const link = document.createElement('a');
             link.download = `invoice-{{ folio.folio_code }}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
+
+            showToast(copied ? 'Đã lưu ảnh & copy vào clipboard' : 'Đã lưu ảnh');
         }
     </script>
 </body>

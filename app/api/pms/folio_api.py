@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, joinedload
 from ...db.models import (
     DebtRecord, Folio, FolioStatus,
     FolioTransaction, FolioTransactionType, FolioTransactionCategory,
-    HotelStay, HotelGuest,
+    HotelRoom, HotelStay, HotelGuest,
     Payment, PaymentMethod, RefundRecord, User,
 )
 from ...db.session import get_db
@@ -39,7 +39,7 @@ from ...services.folio_service import (
     transfer_transactions_between_folios,
 )
 from ...services.guest_crm_service import sync_guest_crm_after_debt_payment
-from ...services.pricing_service import money
+from ...services.pricing_service import money, calculate_full_charge, MODE_TO_STAY_TYPE
 from .pms_helpers import _require_login, _now_vn
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
@@ -175,14 +175,17 @@ def print_folio(
     """Render HTML Hóa đơn để In/PDF"""
     user = _require_login(request)
     folio = _get_folio_or_404(db, folio_id)
-    stay = db.query(HotelStay).options(joinedload(HotelStay.branch), joinedload(HotelStay.room)).filter(HotelStay.id == folio.stay_id).first()
-    
+    stay = db.query(HotelStay).options(
+        joinedload(HotelStay.branch),
+        joinedload(HotelStay.room).joinedload(HotelRoom.room_type_obj),
+    ).filter(HotelStay.id == folio.stay_id).first()
+
     # Lấy danh sách giao dịch (loại trừ voided)
     txs_all = db.query(FolioTransaction).filter(
         FolioTransaction.folio_id == folio_id,
         FolioTransaction.is_voided == False,
     ).order_by(FolioTransaction.created_at.asc()).all()
-    
+
     # Phân loại transactions cho hiển thị:
     # - charge_txs: các khoản tính phí (amount > 0, LOẠI TRỪ REFUND)
     # - payment_txs: các khoản thanh toán (PAYMENT, DEPOSIT_USED, DEBT_PAYMENT)
@@ -190,6 +193,7 @@ def print_folio(
     charge_txs = []
     payment_txs = []
     refund_txs = []
+    has_room_charge_tx = False
     for t in txs_all:
         if t.transaction_type in (
             FolioTransactionType.REFUND,
@@ -206,22 +210,72 @@ def print_folio(
             charge_txs.append(t)  # discount nằm trong bảng charge (số âm)
         elif t.amount > 0:
             charge_txs.append(t)  # room, service, surcharge...
-    
+            if t.transaction_type in (
+                FolioTransactionType.ROOM_CHARGE,
+                FolioTransactionType.HOURLY_CHARGE,
+                FolioTransactionType.EARLY_CHECKIN_FEE,
+                FolioTransactionType.LATE_CHECKOUT_FEE,
+            ):
+                has_room_charge_tx = True
+
+    # ── Live room-charge preview khi stay còn ACTIVE & folio chưa post tiền phòng ──
+    # ROOM_CHARGE chỉ được INSERT vào FolioTransaction lúc execute_checkout(),
+    # nên trước checkout bảng "Chi tiết các khoản" sẽ trống. Tính live tại thời điểm in.
+    live_charge_total = Decimal("0")
+    is_live_preview = False
+    stay_status = stay.status.value if stay and hasattr(stay.status, "value") else (stay.status if stay else None)
+    if stay and stay_status == "ACTIVE" and not has_room_charge_tx:
+        room_type_obj = stay.room.room_type_obj if stay.room else None
+        if room_type_obj:
+            try:
+                effective_mode = stay.pricing_mode_initial or "AUTO"
+                effective_stay_type = MODE_TO_STAY_TYPE.get(effective_mode, "AUTO")
+                live_total, live_breakdown = calculate_full_charge(
+                    effective_stay_type, room_type_obj, stay.check_in_at, _now_vn()
+                )
+                if live_breakdown:
+                    is_live_preview = True
+                    for item in live_breakdown:
+                        amt = money(item.get("amount", 0))
+                        if amt <= 0:
+                            continue
+                        live_charge_total += amt
+                        charge_txs.append({
+                            "description": item.get("description") or item.get("type") or "Tiền phòng",
+                            "amount": amt,
+                            "quantity": item.get("days") or item.get("hours") or 1,
+                            "unit_price": None,
+                            "created_at": stay.check_in_at,
+                            "transaction_type": item.get("type"),
+                            "category": "ROOM" if item.get("type") in ("ROOM_CHARGE", "HOURLY_CHARGE") else "SURCHARGE",
+                        })
+            except Exception as exc:
+                logger.warning(f"[folio_print] Live charge preview failed: {exc}")
+
     # Tính tổng từ FolioTransaction (source of truth)
     discount_total = sum(abs(t.amount) for t in txs_all
                         if t.category == FolioTransactionCategory.DISCOUNT and not t.is_voided)
-    
-    # total_charge từ rebalance_folio (đã loại trừ REFUND)
-    charge_total = folio.total_charge or Decimal("0")
+
+    # total_charge từ rebalance_folio (đã loại trừ REFUND), cộng thêm live preview nếu có
+    charge_total = (folio.total_charge or Decimal("0")) + live_charge_total
     total_net = charge_total - discount_total
     total_paid = folio.total_paid or Decimal("0")
     remaining_balance = total_net - total_paid
-    
+
     # Tìm thông tin khách hàng Master
     primary_guest = db.query(HotelGuest).filter(HotelGuest.stay_id == stay.id, HotelGuest.is_primary == True).first()
     if not primary_guest:
         primary_guest = db.query(HotelGuest).filter(HotelGuest.stay_id == stay.id).first()
     guest_name = primary_guest.full_name if primary_guest else "Khách Vãng Lai"
+
+    # Session lưu key "name" (xem app/api/users.py). Fallback các key khác để tránh hiển thị "Hệ thống".
+    current_user_name = (
+        user.get("name")
+        or user.get("full_name")
+        or user.get("employee_id")
+        or user.get("code")
+        or "Hệ thống"
+    )
 
     return templates.TemplateResponse(
         "pms/folio_print.html",
@@ -233,12 +287,14 @@ def print_folio(
             "payment_txs": payment_txs,   # PAYMENT, DEPOSIT_USED
             "refund_txs": refund_txs,     # REFUND, REFUND_PAYMENT
             "discount_total": discount_total,
+            "total_charge": charge_total,
             "total_net": total_net,
             "total_paid": total_paid,
             "remaining_balance": remaining_balance,
             "guest_name": guest_name,
             "current_time": _now_vn().strftime("%d/%m/%Y %H:%M"),
-            "current_user_name": user.get("full_name") or "Hệ thống"
+            "current_user_name": current_user_name,
+            "is_live_preview": is_live_preview,
         }
     )
 
