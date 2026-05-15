@@ -111,7 +111,10 @@ Object.assign(BookingHub, {
             DIRECT: 'Trực tiếp', OTA: 'OTA', SALES: 'Sales',
             COMPANY: 'Công ty', ZALO: 'Zalo', PHONE: 'Phone'
         };
-        const source = this.escape(sourceLabels[booking.booking_type] || booking.booking_type || 'Trực tiếp');
+        const otaChannel = String(booking.booking_source || '').trim();
+        const source = booking.booking_type === 'OTA' && otaChannel
+            ? this.escape(otaChannel)
+            : this.escape(sourceLabels[booking.booking_type] || booking.booking_type || 'Trực tiếp');
         const bookingCode = this.escape(booking.external_id || `#${booking.id}`);
         const guestName = this.escape(booking.guest_name || 'Khách lẻ');
         const phone = booking.guest_phone ? this.escape(booking.guest_phone) : 'Chưa có SĐT';
