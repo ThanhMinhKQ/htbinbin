@@ -176,7 +176,7 @@ Email Content:
                         "temperature": 0.1,
                         "response_format": {"type": "json_object"},
                     },
-                    timeout=60.0,
+                    timeout=120.0,
                 )
 
                 if response.status_code in (429, 502, 503, 504):
