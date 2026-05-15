@@ -2125,7 +2125,6 @@ function pmsCiToggleIdFields(select) {
             if (r && r.style.display !== 'none') r.disabled = false;
         });
     }
-    pmsCiApplyCCCDExpiryFromBirth();
 }
 window.pmsCiToggleIdFields = pmsCiToggleIdFields;
 
