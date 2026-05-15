@@ -129,7 +129,8 @@ Task: Extract booking details into a valid JSON object.
 
 Required JSON Structure:
 {{
-    "action_type": "NEW" | "MODIFY" | "CANCEL",
+    "status": "SUCCESS" | "SKIPPED",
+    "action_type": "NEW" | "MODIFY" | "CANCEL" | "SKIP",
     "booking_source": "Agoda" | "Expedia" | "Traveloka" | "Airbnb" | "Go2Joy" | "Trip.com" | "Mytour" | "Website" | "Other",
     "external_id": "string",
     "checkin_code": "string",
@@ -166,7 +167,7 @@ Rules:
    - Airbnb: ALWAYS use "Bạn kiếm được" (host payout). NEVER use "Tổng (VND)" or "Phí phòng".
    - Mytour: use "Tổng tiền trả khách sạn" (total amount paid to hotel).
    - Other OTAs: use the main booking total shown in the confirmation.
-6. Detect action_type from keywords: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" / "Booking amendment" / "Thay đổi đặt phòng" / "Cập nhật đặt phòng" → MODIFY | "Cancelled / Cancellation" → CANCEL.
+6. Detect action_type from keywords and return ONLY canonical values: "New booking" / "Booking confirmed" / "Đơn hàng mới" → NEW | "Modified / Amendment" / "Booking amendment" / "Thay đổi đặt phòng" / "Cập nhật đặt phòng" → MODIFY | "Cancelled / Cancellation" / "Đã huỷ" → CANCEL. Never return CANCELLED, CANCELED, UPDATE, IGNORE, or arbitrary action labels.
 7. For booking_source, infer from sender email domain or email branding:
    - @agoda.com → "Agoda"
    - @go2joy.vn → "Go2Joy"
@@ -177,16 +178,18 @@ Rules:
    - Email subject contains "[Khách sạn Bin Bin]" or sender is binbinhotel.ota@gmail.com → "Website"
 8. For "Website" bookings: external_id is the order number after "#" in subject. Default "is_prepaid": false unless explicit proof of online payment.
 9. For "Go2Joy" bookings: If "Tình trạng thanh toán" says "Chưa thanh toán" or "Thanh toán tại khách sạn", set "is_prepaid": false. Otherwise default to true.
-10. IMPORTANT: Always set "deposit_amount": 0 for all OTA bookings.
-11. checkin_code: A short PIN/access code for room check-in. Leave null if not present.
-12. Return ONLY the JSON object. No markdown formatting, no explanation.
-13. modification_summary: ONLY fill when action_type is MODIFY. Write a concise Vietnamese summary of what changed (e.g. "Đổi ngày check-in từ 15/05 sang 17/05, loại phòng từ Deluxe sang Superior"). Set null for NEW and CANCEL.
+10. Cancellation emails may omit stay dates, room type, guest, and price; still extract booking_source and external_id accurately.
+11. IMPORTANT: Always set "deposit_amount": 0 for all OTA bookings.
+12. checkin_code: A short PIN/access code for room check-in. Leave null if not present.
+13. If the email is clearly not a booking, modification, or cancellation, return status "SKIPPED", action_type "SKIP", external_id null, and a concise reason.
+14. Return ONLY the JSON object. No markdown formatting, no explanation.
+15. modification_summary: ONLY fill when action_type is MODIFY. Write a concise Vietnamese summary of what changed (e.g. "Đổi ngày check-in từ 15/05 sang 17/05, loại phòng từ Deluxe sang Superior"). Set null for NEW and CANCEL.
 
 Email Content:
 {cleaned_body}"""
 
-        max_retries = 3
-        retry_delays = [5, 10, 20]
+        max_retries = 5
+        retry_delay = 30
 
         for attempt in range(max_retries):
             try:
@@ -211,14 +214,14 @@ Email Content:
                 if response.status_code in (429, 502, 503, 504):
                     _apply_global_backoff(response.text)
                     if attempt < max_retries - 1:
-                        time.sleep(retry_delays[attempt])
+                        time.sleep(retry_delay)
                         continue
                     return {"error": f"Server error {response.status_code} after max retries", "status": "FAILED"}
 
                 if response.status_code == 404:
                     if attempt < max_retries - 1:
-                        logger.warning(f"[OTA Extractor] 404 transient — retry in {retry_delays[attempt]}s (attempt {attempt + 1})")
-                        time.sleep(retry_delays[attempt])
+                        logger.warning(f"[OTA Extractor] 404 transient — retry in {retry_delay}s (attempt {attempt + 1})")
+                        time.sleep(retry_delay)
                         continue
                     return {"error": "API endpoint 404 after max retries", "status": "FAILED"}
 
@@ -230,7 +233,7 @@ Email Content:
                         f"[OTA Extractor] Empty content from API; response preview: {self._response_preview(result)}"
                     )
                     if attempt < max_retries - 1:
-                        time.sleep(retry_delays[attempt])
+                        time.sleep(retry_delay)
                         continue
                     return {"error": "AI response content was empty after max retries", "status": "FAILED"}
                 data = self._parse_json_content(content)
@@ -242,7 +245,7 @@ Email Content:
                 if "429" in error_msg:
                     _apply_global_backoff(error_msg)
                     if attempt < max_retries - 1:
-                        time.sleep(retry_delays[attempt])
+                        time.sleep(retry_delay)
                         continue
                     return {"error": "Rate limit exceeded after max retries", "status": "FAILED"}
                 logger.error(f"[OTA Extractor] API Error: {e}")
@@ -250,12 +253,15 @@ Email Content:
             except json.JSONDecodeError as e:
                 logger.warning(f"[OTA Extractor] Invalid JSON content: {e}")
                 if attempt < max_retries - 1:
-                    time.sleep(retry_delays[attempt])
+                    time.sleep(retry_delay)
                     continue
                 return {"error": f"Response parse error after max retries: {e}", "status": "FAILED"}
             except (KeyError, IndexError) as e:
-                logger.error(f"[OTA Extractor] Parse Error: {e}")
-                return {"error": f"Response parse error: {e}", "status": "FAILED"}
+                logger.warning(f"[OTA Extractor] Parse Error: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+                return {"error": f"Response parse error after max retries: {e}", "status": "FAILED"}
             except Exception as e:
                 logger.error(f"[OTA Extractor] Unexpected Error: {e}")
                 return {"error": str(e), "status": "FAILED"}

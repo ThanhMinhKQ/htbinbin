@@ -81,18 +81,11 @@ class OTAAgent:
                         f"status={existing_log.status}, retry={existing_log.retry_count})"
                     )
 
-        # 0c. Cache theo booking id trong subject/body: chỉ bỏ qua duplicate NEW.
-        # CANCEL/MODIFY phải được parse để cập nhật booking đã tồn tại.
+        # 0c. Cache theo booking id trong subject/body: chỉ bỏ qua duplicate NEW khi không có dấu huỷ/sửa.
         cached_external_id = self._guess_external_id(email)
-        precheck_data = self.rule_extractor.extract(email)
-        precheck_action = str((precheck_data or {}).get("action_type") or "NEW").upper()
-        if precheck_action == "NEW":
-            body_preview = email.get("text") or re.sub(r"<[^>]+>", " ", email.get("html") or "")
-            if detect_cancel_action(email.get("subject", ""), body_preview):
-                precheck_action = "CANCEL"
-            elif detect_modify_action(email.get("subject", ""), body_preview):
-                precheck_action = "MODIFY"
-        if cached_external_id and precheck_action == "NEW" and self._already_processed_external_id(db, cached_external_id):
+        body_preview = email.get("text") or re.sub(r"<[^>]+>", " ", email.get("html") or "")
+        has_change_signal = detect_cancel_action(email.get("subject", ""), body_preview) or detect_modify_action(email.get("subject", ""), body_preview)
+        if cached_external_id and not has_change_signal and self._already_processed_external_id(db, cached_external_id):
             logger.info(
                 f"[OTA Agent] ⏭️ Bỏ qua booking đã có cache external_id={cached_external_id} — không gọi Gemini"
             )
@@ -116,20 +109,20 @@ class OTAAgent:
 
 
         try:
-            # 2. Extract Data: AI-first — luôn gọi GPT cho mọi email OTA
-            if precheck_data and precheck_data.get("status") == "SKIPPED":
-                logger.info(
-                    f"[OTA Agent] ⏭️ Rule skip {precheck_data.get('booking_source')} — không phải booking, không gọi AI"
-                )
-                data = precheck_data
-            else:
-                data = self.extractor.extract_data(email['html'], email['sender'], email['subject'])
-                if isinstance(data, dict):
-                    data["parser_method"] = "ai"
+            # 2. Extract Data: AI-first — rule parser không quyết định dữ liệu booking
+            data = self._extract_ai_data(email)
             data = self._normalize_extracted_data(data)
+            self._validate_extracted_booking(data)
 
-            if data.get("status") == "FAILED" or "error" in data:
-                raise ValueError(data.get("error", "AI Extraction returned failure"))
+            if data.get("action_type") == "SKIP" or data.get("status") == "SKIPPED":
+                log_entry.status = OTAParsingStatus.SUCCESS
+                log_entry.extracted_data = self._json_safe(data)
+                log_entry.booking_id = None
+                log_entry.error_message = None
+                log_entry.error_traceback = None
+                db.commit()
+                logger.info(f"[OTA Agent] ⏭️ AI bỏ qua email không phải booking: {email.get('subject', '')[:120]}")
+                return
 
             # 3. Map Branch
             hotel_name = data.get('hotel_name')
@@ -224,7 +217,13 @@ class OTAAgent:
                 f"[OTA Agent] ⏭️ Bỏ qua email {external_id}: AI không xác định được action_type (có thể không phải booking)"
             )
             return None
-        action_type = action_type_raw.upper()
+        action_type = self._normalize_action_type(action_type_raw)
+        if not action_type:
+            logger.info(
+                f"[OTA Agent] ⏭️ Bỏ qua email {external_id}: action_type không hợp lệ ({action_type_raw})"
+            )
+            return None
+        is_cancel_action = action_type == 'CANCEL'
 
         # Check existing — tìm theo booking_source + external_id (chính xác)
         existing_booking = db.query(Booking).filter(
@@ -234,7 +233,7 @@ class OTAAgent:
 
         # Fallback: nếu MODIFY/CANCEL mà không tìm thấy theo booking_source,
         # thử tìm chỉ theo external_id để tránh INSERT gây UniqueViolation
-        if not existing_booking and action_type in ('MODIFY', 'CANCEL'):
+        if not existing_booking and (action_type == 'MODIFY' or is_cancel_action):
             existing_booking = db.query(Booking).filter(
                 Booking.external_id == external_id,
             ).first()
@@ -264,7 +263,7 @@ class OTAAgent:
                     logger.info(f"[OTA Agent] Group MODIFY: updated booking {gb.external_id}")
                 return group_bookings[0]
 
-        if not existing_booking and int(data.get('num_rooms') or 1) > 1 and action_type not in ('CANCEL', 'MODIFY'):
+        if not existing_booking and int(data.get('num_rooms') or 1) > 1 and not is_cancel_action and action_type != 'MODIFY':
             room_type_id = BookingService(db)._resolve_room_type_id(data.get('branch_id'), data.get('room_type'))
             if room_type_id:
                 payload = self._booking_payload_from_data(data, room_type_id)
@@ -272,7 +271,7 @@ class OTAAgent:
                 return bookings[0] if bookings else None
 
         if not existing_booking:
-            if action_type == 'CANCEL':
+            if is_cancel_action:
                 # Booking chưa tồn tại mà nhận được CANCEL → bỏ qua
                 # Không INSERT vì check_in/check_out sẽ null → DB constraint violation
                 logger.warning(
@@ -282,11 +281,10 @@ class OTAAgent:
 
             else:
                 # NEW or MODIFY (treat as NEW if not exists)
-                # Bỏ qua nếu thiếu check_out (email không đủ thông tin, không phải lỗi thật)
-                if not data.get('check_out') and action_type == 'NEW':
+                create_required = (data.get('check_in'), data.get('check_out'), data.get('room_type'))
+                if not all(create_required):
                     logger.warning(
-                        f"[OTA Agent] ⏭️ Bỏ qua booking {external_id}: thiếu check_out "
-                        f"(email có thể chỉ là thông báo, không phải xác nhận booking đầy đủ)"
+                        f"[OTA Agent] ⏭️ Bỏ qua booking {external_id}: thiếu dữ liệu để tạo booking mới"
                     )
                     return None
                 new_booking = self._create_booking_obj(data)
@@ -295,7 +293,7 @@ class OTAAgent:
                 return new_booking
         else:
             # Existing Found
-            if action_type == 'CANCEL':
+            if is_cancel_action:
                 existing_booking.status = BookingStatus.CANCELLED
                 existing_booking.reservation_status = "CANCELLED"
                 existing_booking.updated_at = datetime.now()
@@ -458,6 +456,93 @@ class OTAAgent:
             raw_data=self._json_safe(data)
         )
 
+    def _normalize_action_type(self, value):
+        raw = str(value or "").strip().upper()
+        aliases = {
+            "CANCELLED": "CANCEL",
+            "CANCELED": "CANCEL",
+            "UPDATE": "MODIFY",
+            "UPDATED": "MODIFY",
+            "AMEND": "MODIFY",
+            "AMENDED": "MODIFY",
+        }
+        action_type = aliases.get(raw, raw)
+        return action_type if action_type in {"NEW", "MODIFY", "CANCEL", "SKIP"} else None
+
+    def _extract_ai_data(self, email: dict) -> dict:
+        data = self.extractor.extract_data(
+            email.get('html') or email.get('text') or '',
+            email.get('sender') or '',
+            email.get('subject') or '',
+        )
+        if isinstance(data, dict):
+            data["parser_method"] = "ai"
+            data["parser_strategy"] = "ai_only"
+        return data
+
+    def _validate_extracted_booking(self, data: dict) -> None:
+        if not isinstance(data, dict):
+            raise ValueError("AI Extraction returned invalid payload")
+        if data.get("status") == "FAILED" or "error" in data:
+            raise ValueError(data.get("error", "AI Extraction returned failure"))
+
+        action_type = self._normalize_action_type(data.get("action_type"))
+        if not action_type:
+            raise ValueError("AI không xác định được action_type hợp lệ")
+        data["action_type"] = action_type
+
+        if action_type == "SKIP":
+            return
+
+        if not self._safe_text(data.get("booking_source"), 50):
+            raise ValueError("AI không xác định được OTA booking_source")
+        if not self._safe_text(data.get("external_id"), 50):
+            raise ValueError("AI không xác định được mã đặt phòng OTA")
+
+        if action_type == "CANCEL":
+            return
+
+        if action_type == "MODIFY" and not all(data.get(field) for field in ("check_in", "check_out", "room_type")):
+            return
+
+        required = ("check_in", "check_out", "room_type")
+        missing = [field for field in required if not data.get(field)]
+        if missing:
+            raise ValueError(f"AI thiếu dữ liệu bắt buộc: {', '.join(missing)}")
+
+        normalized_dates = self._normalize_booking_dates(data)
+        check_in = normalized_dates.get("check_in")
+        check_out = normalized_dates.get("check_out")
+        if not check_in or not check_out or check_out <= check_in:
+            raise ValueError("AI trả về ngày nhận/trả phòng không hợp lệ")
+        data.update(normalized_dates)
+
+        try:
+            num_rooms = int(data.get("num_rooms") or 1)
+        except (TypeError, ValueError):
+            raise ValueError("AI trả về số phòng không hợp lệ")
+        if num_rooms < 1:
+            raise ValueError("AI trả về số phòng không hợp lệ")
+        data["num_rooms"] = num_rooms
+
+        for field in ("num_guests", "num_adults", "num_children"):
+            if data.get(field) is None:
+                continue
+            try:
+                value = int(data.get(field) or 0)
+            except (TypeError, ValueError):
+                raise ValueError(f"AI trả về {field} không hợp lệ")
+            if value < 0:
+                raise ValueError(f"AI trả về {field} không hợp lệ")
+            data[field] = value
+
+        try:
+            total_price = float(data.get("total_price") or 0)
+        except (TypeError, ValueError):
+            raise ValueError("AI trả về tổng tiền không hợp lệ")
+        if total_price < 0:
+            raise ValueError("AI trả về tổng tiền không hợp lệ")
+
     def _normalize_extracted_data(self, data: dict) -> dict:
         if not isinstance(data, dict):
             return data
@@ -468,6 +553,11 @@ class OTAAgent:
             normalized['check_in'] = check_in
         if check_out:
             normalized['check_out'] = check_out
+        action_type = self._normalize_action_type(normalized.get('action_type'))
+        if action_type:
+            normalized['action_type'] = action_type
+        normalized['booking_source'] = self._safe_text(normalized.get('booking_source'), 50)
+        normalized['external_id'] = self._safe_text(normalized.get('external_id'), 50)
         normalized['guest_name'] = self._safe_text(normalized.get('guest_name'), 255) or 'Unknown Guest'
         normalized['room_type'] = self._safe_text(normalized.get('room_type'), 255)
         normalized['guest_phone'] = self._safe_text(normalized.get('guest_phone'), 50)

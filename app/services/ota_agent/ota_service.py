@@ -135,17 +135,29 @@ class OTADashboardService:
                 "date": log.received_at,
                 "message_id": log.email_message_id,
             }
-            extracted = self.rule_extractor.extract(email)
-            if extracted and extracted.get("status") == "SKIPPED":
-                return {"success": False, "error": "Email không phải booking OTA", "retry_count": log.retry_count}
-            extracted = self.extractor.extract_data(
-                html_content=log.raw_content,
-                sender=log.email_sender,
-                subject=log.email_subject
-            )
-            if isinstance(extracted, dict):
-                extracted["parser_method"] = "ai"
+            from app.services.ota_agent.integration import OTAAgent
+            agent = OTAAgent()
+            extracted = agent._extract_ai_data(email)
+            extracted = agent._normalize_extracted_data(extracted)
+            agent._validate_extracted_booking(extracted)
             extracted = self._json_safe(extracted)
+
+            if extracted.get("action_type") == "SKIP" or extracted.get("status") == "SKIPPED":
+                log.status = OTAParsingStatus.SUCCESS
+                log.extracted_data = extracted
+                log.error_message = None
+                log.error_traceback = None
+                log.retry_count += 1
+                log.last_retry_at = datetime.now(timezone.utc)
+                log.booking_id = None
+                db.commit()
+                return {
+                    "success": True,
+                    "message": "Email skipped as non-booking",
+                    "booking_id": None,
+                    "booking_external_id": None,
+                    "retry_count": log.retry_count
+                }
 
             if extracted.get("status") == "FAILED":
                 # Retry failed
@@ -182,11 +194,8 @@ class OTADashboardService:
             # Fallback to hotel_name-based mapping for all sources
             if not branch_id:
                 branch_id = mapper.get_branch_id(hotel_name)
-            
+
             extracted['branch_id'] = branch_id
-            from app.services.ota_agent.integration import OTAAgent
-            agent = OTAAgent()
-            extracted = agent._normalize_extracted_data(extracted)
             booking = agent.upsert_booking(db, extracted)
             if booking and not (booking.raw_data or {}).get("group_total"):
                 BookingService(db).stage_ota_booking_for_review(booking, user_id=None)
@@ -197,15 +206,15 @@ class OTADashboardService:
             log.error_traceback = None
             log.retry_count += 1
             log.last_retry_at = datetime.now(timezone.utc)
-            log.booking_id = booking.id
-            
+            log.booking_id = booking.id if booking else None
+
             db.commit()
-            
+
             return {
                 "success": True,
                 "message": "Email processed successfully",
-                "booking_id": booking.id,
-                "booking_external_id": booking.external_id,
+                "booking_id": booking.id if booking else None,
+                "booking_external_id": booking.external_id if booking else None,
                 "retry_count": log.retry_count
             }
             
