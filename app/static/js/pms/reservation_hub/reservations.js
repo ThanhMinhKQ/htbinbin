@@ -107,10 +107,11 @@ Object.assign(BookingHub, {
         const canEdit = status === 'CONFIRMED' && !isTransferShadow;
         const canTransfer = ['PENDING', 'CONFIRMED'].includes(status) && !booking.assigned_room_id && !booking.stay_id && !isTransferShadow;
         const canRestore = ['CANCELLED', 'NO_SHOW'].includes(status) && !isTransferShadow;
-        const sourceRaw = booking.booking_type === 'OTA' || booking.booking_source === 'OTA'
-            ? (booking.booking_source || 'OTA')
-            : (booking.booking_source || booking.booking_type || 'Direct');
-        const source = this.escape(sourceRaw);
+        const sourceLabels = {
+            DIRECT: 'Trực tiếp', OTA: 'OTA', SALES: 'Sales',
+            COMPANY: 'Công ty', ZALO: 'Zalo', PHONE: 'Phone'
+        };
+        const source = this.escape(sourceLabels[booking.booking_type] || booking.booking_type || 'Trực tiếp');
         const bookingCode = this.escape(booking.external_id || `#${booking.id}`);
         const guestName = this.escape(booking.guest_name || 'Khách lẻ');
         const phone = booking.guest_phone ? this.escape(booking.guest_phone) : 'Chưa có SĐT';

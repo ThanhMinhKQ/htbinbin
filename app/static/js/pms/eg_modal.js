@@ -27,6 +27,15 @@ function egToggleIdFields(idTypeEl) {
             staySection.classList.remove('eg-section-locked');
         }
     }
+
+    if (typeof pmsSyncCCCDExpiryReadonly === 'function') {
+        pmsSyncCCCDExpiryReadonly({
+            idTypeEl,
+            birthEl: document.getElementById('eg-birth'),
+            expireEl: document.getElementById('eg-id-expire'),
+            checkExpire: egCheckIdExpire,
+        });
+    }
 }
 window.egToggleIdFields = egToggleIdFields;
 
@@ -260,7 +269,10 @@ async function egFillGuestData(g) {
 
     // Extra fields
     const expireEl = document.getElementById('eg-id-expire');
-    if (expireEl) expireEl.value = g.id_expire ? String(g.id_expire).slice(0, 10) : '';
+    if (expireEl) {
+        if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(expireEl, g.id_expire);
+        else expireEl.value = g.id_expire ? String(g.id_expire).slice(0, 10) : '';
+    }
 
     const notesEl = document.getElementById('eg-notes');
     if (notesEl) notesEl.value = g.notes || '';

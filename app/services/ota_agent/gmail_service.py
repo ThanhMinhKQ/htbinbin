@@ -404,6 +404,47 @@ class GmailService:
         except Exception as e:
             logger.warning(f"[Gmail Service] Không lưu được last_history_id vào DB: {e}")
 
+    def get_new_message_ids_from_history(self, webhook_history_id: str) -> List[str]:
+        """
+        Trả về danh sách message IDs từ Gmail History API.
+        Quản lý historyId tracking nhưng KHÔNG fetch full email.
+
+        Dùng cho parallel fetching pattern trong async layer.
+        """
+        if not self._last_history_id:
+            self._last_history_id = self._get_last_history_id_from_db()
+
+        if not self._last_history_id:
+            current = self.get_current_history_id()
+            start_from = current or webhook_history_id
+            logger.info(
+                f"[Gmail Service] ⚠️ Khởi tạo historyId lần đầu: {start_from}. "
+                "Email trước thời điểm này sẽ không được xử lý qua webhook."
+            )
+            self._last_history_id = webhook_history_id
+            self._save_last_history_id_to_db(webhook_history_id)
+            return []
+
+        start_from = self._last_history_id
+        logger.info(
+            f"[Gmail Service] Query history từ {start_from} → {webhook_history_id}"
+        )
+
+        self._last_history_id = webhook_history_id
+        self._save_last_history_id_to_db(webhook_history_id)
+
+        if start_from == webhook_history_id:
+            logger.info("[Gmail Service] Duplicate notification (start==end), bỏ qua.")
+            return []
+
+        messages = self.get_history(start_from)
+        if not messages:
+            return []
+
+        message_ids = [msg.get('id') for msg in messages if msg.get('id')]
+        logger.info(f"[Gmail Service] Tìm thấy {len(message_ids)} message IDs từ history")
+        return message_ids
+
     def fetch_new_emails_from_history(self, webhook_history_id: str) -> List[Dict]:
         """
         Entry point chính khi nhận webhook.

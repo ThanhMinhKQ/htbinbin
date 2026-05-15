@@ -23,24 +23,20 @@ async function _agSelectGuest(idx) {
 window._agSelectGuest = _agSelectGuest;
 
 async function agSearchOldGuest() {
-    const cccd = document.getElementById('ag-cccd')?.value?.trim();
-    if (!cccd || cccd.length < 3) { pmsToast('Vui lòng nhập ít nhất 3 ký tự để tìm kiếm', false); return; }
+    const query = document.getElementById('ag-crm-search-input')?.value?.trim() || '';
+    if (!query || query.length < 5) { pmsToast('Vui lòng nhập ít nhất 5 ký tự để tìm khách CRM', false); return; }
     try {
-        const r = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(cccd)}`);
-        if (!r.guests || r.guests.length === 0) {
-            alert(`⚠️ Không tìm thấy khách hàng nào với số giấy tờ "${cccd}".\n\nVui lòng kiểm tra lại số giấy tờ hoặc nhập thông tin khách mới.`);
-            pmsToast(`Không tìm thấy khách với CCCD "${cccd}"`, false);
+        const r = await pmsApi(`/api/pms/crm/guests/search?q=${encodeURIComponent(query)}&page_size=8`);
+        const guests = r.guests || r.items || [];
+        if (guests.length === 0) {
+            alert(`Không tìm thấy khách hàng phù hợp với "${query}".\n\nVui lòng kiểm tra lại hoặc nhập thông tin khách mới.`);
+            pmsToast(`Không tìm thấy khách CRM với "${query}"`, false);
             return;
         }
 
-        if (r.guests.length === 1) {
-            await agFillGuestFromOld(r.guests[0]);
-            return;
-        }
+        agCurrentSearchResults = guests;
 
-        agCurrentSearchResults = r.guests;
-
-        const resultsHtml = r.guests.map((g, idx) => {
+        const resultsHtml = guests.map((g, idx) => {
             const initials = (g.full_name || '?').split(' ').map(w => w[0]).join('').slice(-2).toUpperCase();
             const genderColor = g.gender === 'Nam' ? '#3b82f6' : g.gender === 'Nữ' ? '#ec4899' : '#8b5cf6';
             const addressParts = [g.address, g.ward, g.city].filter(Boolean);
@@ -91,7 +87,7 @@ async function agSearchOldGuest() {
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                     background: rgba(15, 23, 42, 0.6);
                     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-                    z-index: 10000;
+                    z-index: 100004;
                     display: flex; align-items: center; justify-content: center;
                     opacity: 0; transition: opacity 0.2s ease;
                 }
@@ -170,7 +166,7 @@ async function agSearchOldGuest() {
                         </svg>
                     </div>
                     <div>
-                        <h5>Tìm thấy ${r.guests.length} khách hàng</h5>
+                        <h5>Tìm thấy ${guests.length} khách hàng</h5>
                         <p>Chọn khách hàng để điền thông tin vào form</p>
                     </div>
                     <button class="ci-search-close" onclick="_agCloseSearchPopup()" title="Đóng">
@@ -249,7 +245,8 @@ async function agFillGuestFromOld(guest) {
         // Expiration check
         const idExpireEl = document.getElementById('ag-id-expire');
         if (idExpireEl) {
-            idExpireEl.value = guest.id_expire || '';
+            if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(idExpireEl, guest.id_expire);
+            else idExpireEl.value = guest.id_expire || '';
             agCheckIdExpire(idExpireEl);
         }
 

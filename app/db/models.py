@@ -74,13 +74,30 @@ class TransactionTypeWMS(str, enum.Enum):
 class Branch(Base):
     """Chi nhánh"""
     __tablename__ = "branches"
-    
+
     id = Column(Integer, primary_key=True)
     branch_code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     address = Column(Text)
+    phone = Column(String(50), nullable=True)
     gps_lat = Column(NUMERIC(12, 9))
     gps_lng = Column(NUMERIC(12, 9))
+
+    # Company info
+    company_name = Column(String(255), nullable=True)
+    tax_code = Column(String(50), nullable=True)
+    tax_address = Column(Text, nullable=True)
+
+    # Company bank info
+    bank_name = Column(String(255), nullable=True)
+    bank_account = Column(String(100), nullable=True)
+    bank_holder = Column(String(255), nullable=True)
+
+    # Personal bank info
+    personal_bank_name = Column(String(255), nullable=True)
+    personal_bank_account = Column(String(100), nullable=True)
+    personal_bank_holder = Column(String(255), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Department(Base):
@@ -1075,6 +1092,8 @@ class HotelStay(Base):
     require_invoice = Column(Boolean, default=False)
     tax_code        = Column(String(50), nullable=True)
     tax_contact     = Column(String(255), nullable=True)
+    company_name    = Column(String(255), nullable=True)
+    company_address = Column(Text, nullable=True)
 
     created_by   = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at   = Column(DateTime(timezone=True), server_default=func.now())
@@ -1488,6 +1507,8 @@ class HotelGuest(Base):
     notes        = Column(Text, nullable=True)
     tax_code    = Column(String(50), nullable=True)      # Mã số thuế (bắt buộc khi xuất hoá đơn)
     invoice_contact = Column(String(255), nullable=True)  # Liên hệ gửi hoá đơn (bắt buộc khi xuất hoá đơn)
+    company_name    = Column(String(255), nullable=True)
+    company_address = Column(Text, nullable=True)
     nationality  = Column(String(100), nullable=True)     # Quốc tịch (VD: "VNM - Việt Nam") - cũng có trong Guest
     guest_id     = Column(BIGINT, ForeignKey("guests.id", ondelete="SET NULL"), index=True)
     is_primary  = Column(Boolean, default=False)          # Khách đặt phòng chính

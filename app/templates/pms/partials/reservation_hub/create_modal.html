@@ -30,10 +30,60 @@
 
           <!-- ═══ STEP 1: Chọn phòng ═══ -->
           <div class="bk-step-panel active" id="bk-step-1">
-            <div class="bk-selection-header-v4">
-              <h2>Chọn hạng phòng</h2>
-              <p>Hệ thống tự động lọc phòng trống theo thời gian đã chọn.</p>
+            <!-- Config Toolbar -->
+            <div class="bk-config-toolbar">
+              <div class="bk-config-row">
+                <div class="bk-config-field">
+                  <label>Nguồn</label>
+                  <select class="bk-select" id="bk-form-booking-type" onchange="BookingHub.onBookingTypeChange()">
+                    <option value="DIRECT">Trực tiếp</option>
+                    <option value="OTA">OTA</option>
+                    <option value="SALES">Sales</option>
+                    <option value="COMPANY">Công ty</option>
+                    <option value="ZALO">Zalo</option>
+                    <option value="PHONE">Số điện thoại</option>
+                  </select>
+                </div>
+                <div class="bk-config-field" id="bk-form-sales-name-wrap" style="display:none;">
+                  <label>Tên Sales</label>
+                  <input class="bk-input" id="bk-form-sales-name" placeholder="...">
+                </div>
+                <div class="bk-config-field" id="bk-form-ota-channel-wrap" style="display:none;">
+                  <label>Kênh OTA</label>
+                  <input class="bk-input" id="bk-form-ota-channel" list="dl-ota" placeholder="Chọn hoặc nhập kênh...">
+                </div>
+                <div class="bk-config-field" id="bk-form-booking-code-wrap" style="display:none;">
+                  <label>Mã OTA</label>
+                  <input class="bk-input" id="bk-form-booking-code" placeholder="...">
+                </div>
+                <div class="bk-config-field" id="bk-form-company-name-wrap" style="display:none;">
+                  <label>Tên công ty <span style="color:#dc2626;">*</span></label>
+                  <input class="bk-input" id="bk-form-company-name" placeholder="Tên công ty...">
+                </div>
+                <div class="bk-config-field" id="bk-form-company-tax-wrap" style="display:none;">
+                  <label>MST <span style="color:#dc2626;">*</span></label>
+                  <input class="bk-input" id="bk-form-company-tax" placeholder="Mã số thuế...">
+                </div>
+                <div class="bk-config-field" id="bk-form-company-address-wrap" style="display:none;">
+                  <label>Địa chỉ CTy</label>
+                  <input class="bk-input" id="bk-form-company-address" placeholder="Địa chỉ công ty...">
+                </div>
+                <div class="bk-config-field" id="bk-form-zalo-name-wrap" style="display:none;">
+                  <label>Tên Zalo</label>
+                  <input class="bk-input" id="bk-form-zalo-name" placeholder="Tên Zalo khách...">
+                </div>
+                <div class="bk-config-field" id="bk-form-source-phone-wrap" style="display:none;">
+                  <label>SĐT nguồn</label>
+                  <input class="bk-input" id="bk-form-source-phone" placeholder="Số điện thoại..." oninput="BookingHub.formatBookingNumeric(this)">
+                </div>
+                <div class="bk-config-field bk-config-guests">
+                  <label>Khách</label>
+                  <input class="bk-input" id="bk-form-guests" type="number" min="1" value="2" max="20">
+                </div>
+              </div>
             </div>
+
+            <hr class="bk-step-divider">
             <div class="bk-avail-cards" id="bk-wizard-avail-cards">
               <div class="bk-avail-empty">Đang tải dữ liệu phòng trống...</div>
             </div>
@@ -46,7 +96,7 @@
               <div class="bk-guest-toolbar-v5">
                 <input type="hidden" id="bk-form-guest-id">
                 <div class="bk-toolbar-row">
-                  <input class="bk-input" id="bk-crm-search-input" placeholder="Tìm khách theo Tên, CCCD, SĐT, Email..." onkeydown="BookingHub.onCrmSearchKey(event)">
+                  <input class="bk-input" id="bk-crm-search-input" minlength="5" placeholder="Tìm khách theo Tên, CCCD, SĐT, Email... (tối thiểu 5 ký tự)" onkeydown="BookingHub.onCrmSearchKey(event)">
                   <button class="bk-btn primary" type="button" onclick="BookingHub.searchCrmGuests()">Tìm</button>
                   <button class="bk-btn primary" id="bk-scan-btn" type="button" onclick="BookingHub.scanBookingGuest()" title="F1">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg>
@@ -54,8 +104,6 @@
                   </button>
                   <button class="bk-btn" type="button" onclick="BookingHub.clearSelectedGuest()">Khách mới</button>
                 </div>
-                <div id="bk-selected-guest" style="display:none;font-size:12px;font-weight:800;color:var(--bk-primary);margin-top:6px;"></div>
-                <div class="bk-crm-results" id="bk-crm-results"></div>
               </div>
 
               <!-- Section 1: Thông tin khách chính -->
@@ -77,8 +125,8 @@
                     </select>
                   </div>
                   <div class="bk-field col-4">
-                    <label>Số giấy tờ</label>
-                    <input class="bk-input" id="bk-form-guest-cccd" placeholder="..." onblur="BookingHub.validateBookingIdNumber()">
+                    <label id="bk-form-id-expire-label">Hết hạn</label>
+                    <input class="bk-input" id="bk-form-id-expire" type="date">
                   </div>
                   <div class="bk-field col-3">
                     <label>Giới tính</label>
@@ -93,8 +141,8 @@
                     <input class="bk-input" id="bk-form-date-of-birth" type="date" onblur="BookingHub.checkBookingBirth(this)">
                   </div>
                   <div class="bk-field col-3">
-                    <label id="bk-form-id-expire-label">Hết hạn</label>
-                    <input class="bk-input" id="bk-form-id-expire" type="date">
+                    <label>Số giấy tờ</label>
+                    <input class="bk-input" id="bk-form-guest-cccd" placeholder="..." onblur="BookingHub.validateBookingIdNumber()">
                   </div>
                   <div class="bk-field col-3">
                     <label>Quốc tịch</label>
@@ -248,7 +296,7 @@
                     <button class="bk-method-card-v2 active" type="button" data-method="Chi nhánh" onclick="BookingHub.selectBookingPaymentMethod('Chi nhánh')">💵 Tiền mặt</button>
                     <button class="bk-method-card-v2" type="button" data-method="Chuyển khoản" onclick="BookingHub.selectBookingPaymentMethod('Chuyển khoản')">🏦 Chuyển khoản</button>
                     <button class="bk-method-card-v2" type="button" data-method="Quẹt thẻ" onclick="BookingHub.selectBookingPaymentMethod('Quẹt thẻ')">💳 Quẹt thẻ</button>
-                    <button class="bk-method-card-v2" type="button" data-method="Công ty" onclick="BookingHub.selectBookingPaymentMethod('Công ty')">🏢 Công nợ</button>
+                    <button class="bk-method-card-v2" type="button" data-method="Công ty" onclick="BookingHub.selectBookingPaymentMethod('Công ty')">🏢 Công ty</button>
                   </div>
                   <select style="display:none;" id="bk-form-payment-method">
                     <option value="Chi nhánh">Tiền mặt</option>
@@ -365,39 +413,12 @@
           </div>
 
           <div class="bk-summary-section">
-            <label class="bk-summary-label">Cấu hình chung</label>
-            <div class="bk-summary-fields">
-               <div class="bk-sum-field">
-                  <label>Nguồn</label>
-                  <select class="bk-sum-select" id="bk-form-booking-type" onchange="BookingHub.onBookingTypeChange()">
-                    <option value="DIRECT">Trực tiếp</option>
-                    <option value="OTA">OTA</option>
-                    <option value="SALES">Sales</option>
-                    <option value="ZALO">Zalo</option>
-                    <option value="PHONE">Số điện thoại</option>
-                  </select>
-               </div>
-               <div class="bk-sum-field">
-                  <label>Khách</label>
-                  <input class="bk-sum-input" id="bk-form-guests" type="number" min="1" value="2" max="20">
-               </div>
+            <label class="bk-summary-label">Trạng thái</label>
+            <div class="bk-status-segment">
+              <button type="button" class="bk-seg-btn active" data-status="CONFIRMED" onclick="BookingHub.setStatus('CONFIRMED')">Xác nhận</button>
+              <button type="button" class="bk-seg-btn" data-status="PENDING" onclick="BookingHub.setStatus('PENDING')">Chờ</button>
             </div>
-
-            <!-- Source Extra -->
-            <div id="bk-summary-extra-fields" class="bk-summary-extra">
-               <div class="bk-sum-field bk-sales-field" id="bk-form-sales-name-wrap" style="display:none;">
-                 <label>Tên Sales</label>
-                 <input class="bk-sum-input" id="bk-form-sales-name" placeholder="...">
-               </div>
-               <div class="bk-sum-field bk-source-extra-field" id="bk-form-ota-channel-wrap" style="display:none;">
-                 <label>Kênh OTA</label>
-                 <input class="bk-sum-input" id="bk-form-ota-channel" list="dl-ota" placeholder="Chọn hoặc nhập kênh...">
-               </div>
-               <div class="bk-sum-field bk-source-extra-field" id="bk-form-booking-code-wrap" style="display:none;">
-                 <label>Mã OTA</label>
-                 <input class="bk-sum-input" id="bk-form-booking-code" placeholder="...">
-               </div>
-            </div>
+            <input type="hidden" id="bk-form-status" value="CONFIRMED">
           </div>
 
           <div class="bk-summary-cart" id="bk-room-cart">
@@ -414,13 +435,6 @@
              <div class="bk-total-row">
                 <span>Tổng giá trị</span>
                 <strong id="bk-summary-total-price">0₫</strong>
-             </div>
-             <div class="bk-total-status">
-                <label>Trạng thái</label>
-                <select id="bk-form-status">
-                   <option value="CONFIRMED" selected>Đã xác nhận</option>
-                   <option value="PENDING">Chờ xác nhận</option>
-                </select>
              </div>
           </div>
         </aside>

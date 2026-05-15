@@ -1526,6 +1526,13 @@
     cursor: not-allowed;
   }
 
+  .bk-input[readonly] {
+    background: #f8fafc;
+    color: #64748b;
+    border-color: #dbe8ec;
+    cursor: not-allowed;
+  }
+
   .bk-field-hint {
     color: #64748b;
     font-size: 11px;
@@ -2165,9 +2172,63 @@
 #bk-step-1 {
   overflow: hidden;
   height: 100%;
+  gap: 10px;
 }
 
-#bk-step-1 .bk-selection-header-v4 { flex: 0 0 auto; }
+/* --- Config Toolbar (Step 1 workspace) --- */
+.bk-config-toolbar {
+  flex: 0 0 auto;
+  background: var(--bk-surface-soft);
+  border: 1px solid var(--bk-line);
+  border-radius: 12px;
+  padding: 8px 12px;
+  margin-bottom: 0;
+}
+
+.bk-config-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: flex-end;
+}
+
+.bk-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  flex: 1 1 calc(33.333% - 10px);
+}
+
+.bk-config-field label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--bk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bk-config-field .bk-input,
+.bk-config-field .bk-select {
+  height: 30px;
+  font-size: 12px;
+  padding: 0 8px;
+}
+
+.bk-config-guests {
+  flex: 0 0 60px;
+}
+
+/* --- Step Divider --- */
+.bk-step-divider {
+  border: none;
+  border-top: 1px solid var(--bk-line);
+  margin: 0;
+  flex: 0 0 auto;
+}
 
 #bk-step-1 .bk-avail-cards {
   flex: 1;
@@ -2309,19 +2370,20 @@
 /* Allocation V5 */
 .bk-allocation-v5 {
   background: var(--bk-surface-soft);
-  padding: 16px;
-  border-radius: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
   border: 1px solid var(--bk-line);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .bk-alloc-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .bk-alloc-head strong {
@@ -2335,15 +2397,15 @@
 }
 
 .bk-deposit-mode-card {
-  padding: 6px 14px;
-  border-radius: 20px;
+  padding: 5px 12px;
+  border-radius: 8px;
   font-size: 11px;
   font-weight: 700;
   border: 1px solid var(--bk-line);
   background: var(--bk-surface);
   color: var(--bk-muted);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
 }
 
 .bk-deposit-mode-card.active {
@@ -2358,8 +2420,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--bk-line);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--bk-surface);
+  border: 1px solid var(--bk-line);
+}
+
+.bk-deposit-split-line + .bk-deposit-split-line {
+  margin-top: 6px;
 }
 
 .bk-deposit-split-line:last-child { border-bottom: none; }
@@ -2369,6 +2437,7 @@
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  min-width: 0;
 }
 
 .bk-split-room-meta strong { font-size: 12px; }
@@ -2376,19 +2445,20 @@
 
 .bk-split-money-editor {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .bk-split-money-editor small {
   font-size: 9px;
   color: var(--bk-muted);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .bk-split-money-editor .bk-input {
-  width: 140px;
+  width: 130px;
   text-align: right;
   font-weight: 800;
   font-size: 13px;
@@ -2536,6 +2606,41 @@ input.bk-planner-val:focus { outline: none; }
 
 .bk-summary-section { margin-bottom: 4px; }
 .bk-summary-planner { gap: 4px; }
+
+/* --- Status Segment Buttons --- */
+.bk-status-segment {
+  display: flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--bk-line);
+}
+
+.bk-seg-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  background: var(--bk-surface-soft);
+  color: var(--bk-muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.bk-seg-btn.active {
+  background: #088395;
+  color: #fff;
+}
+
+.bk-seg-btn:not(.active):hover {
+  background: var(--bk-line);
+}
+
+.bk-seg-btn.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
 
 .bk-cart-items-v4 {
   display: flex;

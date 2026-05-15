@@ -288,6 +288,16 @@ async def startup_event():
             )
             logger.info("✅ Reservation Hub jobs đã đăng ký: inventory, holds, no-show")
 
+            # --- OTA POLLING FALLBACK (Mỗi 30 phút) ---
+            from app.api.ota_dashboard import _run_polling_fallback
+            scheduler.add_job(
+                _run_polling_fallback,
+                'interval', minutes=30,
+                misfire_grace_time=300,
+                id="ota_polling_fallback",
+            )
+            logger.info("📧 OTA Polling Fallback đã đăng ký (mỗi 30 phút)")
+
             scheduler.start()
             atexit.register(lambda: scheduler.shutdown())
             logger.info("✅ Các tác vụ nền (Scheduler) đã được lập lịch.")

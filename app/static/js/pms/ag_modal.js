@@ -415,7 +415,8 @@ async function agEditGuest(i) {
     if (notesEl) notesEl.value = g.notes || '';
     if (idTypeEl) idTypeEl.value = (g.id_type || 'cccd').toLowerCase();
     if (idExpireEl) {
-        idExpireEl.value = g.id_expire ? String(g.id_expire).slice(0, 10) : '';
+        if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(idExpireEl, g.id_expire);
+        else idExpireEl.value = g.id_expire ? String(g.id_expire).slice(0, 10) : '';
         agCheckIdExpire(idExpireEl);
     }
     if (birthEl && g.birth_date) {
@@ -666,7 +667,8 @@ async function agLoadGuestIntoForm(guest) {
         idTypeEl.disabled = true;
     }
     if (idExpEl) {
-        idExpEl.value = guest.id_expire ? String(guest.id_expire).slice(0, 10) : '';
+        if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(idExpEl, guest.id_expire);
+        else idExpEl.value = guest.id_expire ? String(guest.id_expire).slice(0, 10) : '';
         if (typeof agCheckIdExpire === 'function') agCheckIdExpire(idExpEl);
     }
     if (birthEl && guest.birth_date) {
@@ -843,9 +845,14 @@ async function agFillFromScan(parsed) {
         birthEl.value = pmsScanDateToISO(parsed.dob);
         if (typeof agCheckBirth === 'function') agCheckBirth(birthEl);
     }
-    if (expireEl && parsed.expiry_date && parsed.expiry_date !== 'Không thời hạn') {
-        expireEl.value = pmsScanDateToISO(parsed.expiry_date);
-        if (typeof agCheckIdExpire === 'function') agCheckIdExpire(expireEl);
+    if (expireEl && parsed.expiry_date) {
+        if (parsed.expiry_date === 'Không thời hạn' && typeof pmsSetCCCDPermanentExpiry === 'function') {
+            pmsSetCCCDPermanentExpiry(expireEl);
+        } else {
+            if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(expireEl, parsed.expiry_date);
+            else expireEl.value = pmsScanDateToISO(parsed.expiry_date);
+            if (typeof agCheckIdExpire === 'function') agCheckIdExpire(expireEl);
+        }
     }
 
     const cardType = parsed.card_type || 'CCCD_CU';
@@ -1174,20 +1181,6 @@ function agShowAutofillNotice(name, cccd) {
     infoBar.insertBefore(notice, infoBar.firstChild);
 }
 window.agShowAutofillNotice = agShowAutofillNotice;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Enter key listener: CCCD → search
-// ─────────────────────────────────────────────────────────────────────────────
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') {
-        const el = e.target;
-        if (el && el.id === 'ag-cccd') {
-            e.preventDefault();
-            if (typeof agSearchOldGuest === 'function') agSearchOldGuest();
-        }
-    }
-});
 
 (function initAgVietnameseDateInputs() {
     const init = () => {

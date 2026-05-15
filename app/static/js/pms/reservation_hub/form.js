@@ -108,7 +108,8 @@ Object.assign(BookingHub, {
         set('bk-form-gender', booking.gender || '');
         set('bk-form-date-of-birth', booking.date_of_birth || '');
         set('bk-form-nationality', booking.nationality || 'VNM - Việt Nam');
-        set('bk-form-id-expire', booking.id_expire || '');
+        if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(document.getElementById('bk-form-id-expire'), booking.id_expire);
+        else set('bk-form-id-expire', booking.id_expire || '');
         set('bk-form-address', booking.address || '');
         const raw = booking.raw_data || {};
         const otaChannel = booking.booking_type === 'OTA'
@@ -144,6 +145,7 @@ Object.assign(BookingHub, {
         this.initBookingPlannerFlatpickr();
         set('bk-form-room-type', booking.room_type_id || '');
         set('bk-form-status', ['PENDING', 'CONFIRMED'].includes(booking.reservation_status) ? booking.reservation_status : 'PENDING');
+        this.setStatus(['PENDING', 'CONFIRMED'].includes(booking.reservation_status) ? booking.reservation_status : 'PENDING');
         set('bk-form-booking-type', booking.booking_type || 'DIRECT');
         set('bk-form-ota-channel', otaChannel);
         set('bk-form-sales-name', booking.raw_data?.sales_name || '');
@@ -162,11 +164,6 @@ Object.assign(BookingHub, {
         this.onBookingTypeChange();
         this.onBookingPaymentMethodChange();
         this.previewBookingPrice();
-        const selected = document.getElementById('bk-selected-guest');
-        if (selected && booking.guest_id) {
-            selected.style.display = 'block';
-            selected.textContent = `Đã chọn CRM: ${booking.guest_name || 'Khách'} • ${booking.guest_tier || 'BASIC'}`;
-        }
         this.setBookingCrmFieldsLocked(false);
         document.getElementById('bk-step-2')?.classList.toggle('bk-ota-guest-relaxed', booking.booking_type === 'OTA');
     },
@@ -195,6 +192,7 @@ Object.assign(BookingHub, {
         const extraMap = {
             SALES: ['bk-form-sales-name-wrap', 'bk-form-sales-name'],
             OTA: ['bk-form-ota-channel-wrap', 'bk-form-ota-channel'],
+            COMPANY: ['bk-form-company-name-wrap', 'bk-form-company-name'],
             ZALO: ['bk-form-zalo-name-wrap', 'bk-form-zalo-name'],
             PHONE: ['bk-form-source-phone-wrap', 'bk-form-source-phone'],
         };
@@ -210,6 +208,19 @@ Object.assign(BookingHub, {
                 input.classList.remove('is-invalid');
             }
         });
+        // Company extra fields (MST + address)
+        const companyTaxWrap = document.getElementById('bk-form-company-tax-wrap');
+        const companyAddrWrap = document.getElementById('bk-form-company-address-wrap');
+        const isCompany = type === 'COMPANY';
+        if (companyTaxWrap) companyTaxWrap.style.display = isCompany ? '' : 'none';
+        if (companyAddrWrap) companyAddrWrap.style.display = isCompany ? '' : 'none';
+        if (!isCompany) {
+            const taxInput = document.getElementById('bk-form-company-tax');
+            const addrInput = document.getElementById('bk-form-company-address');
+            if (taxInput) { taxInput.value = ''; taxInput.classList.remove('is-invalid'); }
+            if (addrInput) { addrInput.value = ''; }
+        }
+
         const codeWrap = document.getElementById('bk-form-booking-code-wrap');
         const codeInput = document.getElementById('bk-form-booking-code');
         const showReferenceCode = type === 'OTA';
@@ -225,9 +236,27 @@ Object.assign(BookingHub, {
         } else {
             this.applyOtaDepositLock(false);
         }
+        this.applyCompanyPaymentLock(isCompany);
         if (infoGrid) infoGrid.classList.toggle('has-source-extra', Object.prototype.hasOwnProperty.call(extraMap, type) || showReferenceCode);
         if (!status || this.state.editingBookingId) return;
         status.value = 'CONFIRMED';
+    },
+
+    prefillGuestFromSource() {
+        const type = this.value('bk-form-booking-type');
+        const guestName = document.getElementById('bk-form-guest-name');
+        const guestPhone = document.getElementById('bk-form-guest-phone');
+        if (type === 'ZALO') {
+            const zaloName = this.value('bk-form-zalo-name');
+            if (zaloName && guestName && !guestName.value.trim()) {
+                guestName.value = zaloName;
+            }
+        } else if (type === 'PHONE') {
+            const sourcePhone = this.value('bk-form-source-phone');
+            if (sourcePhone && guestPhone && !guestPhone.value.trim()) {
+                guestPhone.value = sourcePhone;
+            }
+        }
     },
 
     getBookingSourceExtraConfig() {
@@ -235,6 +264,7 @@ Object.assign(BookingHub, {
         const config = {
             SALES: { id: 'bk-form-sales-name', key: 'sales_name', message: 'Vui lòng nhập tên Sales' },
             OTA: { id: 'bk-form-ota-channel', key: 'ota_channel', message: 'Vui lòng nhập kênh OTA' },
+            COMPANY: { id: 'bk-form-company-name', key: 'company_name', message: 'Vui lòng nhập tên công ty' },
             ZALO: { id: 'bk-form-zalo-name', key: 'zalo_name', message: 'Vui lòng nhập tên Zalo' },
             PHONE: { id: 'bk-form-source-phone', key: 'source_phone', message: 'Vui lòng nhập số điện thoại nguồn' },
         };
@@ -242,8 +272,38 @@ Object.assign(BookingHub, {
     },
 
     getBookingSourceExtraPayload() {
+        const type = this.value('bk-form-booking-type');
+        if (type === 'COMPANY') {
+            return {
+                company_name: this.value('bk-form-company-name'),
+                company_tax_code: this.value('bk-form-company-tax'),
+                company_address: this.value('bk-form-company-address'),
+            };
+        }
         const cfg = this.getBookingSourceExtraConfig();
         return cfg ? { [cfg.key]: this.value(cfg.id) } : {};
+    },
+
+    applyCompanyPaymentLock(locked = false) {
+        const method = document.getElementById('bk-form-payment-method');
+        if (locked) {
+            if (method) method.value = 'Công ty';
+            this.updateBookingPaymentMethodCards();
+            document.querySelectorAll('.bk-method-card-v2').forEach(card => {
+                card.classList.toggle('disabled', card.dataset.method !== 'Công ty');
+            });
+        } else {
+            document.querySelectorAll('.bk-method-card-v2').forEach(card => {
+                card.classList.remove('disabled');
+            });
+        }
+    },
+
+    setStatus(val) {
+        document.getElementById('bk-form-status').value = val;
+        document.querySelectorAll('.bk-seg-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.status === val);
+        });
     },
 
     // ── Availability Bar (toolbar) ─────────────────────────
@@ -762,13 +822,14 @@ Object.assign(BookingHub, {
     },
 
     applyOverCapacityStatusLock() {
-        const status = document.getElementById('bk-form-status');
-        if (!status) return;
-        const confirmedOption = Array.from(status.options).find((option) => option.value === 'CONFIRMED');
         const locked = this.hasOverCapacityCart();
-        if (locked) status.value = 'PENDING';
-        if (confirmedOption) confirmedOption.disabled = locked;
-        status.classList.toggle('over-capacity-locked', locked);
+        const confirmBtn = document.querySelector('.bk-seg-btn[data-status="CONFIRMED"]');
+        if (locked) {
+            this.setStatus('PENDING');
+            if (confirmBtn) confirmBtn.classList.add('disabled');
+        } else {
+            if (confirmBtn) confirmBtn.classList.remove('disabled');
+        }
     },
 
     renderPaymentRoomSummary() {
@@ -889,6 +950,7 @@ Object.assign(BookingHub, {
         this.syncBookingDateHiddenFields();
         this.initBookingPlannerFlatpickr();
         set('bk-form-status', Number(available || 0) <= 0 ? 'PENDING' : 'CONFIRMED');
+        this.setStatus(Number(available || 0) <= 0 ? 'PENDING' : 'CONFIRMED');
         this.state.roomCart = [];
         this.selectWizardRoom(roomTypeId, roomTypeName, price, available, maxGuests);
         this.previewBookingPrice();
@@ -916,6 +978,7 @@ Object.assign(BookingHub, {
         if (nextBtn) nextBtn.style.display = step < 3 ? 'inline-flex' : 'none';
         if (submitBtn) submitBtn.style.display = step === 3 ? 'inline-flex' : 'none';
         if (step === 2) {
+            this.prefillGuestFromSource();
             this.onBookingIdTypeChange();
             this.switchBookingAddressMode(this.getBookingAddressMode(), true);
             setTimeout(() => document.getElementById('bk-form-guest-name')?.focus(), 150);
@@ -957,9 +1020,20 @@ Object.assign(BookingHub, {
                 this.failReservationValidation('bk-form-booking-code', 'Vui lòng nhập mã tham chiếu OTA');
                 return;
             }
+            if (this.value('bk-form-booking-type') === 'COMPANY' && !this.value('bk-form-company-tax')) {
+                this.failReservationValidation('bk-form-company-tax', 'Vui lòng nhập mã số thuế (MST)');
+                return;
+            }
             if (!this.getRoomCartQuantity() && !this.state.editingBookingId) {
                 pmsToast('Vui lòng chọn ít nhất một phòng bằng cách click vào thẻ phòng', false);
                 return;
+            }
+            // Auto-fill company name into guest name field
+            if (this.value('bk-form-booking-type') === 'COMPANY') {
+                const companyName = this.value('bk-form-company-name');
+                if (companyName && !this.value('bk-form-guest-name')) {
+                    document.getElementById('bk-form-guest-name').value = companyName;
+                }
             }
             this.setWizardStep(2);
             return;
@@ -1044,7 +1118,7 @@ Object.assign(BookingHub, {
             'bk-form-date-of-birth', 'bk-form-nationality', 'bk-form-guests', 'bk-form-booking-type',
             'bk-form-status', 'bk-form-sales-name', 'bk-form-booking-code', 'bk-form-zalo-name',
             'bk-form-source-phone', 'bk-form-guest-phone', 'bk-form-province', 'bk-form-district',
-            'bk-form-ward', 'bk-form-address'
+            'bk-form-ward', 'bk-form-address', 'bk-form-company-name', 'bk-form-company-tax'
         ].forEach((id) => {
             const el = document.getElementById(id);
             if (el && !el.dataset.bkValidationBound) {
@@ -1615,10 +1689,18 @@ Object.assign(BookingHub, {
         const crmLocked = Boolean(this.value('bk-form-guest-id'));
         if (expireGroup) expireGroup.style.display = noExpire ? 'none' : '';
         if (expire) {
-            expire.disabled = noExpire || crmLocked;
+            expire.disabled = noExpire;
             if (noExpire) {
                 expire.value = '';
                 expire.classList.remove('is-invalid');
+            }
+            if (!noExpire && typeof pmsSyncCCCDExpiryReadonly === 'function') {
+                pmsSyncCCCDExpiryReadonly({
+                    idTypeEl: document.getElementById('bk-form-id-type'),
+                    birthEl: document.getElementById('bk-form-date-of-birth'),
+                    expireEl: expire,
+                    checkExpire: (input) => this.checkBookingIdExpire(input),
+                });
             }
         }
         if (label) label.classList.toggle('bk-required', !noExpire);
@@ -1677,6 +1759,7 @@ Object.assign(BookingHub, {
 
     selectBookingPaymentMethod(method) {
         if (this.isOtaBookingForm()) return;
+        if (this.value('bk-form-booking-type') === 'COMPANY') return;
         const select = document.getElementById('bk-form-payment-method');
         if (select) select.value = method || 'Chi nhánh';
         this.updateBookingPaymentMethodCards();
@@ -1767,6 +1850,7 @@ Object.assign(BookingHub, {
         const sourceExtra = this.getBookingSourceExtraConfig();
         if (sourceExtra && !this.value(sourceExtra.id)) return this.failReservationValidation(sourceExtra.id, sourceExtra.message);
         if (this.value('bk-form-booking-type') === 'OTA' && !this.value('bk-form-booking-code')) return this.failReservationValidation('bk-form-booking-code', 'Vui lòng nhập mã tham chiếu OTA');
+        if (this.value('bk-form-booking-type') === 'COMPANY' && !this.value('bk-form-company-tax')) return this.failReservationValidation('bk-form-company-tax', 'Vui lòng nhập mã số thuế (MST)');
         if (this.isOtaBookingForm() && this.getMoneyValue('bk-form-total') <= 0) return this.failReservationValidation('bk-form-total', 'Vui lòng nhập tổng tiền OTA thực thu');
         if (!this.value('bk-form-guest-id') && !this.value('bk-form-guest-name')) return this.failReservationValidation('bk-form-guest-name', 'Vui lòng nhập họ tên khách');
         if ((!this.getRoomCartQuantity() && !this.state.editingBookingId) || !this.value('bk-form-check-in') || !this.value('bk-form-check-out')) {
@@ -2047,6 +2131,7 @@ Object.assign(BookingHub, {
             'bk-form-total', 'bk-form-deposit',
             'bk-form-requests', 'bk-form-notes', 'bk-form-payment-ref', 'bk-form-sales-name',
             'bk-form-ota-channel', 'bk-form-booking-code', 'bk-form-zalo-name', 'bk-form-source-phone',
+            'bk-form-company-name', 'bk-form-company-tax', 'bk-form-company-address',
             'bk-form-province', 'bk-form-district', 'bk-form-ward',
             'bk-form-new-province', 'bk-form-new-ward'
         ].forEach((id) => {
@@ -2065,6 +2150,7 @@ Object.assign(BookingHub, {
         if (guests) guests.value = '2';
         const status = document.getElementById('bk-form-status');
         if (status) status.value = 'CONFIRMED';
+        this.setStatus('CONFIRMED');
         const bookingType = document.getElementById('bk-form-booking-type');
         if (bookingType) bookingType.value = 'DIRECT';
         this.state.editingBookingId = null;
@@ -2077,16 +2163,7 @@ Object.assign(BookingHub, {
         this.renderRoomCart();
         this.setCreateMode(false);
         this.setBookingCrmFieldsLocked(false);
-        const selected = document.getElementById('bk-selected-guest');
-        if (selected) {
-            selected.style.display = 'none';
-            selected.textContent = '';
-        }
-        const box = document.getElementById('bk-crm-results');
-        if (box) {
-            box.classList.remove('show');
-            box.innerHTML = '';
-        }
+        this.closeCrmSearchPopup();
         this.switchBookingAddressMode('new', false);
         this.bindFormDateDefaults();
         this.setWizardStep(1);
@@ -2098,40 +2175,31 @@ Object.assign(BookingHub, {
     },
 
     onCrmSearchKey(event) {
-        if (event.key === 'Enter') this.searchCrmGuests();
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.searchCrmGuests();
+        }
     },
 
     async searchCrmGuests() {
-        const q = (this.value('bk-crm-search-input') || this.value('bk-form-guest-phone') || this.value('bk-form-guest-name') || '').trim();
-        if (!q || q.length < 2) {
-            pmsToast('Nhập ít nhất 2 ký tự để tìm khách CRM', false);
+        const q = (this.value('bk-crm-search-input') || '').trim();
+        if (!q || q.length < 5) {
+            pmsToast('Nhập ít nhất 5 ký tự để tìm khách CRM', false);
             return;
         }
-        const box = document.getElementById('bk-crm-results');
         const requestId = (this.state.crmSearchRequestId || 0) + 1;
         this.state.crmSearchRequestId = requestId;
         this.state.crmSearchCache = this.state.crmSearchCache || {};
         const cacheKey = q.toLowerCase();
         const renderGuests = (guests) => {
-            if (!box || requestId !== this.state.crmSearchRequestId) return;
+            if (requestId !== this.state.crmSearchRequestId) return;
             if (!guests.length) {
-                box.innerHTML = '<div class="bk-crm-message">Không tìm thấy khách phù hợp.</div>';
+                this.closeCrmSearchPopup();
+                pmsToast('Không tìm thấy khách CRM phù hợp', false);
                 return;
             }
-            box.innerHTML = guests.map((g) => `
-                <button class="bk-crm-item" type="button" onclick="BookingHub.selectCrmGuest(${this.escape(JSON.stringify(g))})">
-                    <span>
-                        <strong>${this.escape(g.full_name || 'Khách')}</strong>
-                        <div class="bk-crm-meta">${this.escape(g.phone || g.cccd || g.email || 'Chưa có định danh')}</div>
-                    </span>
-                    <span class="bk-crm-tier">${this.escape(g.tier_display || g.tier || 'BASIC')}</span>
-                </button>
-            `).join('');
+            this.showCrmSearchPopup(guests);
         };
-        if (box) {
-            box.classList.add('show');
-            box.innerHTML = '<div class="bk-crm-message">Đang tìm khách...</div>';
-        }
         if (this.state.crmSearchCache[cacheKey]) {
             renderGuests(this.state.crmSearchCache[cacheKey]);
             return;
@@ -2142,15 +2210,164 @@ Object.assign(BookingHub, {
             this.state.crmSearchCache[cacheKey] = guests;
             renderGuests(guests);
         } catch (err) {
-            if (box && requestId === this.state.crmSearchRequestId) box.innerHTML = `<div class="bk-crm-message error">${this.escape(err.message || 'Lỗi tìm khách')}</div>`;
+            if (requestId === this.state.crmSearchRequestId) {
+                this.closeCrmSearchPopup();
+                pmsToast(err.message || 'Lỗi tìm khách CRM', false);
+            }
         }
+    },
+
+    closeCrmSearchPopup() {
+        const modal = document.getElementById('bk-crm-results-modal');
+        if (!modal) return;
+        modal.style.opacity = '0';
+        modal.classList.remove('bk-crm-popup-show');
+        setTimeout(() => modal.remove(), 180);
+    },
+
+    async selectCrmSearchResult(index) {
+        const guests = this.state.crmSearchResults || [];
+        const guest = guests[index];
+        if (!guest) return;
+        this.closeCrmSearchPopup();
+        await this.selectCrmGuest(guest);
+    },
+
+    showCrmSearchPopup(guests) {
+        this.state.crmSearchResults = guests;
+        const existing = document.getElementById('bk-crm-results-modal');
+        if (existing) existing.remove();
+        const resultsHtml = guests.map((g, idx) => {
+            const name = this.escape(g.full_name || 'Khách');
+            const meta = this.escape([g.phone, g.cccd, g.email].filter(Boolean).join(' • ') || 'Chưa có định danh');
+            const tier = this.escape(g.tier_display || g.tier || 'BASIC');
+            const initials = this.escape(String(g.full_name || '?').split(' ').map((w) => w[0]).join('').slice(-2).toUpperCase());
+            const risks = [
+                g.is_blacklisted ? '<span class="bk-crm-popup-risk danger">Blacklist</span>' : '',
+                g.has_unpaid_debt ? `<span class="bk-crm-popup-risk warn">Nợ ${pmsMoney(g.unpaid_debt_amount || 0)}</span>` : '',
+            ].join('');
+            return `
+                <button class="bk-crm-popup-card" type="button" onclick="BookingHub.selectCrmSearchResult(${idx})">
+                    <span class="bk-crm-popup-avatar">${initials}</span>
+                    <span class="bk-crm-popup-info">
+                        <strong>${name} ${risks}</strong>
+                        <small>${meta}</small>
+                    </span>
+                    <span class="bk-crm-popup-tier">${tier}</span>
+                </button>
+            `;
+        }).join('');
+        const modal = document.createElement('div');
+        modal.id = 'bk-crm-results-modal';
+        modal.innerHTML = `
+            <style>
+                #bk-crm-results-modal {
+                    position: fixed; inset: 0; z-index: 100004;
+                    display: flex; align-items: center; justify-content: center;
+                    padding: 18px; background: rgba(15, 23, 42, .6);
+                    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+                    opacity: 0; transition: opacity .18s ease;
+                }
+                .bk-crm-popup {
+                    width: min(560px, 94vw); max-height: 72vh; overflow: hidden;
+                    background: #fff; border-radius: 16px; display: flex; flex-direction: column;
+                    box-shadow: 0 25px 60px rgba(15, 23, 42, .28);
+                    transform: translateY(12px); transition: transform .22s ease;
+                }
+                #bk-crm-results-modal.bk-crm-popup-show .bk-crm-popup { transform: translateY(0); }
+                .bk-crm-popup-head {
+                    display: flex; align-items: center; gap: 14px;
+                    padding: 18px 20px 14px; border-bottom: 1px solid #e2e8f0;
+                }
+                .bk-crm-popup-icon {
+                    width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+                    display: grid; place-items: center; color: #2563eb;
+                    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+                }
+                .bk-crm-popup-head h5 { margin: 0; font-size: 16px; color: #0f172a; font-weight: 800; }
+                .bk-crm-popup-head p { margin: 3px 0 0; font-size: 12.5px; color: #64748b; }
+                .bk-crm-popup-close {
+                    margin-left: auto; width: 36px; height: 36px; border: 0; border-radius: 10px;
+                    background: transparent; color: #94a3b8; cursor: pointer;
+                }
+                .bk-crm-popup-close:hover { background: #f1f5f9; color: #475569; }
+                .bk-crm-popup-list { overflow-y: auto; padding: 12px 14px 14px; }
+                .bk-crm-popup-card {
+                    width: 100%; display: flex; align-items: center; gap: 12px;
+                    padding: 13px 14px; margin-bottom: 10px; border: 1px solid #e2e8f0;
+                    border-radius: 12px; background: #fff; text-align: left; cursor: pointer;
+                    transition: background .15s, border-color .15s, transform .15s, box-shadow .15s;
+                }
+                .bk-crm-popup-card:last-child { margin-bottom: 0; }
+                .bk-crm-popup-card:hover {
+                    border-color: #93c5fd; background: linear-gradient(135deg, #f0f9ff, #eff6ff);
+                    box-shadow: 0 4px 12px rgba(37, 99, 235, .1); transform: translateY(-1px);
+                }
+                .bk-crm-popup-avatar {
+                    width: 42px; height: 42px; border-radius: 12px; flex: 0 0 auto;
+                    display: grid; place-items: center; background: #2563eb; color: #fff;
+                    font-size: 13px; font-weight: 800;
+                }
+                .bk-crm-popup-info { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
+                .bk-crm-popup-info strong {
+                    color: #0f172a; font-size: 14px; font-weight: 750;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                }
+                .bk-crm-popup-info small {
+                    color: #64748b; font-size: 12px;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                }
+                .bk-crm-popup-tier, .bk-crm-popup-risk {
+                    flex: 0 0 auto; border-radius: 999px; padding: 3px 8px;
+                    font-size: 10px; font-weight: 800;
+                }
+                .bk-crm-popup-tier { background: #ecfeff; color: #0e7490; }
+                .bk-crm-popup-risk { margin-left: 6px; }
+                .bk-crm-popup-risk.danger { background:#fee2e2; color:#b91c1c; }
+                .bk-crm-popup-risk.warn { background:#fef3c7; color:#92400e; }
+            </style>
+            <div class="bk-crm-popup" role="dialog" aria-modal="true" aria-label="Kết quả tìm khách CRM">
+                <div class="bk-crm-popup-head">
+                    <div class="bk-crm-popup-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h5>Tìm thấy ${guests.length} khách hàng</h5>
+                        <p>Chọn khách hàng để điền thông tin vào phiếu đặt phòng</p>
+                    </div>
+                    <button class="bk-crm-popup-close" type="button" onclick="BookingHub.closeCrmSearchPopup()" title="Đóng">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="bk-crm-popup-list">${resultsHtml}</div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => {
+            modal.style.opacity = '1';
+            modal.classList.add('bk-crm-popup-show');
+        });
+        modal.addEventListener('click', (event) => {
+            if (event.target === modal) this.closeCrmSearchPopup();
+        });
+        const escHandler = (event) => {
+            if (event.key === 'Escape') {
+                this.closeCrmSearchPopup();
+                document.removeEventListener('keydown', escHandler);
+            }
+        };
+        document.addEventListener('keydown', escHandler);
     },
 
     setBookingCrmFieldsLocked(locked) {
         [
             'bk-form-guest-name',
             'bk-form-guest-cccd', 'bk-form-id-type', 'bk-form-gender',
-            'bk-form-date-of-birth', 'bk-form-nationality', 'bk-form-id-expire',
+            'bk-form-date-of-birth', 'bk-form-nationality',
             'bk-form-province', 'bk-form-district', 'bk-form-ward', 'bk-form-address'
         ].forEach((id) => {
             const el = document.getElementById(id);
@@ -2257,20 +2474,17 @@ Object.assign(BookingHub, {
         set('bk-form-gender', guest.gender);
         set('bk-form-date-of-birth', guest.birth_date || guest.date_of_birth);
         set('bk-form-nationality', guest.nationality || 'VNM - Việt Nam');
-        set('bk-form-id-expire', guest.id_expire);
+        if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(document.getElementById('bk-form-id-expire'), guest.id_expire);
+        else set('bk-form-id-expire', guest.id_expire);
         await this.fillBookingAddressFromGuest(guest);
         if (requestId !== this.state.crmSelectRequestId) return;
         this.onBookingIdTypeChange();
         this.setBookingCrmFieldsLocked(true);
         this.clearReservationValidation();
-        const selected = document.getElementById('bk-selected-guest');
-        if (selected) {
-            selected.style.display = 'block';
-            selected.textContent = `Đã chọn CRM: ${guest.full_name || 'Khách'} • ${guest.tier_display || guest.tier || 'BASIC'}`;
-        }
-        const box = document.getElementById('bk-crm-results');
-        if (box) box.classList.remove('show');
-        pmsToast('Đã điền thông tin khách CRM', true);
+        this.closeCrmSearchPopup();
+        const guestName = guest.full_name || 'Khách';
+        const guestTier = guest.tier_display || guest.tier || 'BASIC';
+        pmsToast(`Đã chọn CRM: ${guestName} • ${guestTier}`, true);
     },
 
     scanBookingGuest() {
@@ -2324,27 +2538,28 @@ Object.assign(BookingHub, {
             set('bk-form-date-of-birth', pmsScanDateToISO(parsed.dob));
             this.checkBookingBirth(document.getElementById('bk-form-date-of-birth'));
         }
-        if (parsed.expiry_date && parsed.expiry_date !== 'Không thời hạn' && typeof pmsScanDateToISO === 'function') {
-            set('bk-form-id-expire', pmsScanDateToISO(parsed.expiry_date));
-            this.checkBookingIdExpire(document.getElementById('bk-form-id-expire'));
+        if (parsed.expiry_date) {
+            const expireEl = document.getElementById('bk-form-id-expire');
+            if (parsed.expiry_date === 'Không thời hạn' && typeof pmsSetCCCDPermanentExpiry === 'function') {
+                pmsSetCCCDPermanentExpiry(expireEl);
+            } else if (typeof pmsScanDateToISO === 'function') {
+                if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(expireEl, parsed.expiry_date);
+                else set('bk-form-id-expire', pmsScanDateToISO(parsed.expiry_date));
+                this.checkBookingIdExpire(expireEl);
+            }
         }
         set('bk-form-nationality', 'VNM - Việt Nam');
         await this.fillBookingAddressFromScan(parsed.address, parsed.card_type || 'CCCD_CU');
         this.onBookingIdTypeChange();
         this.clearReservationValidation();
 
-        const selected = document.getElementById('bk-selected-guest');
-        if (selected) {
-            selected.style.display = 'none';
-            selected.textContent = '';
-        }
-        const box = document.getElementById('bk-crm-results');
-        if (box) box.classList.remove('show');
+        this.closeCrmSearchPopup();
         document.getElementById('bk-form-guest-phone')?.focus();
     },
 
     resetBookingGuestFields() {
         this.state.crmSelectRequestId = (this.state.crmSelectRequestId || 0) + 1;
+        this.closeCrmSearchPopup();
         this.setBookingCrmFieldsLocked(false);
         [
             'bk-form-guest-id', 'bk-crm-search-input', 'bk-form-guest-name', 'bk-form-guest-phone',
@@ -2369,16 +2584,7 @@ Object.assign(BookingHub, {
     clearSelectedGuest(showToast = true) {
         this.resetBookingGuestFields();
         this.setBookingCrmFieldsLocked(false);
-        const selected = document.getElementById('bk-selected-guest');
-        if (selected) {
-            selected.style.display = 'none';
-            selected.textContent = '';
-        }
-        const box = document.getElementById('bk-crm-results');
-        if (box) {
-            box.classList.remove('show');
-            box.innerHTML = '';
-        }
+        this.closeCrmSearchPopup();
         if (showToast) pmsToast('Chuyển sang tạo khách mới', true);
     }
 });

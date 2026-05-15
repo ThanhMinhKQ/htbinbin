@@ -1,636 +1,793 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hóa đơn - {{ folio.folio_code }}</title>
     <style>
-        @page { size: A4; margin: 15mm; }
-        
-        :root {
-            --primary: #0d6e6e;
-            --primary-dark: #0a5555;
-            --success: #059669;
-            --danger: #dc2626;
-            --warning: #d97706;
-            --text: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --bg: #f8fafc;
+        @page {
+            size: A4;
+            margin: 8mm 10mm;
         }
-        
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        body { 
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-            font-size: 13px; 
-            color: var(--text); 
-            line-height: 1.5; 
-            background: #fff; 
+
+        * {
+            box-sizing: border-box;
         }
-        
-        .invoice-box { max-width: 800px; margin: auto; padding: 20px; }
-        
-        /* ── Header ── */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 24px;
-            padding-bottom: 16px;
-            border-bottom: 3px solid var(--primary);
-        }
-        .hotel-logo {
-            width: 56px;
-            height: 56px;
-            background: var(--primary);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 24px;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-        .hotel-info { margin-left: 16px; }
-        .hotel-name { font-size: 22px; font-weight: 800; color: var(--primary-dark); letter-spacing: -0.5px; }
-        .hotel-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-        .hotel-meta span { display: block; }
-        
-        .invoice-meta { text-align: right; }
-        .invoice-title {
-            font-size: 28px;
-            font-weight: 800;
-            color: var(--primary-dark);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 8px;
-        }
-        .invoice-code {
-            font-size: 14px;
-            font-weight: 700;
-            color: var(--text);
-            background: var(--bg);
-            padding: 4px 12px;
-            border-radius: 6px;
-            display: inline-block;
-        }
-        .invoice-date { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
-        
-        /* ── Guest & Stay Info ── */
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-bottom: 24px;
-        }
-        
-        .info-card {
-            background: var(--bg);
-            border-radius: 12px;
-            padding: 16px 20px;
-            border: 1px solid var(--border);
-        }
-        .info-card-title {
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #eef2f6;
+            color: #000;
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            line-height: 1.4;
             font-size: 11px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--primary);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
-        .info-card-title svg { width: 16px; height: 16px; }
-        
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px dashed var(--border);
-        }
-        .info-row:last-child { border-bottom: none; }
-        .info-label { font-size: 12px; color: var(--text-muted); font-weight: 500; }
-        .info-value { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
-        .info-value.highlight { color: var(--primary); font-size: 15px; }
-        
-        /* ── Timeline ── */
-        .stay-timeline {
-            display: flex;
-            align-items: stretch;
-            gap: 0;
-            margin-top: 12px;
+
+        .no-print {
+            text-align: center;
+            padding: 15px;
             background: #fff;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
-        .timeline-item {
-            flex: 1;
-            padding: 12px 16px;
+
+        .btn {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        .btn.primary {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        .btn + .btn {
+            margin-left: 8px;
+        }
+
+        .sheet {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 10mm 10mm;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             position: relative;
         }
-        .timeline-item::after {
-            content: '';
+
+        /* Watermark */
+        .watermark {
             position: absolute;
-            right: 0;
             top: 50%;
-            transform: translateY(-50%);
-            width: 0;
-            height: 0;
-            border-top: 8px solid transparent;
-            border-bottom: 8px solid transparent;
-            border-left: 8px solid var(--border);
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
         }
-        .timeline-item:last-child::after { display: none; }
-        .timeline-item.checkout { background: #f0fdf4; }
-        .timeline-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
-        .timeline-value { font-size: 14px; font-weight: 700; color: var(--text); margin-top: 2px; }
-        .timeline-item.checkout .timeline-value { color: var(--success); }
-        .timeline-duration {
-            font-size: 11px;
-            color: var(--primary);
-            font-weight: 600;
-            margin-top: 4px;
-            background: rgba(13, 110, 110, 0.08);
-            padding: 2px 8px;
-            border-radius: 4px;
-            display: inline-block;
+
+        .watermark img {
+            width: 400px;
+            height: auto;
         }
-        
-        /* ── Transactions Table ── */
-        .section-title {
-            font-size: 13px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+
+        .content-layer {
+            position: relative;
+            z-index: 1;
         }
-        .section-title::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border);
+
+        /* Header */
+        .header-container {
+            margin-bottom: 14px;
         }
-        
-        .items-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 24px;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-        }
-        .items-table thead th {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: #fff;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .items-table thead th.right, .items-table tbody td.right { text-align: right; }
-        .items-table tbody td {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
-        }
-        .items-table tbody tr:last-child td { border-bottom: none; }
-        .items-table tbody tr:hover { background: var(--bg); }
-        
-        /* Row type colors */
-        .row-room td:first-child { border-left: 4px solid var(--primary); }
-        .row-service td:first-child { border-left: 4px solid #7c3aed; }
-        .row-surcharge td:first-child { border-left: 4px solid var(--warning); }
-        .row-discount td:first-child { border-left: 4px solid #ec4899; background: #fdf2f8; }
-        .row-payment td:first-child { border-left: 4px solid var(--success); background: #f0fdf4; }
-        
-        .item-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 12px;
-            vertical-align: middle;
-        }
-        .item-icon.room { background: rgba(13, 110, 110, 0.1); color: var(--primary); }
-        .item-icon.service { background: rgba(124, 58, 237, 0.1); color: #7c3aed; }
-        .item-icon.surcharge { background: rgba(217, 119, 6, 0.1); color: var(--warning); }
-        .item-icon.discount { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
-        .item-icon.payment { background: rgba(5, 150, 105, 0.1); color: var(--success); }
-        
-        .item-name { font-weight: 600; }
-        .item-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-        .amount-positive { color: var(--text); font-weight: 600; font-family: 'SF Mono', monospace; }
-        .amount-negative { color: var(--success); font-weight: 600; font-family: 'SF Mono', monospace; }
-        .amount-discount { color: #ec4899; font-weight: 600; font-family: 'SF Mono', monospace; }
-        
-        /* ── Summary Box ── */
-        .summary-section { display: flex; gap: 20px; margin-bottom: 24px; }
-        .summary-main { flex: 2; }
-        .summary-side { flex: 1; }
-        
-        .summary-box {
-            background: #fff;
-            border-radius: 16px;
-            border: 2px solid var(--border);
-            overflow: hidden;
-        }
-        .summary-header {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: #fff;
-            padding: 14px 20px;
-            font-size: 13px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .summary-body { padding: 16px 20px; }
-        
-        .summary-row {
+
+        .brand-top-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--border);
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            position: relative;
         }
-        .summary-row:last-child { border-bottom: none; }
-        .summary-row .label { font-size: 13px; color: var(--text-muted); }
-        .summary-row .value { font-size: 14px; font-weight: 700; font-family: 'SF Mono', monospace; }
-        .summary-row.discount .value { color: #ec4899; }
-        .summary-row.payment .value { color: var(--success); }
-        
-        .summary-total {
-            margin-top: 12px;
-            padding-top: 16px;
-            border-top: 2px solid var(--primary);
+
+        .brand-top-row::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 72%;
+            height: 1px;
+            transform: translateX(-50%);
+            background: #cfd6df;
         }
-        .summary-total .label { font-size: 14px; font-weight: 700; color: var(--text); }
-        .summary-total .value { font-size: 20px; font-weight: 800; color: var(--primary); font-family: 'SF Mono', monospace; }
-        
-        /* Balance highlight */
-        .balance-box {
-            border-radius: 12px;
-            padding: 20px;
+
+        .brand-main {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .brand-logo-wrap {
+            flex-shrink: 0;
+        }
+
+        .logo-img {
+            width: 82px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .brand-info-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .brand-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: .6px;
+            color: #b71c1c;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .slogan {
+            margin: 1px 0 6px 0;
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            font-style: italic;
+            white-space: nowrap;
+        }
+
+        .brand-address-box {
+            text-align: left;
+        }
+
+        .brand-address-box p {
+            margin: 0 0 2px 0;
+            font-size: 10px;
+            color: #222;
+            white-space: nowrap;
+        }
+
+        .brand-address-box p strong {
+            display: inline-block;
+            width: 50px;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .brand-qr-wrap {
+            flex-shrink: 0;
             text-align: center;
-            margin-top: 16px;
+            margin-left: 6px;
         }
-        .balance-box.paid { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid var(--success); }
-        .balance-box.debt { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid var(--danger); }
-        .balance-box.refund { background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%); border: 2px solid var(--warning); }
-        
-        .balance-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-        .balance-box.paid .balance-label { color: var(--success); }
-        .balance-box.debt .balance-label { color: var(--danger); }
-        .balance-box.refund .balance-label { color: var(--warning); }
-        
-        .balance-amount { font-size: 28px; font-weight: 800; font-family: 'SF Mono', monospace; }
-        .balance-box.paid .balance-amount { color: var(--success); }
-        .balance-box.debt .balance-amount { color: var(--danger); }
-        .balance-box.refund .balance-amount { color: var(--warning); }
-        
-        /* ── Signatures ── */
-        .signatures {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 48px;
-            margin-bottom: 32px;
+
+        .header-qr {
+            width: 88px;
+            height: 88px;
         }
-        .sig-box {
+
+        .doc-title-block {
             text-align: center;
-            padding-top: 16px;
+            margin-bottom: 10px;
         }
-        .sig-line {
-            height: 80px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 8px;
+
+        .doc-title {
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #000;
+            letter-spacing: 1px;
         }
-        .sig-name { font-weight: 700; font-size: 13px; }
-        .sig-title { font-size: 11px; color: var(--text-muted); }
-        
-        /* ── Footer ── */
-        .footer {
-            text-align: center;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            color: var(--text-muted);
+
+        .folio-meta {
+            font-size: 10.5px;
+            color: #333;
+        }
+
+        .folio-meta strong {
             font-size: 12px;
         }
-        .footer .hotel-name { font-size: 14px; color: var(--primary); }
-        .footer .note { font-style: italic; margin-top: 8px; }
-        
-        /* ── Print Button ── */
-        .no-print { 
-            margin-bottom: 24px; 
-            text-align: center; 
-            background: var(--bg);
-            padding: 16px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
+
+        /* Guest Info Box */
+        .guest-info-box {
+            border: 1px solid #cfd6df;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            background: transparent;
+            border-radius: 6px;
         }
-        .btn-print {
-            padding: 12px 32px;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            border: none;
-            border-radius: 10px;
-            background: var(--primary);
-            color: #fff;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
+
+        .guest-info-title {
+            font-size: 10.5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            border-bottom: 1px dotted #cbd5e1;
+            padding-bottom: 4px;
+            letter-spacing: .3px;
         }
-        .btn-print:hover { background: var(--primary-dark); transform: translateY(-2px); }
-        .btn-close {
-            padding: 12px 24px;
-            font-size: 14px;
+
+        .guest-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px 14px;
+        }
+
+        .info-row {
+            min-width: 0;
+        }
+
+        .info-label {
+            display: block;
+            color: #5b6675;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .2px;
+            margin-bottom: 1px;
+        }
+
+        .info-val {
+            display: block;
+            font-weight: bold;
+            font-size: 11px;
+            color: #000;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Main Table */
+        .table-title {
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin-bottom: 15px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            overflow: hidden;
+            table-layout: auto;
+            font-size: 11px;
+        }
+
+        .main-table th {
+            border-right: 1px solid #d0d7de;
+            border-bottom: 1px solid #d0d7de;
+            padding: 7px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            background: transparent;
+            white-space: nowrap;
+            color: #111;
+        }
+
+        .main-table th:last-child {
+            border-right: 0;
+        }
+
+        .main-table td {
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 7px 6px;
+            font-size: 11px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        .main-table td:last-child {
+            border-right: 0;
+        }
+
+        .main-table .center {
+            text-align: center;
+        }
+
+        .main-table .right {
+            text-align: right;
+        }
+
+        .main-table .money {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-weight: bold;
+        }
+
+        .main-table td.desc-col {
+            white-space: normal;
+            width: 44%;
+            line-height: 1.45;
+        }
+
+        .line-note {
+            color: #666;
+            font-size: 11px;
+            font-weight: normal;
+        }
+
+        /* Row type accents */
+        .row-room td:first-child { border-left: 3px solid #0d6e6e; }
+        .row-service td:first-child { border-left: 3px solid #7c3aed; }
+        .row-surcharge td:first-child { border-left: 3px solid #d97706; }
+        .row-discount td { background: #fdf2f8; }
+        .row-discount td:first-child { border-left: 3px solid #ec4899; }
+        .row-payment td { background: #f0fdf4; }
+        .row-payment td:first-child { border-left: 3px solid #059669; }
+
+        .main-table tbody tr:last-child td {
+            border-bottom: 1px solid #d0d7de;
+        }
+
+        .main-table tfoot td {
+            border-right: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 6px;
+            background: transparent;
+        }
+
+        .main-table tfoot td:last-child {
+            border-right: 0;
+        }
+
+        .main-table tfoot tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .table-total-row td {
+            font-weight: bold;
+            padding-top: 7px;
+        }
+
+        .table-deposit-row .money { color: #059669; }
+
+        .table-balance-row td {
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .table-balance-row.paid .money { color: #059669; }
+        .table-balance-row.debt .money { color: #dc2626; }
+        .table-balance-row.refund .money { color: #d97706; }
+
+        /* Summary wrapper */
+        .summary-wrapper {
+            margin-bottom: 15px;
+        }
+
+        /* Bank Info */
+        .bank-info {
+            border: 1px solid #cfd6df;
+            padding: 10px;
+            border-radius: 6px;
+            background: transparent;
+            min-width: 0;
+        }
+
+        .bank-info h4 {
+            margin: 0 0 8px 0;
+            font-size: 11.5px;
+            text-transform: uppercase;
+            text-align: left;
+            letter-spacing: .2px;
+            color: #111;
+        }
+
+        .bank-line {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1.2fr 1.5fr;
+            gap: 6px;
+        }
+
+        .bank-item {
+            min-width: 0;
+            padding: 7px 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            background: transparent;
+        }
+
+        .bank-item.memo {
+            background: transparent;
+            border-color: #fed7aa;
+        }
+
+        .bank-label {
+            display: block;
+            color: #64748b;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: .2px;
+            margin-bottom: 3px;
+        }
+
+        .bank-value {
+            display: block;
+            font-size: 11.5px;
+            font-weight: bold;
+            color: #000;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.25;
+        }
+
+        .bank-item.memo .bank-value { color: #9a3412; }
+
+        /* Policy Box */
+        .policy-box {
+            border: 1px solid #f59e0b;
+            padding: 8px 12px;
+            margin-bottom: 15px;
+            background: #fffbeb;
+            color: #7c4a03;
+            border-radius: 8px;
+        }
+
+        .policy-box strong {
+            display: block;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            color: #92400e;
+        }
+
+        .policy-box p {
+            margin: 0 0 6px 0;
+            font-size: 11px;
+            font-weight: bold;
+            line-height: 1.4;
+            color: #7c4a03;
+        }
+
+        .policy-box p.en {
+            font-style: italic;
+            font-weight: normal;
+            margin-bottom: 0;
+            color: #8a5a12;
+        }
+
+        /* Signature */
+        .signature-block {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            padding: 0 40px;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-box strong {
+            display: block;
+            font-size: 11px;
+            margin-bottom: 35px;
+        }
+
+        .prepared-signature-name {
+            margin: 22px 0 0 0;
+            color: #111;
+            font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Arial", sans-serif;
+            font-size: 18px;
             font-weight: 600;
-            cursor: pointer;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: #fff;
-            color: var(--text-muted);
-            margin-left: 12px;
-            transition: all 0.2s;
+            line-height: 1.2;
+            letter-spacing: .2px;
         }
-        .btn-close:hover { background: var(--bg); color: var(--text); }
-        
+
+        .page-footer {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 9.5px;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            line-height: 1.4;
+        }
+
         @media print {
-            body { margin: 0; padding: 0; }
+            body { background: #fff; }
+
+            .sheet {
+                box-shadow: none;
+                padding: 0;
+                max-width: none;
+                width: 100%;
+                margin: 0;
+                min-height: auto;
+            }
+
             .no-print { display: none !important; }
-            .invoice-box { padding: 0; }
         }
     </style>
 </head>
+
 <body>
-    <!-- Print Button -->
     <div class="no-print">
-        <button onclick="window.print()" class="btn-print">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 6 2 18 2 18 9"></polyline>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
-                <rect x="6" y="14" width="12" height="8"></rect>
-            </svg>
-            In Hóa Đơn
-        </button>
-        <button onclick="window.close()" class="btn-close">Đóng</button>
+        <button class="btn primary" onclick="window.print()">In Hóa Đơn (Ctrl + P)</button>
+        <button class="btn" onclick="downloadSheetImage()">Chụp phiếu PNG</button>
+        <button class="btn" onclick="window.print()">Xuất PDF</button>
+        <button class="btn" onclick="window.close()">Đóng</button>
     </div>
 
-    <div class="invoice-box">
-        <!-- Header -->
-        <div class="header">
-            <div style="display: flex; align-items: center;">
-                <div class="hotel-logo">{{ stay.branch.name[:1] if stay.branch.name else 'H' }}</div>
-            <div class="hotel-info">
-                    <div class="hotel-name">{{ stay.branch.name }}</div>
-                    <div class="hotel-meta">
-                        <span>{{ stay.branch.address or '—' }}</span>
-                        <span>📞 {{ stay.branch.phone or '—' }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="invoice-meta">
-                <div class="invoice-title">Hóa Đơn</div>
-                <div class="invoice-code">{{ folio.folio_code }}</div>
-                <div class="invoice-date">Ngày: {{ current_time }}</div>
-            </div>
+    <main class="sheet">
+        <div class="watermark">
+            <img src="/static/logo.png" alt="watermark">
         </div>
 
-        <!-- Guest & Stay Info -->
-        <div class="info-grid">
-            <!-- Guest Info -->
-            <div class="info-card">
-                <div class="info-card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
-                    Thông Tin Khách Hàng
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Tên khách</span>
-                    <span class="info-value highlight">{{ guest_name }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Phòng</span>
-                    <span class="info-value">{{ stay.room.room_number }}</span>
-                </div>
-            </div>
-            
-            <!-- Stay Timeline -->
-            <div class="info-card">
-                <div class="info-card-title">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    Thời Gian Lưu Trú
-                </div>
-                <div class="stay-timeline">
-                    <div class="timeline-item">
-                        <div class="timeline-label">Nhận phòng</div>
-                        <div class="timeline-value">{{ stay.check_in_at.strftime('%d/%m/%Y') }}</div>
-                        <div style="font-size: 12px; color: var(--text-muted);">{{ stay.check_in_at.strftime('%H:%M') }}</div>
-                    </div>
-                    <div class="timeline-item checkout">
-                        <div class="timeline-label">Trả phòng</div>
-                        <div class="timeline-value">{{ stay.check_out_at.strftime('%d/%m/%Y') if stay.check_out_at else '—' }}</div>
-                        <div style="font-size: 12px; color: var(--text-muted);">{{ stay.check_out_at.strftime('%H:%M') if stay.check_out_at else '' }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Transactions Table -->
-        <div class="section-title">Chi Tiết Các Khoản</div>
-        
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th>Nội dung</th>
-                    <th style="width: 120px;">Ngày</th>
-                    <th class="right" style="width: 60px;">SL</th>
-                    <th class="right" style="width: 120px;">Đơn giá</th>
-                    <th class="right" style="width: 140px;">Thành tiền</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for tx in txs %}
-                {% set row_class = 'row-room' %}
-                {% if tx.category and 'DISCOUNT' in tx.category|string %}
-                    {% set row_class = 'row-discount' %}
-                {% elif tx.transaction_type and 'PAYMENT' in tx.transaction_type|string %}
-                    {% set row_class = 'row-payment' %}
-                {% elif tx.category and 'SERVICE' in tx.category|string %}
-                    {% set row_class = 'row-service' %}
-                {% elif tx.category and 'SURCHARGE' in tx.category|string %}
-                    {% set row_class = 'row-surcharge' %}
-                {% endif %}
-                <tr class="{{ row_class }}">
-                    <td>
-                        {% if tx.category and 'ROOM' in tx.category|string %}
-                            <span class="item-icon room">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
-                            </span>
-                        {% elif tx.category and 'DISCOUNT' in tx.category|string %}
-                            <span class="item-icon discount">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path></svg>
-                            </span>
-                        {% elif tx.transaction_type and 'PAYMENT' in tx.transaction_type|string %}
-                            <span class="item-icon payment">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </span>
-                        {% elif tx.category and 'SERVICE' in tx.category|string %}
-                            <span class="item-icon service">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path></svg>
-                            </span>
-                        {% else %}
-                            <span class="item-icon surcharge">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-                            </span>
-                        {% endif %}
-                        <span class="item-name">{{ tx.description }}</span>
-                    </td>
-                    <td style="color: var(--text-muted);">{{ tx.created_at.strftime('%d/%m/%Y') if tx.created_at else '' }}</td>
-                    <td class="right">{{ tx.quantity|int }}</td>
-                    <td class="right">{{ "{:,.0f}".format(tx.unit_price|float) if tx.unit_price else '' }}</td>
-                    <td class="right">
-                        {% if tx.amount < 0 %}
-                            <span class="amount-negative">-{{ "{:,.0f}".format(tx.amount|float|abs) }}</span>
-                        {% elif tx.category and 'DISCOUNT' in tx.category|string %}
-                            <span class="amount-discount">-{{ "{:,.0f}".format(tx.amount|float|abs) }}</span>
-                        {% else %}
-                            <span class="amount-positive">{{ "{:,.0f}".format(tx.amount|float) }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 32px;">Không có phát sinh</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <!-- Summary -->
-        <div class="summary-section">
-            <div class="summary-main">
-        <div class="summary-box">
-                    <div class="summary-header">Tổng Kết Hóa Đơn</div>
-                    <div class="summary-body">
-            <div class="summary-row">
-                            <span class="label">Tổng chi phí</span>
-                            <span class="value">{{ "{:,.0f}".format(folio.total_charge|float) }} ₫</span>
-            </div>
-            {% if discount_total|float > 0 %}
-                        <div class="summary-row discount">
-                            <span class="label">Giảm giá</span>
-                            <span class="value">-{{ "{:,.0f}".format(discount_total|float) }} ₫</span>
-            </div>
-            {% endif %}
-                        <div class="summary-row">
-                            <span class="label">Phải thanh toán</span>
-                            <span class="value" style="color: var(--primary);">{{ "{:,.0f}".format(total_net|float) }} ₫</span>
-            </div>
-            {% if payment_txs %}
-            {% for ptx in payment_txs %}
-                        <div class="summary-row payment">
-                            <span class="label">{{ ptx.description or 'Đã thanh toán' }}</span>
-                            <span class="value">-{{ "{:,.0f}".format(ptx.amount|float|abs) }} ₫</span>
-            </div>
-            {% endfor %}
-            {% else %}
-                        <div class="summary-row payment">
-                            <span class="label">Đã thanh toán / Cọc</span>
-                            <span class="value">-{{ "{:,.0f}".format(total_paid|float) }} ₫</span>
+        <div class="content-layer">
+            <header class="header-container">
+                <div class="brand-top-row">
+                    <div class="brand-main">
+                        <div class="brand-logo-wrap">
+                            <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
                         </div>
-                        {% endif %}
-                        
-                        <div class="summary-total">
-                            <div class="summary-row" style="border-top: 2px solid var(--border); padding-top: 16px; margin-top: 8px;">
-                                <span class="label" style="font-size: 14px; font-weight: 700;">CÒN LẠI</span>
-                                <span class="value" style="font-size: 20px; color: var(--primary);">
-                                    {% if remaining_balance|float > 0 %}
-                                        {{ "{:,.0f}".format(remaining_balance|float) }} ₫
-                                    {% elif remaining_balance|float < 0 %}
-                                        -{{ "{:,.0f}".format(remaining_balance|float|abs) }} ₫
-                                    {% else %}
-                                        0 ₫
-                                    {% endif %}
-                                </span>
+                        <div class="brand-info-wrap">
+                            {% set branch_name = (stay.branch.name or 'BIN BIN HOTEL')|string %}
+                            {% set branch_upper = branch_name|upper %}
+                            {% if branch_upper.startswith('CHI NHÁNH B') %}
+                            <h1 class="brand-title">BIN BIN HOTEL {{ branch_upper.replace('CHI NHÁNH B', '').strip() }}</h1>
+                            {% else %}
+                            <h1 class="brand-title">{{ branch_name }}</h1>
+                            {% endif %}
+                            <p class="slogan">"Your Second Home"</p>
+                            <div class="brand-address-box">
+                                <p><strong>Địa chỉ:</strong> {{ stay.branch.address or '—' }}</p>
+                                <p><strong>Hotline:</strong> {{ stay.branch.phone or '—' }}</p>
                             </div>
                         </div>
                     </div>
+                    <div class="brand-qr-wrap">
+                        <img src="/static/qrzalooa.jpg" alt="Zalo QR" class="header-qr"
+                            onerror="this.style.display='none'">
+                    </div>
                 </div>
-            </div>
-            
-            <div class="summary-side">
-                {% if remaining_balance|float > 0 %}
-                <div class="balance-box debt">
-                    <div class="balance-label">Còn Nợ</div>
-                    <div class="balance-amount">{{ "{:,.0f}".format(remaining_balance|float) }} ₫</div>
-                </div>
-                {% elif remaining_balance|float < 0 %}
-                <div class="balance-box refund">
-                    <div class="balance-label">Khách Dư</div>
-                    <div class="balance-amount">-{{ "{:,.0f}".format(remaining_balance|float|abs) }} ₫</div>
-                </div>
-                {% else %}
-                <div class="balance-box paid">
-                    <div class="balance-label">Đã Tất Toán</div>
-                    <div class="balance-amount">0 ₫</div>
-                </div>
-                {% endif %}
-                
-                {% if folio.notes %}
-                <div style="margin-top: 16px; padding: 12px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border);">
-                    <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px;">Ghi chú</div>
-                    <div style="font-size: 12px; color: var(--text);">{{ folio.notes }}</div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
 
-        <!-- Signatures -->
-        <div class="signatures">
-            <div class="sig-box">
-                <div class="sig-line"></div>
-                <div class="sig-name">{{ guest_name }}</div>
-                <div class="sig-title">Khách hàng</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">(Ký, ghi rõ họ tên)</div>
-            </div>
-            <div class="sig-box">
-                <div class="sig-line"></div>
-                <div class="sig-name">{{ current_user_name }}</div>
-                <div class="sig-title">Người lập phiếu</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">(Ký, ghi rõ họ tên)</div>
-            </div>
-            <div class="sig-box">
-                <div class="sig-line"></div>
-                <div class="sig-name">—</div>
-                <div class="sig-title">Quản lý</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">(Ký, ghi rõ họ tên)</div>
-            </div>
-        </div>
+                <div class="doc-title-block">
+                    <h2 class="doc-title">HÓA ĐƠN THANH TOÁN / PAYMENT INVOICE</h2>
+                    <div class="folio-meta">
+                        Mã hóa đơn / Invoice No.: <strong>{{ folio.folio_code }}</strong>
+                        &nbsp;|&nbsp;
+                        Ngày in / Date: <strong>{{ current_time }}</strong>
+                        &nbsp;|&nbsp;
+                        Người lập / By: <strong>{{ current_user_name }}</strong>
+                    </div>
+                </div>
+            </header>
 
-        <!-- Footer -->
-        <div class="footer">
-            <div class="hotel-name">{{ stay.branch.name }}</div>
-            <div>Cảm ơn quý khách đã sử dụng dịch vụ của chúng tôi!</div>
-            <div class="note">Hóa đơn này được in tự động từ hệ thống PMS. Vui lòng giữ lại để làm căn cứ.</div>
+            <!-- Guest & Stay Info -->
+            <div class="guest-info-box">
+                <div class="guest-info-title">Thông tin lưu trú / Stay Details</div>
+                <div class="guest-grid">
+                    <div class="info-row">
+                        <span class="info-label">Khách / Guest</span>
+                        <span class="info-val">{{ guest_name }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Phòng / Room</span>
+                        <span class="info-val">{{ stay.room.room_number }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Loại phòng / Type</span>
+                        <span class="info-val">{{ stay.room.room_type or '—' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Nhận phòng / Check-in</span>
+                        <span class="info-val">{{ stay.check_in_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Trả phòng / Check-out</span>
+                        <span class="info-val">{{ stay.check_out_at.strftime('%d/%m/%Y %H:%M') if stay.check_out_at else '—' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Trạng thái / Status</span>
+                        <span class="info-val">
+                            {% if remaining_balance|float > 0 %}Còn nợ
+                            {% elif remaining_balance|float < 0 %}Khách dư
+                            {% else %}Đã tất toán{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Table -->
+            <div class="table-title">Chi tiết các khoản / Transaction Details</div>
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Nội dung / Description</th>
+                        <th class="center">Ngày / Date</th>
+                        <th class="center">SL / Qty</th>
+                        <th class="right">Đơn giá / Unit</th>
+                        <th class="right">Thành tiền / Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in txs %}
+                    {% set row_class = 'row-room' %}
+                    {% if tx.category and 'DISCOUNT' in tx.category|string %}
+                        {% set row_class = 'row-discount' %}
+                    {% elif tx.transaction_type and 'PAYMENT' in tx.transaction_type|string %}
+                        {% set row_class = 'row-payment' %}
+                    {% elif tx.category and 'SERVICE' in tx.category|string %}
+                        {% set row_class = 'row-service' %}
+                    {% elif tx.category and 'SURCHARGE' in tx.category|string %}
+                        {% set row_class = 'row-surcharge' %}
+                    {% endif %}
+                    <tr class="{{ row_class }}">
+                        <td class="desc-col">
+                            <strong>{{ tx.description }}</strong>
+                            {% if tx.category and 'DISCOUNT' in tx.category|string %}
+                            <br><span class="line-note">Giảm giá / Discount</span>
+                            {% elif tx.transaction_type and 'PAYMENT' in tx.transaction_type|string %}
+                            <br><span class="line-note">Thanh toán / Payment</span>
+                            {% endif %}
+                        </td>
+                        <td class="center">{{ tx.created_at.strftime('%d/%m/%Y') if tx.created_at else '—' }}</td>
+                        <td class="center">{{ tx.quantity|int if tx.quantity else 1 }}</td>
+                        <td class="right money">
+                            {% if tx.unit_price %}{{ '{:,.0f}'.format(tx.unit_price|float).replace(',', '.') }}{% else %}—{% endif %}
+                        </td>
+                        <td class="right money">
+                            {% if tx.amount|float < 0 or (tx.category and 'DISCOUNT' in tx.category|string) %}
+                                -{{ '{:,.0f}'.format(tx.amount|float|abs).replace(',', '.') }}
+                            {% else %}
+                                {{ '{:,.0f}'.format(tx.amount|float).replace(',', '.') }}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: #64748b; padding: 24px;">Không có phát sinh</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-total-row">
+                        <td colspan="4" class="right">Tổng chi phí / Total Charges</td>
+                        <td class="right money">{{ '{:,.0f}'.format(folio.total_charge|float).replace(',', '.') }}</td>
+                    </tr>
+                    {% if discount_total|float > 0 %}
+                    <tr>
+                        <td colspan="4" class="right" style="color: #ec4899;">Giảm giá / Discount</td>
+                        <td class="right money" style="color: #ec4899;">-{{ '{:,.0f}'.format(discount_total|float).replace(',', '.') }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td colspan="4" class="right">Phải thanh toán / Net Amount</td>
+                        <td class="right money">{{ '{:,.0f}'.format(total_net|float).replace(',', '.') }}</td>
+                    </tr>
+                    {% if payment_txs %}
+                    {% for ptx in payment_txs %}
+                    <tr class="table-deposit-row">
+                        <td colspan="4" class="right">{{ ptx.description or 'Đã thanh toán / Paid' }}</td>
+                        <td class="right money">-{{ '{:,.0f}'.format(ptx.amount|float|abs).replace(',', '.') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr class="table-deposit-row">
+                        <td colspan="4" class="right">Đã thanh toán / Paid</td>
+                        <td class="right money">-{{ '{:,.0f}'.format(total_paid|float).replace(',', '.') }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr class="table-balance-row {% if remaining_balance|float > 0 %}debt{% elif remaining_balance|float < 0 %}refund{% else %}paid{% endif %}">
+                        <td colspan="4" class="right">
+                            {% if remaining_balance|float > 0 %}Còn nợ / Balance Due
+                            {% elif remaining_balance|float < 0 %}Khách dư / Overpaid
+                            {% else %}Đã tất toán / Settled{% endif %}
+                        </td>
+                        <td class="right money">
+                            {% if remaining_balance|float > 0 %}
+                                {{ '{:,.0f}'.format(remaining_balance|float).replace(',', '.') }}
+                            {% elif remaining_balance|float < 0 %}
+                                -{{ '{:,.0f}'.format(remaining_balance|float|abs).replace(',', '.') }}
+                            {% else %}
+                                0
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Bank Info -->
+            <div class="summary-wrapper">
+                <div class="bank-info">
+                    <h4>Thông tin chuyển khoản / Bank Transfer</h4>
+                    <div class="bank-line">
+                        <div class="bank-item"><span class="bank-label">Ngân hàng / Bank</span><span class="bank-value">MB Bank</span></div>
+                        <div class="bank-item"><span class="bank-label">Số TK / A/C</span><span class="bank-value">0123456789</span></div>
+                        <div class="bank-item"><span class="bank-label">Chủ TK / Name</span><span class="bank-value">BIN BIN HOTEL</span></div>
+                        <div class="bank-item memo"><span class="bank-label">Nội dung / Memo</span><span class="bank-value">Thanh toan {{ folio.folio_code }}</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Policy Box -->
+            <div class="policy-box">
+                <strong>Lưu ý / Notice</strong>
+                <p>Hóa đơn này được in tự động từ hệ thống PMS. Vui lòng giữ lại để làm căn cứ đối soát.</p>
+                <p class="en">This invoice is automatically generated from the PMS. Please retain it for reference.</p>
+            </div>
+
+            <!-- Signatures -->
+            <div class="signature-block">
+                <div class="signature-box guest-signature-box">
+                    <strong>Khách hàng / Guest</strong>
+                    <p style="font-size: 11px;">(Ký, ghi rõ họ tên / Sign &amp; Print Name)</p>
+                </div>
+                <div class="signature-box">
+                    <strong>Người lập phiếu / Prepared by</strong>
+                    <p class="prepared-signature-name">{{ current_user_name }}</p>
+                </div>
+            </div>
+
+            <div class="page-footer">
+                <p>Cảm ơn quý khách đã tin tưởng và lựa chọn dịch vụ của chúng tôi. Chúc quý khách có một kỳ nghỉ tuyệt vời!</p>
+                <p>Thank you for choosing our services. We wish you a wonderful stay!</p>
+            </div>
         </div>
-    </div>
+    </main>
+
+    <script>
+        function ensureHtml2Canvas() {
+            if (typeof html2canvas === 'function') return Promise.resolve(true);
+            return new Promise((resolve) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+                script.onload = () => resolve(typeof html2canvas === 'function');
+                script.onerror = () => resolve(false);
+                document.head.appendChild(script);
+            });
+        }
+
+        async function downloadSheetImage() {
+            const sheet = document.querySelector('.sheet');
+            const ready = await ensureHtml2Canvas();
+            if (!ready) {
+                alert('Không tải được thư viện chụp ảnh. Vui lòng thử lại hoặc dùng Xuất PDF.');
+                return;
+            }
+            const guestSignature = sheet.querySelector('.guest-signature-box');
+            const originalBoxShadow = sheet.style.boxShadow;
+            const originalGuestVisibility = guestSignature ? guestSignature.style.visibility : '';
+            sheet.style.boxShadow = 'none';
+            if (guestSignature) guestSignature.style.visibility = 'hidden';
+            const canvas = await html2canvas(sheet, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                allowTaint: true,
+                scrollX: 0,
+                scrollY: -window.scrollY,
+                width: sheet.scrollWidth,
+                height: sheet.scrollHeight,
+                windowWidth: document.documentElement.scrollWidth,
+                windowHeight: document.documentElement.scrollHeight,
+            });
+            sheet.style.boxShadow = originalBoxShadow;
+            if (guestSignature) guestSignature.style.visibility = originalGuestVisibility;
+            const link = document.createElement('a');
+            link.download = `invoice-{{ folio.folio_code }}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
 </body>
+
 </html>

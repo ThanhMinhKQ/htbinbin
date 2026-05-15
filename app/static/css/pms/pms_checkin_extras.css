@@ -57,9 +57,9 @@ body.ci-modal-open .rd-sub-modal-overlay {
 }
 
 #ci-dialog {
-  width: min(1450px, 96vw) !important;
-  max-width: 1450px !important;
-  max-height: 98vh !important;
+  width: min(1560px, 98vw) !important;
+  max-width: 1560px !important;
+  max-height: calc(100vh - 20px) !important;
   margin: 0 auto !important;
   background: var(--ci-bg) !important;
   border: 1px solid var(--ci-border) !important;
@@ -223,6 +223,67 @@ html.dark #ciModal .v-btn.success:hover {
   overflow-y: auto;
 }
 
+@media (min-width: 1180px) and (min-height: 740px) {
+  #ci-dialog {
+    height: auto !important;
+  }
+
+  #ci-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100vh - 126px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 12px !important;
+  }
+
+  #ci-body > input[type="hidden"] {
+    display: none;
+  }
+
+  #ci-reservation-notice {
+    grid-column: 1 / -1;
+  }
+
+  #ci-reservation-notice:not(.show):empty {
+    display: none !important;
+  }
+
+  .ci-checkin-summary {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.12fr) minmax(360px, 0.88fr);
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  .ci-checkin-summary > .ci-section {
+    margin-top: 0 !important;
+  }
+
+  .ci-guest-section {
+    margin-top: 0 !important;
+  }
+
+  .ci-guest-section-body {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    padding: 12px !important;
+  }
+
+  .ci-guest-form-grid {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 12px !important;
+    align-items: start !important;
+  }
+
+  .ci-guest-form-col {
+    gap: 12px !important;
+  }
+}
+
 #ciModal .v-footer {
   flex: 0 0 auto;
   background: var(--ci-surface) !important;
@@ -284,6 +345,21 @@ html.dark .ci-section-badge {
   font-weight: 800;
 }
 
+.ci-form-card-title {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--ci-text);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ci-form-card-title::before {
+  display: none;
+}
+
 .ci-section-body {
   background: var(--ci-surface);
 }
@@ -299,6 +375,71 @@ html.dark .ci-section-badge {
 .ci-stay-card {
   padding: 12px;
   margin-bottom: 12px;
+}
+
+@media (min-width: 1180px) and (min-height: 740px) {
+  #ciModal.v-modal {
+    padding: 10px !important;
+  }
+
+  #ciModal .v-header {
+    min-height: 52px !important;
+    padding: 8px 16px !important;
+  }
+
+  #ciModal .v-footer {
+    min-height: 48px !important;
+    padding: 8px 18px !important;
+  }
+
+  .ci-section {
+    border-radius: 10px;
+  }
+
+  .ci-section-header {
+    min-height: 42px;
+    padding: 8px 14px !important;
+  }
+
+  .ci-section-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .ci-section-badge svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .ci-section-body {
+    padding: 10px !important;
+  }
+
+  .ci-stay-card {
+    padding: 10px;
+    margin-bottom: 0;
+  }
+
+  .ci-room-strip {
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .ci-room-strip-item {
+    padding: 6px 10px;
+    border-radius: 8px;
+  }
+
+  .ci-room-strip-item label,
+  .ci-time-field label,
+  .f-grp label {
+    font-size: 11px;
+  }
+
+  .ci-room-strip-item .strip-val {
+    font-size: 13px;
+  }
 }
 
 .ci-room-strip {
@@ -574,8 +715,8 @@ body.ci-modal-open .flatpickr-calendar.bk-planner-flatpickr-popup {
 .ci-guest-toolbar {
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
-  border: 1px solid #bae6fd;
+  background: var(--ci-surface);
+  border: 1px solid var(--ci-border);
   border-radius: 12px;
 }
 
@@ -595,6 +736,24 @@ html.dark .ci-guest-toolbar {
 .ci-guest-toolbar .v-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+}
+
+.ci-crm-search-row {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.ci-crm-search-row .f-ctrl {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ci-crm-search-row .v-btn {
+  flex: 0 0 auto;
 }
 
 .ci-guest-list-panel {
@@ -649,33 +808,33 @@ html.dark .ci-guest-toolbar {
   margin-top: 20px;
 }
 
-.rd-folio-mini-dash {
+#ciModal .rd-folio-mini-dash {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
-.rd-folio-stat-card,
-.rd-mini-list-item {
+#ciModal .rd-folio-stat-card,
+#ciModal .rd-mini-list-item {
   background: var(--ci-surface);
   border: 1px solid var(--ci-border);
   border-radius: 10px;
 }
 
-.rd-mini-list {
+#ciModal .rd-mini-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.rd-mini-list-item {
+#ciModal .rd-mini-list-item {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
 }
 
-.rd-mini-list-name {
+#ciModal .rd-mini-list-name {
   flex: 1;
   min-width: 0;
   color: var(--ci-text);
@@ -686,14 +845,14 @@ html.dark .ci-guest-toolbar {
   white-space: nowrap;
 }
 
-.rd-mini-list-val {
+#ciModal .rd-mini-list-val {
   color: var(--ci-text);
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   font-weight: 800;
 }
 
-.rd-mini-delete-btn {
+#ciModal .rd-mini-delete-btn {
   width: 24px;
   height: 24px;
   border: 0;
@@ -706,7 +865,7 @@ html.dark .ci-guest-toolbar {
   cursor: pointer;
 }
 
-.rd-action-group {
+#ciModal .rd-action-group {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
@@ -1199,6 +1358,308 @@ html.dark .ci-dep-meta {
   opacity: 1;
 }
 
+@media (min-width: 1180px) and (min-height: 740px) {
+  .ci-time-grid {
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .ci-time-field .bk-date-box {
+    min-height: 54px;
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .ci-time-field .bk-date-icon {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 7px !important;
+  }
+
+  .ci-time-field .bk-date-content label {
+    font-size: 9.5px !important;
+    margin-bottom: 1px !important;
+  }
+
+  .ci-time-field .bk-date-content input {
+    font-size: 12px !important;
+  }
+
+  .ci-stay-card > div[style*="grid-template-columns:1fr 1fr"] {
+    gap: 8px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .ci-services-container {
+    margin-top: 10px !important;
+  }
+
+  #ciModal .rd-folio-mini-dash,
+  #ciModal .rd-action-group {
+    gap: 8px !important;
+  }
+
+  #ciModal .rd-action-group {
+    align-items: start;
+  }
+
+  #ciModal .rd-action-container {
+    min-width: 0;
+  }
+
+  #ciModal .rd-folio-stat-card {
+    padding: 6px 10px !important;
+    border-radius: 9px !important;
+  }
+
+  .ci-action-btn-blue {
+    min-height: 38px;
+    padding: 9px 12px !important;
+    border-radius: 10px !important;
+  }
+
+  #ci-svc-list,
+  #ci-sur-list {
+    max-height: 128px !important;
+    margin-top: 6px !important;
+    overflow-y: auto !important;
+    padding-right: 2px;
+  }
+
+  #ciModal .rd-mini-list-item {
+    min-height: 28px;
+    padding: 5px 8px;
+  }
+
+  .ci-pay-body {
+    gap: 10px !important;
+  }
+
+  .ci-pay-card-wrapper {
+    height: auto;
+  }
+
+  .ci-hero-price {
+    min-height: 86px !important;
+    padding: 12px 16px !important;
+    border-radius: 12px !important;
+  }
+
+  .ci-hero-amount {
+    font-size: 25px !important;
+  }
+
+  .ci-deposit-strip {
+    overflow: visible;
+  }
+
+  .ci-deposit-strip[style] {
+    padding: 10px !important;
+  }
+
+  .ci-dep-input {
+    min-height: 44px !important;
+    padding: 9px 12px !important;
+    border-radius: 10px !important;
+    font-size: 22px !important;
+  }
+
+  .ci-dep-sublabel {
+    margin-top: 4px !important;
+    font-size: 10.5px !important;
+  }
+
+  .ci-dep-method-section {
+    padding: 9px 0 0 !important;
+    margin-top: 8px;
+  }
+
+  .ci-dep-method-label {
+    margin-bottom: 7px !important;
+    font-size: 10px !important;
+  }
+
+  .ci-dep-methods-grid {
+    gap: 6px !important;
+  }
+
+  .ci-dep-method-item {
+    min-height: 50px !important;
+    gap: 3px !important;
+    padding: 6px 4px !important;
+    border-radius: 9px !important;
+  }
+
+  .ci-dep-method-icon {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 7px !important;
+  }
+
+  .ci-dep-method-name {
+    font-size: 10px !important;
+  }
+
+  .ci-dep-meta {
+    padding: 8px 0 0 !important;
+  }
+
+  .ci-guest-toolbar {
+    margin-bottom: 8px !important;
+    padding: 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .ci-guest-toolbar-inner {
+    gap: 6px !important;
+  }
+
+  .ci-guest-toolbar .v-btn {
+    min-height: 32px !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .ci-guest-list-panel {
+    margin-bottom: 8px !important;
+  }
+
+  .ci-guest-list-panel.show {
+    max-height: 88px !important;
+    padding: 8px !important;
+  }
+
+  .ci-crm-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    margin: 0 0 8px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  html.dark .ci-crm-search-row {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  .ci-id-section,
+  .ci-address-section,
+  .ci-personal-section,
+  #ci-invoice-section {
+    border: 1px solid var(--ci-border) !important;
+    border-radius: 10px !important;
+    background: var(--ci-surface) !important;
+    padding: 10px 12px !important;
+  }
+
+  .ci-personal-section {
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    gap: 9px 12px !important;
+  }
+
+  .ci-personal-section--wide .ci-field-name {
+    grid-column: span 2;
+  }
+
+  .ci-personal-section--wide .ci-field-notes {
+    grid-column: span 2;
+  }
+
+  .ci-address-section .f-grid {
+    grid-template-columns: minmax(150px, 0.75fr) minmax(140px, 0.9fr) minmax(140px, 0.9fr) minmax(220px, 1.45fr) !important;
+    align-items: end;
+  }
+
+  .ci-address-section .f-grid {
+    gap: 9px 12px !important;
+  }
+
+  .ci-address-section #ci-grp-area {
+    grid-column: 1 / -1 !important;
+  }
+
+  .ci-address-section #ci-grp-address {
+    grid-column: span 2 !important;
+  }
+
+  .ci-address-section #ci-conversion-grp {
+    grid-column: 1 / -1 !important;
+  }
+
+  #ci-id-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(128px, 0.62fr) minmax(132px, 0.68fr) !important;
+  }
+
+  #ci-crm-search-input + button {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .ci-form-card-title {
+    margin-bottom: 8px !important;
+    font-size: 11.5px !important;
+  }
+
+  .f-grp {
+    gap: 4px;
+  }
+
+  .f-ctrl {
+    min-height: 34px !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    font-size: 12.5px !important;
+  }
+
+  .ci-address-section .ci-radio-group {
+    gap: 10px !important;
+  }
+
+  .ci-address-section .ci-radio-group label {
+    font-size: 11.5px !important;
+  }
+
+  #ci-conversion-grp > div {
+    background: var(--ci-surface-soft) !important;
+    border-color: var(--ci-border) !important;
+    padding: 8px 10px !important;
+  }
+
+  #ci-invoice-section {
+    margin-top: 0 !important;
+  }
+
+  #ci-invoice-section h6 {
+    margin-bottom: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .ci-invoice-toggle {
+    gap: 8px !important;
+  }
+
+  .ci-invoice-toggle label {
+    min-height: 34px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+  }
+
+  #ci-invoice-fields {
+    margin-top: 8px !important;
+  }
+
+  #ci-invoice-fields > div {
+    gap: 8px !important;
+  }
+}
+
 @media (max-width: 1100px) {
   #ci-dialog {
     width: 98vw !important;
@@ -1211,8 +1672,8 @@ html.dark .ci-dep-meta {
 
 @media (max-width: 900px) {
   .ci-time-grid,
-  .rd-folio-mini-dash,
-  .rd-action-group,
+  #ciModal .rd-folio-mini-dash,
+  #ciModal .rd-action-group,
   #ci-id-grid,
   .ci-personal-section,
   .ci-address-section .f-grid {
@@ -1248,6 +1709,10 @@ html.dark .ci-dep-meta {
 
   .ci-room-strip {
     display: grid;
+  }
+
+  .ci-crm-search-row {
+    flex-direction: column;
   }
 
   .ci-reservation-notice {

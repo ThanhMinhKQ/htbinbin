@@ -250,6 +250,29 @@
 
       /* Internal grids to flex vertical */
       .ag-id-grid, .f-grid-v { display: flex; flex-direction: column; gap: 4px; }
+      .ag-section-docs { flex: 4 !important; }
+      .ag-doc-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px 16px;
+      }
+      .ag-doc-grid .f-grp { margin-bottom: 0; }
+      .ag-doc-span-2 { grid-column: 1 / -1; }
+      .ag-inline-radio {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+        padding: 2px 0;
+      }
+      .ag-invoice-grid {
+        display: grid;
+        grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr);
+        gap: 14px 16px;
+      }
+      .ag-invoice-grid .f-grp { margin-bottom: 0; }
+      @media (max-width: 1100px) {
+        .ag-doc-grid,
+        .ag-invoice-grid { grid-template-columns: 1fr; }
+        .ag-doc-span-2 { grid-column: auto; }
+      }
 
       .ag-guest-list-panel {
         background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
@@ -383,22 +406,25 @@
       <div id="ag-chip-row" class="ag-chip-row"></div>
 
       <div class="ag-columns-container">
-        <!-- ❶ Thông tin giấy tờ (ID Info) -->
-        <div class="ag-section">
+        <!-- ❶ Giấy tờ & hoá đơn -->
+        <div class="ag-section ag-section-docs">
           <div class="ag-section-header">
             <div class="ag-section-badge blue">1</div>
-            <h6 class="ag-section-title">Thông tin giấy tờ</h6>
+            <h6 class="ag-section-title">Giấy tờ & hoá đơn</h6>
             <svg style="margin-left:auto; color:#94a3b8;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
           </div>
           <div class="ag-section-body">
-            <div class="ag-id-grid">
-              <div class="f-grp">
-                <label>Số giấy tờ <span class="f-req">*</span></label>
+            <div class="ag-doc-grid">
+              <div class="f-grp ag-doc-span-2">
+                <label>Tìm khách CRM</label>
                 <div style="display:flex; gap:8px; align-items:center;">
-                  <input type="text" class="f-ctrl" autocomplete="off" id="ag-cccd" placeholder="Nhập số giấy tờ" oninput="agFormatID(this)" style="flex:1;">
-                  <button type="button" onclick="agSearchOldGuest()" title="Tìm khách cũ" style="padding:8px 12px; background:#fff; border:1px solid #bfdbfe; border-radius:8px; cursor:pointer; color:#2563eb; display:flex; align-items:center; gap:4px; font-size:13px; white-space:nowrap; font-weight:600; transition:all .15s;">
+                  <input type="text" class="f-ctrl" autocomplete="off" id="ag-crm-search-input" minlength="5"
+                    placeholder="Tên, CCCD, SĐT, email... (tối thiểu 5 ký tự)"
+                    onkeydown="if(event.key === 'Enter'){ event.preventDefault(); agSearchOldGuest(); }"
+                    style="flex:1;">
+                  <button type="button" onclick="agSearchOldGuest()" title="Tìm khách CRM" style="padding:8px 12px; background:#fff; border:1px solid #bfdbfe; border-radius:8px; cursor:pointer; color:#2563eb; display:flex; align-items:center; gap:4px; font-size:13px; white-space:nowrap; font-weight:600; transition:all .15s;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    Tìm
+                    Lọc
                   </button>
                 </div>
               </div>
@@ -412,21 +438,13 @@
                 <label>Ngày hết hạn <span class="f-req">*</span></label>
                 <input type="date" class="f-ctrl" id="ag-id-expire" onblur="agCheckIdExpire(this)">
               </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ❷ Xuất hoá đơn -->
-        <div class="ag-section">
-          <div class="ag-section-header">
-            <div class="ag-section-badge" style="background:#f59e0b;">2</div>
-            <h6 class="ag-section-title">Xuất hoá đơn</h6>
-            <svg style="margin-left:auto; color:#94a3b8;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          </div>
-          <div class="ag-section-body">
-            <div class="f-grid-v">
-              <div class="f-grp">
-                <div class="ci-radio-group" style="display:flex; gap:20px; align-items:center;">
+              <div class="f-grp ag-doc-span-2">
+                <label>Số giấy tờ <span class="f-req">*</span></label>
+                <input type="text" class="f-ctrl" autocomplete="off" id="ag-cccd" placeholder="Nhập số giấy tờ" oninput="agFormatID(this)">
+              </div>
+              <div class="f-grp ag-doc-span-2">
+                <label>Xuất hoá đơn</label>
+                <div class="ci-radio-group ag-inline-radio">
                   <label style="display:inline-flex; align-items:center; gap:8px; cursor:pointer; font-size:13px;">
                     <input type="radio" name="ag-invoice" value="0" checked onchange="agToggleInvoice(this)">
                     Không xuất
@@ -438,13 +456,13 @@
                 </div>
               </div>
 
-              <div class="f-grp" id="ag-invoice-fields" style="display:none;">
-                <div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:8px; padding:14px;">
+              <div class="ag-doc-span-2" id="ag-invoice-fields" style="display:none;">
+                <div class="ag-invoice-grid">
                   <div class="f-grp">
                     <label>Mã số thuế <span class="f-req">*</span></label>
                     <input type="text" class="f-ctrl" autocomplete="off" id="ag-tax-code" placeholder="10–14 chữ số" oninput="this.value = this.value.replace(/\D/g,'').slice(0,14)">
                   </div>
-                  <div class="f-grp" style="margin-bottom:0;">
+                  <div class="f-grp">
                     <label>Liên hệ hoá đơn (Email/SĐT) <span class="f-req">*</span></label>
                     <input type="text" class="f-ctrl" autocomplete="off" id="ag-tax-contact" placeholder="Email hoặc SĐT nhận hoá đơn">
                   </div>
@@ -454,10 +472,10 @@
           </div>
         </div>
 
-        <!-- ❸ Thông tin cá nhân -->
+        <!-- ❷ Thông tin cá nhân -->
         <div class="ag-section ag-section-wide">
           <div class="ag-section-header">
-            <div class="ag-section-badge green">3</div>
+            <div class="ag-section-badge green">2</div>
             <h6 class="ag-section-title">Thông tin cá nhân</h6>
             <svg style="margin-left:auto; color:#94a3b8;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </div>
@@ -502,7 +520,7 @@
           </div>
         </div>
 
-        <!-- ❹ Thông tin lưu trú -->
+        <!-- ❸ Thông tin lưu trú -->
         <div class="ag-section" id="ag-section-stay">
           <div class="ag-section-lock-overlay">
             <div class="ag-lock-icon-wrapper">
@@ -517,7 +535,7 @@
             </div>
           </div>
           <div class="ag-section-header">
-            <div class="ag-section-badge purple">4</div>
+            <div class="ag-section-badge purple">3</div>
             <h6 class="ag-section-title">Thông tin lưu trú</h6>
             <svg style="margin-left:auto; color:#94a3b8;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           </div>
@@ -587,8 +605,6 @@
                 <label>Địa chỉ chi tiết <span class="f-req">*</span></label>
                 <input type="text" class="f-ctrl" autocomplete="off" id="ag-address" placeholder="Số nhà, ngách, hẻm, đường" onblur="agFormatCapitalize(this)">
               </div>
-              <!-- Progressive Normalization State Badge -->
-              <div class="addr-state-badge" id="_addr_state_badge"></div>
             </div>
           </div>
         </div>

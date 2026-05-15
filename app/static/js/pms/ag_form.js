@@ -187,6 +187,15 @@ function agToggleIdFields(select) {
         if (wardGrp) wardGrp.style.display = '';
         if (addrGrp) addrGrp.style.display = '';
     }
+
+    if (typeof pmsSyncCCCDExpiryReadonly === 'function') {
+        pmsSyncCCCDExpiryReadonly({
+            idTypeEl: select,
+            birthEl: document.getElementById('ag-birth'),
+            expireEl: document.getElementById('ag-id-expire'),
+            checkExpire: agCheckIdExpire,
+        });
+    }
 }
 window.agToggleIdFields = agToggleIdFields;
 
@@ -405,7 +414,7 @@ function agSetStayAreaRadiosDisabled(disabled) {
 }
 
 function agLockAllFields() {
-    ['ag-name','ag-cccd','ag-id-expire','ag-birth','ag-nationality',
+    ['ag-name','ag-cccd','ag-birth','ag-nationality',
      'ag-address','ag-notes',
      'ag-province','ag-district','ag-ward'].forEach(id => {
         const el = document.getElementById(id);

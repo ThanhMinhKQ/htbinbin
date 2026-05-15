@@ -351,7 +351,8 @@ async function pmsCiApplyReservationGuest(data = {}) {
     set('ci-phone', data.guest_phone || '');
     set('ci-gender', data.gender || '');
     set('ci-birth', data.date_of_birth ? String(data.date_of_birth).slice(0, 10) : '');
-    set('ci-id-expire', data.id_expire ? String(data.id_expire).slice(0, 10) : '');
+    if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(document.getElementById('ci-id-expire'), data.id_expire);
+    else set('ci-id-expire', data.id_expire ? String(data.id_expire).slice(0, 10) : '');
     set('ci-nationality', data.nationality || 'VNM - Việt Nam');
     set('ci-address', data.address_detail || data.address || '');
     const idTypeEl = document.getElementById('ci-id-type');
@@ -394,9 +395,13 @@ function pmsCiOpenReservationModal(context) {
     const data = context || {};
     const isBookingCheckin = data.mode === 'checkin' || !!data.booking_id;
     const raw = data.raw_data || {};
-    const isOtaBooking = String(data.booking_type || raw.booking_type || '').toUpperCase() === 'OTA'
+    const bookingType = String(data.booking_type || raw.booking_type || '').toUpperCase();
+    const isCompanyBooking = bookingType === 'COMPANY';
+    const isOtaBooking = !isCompanyBooking && (
+        bookingType === 'OTA'
         || raw.ota_price_mode === 'manual_channel_total'
-        || Boolean(data.booking_source || raw.ota_channel || raw.ota_group_code);
+        || Boolean(data.booking_source || raw.ota_channel || raw.ota_group_code)
+    );
     const otaChannel = data.booking_source || raw.ota_channel || raw.booking_source || '';
     const otaReferenceCode = raw.booking_reference_code || raw.ota_group_code || data.external_id || raw.external_id || '';
     window._pmsCiReservationMode = !isBookingCheckin;
@@ -469,18 +474,24 @@ function pmsCiOpenReservationModal(context) {
         otaSelect.appendChild(option);
     }
     pmsCiSetDepositMethod(
-        isOtaBooking ? 'OTA' : (data.deposit_type || data.payment_method || 'Chi nhánh'),
-        isOtaBooking
-            ? { ota_channel: otaChannel, ref_code: otaReferenceCode }
-            : (data.deposit_meta || {})
+        isCompanyBooking ? 'Công ty'
+            : isOtaBooking ? 'OTA'
+            : (data.deposit_type || data.payment_method || 'Chi nhánh'),
+        isCompanyBooking
+            ? { beneficiary: raw.company_name || data.booking_source || '' }
+            : isOtaBooking
+                ? { ota_channel: otaChannel, ref_code: otaReferenceCode }
+                : (data.deposit_meta || {})
     );
     pmsCiSetDepositLocked(
         isOtaBooking || (isBookingCheckin && Number(data.deposit_amount || 0) > 0),
         isOtaBooking
             ? 'Đặt phòng OTA không nhập tiền cọc trước; kênh và mã tham chiếu được tự động đối soát.'
-            : (isBookingCheckin && Number(data.deposit_amount || 0) > 0
-                ? 'Cọc đã ghi nhận vào giao ca từ booking; nhận phòng không nhập khoản này vào folio.'
-                : '')
+            : isCompanyBooking
+                ? 'Đặt phòng công ty — thanh toán theo hợp đồng.'
+                : (isBookingCheckin && Number(data.deposit_amount || 0) > 0
+                    ? 'Cọc đã ghi nhận vào giao ca từ booking; nhận phòng không nhập khoản này vào folio.'
+                    : '')
     );
     const elNotes = document.getElementById('ci-notes');
     if (elNotes) elNotes.value = data.notes || '';
@@ -493,6 +504,17 @@ function pmsCiOpenReservationModal(context) {
     if (typeof pmsPopulateNationalities === 'function') pmsPopulateNationalities('dl-nationality');
     if (typeof vnInitAddressFields === 'function') vnInitAddressFields();
     if (isBookingCheckin) pmsCiApplyReservationGuest(data).catch((err) => console.warn('[CI] Reservation guest autofill failed', err));
+    if (isCompanyBooking) {
+        const invoiceRadio1 = document.querySelector('input[name="ci-invoice"][value="1"]');
+        if (invoiceRadio1) {
+            invoiceRadio1.checked = true;
+            pmsCiToggleInvoice(invoiceRadio1);
+        }
+        const companyNameEl = document.getElementById('ci-company-name');
+        if (companyNameEl) companyNameEl.value = raw.company_name || data.booking_source || '';
+        const taxCodeEl = document.getElementById('ci-tax-code');
+        if (taxCodeEl) taxCodeEl.value = raw.company_tax_code || '';
+    }
     pmsCiSetModalAction(data.submit_label || 'Lưu đặt phòng');
     setTimeout(pmsCalcPrice, 150);
     if (window._pmsCiOtaPricing?.actualTotal) {
@@ -532,6 +554,8 @@ function pmsCiGetFormGuest() {
     const invoiceVal = document.querySelector('input[name="ci-invoice"]:checked')?.value || '0';
     const taxCode = invoiceVal === '1' ? (document.getElementById('ci-tax-code')?.value?.trim() || '') : '';
     const invoiceContact = invoiceVal === '1' ? (document.getElementById('ci-tax-contact')?.value?.trim() || '') : '';
+    const companyName = invoiceVal === '1' ? (document.getElementById('ci-company-name')?.value?.trim() || '') : '';
+    const companyAddress = invoiceVal === '1' ? (document.getElementById('ci-company-address')?.value?.trim() || '') : '';
 
     // address_type drives which fields feed the submission
     // ── OLD mode: ci-province/ci-district/ci-ward hold OLD values;
@@ -578,6 +602,8 @@ function pmsCiGetFormGuest() {
         notes: document.getElementById('ci-guest-notes')?.value?.trim() || '',
         tax_code: taxCode,
         invoice_contact: invoiceContact,
+        company_name: companyName,
+        company_address: companyAddress,
         from_old: window._pmsCiIsOldGuest || false
     };
 }
@@ -674,6 +700,10 @@ function pmsCiRefreshGuestForm() {
     }
     document.getElementById('ci-tax-code').value = '';
     document.getElementById('ci-tax-contact').value = '';
+    const companyNameReset = document.getElementById('ci-company-name');
+    if (companyNameReset) companyNameReset.value = '';
+    const companyAddressReset = document.getElementById('ci-company-address');
+    if (companyAddressReset) companyAddressReset.value = '';
 
     // Remove any hint and reset existing guest ID
     const hintEl = document.getElementById('ci-cccd-hint');
@@ -815,20 +845,25 @@ async function pmsCiEditGuest(i) {
     document.getElementById('ci-phone').value = g.phone || '';
     document.getElementById('ci-cccd').value = g.cccd || '';
     document.getElementById('ci-id-type').value = g.id_type || 'cccd';
-    document.getElementById('ci-id-expire').value = g.id_expire ? String(g.id_expire).slice(0, 10) : '';
+    if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(document.getElementById('ci-id-expire'), g.id_expire);
+    else document.getElementById('ci-id-expire').value = g.id_expire ? String(g.id_expire).slice(0, 10) : '';
     document.getElementById('ci-vehicle').value = g.vehicle || '';
     document.getElementById('ci-guest-notes').value = g.notes || '';
     document.getElementById('ci-nationality').value = g.nationality || 'VNM - Việt Nam';
     document.getElementById('ci-address').value = g.address || '';
 
     // Restore invoice fields (both old and new guests can have invoice)
-    if (g.tax_code || g.invoice_contact) {
+    if (g.tax_code || g.invoice_contact || g.company_name) {
         const invoiceRadio1 = document.querySelector('input[name="ci-invoice"][value="1"]');
         if (invoiceRadio1) invoiceRadio1.checked = true;
         const taxCodeEl = document.getElementById('ci-tax-code');
         if (taxCodeEl) taxCodeEl.value = g.tax_code || '';
         const taxContactEl = document.getElementById('ci-tax-contact');
         if (taxContactEl) taxContactEl.value = g.invoice_contact || '';
+        const companyNameEl = document.getElementById('ci-company-name');
+        if (companyNameEl) companyNameEl.value = g.company_name || '';
+        const companyAddressEl = document.getElementById('ci-company-address');
+        if (companyAddressEl) companyAddressEl.value = g.company_address || '';
         // Show invoice fields wrapper
         const invoiceFields = document.getElementById('ci-invoice-fields');
         if (invoiceFields) invoiceFields.style.display = 'block';
@@ -843,6 +878,8 @@ async function pmsCiEditGuest(i) {
         if (taxCodeEl) taxCodeEl.value = '';
         const taxContactEl = document.getElementById('ci-tax-contact');
         if (taxContactEl) taxContactEl.value = '';
+        const companyNameEl = document.getElementById('ci-company-name');
+        if (companyNameEl) companyNameEl.value = '';
         // Call toggle to sync visibility state
         if (invoiceRadio0) pmsCiToggleInvoice(invoiceRadio0);
     }
@@ -1189,9 +1226,14 @@ async function pmsCiFillFromScan(parsed) {
         pmsCiCheckBirth(birthEl);
     }
     const expireEl = document.getElementById('ci-id-expire');
-    if (expireEl && parsed.expiry_date && parsed.expiry_date !== 'Không thời hạn') {
-        expireEl.value = pmsScanDateToISO(parsed.expiry_date);
-        pmsCiCheckIdExpire(expireEl);
+    if (expireEl && parsed.expiry_date) {
+        if (parsed.expiry_date === 'Không thời hạn' && typeof pmsSetCCCDPermanentExpiry === 'function') {
+            pmsSetCCCDPermanentExpiry(expireEl);
+        } else {
+            if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(expireEl, parsed.expiry_date);
+            else expireEl.value = pmsScanDateToISO(parsed.expiry_date);
+            pmsCiCheckIdExpire(expireEl);
+        }
     }
 
     const cardType = parsed.card_type || 'CCCD_CU';
@@ -1205,6 +1247,14 @@ async function pmsCiFillFromScan(parsed) {
 
     // Unlock fields for manual entry
     pmsCiUnlockAllFields();
+    if (typeof pmsSyncCCCDExpiryReadonly === 'function') {
+        pmsSyncCCCDExpiryReadonly({
+            idTypeEl: document.getElementById('ci-id-type'),
+            birthEl: document.getElementById('ci-birth'),
+            expireEl: document.getElementById('ci-id-expire'),
+            checkExpire: pmsCiCheckIdExpire,
+        });
+    }
     window._pmsCiExistingGuestId = null;
     window._pmsCiIsOldGuest = false;
     const existingNotice = document.getElementById('ci-autofill-notice');
@@ -1243,7 +1293,8 @@ async function pmsCiFillFromExisting(guest) {
         pmsCiToggleIdFields(idTypeEl);
     }
     if (idExpireEl) {
-        idExpireEl.value = guest.id_expire ? String(guest.id_expire).slice(0, 10) : '';
+        if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(idExpireEl, guest.id_expire);
+        else idExpireEl.value = guest.id_expire ? String(guest.id_expire).slice(0, 10) : '';
         pmsCiCheckIdExpire(idExpireEl);
     }
     if (birthEl && guest.birth_date) {
@@ -1255,14 +1306,18 @@ async function pmsCiFillFromExisting(guest) {
     if (notesEl) notesEl.value = guest.notes || '';
 
     // Invoice
-    if (guest.tax_code || guest.invoice_contact) {
+    if (guest.tax_code || guest.invoice_contact || guest.company_name) {
         const invoiceRadio1 = document.querySelector('input[name="ci-invoice"][value="1"]');
         const invoiceRadio0 = document.querySelector('input[name="ci-invoice"][value="0"]');
         if (invoiceRadio1) invoiceRadio1.checked = true;
         const taxCodeEl = document.getElementById('ci-tax-code');
         const taxContactEl = document.getElementById('ci-tax-contact');
+        const companyNameEl = document.getElementById('ci-company-name');
+        const companyAddressEl = document.getElementById('ci-company-address');
         if (taxCodeEl) taxCodeEl.value = guest.tax_code || '';
         if (taxContactEl) taxContactEl.value = guest.invoice_contact || '';
+        if (companyNameEl) companyNameEl.value = guest.company_name || '';
+        if (companyAddressEl) companyAddressEl.value = guest.company_address || '';
         const invoiceFields = document.getElementById('ci-invoice-fields');
         if (invoiceFields) invoiceFields.style.display = 'block';
         if (invoiceRadio1) pmsCiToggleInvoice(invoiceRadio1);
@@ -2125,6 +2180,15 @@ function pmsCiToggleIdFields(select) {
             if (r && r.style.display !== 'none') r.disabled = false;
         });
     }
+
+    if (typeof pmsSyncCCCDExpiryReadonly === 'function') {
+        pmsSyncCCCDExpiryReadonly({
+            idTypeEl: select,
+            birthEl: document.getElementById('ci-birth'),
+            expireEl: document.getElementById('ci-id-expire'),
+            checkExpire: pmsCiCheckIdExpire,
+        });
+    }
 }
 window.pmsCiToggleIdFields = pmsCiToggleIdFields;
 
@@ -2146,6 +2210,10 @@ function pmsCiToggleInvoice(radio) {
     // Legacy fallback for individual fields
     const taxEl = document.getElementById('ci-grp-tax');
     const contactEl = document.getElementById('ci-grp-tax-contact');
+    const companyEl = document.getElementById('ci-grp-company-name');
+    const companyAddrEl = document.getElementById('ci-grp-company-address');
+    if (companyEl) companyEl.style.display = val === '1' ? 'flex' : 'none';
+    if (companyAddrEl) companyAddrEl.style.display = val === '1' ? 'flex' : 'none';
     if (taxEl) taxEl.style.display = val === '1' ? 'flex' : 'none';
     if (contactEl) contactEl.style.display = val === '1' ? 'flex' : 'none';
 }
@@ -2171,17 +2239,6 @@ function pmsCiFormatID(input) {
     input.value = input.value.replace(/\s+/g, '').toUpperCase();
 }
 window.pmsCiFormatID = pmsCiFormatID;
-
-// Add Enter key listener for CCCD search
-document.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') {
-        const el = e.target;
-        if (el && el.id === 'ci-cccd') {
-            e.preventDefault();
-            if (typeof pmsCiSearchOldGuest === 'function') pmsCiSearchOldGuest();
-        }
-    }
-});
 
 function pmsCiFormatCapitalize(input) {
     let val = input.value.trim().toLowerCase();
@@ -2449,7 +2506,7 @@ window.pmsCiCollectReservationData = pmsCiCollectReservationData;
 // Lock ALL fields (full read-only) — used when auto-fill from old guest
 // For old guests: lock everything including address radios
 function pmsCiLockAllFields() {
-    ['ci-name', 'ci-cccd', 'ci-id-expire', 'ci-birth', 'ci-nationality',
+    ['ci-name', 'ci-cccd', 'ci-birth', 'ci-nationality',
         'ci-address', 'ci-vehicle', 'ci-guest-notes',
         'ci-province', 'ci-district', 'ci-ward'].forEach(id => {
             const el = document.getElementById(id);
@@ -2535,7 +2592,8 @@ async function pmsCiFillGuestFromOld(guest) {
         if (cccdEl) cccdEl.value = guest.cccd || '';
         const idExpireEl = document.getElementById('ci-id-expire');
         if (idExpireEl) {
-            idExpireEl.value = guest.id_expire ? String(guest.id_expire).slice(0, 10) : '';
+            if (typeof pmsSetGuestIdExpireValue === 'function') pmsSetGuestIdExpireValue(idExpireEl, guest.id_expire);
+            else idExpireEl.value = guest.id_expire ? String(guest.id_expire).slice(0, 10) : '';
             pmsCiCheckIdExpire(idExpireEl);
         }
         const birthEl = document.getElementById('ci-birth');
@@ -2551,7 +2609,7 @@ async function pmsCiFillGuestFromOld(guest) {
         if (notesEl) notesEl.value = guest.notes || '';
 
         // 1b. Fill invoice info (UNLOCKED - user can update) - invoice is per-guest
-        if (guest.tax_code || guest.invoice_contact) {
+        if (guest.tax_code || guest.invoice_contact || guest.company_name) {
             const invoiceRadio1 = document.querySelector('input[name="ci-invoice"][value="1"]');
             const invoiceRadio0 = document.querySelector('input[name="ci-invoice"][value="0"]');
             if (invoiceRadio1) invoiceRadio1.checked = true;
@@ -2559,6 +2617,10 @@ async function pmsCiFillGuestFromOld(guest) {
             if (taxCodeEl) taxCodeEl.value = guest.tax_code || '';
             const taxContactEl = document.getElementById('ci-tax-contact');
             if (taxContactEl) taxContactEl.value = guest.invoice_contact || '';
+            const companyNameEl = document.getElementById('ci-company-name');
+            if (companyNameEl) companyNameEl.value = guest.company_name || '';
+            const companyAddressEl = document.getElementById('ci-company-address');
+            if (companyAddressEl) companyAddressEl.value = guest.company_address || '';
             // Show invoice fields in LEFT column and call toggle to sync state
             const invoiceFields = document.getElementById('ci-invoice-fields');
             if (invoiceFields) invoiceFields.style.display = 'block';
@@ -2745,32 +2807,27 @@ function _pmsCiSelectGuest(index) {
 window._pmsCiSelectGuest = _pmsCiSelectGuest;
 
 async function pmsCiSearchOldGuest() {
-    const cccd = document.getElementById('ci-cccd')?.value?.trim();
-    if (!cccd || cccd.length < 3) {
-        pmsToast('Vui lòng nhập ít nhất 3 ký tự để tìm kiếm', false);
+    const query = document.getElementById('ci-crm-search-input')?.value?.trim() || '';
+    if (!query || query.length < 5) {
+        pmsToast('Vui lòng nhập ít nhất 5 ký tự để tìm khách CRM', false);
         return;
     }
 
     try {
-        const r = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(cccd)}`);
+        const r = await pmsApi(`/api/pms/crm/guests/search?q=${encodeURIComponent(query)}&page_size=8`);
+        const guests = r.guests || r.items || [];
 
-        if (!r.guests || r.guests.length === 0) {
-            alert(`⚠️ Không tìm thấy khách hàng nào với số giấy tờ "${cccd}".\n\nVui lòng kiểm tra lại số giấy tờ hoặc nhập thông tin khách mới.`);
-            pmsToast(`Không tìm thấy khách với CCCD "${cccd}"`, false);
+        if (guests.length === 0) {
+            alert(`Không tìm thấy khách hàng phù hợp với "${query}".\n\nVui lòng kiểm tra lại hoặc nhập thông tin khách mới.`);
+            pmsToast(`Không tìm thấy khách CRM với "${query}"`, false);
             return;
         }
 
         // Store results globally for selection
-        window._pmsCiSearchResults = r.guests;
-
-        // If only 1 result, auto-fill directly
-        if (r.guests.length === 1) {
-            pmsCiFillGuestFromOld(r.guests[0]);
-            return;
-        }
+        window._pmsCiSearchResults = guests;
 
         // Build premium popup for multiple results
-        const resultsHtml = r.guests.map((g, idx) => {
+        const resultsHtml = guests.map((g, idx) => {
             const initials = (g.full_name || '?').split(' ').map(w => w[0]).join('').slice(-2).toUpperCase();
             const genderColor = g.gender === 'Nam' ? '#3b82f6' : g.gender === 'Nữ' ? '#ec4899' : '#8b5cf6';
             const addressParts = [g.address, g.ward, g.city].filter(Boolean);
@@ -2823,7 +2880,7 @@ async function pmsCiSearchOldGuest() {
                     background: rgba(15, 23, 42, 0.6);
                     backdrop-filter: blur(8px);
                     -webkit-backdrop-filter: blur(8px);
-                    z-index: 10000;
+                    z-index: 100004;
                     display: flex; align-items: center; justify-content: center;
                     opacity: 0;
                     transition: opacity 0.2s ease;
@@ -2907,7 +2964,7 @@ async function pmsCiSearchOldGuest() {
                         </svg>
                     </div>
                     <div>
-                        <h5>Tìm thấy ${r.guests.length} khách hàng</h5>
+                        <h5>Tìm thấy ${guests.length} khách hàng</h5>
                         <p>Chọn khách hàng để điền thông tin vào form</p>
                     </div>
                     <button class="ci-search-close" onclick="_pmsCiCloseSearchPopup()" title="Đóng">

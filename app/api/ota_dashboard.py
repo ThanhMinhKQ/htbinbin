@@ -1036,6 +1036,12 @@ async def _process_ota_emails(emails: list[dict], log_prefix: str, processed_at=
     from app.db.session import TaskSessionLocal  # NullPool: không cạnh tranh pool HTTP  # type: ignore
     from app.services.ota_agent.mapper import HotelMapper  # type: ignore
 
+    mapper_db = TaskSessionLocal()
+    try:
+        mapper = HotelMapper(mapper_db)
+    finally:
+        mapper_db.close()
+
     semaphore = asyncio.Semaphore(1 if sequential else OTA_PROCESS_CONCURRENCY)
     processed = 0
     failed = 0
@@ -1044,7 +1050,6 @@ async def _process_ota_emails(emails: list[dict], log_prefix: str, processed_at=
         async with semaphore:
             db = TaskSessionLocal()
             try:
-                mapper = HotelMapper(db)
                 await asyncio.to_thread(ota_agent.process_email, db, mapper, email, processed_at)
                 return True
             except Exception as e:
@@ -1071,25 +1076,37 @@ async def _process_ota_emails(emails: list[dict], log_prefix: str, processed_at=
 async def _process_gmail_push(history_id: str):
     """
     Background task: Lấy email mới từ Gmail API và đưa vào pipeline xử lý.
-    Tái sử dụng hoàn toàn OTAAgent.process_email() đã có sẵn.
 
-    FIX: Mỗi email được cấp 1 DB session riêng để tránh giữ connection
-    trong suốt thời gian time.sleep() của Gemini rate limiter.
+    Performance: Parallel fetch (concurrency=8) + parallel process (concurrency=3).
+    Mỗi email được cấp 1 DB session riêng để tránh giữ connection
+    trong suốt thời gian time.sleep() của rate limiter.
     """
     from app.core.config import logger  # type: ignore
 
     logger.info(f"[Gmail Push] ⏳ Bắt đầu xử lý historyId={history_id}")
 
     try:
-        emails = await asyncio.to_thread(gmail_service.fetch_new_emails_from_history, history_id)
+        message_ids = await asyncio.to_thread(gmail_service.get_new_message_ids_from_history, history_id)
 
-        if not emails:
+        if not message_ids:
+            logger.info(f"[Gmail Push] Không có email mới từ historyId={history_id}")
+            return
+
+        already_done = await _skip_success_message_ids(message_ids)
+        pending_ids = [mid for mid in message_ids if mid not in already_done]
+        if not pending_ids:
+            logger.info(f"[Gmail Push] Tất cả {len(message_ids)} email đã xử lý trước đó.")
+            return
+
+        emails_list = await _fetch_gmail_messages(pending_ids, "Gmail Push")
+
+        if not emails_list:
             logger.info(f"[Gmail Push] Không có email OTA mới từ historyId={history_id}")
             return
 
-        emails_list: list = sorted(emails if isinstance(emails, list) else list(emails or []), key=_email_sort_key)
+        emails_list.sort(key=_email_sort_key)
         logger.info(f"[Gmail Push] Xử lý {len(emails_list)} email OTA mới...")
-        processed, failed = await _process_ota_emails(emails_list, "Gmail Push", sequential=True)
+        processed, failed = await _process_ota_emails(emails_list, "Gmail Push", sequential=False)
         logger.info(f"[Gmail Push] ✅ Xử lý xong {processed}/{len(emails_list)} email, thất bại={failed}")
 
     except Exception as e:
@@ -1209,7 +1226,7 @@ async def _scan_emails_for_date(target_date, scan_requested_at=None):
             logger.info(f"[Manual Scan] ✅ Không có email OTA nào được lọc ngày {date_str}")
             return
 
-        processed, failed = await _process_ota_emails(emails, "Manual Scan", scan_requested_at, sequential=True)
+        processed, failed = await _process_ota_emails(emails, "Manual Scan", scan_requested_at, sequential=False)
 
         logger.info(
             f"[Manual Scan] ✅ Hoàn thành ngày {date_str}: "
@@ -1218,6 +1235,83 @@ async def _scan_emails_for_date(target_date, scan_requested_at=None):
 
     except Exception as e:
         logger.error(f"[Manual Scan] ❌ Lỗi: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+
+
+# ===========================================================================
+# OTA POLLING FALLBACK (Safety net khi Pub/Sub miss)
+# ===========================================================================
+
+_polling_fallback_running = False
+
+
+def _run_polling_fallback():
+    """Sync wrapper cho APScheduler."""
+    global _polling_fallback_running
+    if _polling_fallback_running:
+        return
+    _polling_fallback_running = True
+    try:
+        asyncio.run(_polling_fallback_scan())
+    finally:
+        _polling_fallback_running = False
+
+
+async def _polling_fallback_scan():
+    """
+    Polling fallback: quét email OTA trong 30 phút gần nhất.
+    Chạy mỗi 10 phút bởi scheduler, đảm bảo không miss email khi Pub/Sub fail.
+    Skip email đã xử lý thành công.
+    """
+    from app.core.config import settings, logger
+    from app.core.utils import VN_TZ
+
+    if not settings.OTA_ENABLED:
+        return
+
+    try:
+        service = gmail_service.build_service()
+        if not service:
+            logger.warning("[Polling Fallback] Không thể kết nối Gmail API")
+            return
+
+        ota_senders = gmail_service.ota_senders
+        if not ota_senders:
+            return
+
+        now = datetime.now(VN_TZ)
+        after_ts = int((now - timedelta(minutes=30)).timestamp())
+        sender_query = " OR ".join([f"from:{s}" for s in ota_senders])
+        query = f"({sender_query}) after:{after_ts}"
+
+        result = service.users().messages().list(
+            userId='me', q=query, maxResults=50
+        ).execute()
+        messages = result.get('messages', [])
+
+        if not messages:
+            return
+
+        message_ids = [msg['id'] for msg in messages if msg.get('id')]
+        skipped_ids = await _skip_success_message_ids(message_ids)
+        pending_ids = [mid for mid in message_ids if mid not in skipped_ids]
+
+        if not pending_ids:
+            return
+
+        logger.info(f"[Polling Fallback] Phát hiện {len(pending_ids)} email OTA chưa xử lý (30 phút gần nhất)")
+
+        emails = await _fetch_gmail_messages(pending_ids, "Polling Fallback")
+        if not emails:
+            return
+
+        emails = sorted(emails, key=_email_sort_key)
+        processed, failed = await _process_ota_emails(emails, "Polling Fallback", sequential=False)
+        logger.info(f"[Polling Fallback] ✅ Xử lý {processed}/{len(emails)}, thất bại={failed}")
+
+    except Exception as e:
+        logger.error(f"[Polling Fallback] Lỗi: {e}")
         import traceback
         logger.error(traceback.format_exc())
 

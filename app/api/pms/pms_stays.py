@@ -1304,6 +1304,8 @@ def api_search_guest(
                 "nationality": getattr(g, 'nationality', 'VNM - Việt Nam'),
                 "tax_code": getattr(g, 'tax_code', None),
                 "invoice_contact": getattr(g, 'invoice_contact', None),
+                "company_name": getattr(g, 'company_name', None),
+                "company_address": getattr(g, 'company_address', None),
                 "id_type": g.id_type,
                 "last_stay": None
             }
@@ -1355,6 +1357,8 @@ def api_check_cccd_exists(
                 "nationality": getattr(guest, 'nationality', 'VNM - Việt Nam'),
                 "tax_code": getattr(guest, 'tax_code', None),
                 "invoice_contact": getattr(guest, 'invoice_contact', None),
+                "company_name": getattr(guest, 'company_name', None),
+                "company_address": getattr(guest, 'company_address', None),
                 "id_type": guest.id_type,
             }
         })

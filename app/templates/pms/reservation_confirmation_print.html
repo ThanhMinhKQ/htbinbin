@@ -655,10 +655,21 @@
         {% set late_fee = legacy_breakdown.late_checkout_fee or raw.late_checkout_fee or raw.late_fee or 0 %}
         {% set source_value = (booking.booking_source or booking.booking_type or 'Direct')|string %}
         {% set source_label = 'Trực tiếp' if source_value|lower in ['direct', 'walk-in', 'walk_in'] else source_value %}
+        {% set company_name = raw.company_name or '' %}
+        {% set company_tax = raw.company_tax_code or '' %}
+        {% set company_addr = raw.company_address or '' %}
+        {% set is_company_booking = company_name|length > 0 %}
 
         <div class="guest-info-box">
-            <div class="guest-info-title">Thông tin đặt phòng / Reservation Details</div>
+            <div class="guest-info-title">{% if is_company_booking %}Thông tin công ty / Company Details{% else %}Thông tin đặt phòng / Reservation Details{% endif %}</div>
             <div class="guest-grid">
+                {% if is_company_booking %}
+                <div class="info-row"><span class="info-label">Công ty / Company</span><span class="info-val">{{ company_name }}</span></div>
+                <div class="info-row"><span class="info-label">MST / Tax Code</span><span class="info-val">{{ company_tax }}</span></div>
+                {% if company_addr %}
+                <div class="info-row"><span class="info-label">Địa chỉ / Address</span><span class="info-val">{{ company_addr }}</span></div>
+                {% endif %}
+                {% else %}
                 {% if booking.guest_name %}
                 <div class="info-row"><span class="info-label">Khách / Guest</span><span class="info-val">{{ booking.guest_name }}</span></div>
                 {% endif %}
@@ -667,6 +678,7 @@
                 {% endif %}
                 {% if source_label %}
                 <div class="info-row"><span class="info-label">Nguồn / Source</span><span class="info-val">{{ source_label }}</span></div>
+                {% endif %}
                 {% endif %}
                 {% if booking.assigned_room_number %}
                 <div class="info-row"><span class="info-label">Phòng / Room</span><span class="info-val">{{ booking.assigned_room_number }}</span></div>

@@ -391,15 +391,15 @@
                   <input type="text" class="f-ctrl eg-id-locked" autocomplete="off" id="eg-id-type" readonly>
                 </div>
               </div>
+              <div class="f-grp" id="eg-grp-expire" style="margin-bottom:0;">
+                <label>Ngày hết hạn</label>
+                <input type="date" class="f-ctrl" id="eg-id-expire" onblur="egCheckIdExpire(this)">
+              </div>
               <div class="f-grp">
                 <label>Số giấy tờ <span class="f-req">*</span></label>
                 <div class="eg-id-locked-wrap">
                   <input type="text" class="f-ctrl eg-id-locked" autocomplete="off" id="eg-cccd" readonly>
                 </div>
-              </div>
-              <div class="f-grp" id="eg-grp-expire" style="margin-bottom:0;">
-                <label>Ngày hết hạn</label>
-                <input type="date" class="f-ctrl" id="eg-id-expire" onblur="egCheckIdExpire(this)">
               </div>
             </div>
           </div>

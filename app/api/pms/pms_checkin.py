@@ -170,6 +170,8 @@ def api_checkin(
     require_invoice: bool = Form(False),
     tax_code: str = Form(""),
     tax_contact: str = Form(""),
+    company_name: str = Form(""),
+    company_address: str = Form(""),
     guest_notes: str = Form(""),
     guest_id_type: str = Form("cccd"),
     risk_confirmed: bool = Form(False),
@@ -341,6 +343,8 @@ def api_checkin(
         vehicle=vehicle,  # Vehicle gắn với lượt lưu trú
         tax_code=tax_code if require_invoice else None,
         tax_contact=tax_contact if require_invoice else None,
+        company_name=company_name if require_invoice else None,
+        company_address=company_address if require_invoice else None,
         deposit_type=deposit_type,
         deposit_meta=json.loads(deposit_meta) if deposit_meta else None,
         status=HotelStayStatus.ACTIVE,
@@ -471,6 +475,8 @@ def api_checkin(
         nationality=guest_nationality,
         tax_code=tax_code or None,
         invoice_contact=tax_contact or None,
+        company_name=company_name or None,
+        company_address=company_address or None,
         created_by=user.get("id"),
     )
     db.add(primary_guest)
@@ -590,6 +596,8 @@ def api_checkin(
                             existing_eg.nationality = eg_data.get("nationality", "VNM - Việt Nam")
                             existing_eg.tax_code = eg_data.get("tax_code") or None
                             existing_eg.invoice_contact = eg_data.get("invoice_contact") or None
+                            existing_eg.company_name = eg_data.get("company_name") or None
+                            existing_eg.company_address = eg_data.get("company_address") or None
                             if existing_eg.guest_id:
                                 _extra_hotel_guests.append(existing_eg)
                             continue  # Skip creating new guest
@@ -618,6 +626,8 @@ def api_checkin(
                         nationality=eg_data.get("nationality", "VNM - Việt Nam"),
                         tax_code=eg_data.get("tax_code") or None,
                         invoice_contact=eg_data.get("invoice_contact") or None,
+                        company_name=eg_data.get("company_name") or None,
+                        company_address=eg_data.get("company_address") or None,
                         created_by=user.get("id"),
                     )
                     db.add(eg)

@@ -2153,9 +2153,70 @@ function pmsCalcCCCDExpiryFromBirth(birthValue) {
     return expiry === "Không xác định" ? "" : expiry;
 }
 
+const PMS_CCCD_PERMANENT_EXPIRY_ISO = "2999-12-31";
+
 function pmsIsCCCDPermanentExpiry(input) {
     return input?.dataset?.pmsCccdPermanent === "1"
-        || pmsGetNativeInputValue(input).trim() === "Không thời hạn";
+        || pmsGetNativeInputValue(input).trim() === "Không thời hạn"
+        || pmsGetNativeInputValue(input).trim() === PMS_CCCD_PERMANENT_EXPIRY_ISO
+        || pmsGetNativeInputValue(input).trim() === "31/12/2999";
+}
+
+function pmsSetCCCDExpiryReadonly(expireEl, isReadonly) {
+    if (!expireEl) return;
+    expireEl.readOnly = false;
+    expireEl.classList.remove("pms-cccd-expiry-readonly");
+    expireEl.removeAttribute("aria-readonly");
+    expireEl.title = "";
+    if (!isReadonly) {
+        expireEl.dataset.pmsAutoCccdExpiry = "";
+        expireEl.dataset.pmsCccdPermanent = "";
+    }
+}
+
+function pmsSetCCCDPermanentExpiry(expireEl) {
+    if (!expireEl || expireEl.disabled) return false;
+    expireEl.dataset.pmsAutoCccdExpiry = "Không thời hạn";
+    expireEl.dataset.pmsCccdPermanent = "1";
+    expireEl.value = PMS_CCCD_PERMANENT_EXPIRY_ISO;
+    expireEl.classList.remove("is-invalid");
+    pmsSetCCCDExpiryReadonly(expireEl, true);
+    return true;
+}
+
+function pmsSetGuestIdExpireValue(expireEl, value) {
+    if (!expireEl) return false;
+    const raw = String(value || "").trim();
+    if (!raw) {
+        expireEl.value = "";
+        expireEl.dataset.pmsAutoCccdExpiry = "";
+        expireEl.dataset.pmsCccdPermanent = "";
+        return false;
+    }
+    if (raw === "Không thời hạn" || raw === PMS_CCCD_PERMANENT_EXPIRY_ISO || raw === "31/12/2999") {
+        return pmsSetCCCDPermanentExpiry(expireEl);
+    }
+    expireEl.dataset.pmsAutoCccdExpiry = "";
+    expireEl.dataset.pmsCccdPermanent = "";
+    expireEl.value = pmsDateToISO(raw) || raw.slice(0, 10);
+    return true;
+}
+
+function pmsSyncCCCDExpiryReadonly(options = {}) {
+    const idTypeEl = options.idTypeEl || null;
+    const birthEl = options.birthEl || null;
+    const expireEl = options.expireEl || null;
+    const checkExpire = typeof options.checkExpire === "function" ? options.checkExpire : null;
+    const idType = String(idTypeEl?.value || "cccd").trim().toLowerCase();
+
+    if (!expireEl || expireEl.disabled) return false;
+    if (idType !== "cccd") {
+        pmsSetCCCDExpiryReadonly(expireEl, false);
+        return false;
+    }
+
+    pmsSetCCCDExpiryReadonly(expireEl, true);
+    return pmsApplyCCCDExpiryFromBirth({ idTypeEl, birthEl, expireEl, checkExpire });
 }
 
 function pmsApplyCCCDExpiryFromBirth(options = {}) {
@@ -2165,17 +2226,16 @@ function pmsApplyCCCDExpiryFromBirth(options = {}) {
     const checkExpire = typeof options.checkExpire === "function" ? options.checkExpire : null;
     const idType = String(idTypeEl?.value || "cccd").trim().toLowerCase();
 
-    if (idType !== "cccd" || !birthEl || !expireEl || expireEl.disabled || expireEl.readOnly) return false;
+    if (idType !== "cccd" || !birthEl || !expireEl || expireEl.disabled) return false;
+
+    pmsSetCCCDExpiryReadonly(expireEl, true);
 
     const expiry = pmsCalcCCCDExpiryFromBirth(birthEl.value);
     if (!expiry) return false;
 
     expireEl.dataset.pmsAutoCccdExpiry = expiry;
     if (expiry === "Không thời hạn") {
-        expireEl.dataset.pmsCccdPermanent = "1";
-        expireEl.value = expiry;
-        expireEl.classList.remove("is-invalid");
-        return true;
+        return pmsSetCCCDPermanentExpiry(expireEl);
     }
 
     expireEl.dataset.pmsCccdPermanent = "";
@@ -2264,10 +2324,40 @@ window.pmsISODateToDisplay = pmsISODateToDisplay;
 window.pmsCalcCCCDExpiryFromBirth = pmsCalcCCCDExpiryFromBirth;
 window.pmsApplyCCCDExpiryFromBirth = pmsApplyCCCDExpiryFromBirth;
 window.pmsIsCCCDPermanentExpiry = pmsIsCCCDPermanentExpiry;
+window.pmsSyncCCCDExpiryReadonly = pmsSyncCCCDExpiryReadonly;
+window.pmsSetCCCDPermanentExpiry = pmsSetCCCDPermanentExpiry;
+window.pmsSetGuestIdExpireValue = pmsSetGuestIdExpireValue;
+window.PMS_CCCD_PERMANENT_EXPIRY_ISO = PMS_CCCD_PERMANENT_EXPIRY_ISO;
 window.pmsEnsureVietnameseDateInputs = pmsEnsureVietnameseDateInputs;
 window.pmsMatchAddressToForm = pmsMatchAddressToForm;
 window.pmsValidateAddressAfterScan = pmsValidateAddressAfterScan;
 window.pmsShowAddressValidationIssues = pmsShowAddressValidationIssues;
+
+function pmsGetGuestExpiryContext(targetId) {
+    const contexts = {
+        "ci-id-type": ["ci-id-type", "ci-birth", "ci-id-expire", window.pmsCiCheckIdExpire],
+        "ci-birth": ["ci-id-type", "ci-birth", "ci-id-expire", window.pmsCiCheckIdExpire],
+        "ag-id-type": ["ag-id-type", "ag-birth", "ag-id-expire", window.agCheckIdExpire],
+        "ag-birth": ["ag-id-type", "ag-birth", "ag-id-expire", window.agCheckIdExpire],
+        "eg-id-type": ["eg-id-type", "eg-birth", "eg-id-expire", window.egCheckIdExpire],
+        "eg-birth": ["eg-id-type", "eg-birth", "eg-id-expire", window.egCheckIdExpire],
+        "bk-form-id-type": ["bk-form-id-type", "bk-form-date-of-birth", "bk-form-id-expire", window.BookingHub?.checkBookingIdExpire?.bind(window.BookingHub)],
+        "bk-form-date-of-birth": ["bk-form-id-type", "bk-form-date-of-birth", "bk-form-id-expire", window.BookingHub?.checkBookingIdExpire?.bind(window.BookingHub)],
+    };
+    const ctx = contexts[targetId];
+    if (!ctx) return null;
+    return {
+        idTypeEl: document.getElementById(ctx[0]),
+        birthEl: document.getElementById(ctx[1]),
+        expireEl: document.getElementById(ctx[2]),
+        checkExpire: ctx[3],
+    };
+}
+
+document.addEventListener("change", (event) => {
+    const ctx = pmsGetGuestExpiryContext(event.target?.id || "");
+    if (ctx) pmsSyncCCCDExpiryReadonly(ctx);
+});
 
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", pmsInitVietnameseDateInputs);

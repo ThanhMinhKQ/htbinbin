@@ -128,6 +128,34 @@ class InventoryTimelineTest(unittest.TestCase):
         # Ngày 16 phải trống để nhận khách B
         self.assertFalse(_stay_occupies_date(check_in_a, check_out_a, date(2026, 5, 16)))
 
+    def test_active_stay_due_noon_today_still_counts_as_occupied(self):
+        from app.services.room_inventory_service import _active_stay_occupies_date
+        check_in = VN_TZ.localize(datetime(2026, 5, 15, 14, 0))
+        check_out = VN_TZ.localize(datetime(2026, 5, 16, 12, 0))
+
+        self.assertTrue(
+            _active_stay_occupies_date(
+                check_in,
+                check_out,
+                date(2026, 5, 16),
+                current_date=date(2026, 5, 16),
+            )
+        )
+
+    def test_active_stay_due_noon_future_date_uses_inventory_rule(self):
+        from app.services.room_inventory_service import _active_stay_occupies_date
+        check_in = VN_TZ.localize(datetime(2026, 5, 15, 14, 0))
+        check_out = VN_TZ.localize(datetime(2026, 5, 16, 12, 0))
+
+        self.assertFalse(
+            _active_stay_occupies_date(
+                check_in,
+                check_out,
+                date(2026, 5, 16),
+                current_date=date(2026, 5, 15),
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
