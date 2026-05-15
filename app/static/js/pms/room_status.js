@@ -292,6 +292,9 @@ const RoomStatus = {
 
     selectDate(date) {
         this.state.selectedDate = date;
+        // Sync ô input ngày với ngày đang xem
+        const dayPicker = document.getElementById('rs-date-picker');
+        if (dayPicker) dayPicker.value = date;
         this.renderOverview(this.state.rawData);
         this.renderDayTable(this.state.rawData);
         this.renderDayDetail(this.state.rawData);

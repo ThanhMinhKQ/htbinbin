@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from app.core.utils import VN_TZ
 from app.db.models import HotelStayStatus, StayType
-from app.services.inventory_service import InventoryService
+from app.services.room_inventory_service import InventoryService
 
 
 class QueryStub:
@@ -32,6 +32,15 @@ class DbStub:
         return QueryStub(self.query_rows.pop(0))
 
 
+# get_timeline issues 5 queries in order:
+#   1. rooms
+#   2. bookings
+#   3. active_stays
+#   4. guest_rows (stay_ids non-empty → issued; empty stay_ids → skipped)
+#   5. blocks
+# When stay_ids is empty the guest query is skipped, so only 4 rows needed.
+# Our stubs always have a stay so we need 5 rows.
+
 class InventoryTimelineTest(unittest.TestCase):
     def test_hourly_active_stay_without_checkout_only_spans_checkin_day(self):
         start_date = date(2026, 5, 6)
@@ -47,13 +56,17 @@ class InventoryTimelineTest(unittest.TestCase):
             check_out_at=None,
             stay_type=StayType.HOUR,
             pricing_mode_initial="HOURLY",
-            guests=[SimpleNamespace(full_name="Nguyen Van A", is_primary=True)],
         )
+        # guest_rows trả về tuples (stay_id, full_name, is_primary)
+        guest_row = (501, "Nguyen Van A", True)
 
-        db = DbStub([[room], [], [stay], []])
+        # rows: rooms, bookings, active_stays, guest_rows, blocks
+        db = DbStub([[room], [], [stay], [guest_row], []])
 
         timeline = InventoryService(db).get_timeline(branch_id=1, start_date=start_date, days=14)
 
+        self.assertEqual(len(timeline), 1)
+        self.assertEqual(len(timeline[0]["events"]), 1)
         self.assertEqual(timeline[0]["events"][0]["start_date"], "2026-05-06")
         self.assertEqual(timeline[0]["events"][0]["end_date"], "2026-05-06")
         self.assertTrue(timeline[0]["events"][0]["is_hourly"])
@@ -73,15 +86,47 @@ class InventoryTimelineTest(unittest.TestCase):
             check_out_at=None,
             stay_type=StayType.NIGHT,
             pricing_mode_initial="NIGHT",
-            guests=[SimpleNamespace(full_name="Nguyen Van A", is_primary=True)],
         )
+        # guest_rows trả về tuples (stay_id, full_name, is_primary)
+        guest_row = (501, "Nguyen Van A", True)
 
-        db = DbStub([[room], [], [stay], []])
+        # rows: rooms, bookings, active_stays, guest_rows, blocks
+        db = DbStub([[room], [], [stay], [guest_row], []])
 
         timeline = InventoryService(db).get_timeline(branch_id=1, start_date=start_date, days=14)
 
+        self.assertEqual(len(timeline), 1)
+        self.assertEqual(len(timeline[0]["events"]), 1)
         self.assertEqual(timeline[0]["events"][0]["end_date"], end_date.isoformat())
         self.assertFalse(timeline[0]["events"][0]["is_hourly"])
+
+    def test_stay_checkout_at_noon_frees_room_same_day(self):
+        """Khách trả phòng lúc 12:00 ngày 16 → phòng trống ngày 16, không bị tính sold."""
+        from app.services.room_inventory_service import _stay_occupies_date
+        check_in = VN_TZ.localize(datetime(2026, 5, 15, 14, 0))
+        check_out = VN_TZ.localize(datetime(2026, 5, 16, 12, 0))
+
+        self.assertTrue(_stay_occupies_date(check_in, check_out, date(2026, 5, 15)))
+        self.assertFalse(_stay_occupies_date(check_in, check_out, date(2026, 5, 16)))
+
+    def test_stay_checkout_after_noon_still_occupies_day(self):
+        """Khách trả phòng lúc 13:00 ngày 16 (trễ) → phòng vẫn bận ngày 16."""
+        from app.services.room_inventory_service import _stay_occupies_date
+        check_in = VN_TZ.localize(datetime(2026, 5, 15, 14, 0))
+        check_out = VN_TZ.localize(datetime(2026, 5, 16, 13, 0))
+
+        self.assertTrue(_stay_occupies_date(check_in, check_out, date(2026, 5, 15)))
+        self.assertTrue(_stay_occupies_date(check_in, check_out, date(2026, 5, 16)))
+
+    def test_new_booking_same_day_after_checkout_is_available(self):
+        """Khách A trả 12:00 ngày 16, khách B check-in 14:00 ngày 16 → không conflict."""
+        from app.services.room_inventory_service import _stay_occupies_date
+        # Stay của khách A: check-out đúng 12:00 ngày 16
+        check_in_a = VN_TZ.localize(datetime(2026, 5, 15, 14, 0))
+        check_out_a = VN_TZ.localize(datetime(2026, 5, 16, 12, 0))
+
+        # Ngày 16 phải trống để nhận khách B
+        self.assertFalse(_stay_occupies_date(check_in_a, check_out_a, date(2026, 5, 16)))
 
 
 if __name__ == "__main__":

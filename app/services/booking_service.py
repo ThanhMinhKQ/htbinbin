@@ -347,9 +347,20 @@ class BookingService:
         self._mark_unreserved(booking)
 
     def _stay_blocks_booking_dates(self, stay: HotelStay, booking: Booking) -> bool:
-        stay_start = stay.check_in_at.astimezone(VN_TZ).date() if stay.check_in_at.tzinfo else stay.check_in_at.date()
-        stay_end = stay.check_out_at.astimezone(VN_TZ).date() if stay.check_out_at and stay.check_out_at.tzinfo else (stay.check_out_at.date() if stay.check_out_at else None)
-        return stay_start < booking.check_out and (stay_end is None or stay_end > booking.check_in)
+        # Booking.check_in/check_out là date — chuyển sang datetime với giờ chuẩn để so sánh chính xác.
+        # Booking check-in từ 14:00, check-out đến 12:00 ngày check_out.
+        # Stay chiếm phòng nếu: stay.check_in_at < 12:00 ngày booking.check_out
+        #                    VÀ stay.check_out_at > 12:00 ngày booking.check_in
+        from ..services.room_inventory_service import CHECKOUT_TIME
+        ci = stay.check_in_at.astimezone(VN_TZ) if stay.check_in_at.tzinfo else VN_TZ.localize(stay.check_in_at)
+        booking_end = VN_TZ.localize(datetime.combine(booking.check_out, CHECKOUT_TIME))
+        if ci >= booking_end:
+            return False
+        if stay.check_out_at is None:
+            return True
+        co = stay.check_out_at.astimezone(VN_TZ) if stay.check_out_at.tzinfo else VN_TZ.localize(stay.check_out_at)
+        booking_start = VN_TZ.localize(datetime.combine(booking.check_in, CHECKOUT_TIME))
+        return co > booking_start
 
     def _room_conflict_reason(self, booking: Booking, room_id: int) -> Optional[str]:
         active_stays = self.db.query(HotelStay).filter(

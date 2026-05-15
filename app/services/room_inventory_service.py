@@ -25,6 +25,29 @@ from ..db.models import (
     RoomInventoryLog,
 )
 
+# Giờ nhận phòng và trả phòng chuẩn của khách sạn.
+# Phòng chỉ được coi là "trống" sau CHECKOUT_TIME và chỉ nhận khách mới từ CHECKIN_TIME.
+# Một stay chiếm ngày D nếu: check_in_at < CHECKOUT_TIME ngày D+1 VÀ check_out_at > CHECKOUT_TIME ngày D
+# (tức khách trả trước 12:00 thì ngày đó phòng trống, nhận khách mới từ 14:00 cùng ngày)
+CHECKIN_TIME = time(14, 0)   # 14:00 — giờ nhận phòng chuẩn
+CHECKOUT_TIME = time(12, 0)  # 12:00 — giờ trả phòng chuẩn
+
+
+def _stay_day_boundaries(target_date: date):
+    """
+    Trả về (occupied_from, occupied_until) cho ngày target_date.
+
+    Phòng bị chiếm ngày D nếu stay overlap với khoảng:
+      - occupied_from  = 12:00 ngày D   (sau khi khách cũ trả phòng)
+      - occupied_until = 12:00 ngày D+1 (trước khi khách mới của ngày D+1 trả phòng)
+
+    Điều này đảm bảo: khách trả 12:00 ngày D → phòng trống ngày D,
+    khách mới check-in 14:00 ngày D → phòng bận ngày D.
+    """
+    occupied_from = VN_TZ.localize(datetime.combine(target_date, CHECKOUT_TIME))
+    occupied_until = VN_TZ.localize(datetime.combine(target_date + timedelta(days=1), CHECKOUT_TIME))
+    return occupied_from, occupied_until
+
 
 def iter_stay_dates(check_in: date, check_out: date):
     """Yield room nights from check-in date up to, but not including, check-out."""
@@ -32,6 +55,27 @@ def iter_stay_dates(check_in: date, check_out: date):
     while current < check_out:
         yield current
         current += timedelta(days=1)
+
+
+def _stay_occupies_date(check_in_at: datetime, check_out_at: Optional[datetime], target_date: date) -> bool:
+    """
+    Kiểm tra một stay có chiếm phòng vào ngày target_date không,
+    dựa trên giờ trả phòng chuẩn 12:00.
+
+    Quy tắc: stay chiếm ngày D nếu:
+      check_in_at  < 12:00 ngày D+1  (chưa trả phòng trước hết ngày)
+      check_out_at > 12:00 ngày D    (chưa trả phòng trước 12:00 ngày D)
+
+    Nếu check_out_at là None (khách đang ở), luôn chiếm.
+    """
+    occupied_from, occupied_until = _stay_day_boundaries(target_date)
+    ci = check_in_at if check_in_at.tzinfo else VN_TZ.localize(check_in_at)
+    if ci >= occupied_until:
+        return False
+    if check_out_at is None:
+        return True
+    co = check_out_at if check_out_at.tzinfo else VN_TZ.localize(check_out_at)
+    return co > occupied_from
 
 
 class InventoryService:
@@ -74,11 +118,8 @@ class InventoryService:
             HotelRoom.is_active == True,
         ).scalar() or 0
 
-        day_start = datetime.combine(target_date, time.min)
-        day_end = datetime.combine(target_date + timedelta(days=1), time.min)
-        if day_start.tzinfo is None:
-            day_start = VN_TZ.localize(day_start)
-            day_end = VN_TZ.localize(day_end)
+        # Phòng bị chiếm ngày D nếu stay overlap với (12:00 ngày D, 12:00 ngày D+1)
+        occupied_from, occupied_until = _stay_day_boundaries(target_date)
 
         sold_rooms = self.db.query(func.count(func.distinct(HotelStay.room_id))).join(
             HotelRoom, HotelRoom.id == HotelStay.room_id
@@ -86,8 +127,8 @@ class InventoryService:
             HotelStay.branch_id == branch_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
             HotelRoom.room_type_id == room_type_id,
-            HotelStay.check_in_at < day_end,
-            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+            HotelStay.check_in_at < occupied_until,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > occupied_from),
         ).scalar() or 0
 
         out_of_order_rooms = self.db.query(func.count(RoomBlock.id)).join(
@@ -110,11 +151,8 @@ class InventoryService:
         self, branch_id: int, room_type_ids: List[int], target_date: date
     ) -> Dict[int, Dict[str, int]]:
         """Batch version: tính total/sold/ooo cho TẤT CẢ room_types trong 3 query thay vì 3×N."""
-        day_start = datetime.combine(target_date, time.min)
-        day_end = datetime.combine(target_date + timedelta(days=1), time.min)
-        if day_start.tzinfo is None:
-            day_start = VN_TZ.localize(day_start)
-            day_end = VN_TZ.localize(day_end)
+        # Phòng bị chiếm ngày D nếu stay overlap với (12:00 ngày D, 12:00 ngày D+1)
+        occupied_from, occupied_until = _stay_day_boundaries(target_date)
 
         # Q1: total rooms per type
         total_rows = self.db.query(
@@ -126,7 +164,7 @@ class InventoryService:
         ).group_by(HotelRoom.room_type_id).all()
         total_map = {int(r[0]): int(r[1]) for r in total_rows}
 
-        # Q2: sold rooms per type (active stays overlapping target_date)
+        # Q2: sold rooms per type (active stays overlapping target_date theo giờ 12:00)
         sold_rows = self.db.query(
             HotelRoom.room_type_id, func.count(func.distinct(HotelStay.room_id))
         ).join(
@@ -135,8 +173,8 @@ class InventoryService:
             HotelStay.branch_id == branch_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
             HotelRoom.room_type_id.in_(room_type_ids),
-            HotelStay.check_in_at < day_end,
-            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+            HotelStay.check_in_at < occupied_until,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > occupied_from),
         ).group_by(HotelRoom.room_type_id).all()
         sold_map = {int(r[0]): int(r[1]) for r in sold_rows}
 
@@ -271,11 +309,10 @@ class InventoryService:
             if room_type_id:
                 total_by_type[int(room_type_id)] += 1
 
-        day_start = datetime.combine(start_date, time.min)
-        day_end = datetime.combine(end_date, time.min)
-        if day_start.tzinfo is None:
-            day_start = VN_TZ.localize(day_start)
-            day_end = VN_TZ.localize(day_end)
+        # Dùng 12:00 làm boundary để fetch stays có thể overlap với bất kỳ ngày nào trong range.
+        # Fetch rộng hơn 1 ngày ở mỗi đầu để không bỏ sót stay check-out đầu range hoặc check-in cuối range.
+        fetch_start = VN_TZ.localize(datetime.combine(start_date, CHECKOUT_TIME))
+        fetch_end = VN_TZ.localize(datetime.combine(end_date, CHECKOUT_TIME))
 
         stays = self.db.query(
             HotelStay.room_id,
@@ -284,8 +321,8 @@ class InventoryService:
         ).filter(
             HotelStay.branch_id == branch_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
-            HotelStay.check_in_at < day_end,
-            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+            HotelStay.check_in_at < fetch_end,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > fetch_start),
         ).all()
         occupied_room_dates: set[tuple[int, date]] = set()
         if refresh_counts:
@@ -293,15 +330,11 @@ class InventoryService:
                 room_type_id = room_type_for_room.get(int(room_id))
                 if not room_type_id:
                     continue
-                first_date = max(start_date, check_in_at.astimezone(VN_TZ).date())
-                co_date = check_out_at.astimezone(VN_TZ).date() if check_out_at else end_date
-                # ensure same-day stays (check-in and check-out on same date) count as 1 sold night
-                if co_date <= first_date:
-                    co_date = first_date + timedelta(days=1)
-                last_date = min(end_date, co_date)
-                for target_date in iter_stay_dates(first_date, last_date):
-                    sold_by_key[(room_type_id, target_date)].add(int(room_id))
-                    occupied_room_dates.add((int(room_id), target_date))
+                # Xác định ngày nào trong range bị chiếm theo quy tắc 12:00
+                for target_date in (start_date + timedelta(days=i) for i in range(days)):
+                    if _stay_occupies_date(check_in_at, check_out_at, target_date):
+                        sold_by_key[(room_type_id, target_date)].add(int(room_id))
+                        occupied_room_dates.add((int(room_id), target_date))
 
         bookings = self.db.query(Booking).filter(
             Booking.branch_id == branch_id,
@@ -540,16 +573,13 @@ class InventoryService:
         if overlap:
             raise ValueError("Phòng đã có lịch khóa trong khoảng ngày này")
 
-        day_start = datetime.combine(start_date, time.min)
-        day_end = datetime.combine(end_date, time.min)
-        if day_start.tzinfo is None:
-            day_start = VN_TZ.localize(day_start)
-            day_end = VN_TZ.localize(day_end)
+        block_fetch_start = VN_TZ.localize(datetime.combine(start_date, CHECKOUT_TIME))
+        block_fetch_end = VN_TZ.localize(datetime.combine(end_date, CHECKOUT_TIME))
         active_stay = self.db.query(HotelStay).filter(
             HotelStay.room_id == room_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
-            HotelStay.check_in_at < day_end,
-            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+            HotelStay.check_in_at < block_fetch_end,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > block_fetch_start),
         ).first()
         if active_stay:
             raise ValueError("Không thể khóa phòng đang có khách ở")
@@ -669,11 +699,8 @@ class InventoryService:
             Booking.check_out > start_date,
         ).all()
 
-        day_start = datetime.combine(start_date, time.min)
-        day_end = datetime.combine(end_date, time.min)
-        if day_start.tzinfo is None:
-            day_start = VN_TZ.localize(day_start)
-            day_end = VN_TZ.localize(day_end)
+        fetch_start = VN_TZ.localize(datetime.combine(start_date, CHECKOUT_TIME))
+        fetch_end = VN_TZ.localize(datetime.combine(end_date, CHECKOUT_TIME))
         active_stays = self.db.query(
             HotelStay.id,
             HotelStay.room_id,
@@ -684,8 +711,8 @@ class InventoryService:
         ).filter(
             HotelStay.branch_id == branch_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
-            HotelStay.check_in_at < day_end,
-            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+            HotelStay.check_in_at < fetch_end,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > fetch_start),
         ).all()
 
         stay_ids = [s.id for s in active_stays]
@@ -896,25 +923,19 @@ class InventoryService:
             for target_date in iter_stay_dates(max(start_date, check_in), min(end_date, check_out)):
                 unavailable_room_ids[target_date].add(int(room_id))
 
-        day_start = datetime.combine(start_date, time.min)
-        day_end = datetime.combine(end_date, time.min)
-        if day_start.tzinfo is None:
-            day_start = VN_TZ.localize(day_start)
-            day_end = VN_TZ.localize(day_end)
+        # Fetch stays dùng 12:00 boundary để không bỏ sót stay check-out đầu range
+        fetch_start = VN_TZ.localize(datetime.combine(start_date, CHECKOUT_TIME))
+        fetch_end = VN_TZ.localize(datetime.combine(end_date, CHECKOUT_TIME))
         active_stays = self.db.query(HotelStay.room_id, HotelStay.check_in_at, HotelStay.check_out_at).filter(
             HotelStay.branch_id == branch_id,
             HotelStay.status == HotelStayStatus.ACTIVE,
-            HotelStay.check_in_at < day_end,
-            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > day_start),
+            HotelStay.check_in_at < fetch_end,
+            or_(HotelStay.check_out_at.is_(None), HotelStay.check_out_at > fetch_start),
         ).all()
         for room_id, check_in_at, check_out_at in active_stays:
-            first_date = max(start_date, check_in_at.astimezone(VN_TZ).date())
-            co_date = check_out_at.astimezone(VN_TZ).date() if check_out_at else end_date
-            if co_date <= first_date:
-                co_date = first_date + timedelta(days=1)
-            last_date = min(end_date, co_date)
-            for target_date in iter_stay_dates(first_date, last_date):
-                unavailable_room_ids[target_date].add(int(room_id))
+            for target_date in (start_date + timedelta(days=i) for i in range(days)):
+                if _stay_occupies_date(check_in_at, check_out_at, target_date):
+                    unavailable_room_ids[target_date].add(int(room_id))
 
         blocks = self.db.query(RoomBlock.room_id, RoomBlock.start_date, RoomBlock.end_date).filter(
             RoomBlock.branch_id == branch_id,

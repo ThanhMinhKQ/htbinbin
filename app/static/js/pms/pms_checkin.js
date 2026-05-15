@@ -2125,8 +2125,19 @@ function pmsCiToggleIdFields(select) {
             if (r && r.style.display !== 'none') r.disabled = false;
         });
     }
+    pmsCiApplyCCCDExpiryFromBirth();
 }
 window.pmsCiToggleIdFields = pmsCiToggleIdFields;
+
+function pmsCiApplyCCCDExpiryFromBirth() {
+    if (typeof pmsApplyCCCDExpiryFromBirth !== 'function') return false;
+    return pmsApplyCCCDExpiryFromBirth({
+        idTypeEl: document.getElementById('ci-id-type'),
+        birthEl: document.getElementById('ci-birth'),
+        expireEl: document.getElementById('ci-id-expire'),
+        checkExpire: pmsCiCheckIdExpire,
+    });
+}
 
 function pmsCiToggleInvoice(radio) {
     const val = radio.value;
@@ -2248,7 +2259,12 @@ function pmsCiValidateGuestForm(g) {
     // 2. Loại giấy tờ
     if (!g.id_type) return pmsCiFailValidation('ci-id-type', 'Vui lòng chọn Loại giấy tờ');
     // 3. Ngày hết hạn (chỉ kiểm tra nếu giấy tờ có hạn)
-    const noExpire = g.id_type === 'cmnd' || g.id_type === 'gplx';
+    pmsCiApplyCCCDExpiryFromBirth();
+    if (!g.id_expire) g.id_expire = document.getElementById('ci-id-expire')?.value || '';
+    const permanentCccd = g.id_type === 'cccd'
+        && typeof pmsIsCCCDPermanentExpiry === 'function'
+        && pmsIsCCCDPermanentExpiry(document.getElementById('ci-id-expire'));
+    const noExpire = g.id_type === 'cmnd' || g.id_type === 'gplx' || permanentCccd;
     if (!noExpire) {
         if (!g.id_expire) return pmsCiFailValidation('ci-id-expire', 'Vui lòng nhập Ngày hết hạn giấy tờ!');
         const today = new Date();
@@ -2940,6 +2956,10 @@ window.pmsCiSearchOldGuest = pmsCiSearchOldGuest;
 // ─────────────────────────────────────────────────────────────────────────────
 let _pmsCiIdExpireTimer = null;
 function pmsCiCheckIdExpire(inputEl) {
+    if (typeof pmsIsCCCDPermanentExpiry === 'function' && pmsIsCCCDPermanentExpiry(inputEl)) {
+        inputEl.classList.remove('is-invalid');
+        return;
+    }
     if (!inputEl.value) {
         inputEl.classList.remove('is-invalid');
         return;
@@ -2966,6 +2986,7 @@ function pmsCiCheckBirth(inputEl) {
         inputEl.classList.remove('is-warning');
         return;
     }
+    pmsCiApplyCCCDExpiryFromBirth();
     const parts = inputEl.value.split('-');
     if (parts.length === 3) {
         const birth = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));

@@ -531,6 +531,10 @@ let _egIdExpireTimer = null;
 let _egBirthTimer = null;
 
 function egCheckIdExpire(inputEl) {
+    if (typeof pmsIsCCCDPermanentExpiry === 'function' && pmsIsCCCDPermanentExpiry(inputEl)) {
+        inputEl.classList.remove('is-invalid');
+        return;
+    }
     if (!inputEl.value) { inputEl.classList.remove('is-invalid'); return; }
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
@@ -547,6 +551,7 @@ function egCheckIdExpire(inputEl) {
 
 function egCheckBirth(inputEl) {
     if (!inputEl.value) { inputEl.classList.remove('is-warning'); return; }
+    egApplyCCCDExpiryFromBirth();
     const parts = inputEl.value.split('-');
     if (parts.length === 3) {
         const birth = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
@@ -566,6 +571,16 @@ function egCheckBirth(inputEl) {
     }
 }
 
+function egApplyCCCDExpiryFromBirth() {
+    if (typeof pmsApplyCCCDExpiryFromBirth !== 'function') return false;
+    return pmsApplyCCCDExpiryFromBirth({
+        idTypeEl: document.getElementById('eg-id-type'),
+        birthEl: document.getElementById('eg-birth'),
+        expireEl: document.getElementById('eg-id-expire'),
+        checkExpire: egCheckIdExpire,
+    });
+}
+
 function egIdTypeDisplay(type) {
     const map = { cccd: 'CCCD', cmnd: 'CMND', passport: 'Passport', visa: 'Visa', gplx: 'GPLX' };
     return map[type] || type?.toUpperCase() || 'CCCD';
@@ -583,6 +598,7 @@ function egValidateForm() {
     document.querySelectorAll('#egModal .f-ctrl.is-warning').forEach(el => el.classList.remove('is-warning'));
 
     // ID fields are locked, skip validation
+    egApplyCCCDExpiryFromBirth();
 
     // Name
     const name = document.getElementById('eg-name')?.value?.trim();
@@ -766,6 +782,7 @@ window.egFormatSentence = egFormatSentence;
 window.egFormatBasicNumeric = egFormatBasicNumeric;
 window.egCheckIdExpire = egCheckIdExpire;
 window.egCheckBirth = egCheckBirth;
+window.egApplyCCCDExpiryFromBirth = egApplyCCCDExpiryFromBirth;
 window.egSwitchMode = egSwitchMode;
 window.egToggleIdFields = egToggleIdFields;
 

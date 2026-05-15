@@ -33,12 +33,25 @@ from .pms_helpers import (
     _get_occupied_rooms_for_dates, _parse_birth,
 )
 from .vn_address import convert_old_to_new_sync
+from .identity_parser import calc_expiry
 from .guest_activity import log_checkin, log_deposit
 from ...services.guest_crm_service import get_guest_risk_flags
 from ...services.booking_service import BookingService
 from ...services.room_inventory_service import InventoryService
 
 router = APIRouter()
+
+
+def _calc_cccd_expire_date_from_birth(birth_date):
+    if not birth_date:
+        return None
+    expiry = calc_expiry(birth_date.strftime("%d/%m/%Y"))
+    if not expiry or expiry == "Không thời hạn":
+        return None
+    try:
+        return datetime.strptime(expiry, "%d/%m/%Y").date()
+    except ValueError:
+        return None
 
 
 # ─────────────────────────── Helper: Ghi nhận Shift Report ─────────────────────
@@ -359,6 +372,8 @@ def api_checkin(
     # Parse guest birth date (needed for both master update and guest creation)
     birth_date = _parse_birth(guest_birth)
     id_expire_date = _parse_birth(guest_id_expire)
+    if (guest_id_type or "").lower() == "cccd" and birth_date and not id_expire_date:
+        id_expire_date = _calc_cccd_expire_date_from_birth(birth_date)
 
     # ── Address resolution (MUST be before guest master to compute _addr_s) ──────
     _city_s = city.strip()
@@ -484,6 +499,10 @@ def api_checkin(
 
                 for eg_data in extra_list:
                     eg_birth = _parse_birth(eg_data.get("birth_date"))
+                    eg_id_type = (eg_data.get("id_type", "cccd") or "cccd").lower()
+                    eg_id_expire = _parse_birth(eg_data.get("id_expire"))
+                    if eg_id_type == "cccd" and eg_birth and not eg_id_expire:
+                        eg_id_expire = _calc_cccd_expire_date_from_birth(eg_birth)
                     eg_cccd = eg_data.get("cccd", "")
                     eg_city = eg_data.get("city", "")
                     eg_ward = eg_data.get("ward", "")
@@ -517,7 +536,7 @@ def api_checkin(
                             eg_guest_master.gender = eg_data.get("gender", "")
                             eg_guest_master.date_of_birth = eg_birth
                             eg_guest_master.nationality = eg_data.get("nationality", "") or eg_guest_master.nationality
-                            eg_guest_master.id_expire = _parse_birth(eg_data.get("id_expire"))
+                            eg_guest_master.id_expire = eg_id_expire
                             eg_guest_master.updated_by = user.get("id")
                             # Lưu full formatted address (địa bàn mới)
                             eg_addr = eg_data.get("address", "")
@@ -532,7 +551,7 @@ def api_checkin(
                                 phone=eg_data.get("phone", ""),
                                 gender=eg_data.get("gender", ""),
                                 date_of_birth=eg_birth,
-                                id_expire=_parse_birth(eg_data.get("id_expire")),
+                                id_expire=eg_id_expire,
                                 nationality=eg_data.get("nationality", ""),
                                 default_address=", ".join([p for p in [eg_data.get("address", ""), eg_new_ward_v, eg_new_district_v, eg_new_city_v] if p]) or None,
                                 first_seen_at=_now_vn(),
@@ -557,8 +576,8 @@ def api_checkin(
                             existing_eg.gender = eg_data.get("gender", "")
                             existing_eg.birth_date = eg_birth
                             existing_eg.phone = eg_data.get("phone", "")
-                            existing_eg.id_type = eg_data.get("id_type", "cccd")
-                            existing_eg.id_expire = _parse_birth(eg_data.get("id_expire"))
+                            existing_eg.id_type = eg_id_type
+                            existing_eg.id_expire = eg_id_expire
                             existing_eg.notes = eg_data.get("notes", "")
                             existing_eg.city = eg_new_city_v
                             existing_eg.district = eg_new_district_v
@@ -583,8 +602,8 @@ def api_checkin(
                         gender=eg_data.get("gender", ""),
                         birth_date=eg_birth,
                         phone=eg_data.get("phone", ""),
-                        id_type=eg_data.get("id_type", "cccd"),
-                        id_expire=_parse_birth(eg_data.get("id_expire")),
+                        id_type=eg_id_type,
+                        id_expire=eg_id_expire,
                         notes=eg_data.get("notes", ""),
                         city=eg_new_city_v,
                         district=eg_new_district_v,

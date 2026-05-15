@@ -1053,6 +1053,15 @@ Object.assign(BookingHub, {
                 el.dataset.bkValidationBound = '1';
             }
         });
+        const birthEl = document.getElementById('bk-form-date-of-birth');
+        if (birthEl && !birthEl.dataset.bkCccdExpiryBound) {
+            birthEl.addEventListener('blur', () => this.checkBookingBirth(birthEl));
+            birthEl.addEventListener('change', () => this.applyBookingCCCDExpiryFromBirth());
+            birthEl.dataset.bkCccdExpiryBound = '1';
+        }
+        if (typeof pmsEnsureVietnameseDateInputs === 'function') {
+            pmsEnsureVietnameseDateInputs(['bk-form-id-expire', 'bk-form-date-of-birth']);
+        }
         this.updateBookingPaymentMethodCards();
     },
 
@@ -1104,6 +1113,10 @@ Object.assign(BookingHub, {
     },
 
     checkBookingIdExpire(input) {
+        if (typeof pmsIsCCCDPermanentExpiry === 'function' && pmsIsCCCDPermanentExpiry(input)) {
+            input.classList.remove('is-invalid');
+            return true;
+        }
         if (!input || !input.value) return true;
         const today = this.toDateInput(new Date());
         input.classList.toggle('is-invalid', input.value < today);
@@ -1113,9 +1126,20 @@ Object.assign(BookingHub, {
 
     checkBookingBirth(input) {
         if (!input || !input.value) return true;
+        this.applyBookingCCCDExpiryFromBirth();
         const today = this.toDateInput(new Date());
         input.classList.toggle('is-invalid', input.value >= today);
         return input.value < today;
+    },
+
+    applyBookingCCCDExpiryFromBirth() {
+        if (typeof pmsApplyCCCDExpiryFromBirth !== 'function') return false;
+        return pmsApplyCCCDExpiryFromBirth({
+            idTypeEl: document.getElementById('bk-form-id-type'),
+            birthEl: document.getElementById('bk-form-date-of-birth'),
+            expireEl: document.getElementById('bk-form-id-expire'),
+            checkExpire: (input) => this.checkBookingIdExpire(input),
+        });
     },
 
     isOtaBookingForm() {
@@ -1609,6 +1633,7 @@ Object.assign(BookingHub, {
                 el.classList.remove('is-invalid');
             }
         });
+        this.applyBookingCCCDExpiryFromBirth();
     },
 
     onBookingPaymentMethodChange() {

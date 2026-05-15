@@ -205,6 +205,10 @@ let _agIdExpireTimer = null;
 let _agBirthTimer = null;
 
 function agCheckIdExpire(inputEl) {
+    if (typeof pmsIsCCCDPermanentExpiry === 'function' && pmsIsCCCDPermanentExpiry(inputEl)) {
+        inputEl.classList.remove('is-invalid');
+        return;
+    }
     if (!inputEl.value) { inputEl.classList.remove('is-invalid'); return; }
     const today = new Date();
     const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
@@ -222,6 +226,7 @@ window.agCheckIdExpire = agCheckIdExpire;
 
 function agCheckBirth(inputEl) {
     if (!inputEl.value) { inputEl.classList.remove('is-warning'); return; }
+    agApplyCCCDExpiryFromBirth();
     const parts = inputEl.value.split('-');
     if (parts.length === 3) {
         const birth = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
@@ -241,6 +246,17 @@ function agCheckBirth(inputEl) {
     }
 }
 window.agCheckBirth = agCheckBirth;
+
+function agApplyCCCDExpiryFromBirth() {
+    if (typeof pmsApplyCCCDExpiryFromBirth !== 'function') return false;
+    return pmsApplyCCCDExpiryFromBirth({
+        idTypeEl: document.getElementById('ag-id-type'),
+        birthEl: document.getElementById('ag-birth'),
+        expireEl: document.getElementById('ag-id-expire'),
+        checkExpire: agCheckIdExpire,
+    });
+}
+window.agApplyCCCDExpiryFromBirth = agApplyCCCDExpiryFromBirth;
 
 // ── Text formatting helpers ───────────────────────────────────────────────────
 
@@ -295,7 +311,12 @@ function agValidateGuestForm(g) {
     // ── 2. Loại giấy tờ (required) ───────────────────────────────────
     if (!g.id_type) return agFailValidation('ag-id-type', 'Vui lòng chọn Loại giấy tờ');
     // ── 3. Ngày hết hạn (only for documents that have expiry) ──────────
-    const noExpire = g.id_type === 'cmnd' || g.id_type === 'gplx';
+    agApplyCCCDExpiryFromBirth();
+    if (!g.id_expire) g.id_expire = document.getElementById('ag-id-expire')?.value || '';
+    const permanentCccd = g.id_type === 'cccd'
+        && typeof pmsIsCCCDPermanentExpiry === 'function'
+        && pmsIsCCCDPermanentExpiry(document.getElementById('ag-id-expire'));
+    const noExpire = g.id_type === 'cmnd' || g.id_type === 'gplx' || permanentCccd;
     if (!noExpire) {
         if (!g.id_expire) return agFailValidation('ag-id-expire', 'Vui lòng nhập Ngày hết hạn giấy tờ!');
         const today = new Date();

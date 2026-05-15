@@ -2009,8 +2009,8 @@ function _pmsCalcCCCDExpiry(dob) {
     if (tm < mo - 1 || (tm === mo - 1 && td < d)) age--;
 
     function addYears(ny) {
-        const t = new Date(y, mo - 1, d);
-        t.setFullYear(t.getFullYear() + ny);
+        let t = new Date(y + ny, mo - 1, d);
+        if (t.getMonth() !== mo - 1) t = new Date(y + ny, mo, 0);
         const dd = String(t.getDate()).padStart(2, "0");
         const mm = String(t.getMonth() + 1).padStart(2, "0");
         const yy = t.getFullYear();
@@ -2139,6 +2139,51 @@ function pmsISODateToDisplay(value) {
     return `${d}/${m}/${y}`;
 }
 
+function pmsGetNativeInputValue(input) {
+    if (!input) return "";
+    const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    return valueDescriptor?.get ? valueDescriptor.get.call(input) : String(input.value || "");
+}
+
+function pmsCalcCCCDExpiryFromBirth(birthValue) {
+    const iso = pmsDateToISO(birthValue);
+    if (!iso) return "";
+    const display = pmsISODateToDisplay(iso);
+    const expiry = _pmsCalcCCCDExpiry(display);
+    return expiry === "Không xác định" ? "" : expiry;
+}
+
+function pmsIsCCCDPermanentExpiry(input) {
+    return input?.dataset?.pmsCccdPermanent === "1"
+        || pmsGetNativeInputValue(input).trim() === "Không thời hạn";
+}
+
+function pmsApplyCCCDExpiryFromBirth(options = {}) {
+    const idTypeEl = options.idTypeEl || null;
+    const birthEl = options.birthEl || null;
+    const expireEl = options.expireEl || null;
+    const checkExpire = typeof options.checkExpire === "function" ? options.checkExpire : null;
+    const idType = String(idTypeEl?.value || "cccd").trim().toLowerCase();
+
+    if (idType !== "cccd" || !birthEl || !expireEl || expireEl.disabled || expireEl.readOnly) return false;
+
+    const expiry = pmsCalcCCCDExpiryFromBirth(birthEl.value);
+    if (!expiry) return false;
+
+    expireEl.dataset.pmsAutoCccdExpiry = expiry;
+    if (expiry === "Không thời hạn") {
+        expireEl.dataset.pmsCccdPermanent = "1";
+        expireEl.value = expiry;
+        expireEl.classList.remove("is-invalid");
+        return true;
+    }
+
+    expireEl.dataset.pmsCccdPermanent = "";
+    expireEl.value = pmsScanDateToISO(expiry);
+    if (checkExpire) checkExpire(expireEl);
+    return true;
+}
+
 function pmsFormatDateTyping(value) {
     const raw = String(value || "");
     if (!raw || /^\d{4}-\d{1,2}-\d{0,2}$/.test(raw)) return raw;
@@ -2203,6 +2248,7 @@ window.PMS_VN_DATE_INPUT_IDS = [
     "ci-id-expire", "ci-birth",
     "ag-id-expire", "ag-birth",
     "eg-id-expire", "eg-birth",
+    "bk-form-id-expire", "bk-form-date-of-birth",
 ];
 
 function pmsInitVietnameseDateInputs() {
@@ -2215,6 +2261,9 @@ window.pmsBindScanCCCD = pmsBindScanCCCD;
 window.pmsScanDateToISO = pmsScanDateToISO;
 window.pmsDateToISO = pmsDateToISO;
 window.pmsISODateToDisplay = pmsISODateToDisplay;
+window.pmsCalcCCCDExpiryFromBirth = pmsCalcCCCDExpiryFromBirth;
+window.pmsApplyCCCDExpiryFromBirth = pmsApplyCCCDExpiryFromBirth;
+window.pmsIsCCCDPermanentExpiry = pmsIsCCCDPermanentExpiry;
 window.pmsEnsureVietnameseDateInputs = pmsEnsureVietnameseDateInputs;
 window.pmsMatchAddressToForm = pmsMatchAddressToForm;
 window.pmsValidateAddressAfterScan = pmsValidateAddressAfterScan;
