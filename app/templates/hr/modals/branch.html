@@ -1,0 +1,29 @@
+    <!-- MODAL: Rename branch -->
+    <div x-show="showBranchModal" x-cloak class="hr-modal-backdrop" @click.self="showBranchModal = false">
+        <div class="hr-modal sm">
+            <div class="hr-modal-head">
+                <h2>Đổi tên chi nhánh</h2>
+                <button class="hr-icon-btn" @click="showBranchModal = false"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="hr-modal-body">
+                <p style="color: var(--bk-muted); font-size: 13px; margin-bottom: 12px;">
+                    Chi nhánh: <strong style="color: var(--bk-ink);" x-text="editingBranch?.branch_code"></strong>
+                </p>
+                <div class="hr-field">
+                    <label>Tên mới <span class="hr-required">*</span></label>
+                    <input class="hr-input" type="text" x-model="branchNewName"
+                        placeholder="Tên chi nhánh mới" @keydown.enter="doUpdateBranch()">
+                </div>
+            </div>
+            <div class="hr-modal-foot">
+                <button class="hr-btn" @click="showBranchModal = false">Huỷ</button>
+                <button class="hr-btn primary" @click="doUpdateBranch()" :disabled="saving">
+                    <span x-show="saving" style="width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite;"></span>
+                    Lưu tên mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    </div>
+</div>

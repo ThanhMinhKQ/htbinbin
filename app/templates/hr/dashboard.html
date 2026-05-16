@@ -1,0 +1,291 @@
+        </section>
+
+    <!-- ============================================================ -->
+    <!-- DASHBOARD SKELETON                                           -->
+    <!-- ============================================================ -->
+    <div class="hr-skeleton-grid" x-show="loadingDashboard" x-cloak>
+        <div class="hr-kpi-grid">
+            <template x-for="i in 4" :key="i">
+                <div class="hr-skeleton-card">
+                    <div class="hr-sk-line" style="width: 40%;"></div>
+                    <div class="hr-sk-line" style="width: 75%; height: 30px;"></div>
+                    <div class="hr-sk-line" style="width: 55%;"></div>
+                </div>
+            </template>
+        </div>
+        <div class="hr-analytics">
+            <div class="hr-skeleton-card">
+                <div class="hr-sk-line" style="width: 30%;"></div>
+                <div class="hr-sk-block"></div>
+            </div>
+            <div class="hr-skeleton-card">
+                <div class="hr-sk-line" style="width: 45%;"></div>
+                <div class="hr-sk-block"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- DASHBOARD CONTENT                                            -->
+    <!-- ============================================================ -->
+    <div class="hr-skeleton-grid" x-show="!loadingDashboard" x-cloak>
+
+        <!-- Stats grid (bk-stats style) -->
+        <div class="bk-stats-grid" id="hr-stats">
+            <div class="bk-stat-card total">
+                <div class="bk-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <div class="bk-stat-info">
+                    <span>Nhân viên Active</span>
+                    <strong x-text="dashboard.summary.active_employees || 0"></strong>
+                </div>
+            </div>
+            <div class="bk-stat-card arrival">
+                <div class="bk-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path><path d="m9 15 2 2 4-5"></path></svg>
+                </div>
+                <div class="bk-stat-info">
+                    <span>Tổng công</span>
+                    <strong x-text="formatNumber(dashboard.summary.total_work_units || 0)"></strong>
+                </div>
+            </div>
+            <div class="bk-stat-card departure">
+                <div class="bk-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"></path><path d="m15 11-3 3-3-3"></path></svg>
+                </div>
+                <div class="bk-stat-info">
+                    <span>Ngày nghỉ</span>
+                    <strong x-text="dashboard.summary.total_absence_days || 0"></strong>
+                </div>
+            </div>
+            <div class="bk-stat-card confirmed">
+                <div class="bk-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"></path><path d="M12 21a9 9 0 1 0-8.4-12.2"></path></svg>
+                </div>
+                <div class="bk-stat-info">
+                    <span>Đang làm hôm nay</span>
+                    <strong x-text="dashboard.summary.today_active_count || 0"></strong>
+                </div>
+            </div>
+            <div class="bk-stat-card pending">
+                <div class="bk-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M12 7v5l3 2"></path><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+                </div>
+                <div class="bk-stat-info">
+                    <span>Sinh nhật tháng</span>
+                    <strong x-text="dashboard.summary.birthday_count || 0"></strong>
+                </div>
+            </div>
+            <div class="bk-stat-card revenue">
+                <div class="bk-stat-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="m18 8-4 4"></path><path d="m14 8 4 4"></path></svg>
+                </div>
+                <div class="bk-stat-info">
+                    <span>Inactive</span>
+                    <strong x-text="dashboard.summary.inactive_employees || 0"></strong>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signal cards (3-up) -->
+        <div class="hr-signal-grid">
+            <div class="hr-signal" style="--accent-soft: rgba(16, 185, 129, .12); --accent-strong: var(--bk-success);">
+                <div class="hr-signal-head">
+                    <span>Tỷ lệ phủ công</span>
+                    <i class="bi bi-activity"></i>
+                </div>
+                <div class="hr-signal-value" x-text="attendanceRate() + '%'"></div>
+                <div class="hr-signal-track">
+                    <div class="hr-signal-fill" :style="signalStyle(attendanceRate(), 'var(--hr-grad-green)')"></div>
+                </div>
+            </div>
+            <div class="hr-signal" style="--accent-soft: var(--bk-primary-soft); --accent-strong: var(--bk-primary-strong);">
+                <div class="hr-signal-head">
+                    <span>Công / nhân viên</span>
+                    <i class="bi bi-speedometer2"></i>
+                </div>
+                <div class="hr-signal-value" x-text="formatNumber(workPerEmployee())"></div>
+                <div class="hr-signal-track">
+                    <div class="hr-signal-fill" :style="signalStyle(workPerEmployeeScore(), 'var(--hr-grad-blue)')"></div>
+                </div>
+            </div>
+            <div class="hr-signal" style="--accent-soft: rgba(245, 158, 11, .12); --accent-strong: var(--bk-warning);">
+                <div class="hr-signal-head">
+                    <span>Nghỉ TB / người</span>
+                    <i class="bi bi-calendar-minus"></i>
+                </div>
+                <div class="hr-signal-value" x-text="formatNumber(absencePerEmployee())"></div>
+                <div class="hr-signal-track">
+                    <div class="hr-signal-fill" :style="signalStyle(absencePressure(), 'var(--hr-grad-amber)')"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analytics: vertical bar chart + side panels -->
+        <div class="hr-analytics">
+            <div class="hr-chart-card">
+                <div class="hr-chart-head">
+                    <div>
+                        <h3>Bảng xếp hạng tháng</h3>
+                        <span class="sub" x-text="rankingSubtitle()"></span>
+                    </div>
+                    <div class="hr-pill-tabs">
+                        <button class="hr-pill-tab" :class="{ active: insightTab === 'work' }"
+                            @click="insightTab = 'work'">Công</button>
+                        <button class="hr-pill-tab" :class="{ active: insightTab === 'absent' }"
+                            @click="insightTab = 'absent'">Nghỉ</button>
+                        <button class="hr-pill-tab" :class="{ active: insightTab === 'laundry' }"
+                            @click="insightTab = 'laundry'">Giặt</button>
+                        <button class="hr-pill-tab" :class="{ active: insightTab === 'ironing' }"
+                            @click="insightTab = 'ironing'">Ủi</button>
+                    </div>
+                </div>
+                <div class="hr-chart-body">
+                    <!-- Vertical bar chart -->
+                    <div class="hr-vbar-chart">
+                        <template x-for="(emp, idx) in currentRanking()" :key="emp.id">
+                            <div class="hr-vbar-col">
+                                <div class="hr-vbar-value" x-text="rankingValue(emp)"></div>
+                                <div class="hr-vbar-track">
+                                    <div class="hr-vbar-fill" :style="vbarStyle(emp, idx)"></div>
+                                </div>
+                                <div class="hr-vbar-label">
+                                    <span class="hr-vbar-rank" :class="rankClass(idx)" x-text="idx + 1"></span>
+                                    <span class="hr-vbar-name" x-text="emp.name?.split(' ').slice(-2).join(' ') || '—'" :title="emp.name"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="hr-empty" x-show="currentRanking().length === 0">
+                        <i class="bi bi-bar-chart"></i>
+                        Chưa có dữ liệu phù hợp
+                    </div>
+                </div>
+            </div>
+
+            <div class="hr-skeleton-grid">
+                <div class="hr-chart-card">
+                    <div class="hr-chart-head">
+                        <h3>Dịch vụ giặt ủi</h3>
+                        <span class="hr-pill success" x-text="`${serviceTotal()} món`"></span>
+                    </div>
+                    <div class="hr-chart-body">
+                        <div class="hr-donut-row">
+                            <div class="hr-donut" :style="serviceDonutStyle()">
+                                <div class="hr-donut-center">
+                                    <strong x-text="serviceTotal()"></strong>
+                                    <span>Tổng</span>
+                                </div>
+                            </div>
+                            <div class="hr-legend">
+                                <div class="hr-legend-item">
+                                    <span class="hr-legend-label">
+                                        <i class="hr-legend-dot" style="--dot: #3b82f6;"></i>Giặt
+                                    </span>
+                                    <strong x-text="dashboard.summary.total_laundry || 0"></strong>
+                                </div>
+                                <div class="hr-legend-item">
+                                    <span class="hr-legend-label">
+                                        <i class="hr-legend-dot" style="--dot: #10b981;"></i>Ủi
+                                    </span>
+                                    <strong x-text="dashboard.summary.total_ironing || 0"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hr-chart-card">
+                    <div class="hr-chart-head">
+                        <div>
+                            <h3>Tình trạng hôm nay</h3>
+                            <span class="sub" x-text="`${dashboard.summary.today_active_count || 0}/${dashboard.summary.branch_staff_count || dashboard.summary.active_employees || 0} đang làm`"></span>
+                        </div>
+                        <span class="hr-pill success" x-text="todayCoverage() + '%'"></span>
+                    </div>
+                    <div class="hr-chart-body">
+                        <div class="hr-svc-bars">
+                            <div class="hr-svc-row">
+                                <div class="hr-svc-meta">
+                                    <span class="hr-svc-meta-label">
+                                        <span class="dot" style="background: var(--hr-grad-green);"></span>Đang làm
+                                    </span>
+                                    <strong x-text="dashboard.summary.today_active_count || 0"></strong>
+                                </div>
+                                <div class="hr-svc-track">
+                                    <div class="hr-svc-fill" :style="signalStyle(todayCoverage(), 'var(--hr-grad-green)')"></div>
+                                </div>
+                            </div>
+                            <div class="hr-svc-row">
+                                <div class="hr-svc-meta">
+                                    <span class="hr-svc-meta-label">
+                                        <span class="dot" style="background: var(--hr-grad-rose);"></span>Chưa ghi nhận
+                                    </span>
+                                    <strong x-text="notActiveTodayCount()"></strong>
+                                </div>
+                                <div class="hr-svc-track">
+                                    <div class="hr-svc-fill" :style="signalStyle(notActiveTodayRate(), 'var(--hr-grad-rose)')"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Split: today active + birthdays -->
+        <div class="hr-split">
+            <div class="hr-chart-card">
+                <div class="hr-chart-head">
+                    <h3><i class="bi bi-broadcast text-success" style="color: var(--bk-success); margin-right: 6px;"></i>Đang hoạt động hôm nay</h3>
+                    <span class="hr-pill success" x-text="dashboard.today_active_employees.length"></span>
+                </div>
+                <div class="hr-chart-body">
+                    <div class="hr-person-list">
+                        <template x-for="emp in dashboard.today_active_employees.slice(0, 6)" :key="emp.id">
+                            <div class="hr-person-row">
+                                <div class="hr-avatar-mini" x-text="getInitials(emp.name)"></div>
+                                <div class="min-w-0">
+                                    <div class="hr-person-title" x-text="emp.name"></div>
+                                    <div class="hr-person-sub"
+                                        x-text="`${emp.employee_code || ''} • ${emp.active_branch_code || emp.branch_code || '—'}`"></div>
+                                </div>
+                                <span class="hr-pill" x-text="emp.department_name || '—'"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="hr-empty" x-show="dashboard.today_active_employees.length === 0">
+                        <i class="bi bi-moon"></i>
+                        Chưa có nhân viên đang làm hôm nay
+                    </div>
+                </div>
+            </div>
+
+            <div class="hr-chart-card">
+                <div class="hr-chart-head">
+                    <h3><i class="bi bi-gift" style="color: var(--bk-warning); margin-right: 6px;"></i>Sinh nhật trong tháng</h3>
+                    <span class="hr-pill warning" x-text="dashboard.birthdays.length"></span>
+                </div>
+                <div class="hr-chart-body">
+                    <div class="hr-person-list">
+                        <template x-for="emp in dashboard.birthdays.slice(0, 6)" :key="emp.id">
+                            <div class="hr-person-row">
+                                <div class="hr-avatar-mini" style="background: var(--hr-grad-amber);" x-text="getInitials(emp.name)"></div>
+                                <div class="min-w-0">
+                                    <div class="hr-person-title" x-text="emp.name"></div>
+                                    <div class="hr-person-sub" x-text="`${emp.branch_code || '—'} • ${emp.department_name || '—'}`"></div>
+                                </div>
+                                <span class="hr-pill warning" x-text="formatBirthDate(emp.date_of_birth)"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="hr-empty" x-show="dashboard.birthdays.length === 0">
+                        <i class="bi bi-calendar"></i>
+                        Không có sinh nhật trong tháng này
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+

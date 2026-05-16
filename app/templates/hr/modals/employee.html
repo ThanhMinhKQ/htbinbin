@@ -1,0 +1,183 @@
+<!-- hr/modals/employee.html — Modal thêm/sửa nhân viên (2 cột + scan CCCD + address picker) -->
+<div x-show="showEmployeeModal" x-cloak class="hr-modal-backdrop" @click.self="showEmployeeModal = false">
+    <div class="hr-modal" style="max-width: 920px;">
+        <div class="hr-modal-head">
+            <h2 x-text="editingEmployee ? 'Sửa thông tin nhân viên' : 'Thêm nhân viên mới'"></h2>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="hr-btn" type="button" @click="HrScan.scan($data)" title="Quét CCCD tự động điền">
+                    <i class="bi bi-qr-code-scan"></i> Quét CCCD
+                </button>
+                <button class="hr-icon-btn" @click="showEmployeeModal = false">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div class="hr-modal-body" style="padding: 0;">
+            <div class="hr-modal-cols">
+                <!-- CỘT TRÁI: Thông tin công việc -->
+                <div class="hr-modal-col">
+                    <p class="hr-form-section-label" style="padding: 18px 18px 0;">Thông tin công việc</p>
+                    <div class="hr-form-grid" style="padding: 12px 18px 18px;">
+                        <div class="hr-form-row">
+                            <div class="hr-field">
+                                <label>Mã NV <span class="hr-required">*</span></label>
+                                <input class="hr-input" type="text" x-model="form.employee_id" :disabled="!!editingEmployee" placeholder="VD: NV099">
+                            </div>
+                            <div class="hr-field">
+                                <label>Mã đăng nhập <span class="hr-required">*</span></label>
+                                <input class="hr-input" type="text" x-model="form.employee_code" placeholder="VD: lt.abcde">
+                            </div>
+                        </div>
+                        <div class="hr-field">
+                            <label>Họ và tên <span class="hr-required">*</span></label>
+                            <input class="hr-input" type="text" x-model="form.name" placeholder="Nguyễn Văn A">
+                        </div>
+                        <div class="hr-form-row">
+                            <div class="hr-field">
+                                <label>Chi nhánh <span class="hr-required">*</span></label>
+                                <select class="hr-select" x-model="form.main_branch_id">
+                                    <option value="">Chọn chi nhánh</option>
+                                    <template x-for="b in branches" :key="b.id">
+                                        <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div class="hr-field">
+                                <label>Vai trò <span class="hr-required">*</span></label>
+                                <select class="hr-select" x-model="form.department_id">
+                                    <option value="">Chọn vai trò</option>
+                                    <template x-for="d in departments" :key="d.id">
+                                        <option :value="d.id" x-text="d.name"></option>
+                                    </template>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="hr-form-row">
+                            <div class="hr-field">
+                                <label>Ca làm việc</label>
+                                <select class="hr-select" x-model="form.shift">
+                                    <option value="">Không có ca</option>
+                                    <option value="CS">CS (Sáng)</option>
+                                    <option value="CT">CT (Tối)</option>
+                                </select>
+                            </div>
+                            <div class="hr-field" x-show="!editingEmployee">
+                                <label>Mật khẩu ban đầu</label>
+                                <input class="hr-input" type="text" x-model="form.password" placeholder="123456">
+                            </div>
+                        </div>
+                        <div class="hr-form-row">
+                            <div class="hr-field">
+                                <label>Số điện thoại</label>
+                                <input class="hr-input" type="text" x-model="form.phone_number" placeholder="0901234567">
+                            </div>
+                            <div class="hr-field">
+                                <label>Email</label>
+                                <input class="hr-input" type="email" x-model="form.email" placeholder="abc@gmail.com">
+                            </div>
+                        </div>
+                        <!-- Trạng thái (chỉ khi sửa) -->
+                        <div x-show="editingEmployee" style="margin-top: 4px;">
+                            <p class="hr-form-section-label">Trạng thái</p>
+                            <div class="hr-radio-group">
+                                <label><input type="radio" :value="true" x-model="form.is_active"><span>Active</span></label>
+                                <label><input type="radio" :value="false" x-model="form.is_active"><span>Inactive</span></label>
+                            </div>
+                            <div x-show="editingEmployee?.created_at" class="hr-account-info" style="margin-top: 10px;">
+                                <div>
+                                    <span>Ngày tạo</span>
+                                    <strong x-text="editingEmployee?.created_at ? new Date(editingEmployee.created_at).toLocaleDateString('vi-VN', {day:'2-digit',month:'2-digit',year:'numeric'}) : '—'"></strong>
+                                </div>
+                                <div class="divider"></div>
+                                <div style="text-align: right;">
+                                    <span>Hoạt động</span>
+                                    <strong class="age" x-text="formatAccountAge(editingEmployee?.account_age_days)"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CỘT PHẢI: Thông tin cá nhân + Địa chỉ -->
+                <div class="hr-modal-col">
+                    <p class="hr-form-section-label" style="padding: 18px 18px 0;">Thông tin cá nhân</p>
+                    <div class="hr-form-grid" style="padding: 12px 18px 18px;">
+                        <div class="hr-form-row">
+                            <div class="hr-field">
+                                <label>CCCD / CMND</label>
+                                <input class="hr-input" type="text" x-model="form.cccd" placeholder="079xxxxxxxxx">
+                            </div>
+                            <div class="hr-field">
+                                <label>Giới tính</label>
+                                <select class="hr-select" x-model="form.gender">
+                                    <option value="">Chọn</option>
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                    <option value="Khác">Khác</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="hr-field">
+                            <label>Ngày sinh</label>
+                            <input class="hr-input" type="date" x-model="form.date_of_birth">
+                        </div>
+
+                        <!-- Address Section -->
+                        <div class="hr-addr-section">
+                            <div class="hr-addr-header">
+                                <span class="hr-form-section-label" style="margin: 0;">Địa chỉ thường trú</span>
+                                <div class="hr-addr-mode-toggle">
+                                    <label :class="{ active: form.addressMode === 'new' }">
+                                        <input type="radio" name="hr-addr-mode" value="new" x-model="form.addressMode"
+                                            @change="HrAddress.switchMode('new')"> Mới
+                                    </label>
+                                    <label :class="{ active: form.addressMode === 'old' }">
+                                        <input type="radio" name="hr-addr-mode" value="old" x-model="form.addressMode"
+                                            @change="HrAddress.switchMode('old')"> Cũ
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="hr-form-row">
+                                <div class="hr-field">
+                                    <label>Tỉnh / TP</label>
+                                    <input class="hr-input" type="text" x-model="form.province"
+                                        placeholder="Chọn tỉnh/TP" list="hr-dl-province"
+                                        @change="HrAddress.onProvinceChange(form.province, form.addressMode)">
+                                    <datalist id="hr-dl-province"></datalist>
+                                </div>
+                                <div class="hr-field" x-show="form.addressMode === 'old'">
+                                    <label>Quận / Huyện</label>
+                                    <input class="hr-input" type="text" x-model="form.district"
+                                        placeholder="Chọn quận/huyện" list="hr-dl-district"
+                                        @change="HrAddress.onDistrictChange(form.district, form.province)">
+                                    <datalist id="hr-dl-district"></datalist>
+                                </div>
+                            </div>
+                            <div class="hr-form-row">
+                                <div class="hr-field">
+                                    <label>Phường / Xã</label>
+                                    <input class="hr-input" type="text" x-model="form.ward"
+                                        placeholder="Chọn phường/xã" list="hr-dl-ward">
+                                    <datalist id="hr-dl-ward"></datalist>
+                                </div>
+                                <div class="hr-field">
+                                    <label>Số nhà, đường</label>
+                                    <input class="hr-input" type="text" x-model="form.address"
+                                        placeholder="123 Nguyễn Huệ">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="hr-modal-foot">
+            <button class="hr-btn" @click="showEmployeeModal = false">Huỷ</button>
+            <button class="hr-btn primary" @click="saveEmployee()" :disabled="saving">
+                <span x-show="saving" class="hr-spinner"></span>
+                <span x-text="editingEmployee ? 'Lưu thay đổi' : 'Thêm nhân viên'"></span>
+            </button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,8 @@
+    <!-- TOAST                                                         -->
+    <!-- ============================================================ -->
+    <div x-show="toast.show" x-cloak x-transition class="hr-toast" :class="toast.type === 'error' ? 'error' : ''">
+        <i class="bi" :class="toast.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-circle-fill'"></i>
+        <span x-text="toast.message"></span>
+    </div>
+
+    <!-- ============================================================ -->

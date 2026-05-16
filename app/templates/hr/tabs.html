@@ -1,0 +1,271 @@
+    <!-- ============================================================ -->
+    <!-- TABS: Overview / Table                                       -->
+    <!-- ============================================================ -->
+    <div class="hr-tabs-bar">
+        <div class="hr-tab-list">
+            <button class="hr-tab" :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">
+                <i class="bi bi-grid-1x2-fill"></i>
+                Tổng quan chi nhánh
+            </button>
+            <button class="hr-tab" :class="{ active: activeTab === 'table' }" @click="activeTab = 'table'">
+                <i class="bi bi-table"></i>
+                Danh sách
+            </button>
+        </div>
+        <div class="hr-tabs-spacer"></div>
+        <div class="hr-actions">
+            <button class="hr-btn primary" @click="openAddModal()">
+                <i class="bi bi-plus-lg"></i>
+                Thêm nhân viên
+            </button>
+        </div>
+    </div>
+
+    <!-- TAB: Overview -->
+    <div x-show="activeTab === 'overview'" x-cloak>
+        <div x-show="loading" class="hr-branch-grid">
+            <template x-for="i in 8" :key="i">
+                <div class="hr-skeleton-card">
+                    <div class="hr-sk-line" style="width: 38%;"></div>
+                    <div class="hr-sk-line" style="width: 70%;"></div>
+                    <div class="hr-sk-block" style="height: 132px;"></div>
+                </div>
+            </template>
+        </div>
+
+        <div x-show="!loading" class="hr-branch-grid">
+            <template x-for="branch in hotelBranches()" :key="branch.id">
+                <article class="hr-branch-card">
+                    <div class="hr-branch-head">
+                        <div class="hr-branch-title">
+                            <span class="hr-branch-code" x-text="branch.branch_code"></span>
+                            <span class="hr-branch-name" x-text="branch.name"></span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                            <span class="hr-branch-count">
+                                <i class="bi bi-people"></i>
+                                <span x-text="branch.active_employee_count"></span>
+                            </span>
+                            <button class="hr-icon-btn" @click="openEditBranchModal(branch)" title="Đổi tên chi nhánh">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="hr-emp-list">
+                        <template x-for="emp in getEmployeesByBranch(branch.id)" :key="emp.id">
+                            <div class="hr-emp-row" @click="openEditModal(emp)">
+                                <div class="hr-emp-avatar" :class="getRoleClass(emp.role_code)"
+                                    x-text="(emp.name || 'U')[0].toUpperCase()"></div>
+                                <div class="hr-emp-text">
+                                    <p x-text="emp.name"></p>
+                                    <small x-text="emp.employee_code"></small>
+                                </div>
+                                <span class="hr-role-tag" :class="getRoleClass(emp.role_code)"
+                                    x-text="getRoleLabel(emp.role_code)"></span>
+                            </div>
+                        </template>
+                        <div x-show="getEmployeesByBranch(branch.id).length === 0" class="hr-empty" style="padding: 16px 8px;">
+                            <i class="bi bi-person-x"></i>
+                            Không có nhân viên
+                        </div>
+                    </div>
+                </article>
+            </template>
+        </div>
+    </div>
+
+    <!-- TAB: Table -->
+    <div x-show="activeTab === 'table'" x-cloak>
+        <div class="hr-table-toolbar">
+            <div class="hr-search">
+                <i class="bi bi-search"></i>
+                <input type="text" placeholder="Tìm theo tên, mã NV, mã đăng nhập..."
+                    x-model="filterSearch" @input="applyFilters()">
+            </div>
+            <select class="hr-select" x-model="filterBranch" @change="applyFilters()">
+                <option value="">Tất cả chi nhánh</option>
+                <template x-for="b in hotelBranches()" :key="b.id">
+                    <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+                </template>
+            </select>
+            <select class="hr-select" x-model="filterDept" @change="applyFilters()">
+                <option value="">Tất cả vai trò</option>
+                <template x-for="d in departments" :key="d.id">
+                    <option :value="d.id" x-text="d.name"></option>
+                </template>
+            </select>
+            <select class="hr-select" x-model="filterStatus" @change="applyFilters()">
+                <option value="">Tất cả trạng thái</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+            </select>
+        </div>
+
+        <div class="hr-table-card">
+            <div x-show="loading" style="padding: 16px;">
+                <template x-for="i in 8" :key="i">
+                    <div style="display: grid; grid-template-columns: 32px 1.4fr 1fr .9fr .8fr .6fr; gap: 12px; align-items: center; margin-bottom: 12px;">
+                        <div class="hr-sk-line" style="width: 32px; height: 32px; border-radius: 9px; margin: 0;"></div>
+                        <div class="hr-sk-line" style="margin: 0;"></div>
+                        <div class="hr-sk-line" style="margin: 0;"></div>
+                        <div class="hr-sk-line" style="margin: 0;"></div>
+                        <div class="hr-sk-line" style="margin: 0;"></div>
+                        <div class="hr-sk-line" style="margin: 0;"></div>
+                    </div>
+                </template>
+            </div>
+
+            <div x-show="!loading" class="hr-table-wrap" style="overflow-x: auto;">
+                <table class="hr-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'employee_id' }" @click="setSort('employee_id')">
+                                    Mã NV
+                                    <i class="bi" :class="sortIcon('employee_id')"></i>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'name' }" @click="setSort('name')">
+                                    Tên nhân viên
+                                    <i class="bi" :class="sortIcon('name')"></i>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'employee_code' }" @click="setSort('employee_code')">
+                                    Đăng nhập
+                                    <i class="bi" :class="sortIcon('employee_code')"></i>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'branch' }" @click="setSort('branch')">
+                                    Chi nhánh
+                                    <i class="bi" :class="sortIcon('branch')"></i>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'role' }" @click="setSort('role')">
+                                    Vai trò
+                                    <i class="bi" :class="sortIcon('role')"></i>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'shift' }" @click="setSort('shift')">
+                                    Ca
+                                    <i class="bi" :class="sortIcon('shift')"></i>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="hr-th-sort" :class="{ active: sortKey === 'status' }" @click="setSort('status')">
+                                    Trạng thái
+                                    <i class="bi" :class="sortIcon('status')"></i>
+                                </button>
+                            </th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="emp in filteredEmployees" :key="emp.id">
+                            <tr>
+                                <td class="hr-cell-mono" x-text="emp.employee_id"></td>
+                                <td>
+                                    <div class="hr-cell-name">
+                                        <div class="hr-emp-avatar" :class="getRoleClass(emp.role_code)"
+                                            x-text="(emp.name || 'U')[0].toUpperCase()"></div>
+                                        <strong style="color: var(--bk-ink); font-weight: 800;" x-text="emp.name"></strong>
+                                    </div>
+                                </td>
+                                <td class="hr-cell-mono" x-text="emp.employee_code"></td>
+                                <td class="hr-cell-branch">
+                                    <span style="color: var(--bk-muted);" x-text="emp.branch_code"></span>
+                                    <small x-text="' — ' + (emp.branch_name || '—')"></small>
+                                </td>
+                                <td>
+                                    <span class="hr-role-tag" :class="getRoleClass(emp.role_code)"
+                                        x-text="emp.department_name || emp.role_code || '—'"></span>
+                                </td>
+                                <td x-text="emp.shift || '—'"></td>
+                                <td>
+                                    <span class="hr-status" :class="emp.is_active ? 'status-active' : 'status-inactive'"
+                                        x-text="emp.is_active ? 'Active' : 'Inactive'"></span>
+                                </td>
+                                <td>
+                                    <div class="hr-actions-cell">
+                                        <button class="hr-icon-btn amber" @click="openResetPasswordModal(emp)" title="Đặt lại mật khẩu">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                        <button class="hr-icon-btn" @click="openEditModal(emp)" title="Chỉnh sửa">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        <button class="hr-icon-btn"
+                                            :class="emp.is_active ? 'danger' : 'success'"
+                                            @click="toggleActive(emp)"
+                                            :title="emp.is_active ? 'Vô hiệu hoá' : 'Kích hoạt lại'">
+                                            <i class="bi" :class="emp.is_active ? 'bi-slash-circle' : 'bi-check-circle'"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="filteredEmployees.length === 0 && !loading">
+                            <td colspan="8" style="padding: 32px; text-align: center; color: var(--bk-muted); font-style: italic;">
+                                <i class="bi bi-search" style="font-size: 24px; display: block; margin-bottom: 6px; opacity: .5;"></i>
+                                Không tìm thấy nhân viên nào
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div x-show="!loading" class="hr-mobile-list">
+                <template x-for="emp in filteredEmployees" :key="emp.id">
+                    <article class="hr-m-card">
+                        <div class="hr-m-head">
+                            <div class="hr-emp-avatar" :class="getRoleClass(emp.role_code)" style="width: 40px; height: 40px; border-radius: 11px; font-size: 14px;"
+                                x-text="(emp.name || 'U')[0].toUpperCase()"></div>
+                            <div class="min-w-0">
+                                <div class="hr-person-title" x-text="emp.name"></div>
+                                <div class="hr-person-sub" x-text="`${emp.employee_id || '—'} • ${emp.employee_code || '—'}`"></div>
+                            </div>
+                            <span class="hr-status" :class="emp.is_active ? 'status-active' : 'status-inactive'"
+                                x-text="emp.is_active ? 'Active' : 'Inactive'"></span>
+                        </div>
+                        <div class="hr-m-meta">
+                            <div>
+                                <span>Chi nhánh</span>
+                                <strong x-text="`${emp.branch_code || '—'} — ${emp.branch_name || '—'}`"></strong>
+                            </div>
+                            <div>
+                                <span>Vai trò • Ca</span>
+                                <strong x-text="`${emp.department_name || emp.role_code || '—'} • ${emp.shift || '—'}`"></strong>
+                            </div>
+                        </div>
+                        <div class="hr-m-actions">
+                            <button class="hr-icon-btn amber" @click="openResetPasswordModal(emp)" title="Đặt lại mật khẩu">
+                                <i class="bi bi-key"></i>
+                            </button>
+                            <button class="hr-icon-btn" @click="openEditModal(emp)" title="Chỉnh sửa">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button class="hr-icon-btn"
+                                :class="emp.is_active ? 'danger' : 'success'"
+                                @click="toggleActive(emp)"
+                                :title="emp.is_active ? 'Vô hiệu hoá' : 'Kích hoạt lại'">
+                                <i class="bi" :class="emp.is_active ? 'bi-slash-circle' : 'bi-check-circle'"></i>
+                            </button>
+                        </div>
+                    </article>
+                </template>
+                <div x-show="filteredEmployees.length === 0 && !loading" class="hr-empty">
+                    <i class="bi bi-search"></i>
+                    Không tìm thấy nhân viên nào
+                </div>
+            </div>
+
+            <div x-show="!loading" class="hr-table-foot">
+                Hiển thị <strong x-text="filteredEmployees.length"></strong> / <span x-text="allEmployees.length"></span> nhân viên
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->

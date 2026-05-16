@@ -1,0 +1,27 @@
+<!-- hr/hero.html — Filter bar -->
+<section class="hr-card" style="padding: 14px 18px;">
+    <div class="hr-filter-inline">
+        <input class="hr-input" type="month" x-model="dashboardMonth" @change="loadDashboard()" style="max-width: 160px;">
+        <select class="hr-select" x-model="dashboardBranch" @change="syncDashboardBranch()">
+            <option value="">Tất cả chi nhánh</option>
+            <template x-for="b in hotelBranches()" :key="b.id">
+                <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+            </template>
+        </select>
+        <select class="hr-select" x-model="dashboardDept" @change="syncDashboardDept()">
+            <option value="">Tất cả vai trò</option>
+            <template x-for="d in departments" :key="d.id">
+                <option :value="d.id" x-text="d.name"></option>
+            </template>
+        </select>
+        <div class="hr-search" style="flex: 1; min-width: 180px;">
+            <i class="bi bi-search"></i>
+            <input type="text" placeholder="Tìm nhân viên..."
+                x-model="dashboardSearch" @keydown.enter="syncDashboardSearch()" @blur="syncDashboardSearch()">
+        </div>
+        <button class="hr-btn primary" type="button" @click="refreshAll()" :disabled="loadingDashboard">
+            <i class="bi bi-arrow-clockwise" :class="{ 'animate-spin': loadingDashboard }"></i>
+            Refresh
+        </button>
+    </div>
+</section>
