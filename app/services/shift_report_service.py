@@ -108,8 +108,6 @@ def normalize_shift_payment_method(method: str | ShiftPaymentMethod | None) -> S
     value = value.replace(" ", "_").replace("-", "_")
     aliases = {
         "CASH": ShiftPaymentMethod.CASH,
-        "CHI_NHÁNH": ShiftPaymentMethod.CASH,
-        "CHI_NHANH": ShiftPaymentMethod.CASH,
         "TIỀN_MẶT": ShiftPaymentMethod.CASH,
         "TIEN_MAT": ShiftPaymentMethod.CASH,
         "CARD": ShiftPaymentMethod.CARD,
@@ -118,6 +116,10 @@ def normalize_shift_payment_method(method: str | ShiftPaymentMethod | None) -> S
         "QUET_THE": ShiftPaymentMethod.CARD,
         "VNPAY": ShiftPaymentMethod.CARD,
         "BANK_TRANSFER": ShiftPaymentMethod.BANK_TRANSFER,
+        "BRANCH": ShiftPaymentMethod.BANK_TRANSFER,
+        "BRANCH_ACCOUNT": ShiftPaymentMethod.BANK_TRANSFER,
+        "CHI_NHÁNH": ShiftPaymentMethod.BANK_TRANSFER,
+        "CHI_NHANH": ShiftPaymentMethod.BANK_TRANSFER,
         "CHUYỂN_KHOẢN": ShiftPaymentMethod.BANK_TRANSFER,
         "CHUYEN_KHOAN": ShiftPaymentMethod.BANK_TRANSFER,
         "MOMO": ShiftPaymentMethod.BANK_TRANSFER,
@@ -132,6 +134,45 @@ def normalize_shift_payment_method(method: str | ShiftPaymentMethod | None) -> S
         "CONG_NO": ShiftPaymentMethod.DEBT,
     }
     return aliases.get(value, ShiftPaymentMethod.CASH)
+
+
+def shift_method_to_payment_method(pm: ShiftPaymentMethod | None) -> "PaymentMethod":
+    """Convert ShiftPaymentMethod → folio Payment.method for keeping payments table in sync."""
+    from ..db.models import PaymentMethod as _PaymentMethod
+    mapping = {
+        ShiftPaymentMethod.CASH: _PaymentMethod.CASH,
+        ShiftPaymentMethod.CARD: _PaymentMethod.CARD,
+        ShiftPaymentMethod.BANK_TRANSFER: _PaymentMethod.BRANCH,
+        ShiftPaymentMethod.UNC: _PaymentMethod.COMPANY,
+        ShiftPaymentMethod.OTA: _PaymentMethod.OTA,
+        ShiftPaymentMethod.DEBT: _PaymentMethod.OTHER,
+    }
+    return mapping.get(pm or ShiftPaymentMethod.CASH, _PaymentMethod.CASH)
+
+
+def shift_method_from_tx_type(
+    tx_type: "TransactionType | str | None",
+    fallback: ShiftPaymentMethod | None = None,
+) -> ShiftPaymentMethod:
+    """Suy ra ShiftPaymentMethod từ TransactionType (loại giao dịch ở giao ca).
+
+    Dùng khi user sửa transaction_type ở popup giao ca → để cascade đúng
+    payment_method xuống ShiftReport, FolioTransaction.description và Payment.method.
+    """
+    if tx_type is None:
+        return fallback or ShiftPaymentMethod.CASH
+    value = tx_type.value if hasattr(tx_type, "value") else str(tx_type)
+    value = value.strip().upper()
+    mapping = {
+        "CARD": ShiftPaymentMethod.CARD,
+        "BRANCH_ACCOUNT": ShiftPaymentMethod.BANK_TRANSFER,
+        "COMPANY_ACCOUNT": ShiftPaymentMethod.UNC,
+        "OTA": ShiftPaymentMethod.OTA,
+        "UNC": ShiftPaymentMethod.DEBT,
+        "OTHER": ShiftPaymentMethod.CASH,
+        "CASH_EXPENSE": ShiftPaymentMethod.CASH,
+    }
+    return mapping.get(value, fallback or ShiftPaymentMethod.CASH)
 
 
 def shift_payment_method_label(pm: ShiftPaymentMethod | None) -> str:

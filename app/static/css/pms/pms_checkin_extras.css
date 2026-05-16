@@ -354,6 +354,10 @@ html.dark .ci-section-badge {
   color: var(--ci-text);
   font-size: 12px;
   font-weight: 850;
+  background: rgba(0, 0, 0, 0.04);
+  padding: 6px 12px;
+  border-radius: 999px;
+  width: fit-content;
 }
 
 .ci-form-card-title::before {
@@ -369,7 +373,14 @@ html.dark .ci-section-badge {
 .ci-id-section {
   background: var(--ci-surface-soft);
   border: 1px solid var(--ci-border-soft);
-  border-radius: 12px;
+  border-radius: 16px;
+}
+
+.ci-address-section {
+  background: linear-gradient(135deg, #FCBAD322, #FCBAD311);
+  border: 1px solid #FCBAD3;
+  border-radius: 16px;
+  padding: 16px 18px;
 }
 
 .ci-stay-card {
@@ -635,7 +646,7 @@ body.ci-modal-open .flatpickr-calendar.bk-planner-flatpickr-popup {
   width: 100%;
   min-height: 38px;
   border: 1px solid var(--ci-border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 9px 12px;
   font-size: 14px;
   outline: none;
@@ -670,6 +681,10 @@ body.ci-modal-open .flatpickr-calendar.bk-planner-flatpickr-popup {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 16px;
+  background: linear-gradient(135deg, #A8D8EA22, #A8D8EA11);
+  border: 1px solid #A8D8EA;
+  border-radius: 16px;
+  padding: 16px 18px;
 }
 
 .ci-personal-section .f-grp,
@@ -715,14 +730,28 @@ body.ci-modal-open .flatpickr-calendar.bk-planner-flatpickr-popup {
 .ci-guest-toolbar {
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: var(--ci-surface);
-  border: 1px solid var(--ci-border);
-  border-radius: 12px;
+  background: linear-gradient(135deg, #FFFFD233, #FFFFD222);
+  border: 1px solid #FFFFD2;
+  border-radius: 16px;
 }
 
 html.dark .ci-guest-toolbar {
-  background: #0f172a;
+  background: #111827;
   border-color: var(--ci-border);
+}
+
+html.dark .ci-personal-section {
+  background: #0f172a !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.dark .ci-address-section {
+  background: #0f172a !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.dark .ci-form-card-title {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .ci-guest-toolbar .v-btn {
@@ -750,6 +779,7 @@ html.dark .ci-guest-toolbar {
 .ci-crm-search-row .f-ctrl {
   flex: 1 1 auto;
   min-width: 0;
+  border-radius: 12px;
 }
 
 .ci-crm-search-row .v-btn {
@@ -770,7 +800,7 @@ html.dark .ci-guest-toolbar {
   overflow-y: auto;
   background: var(--ci-surface);
   border: 1px solid var(--ci-border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 10px 12px;
 }
 
@@ -779,13 +809,14 @@ html.dark .ci-guest-toolbar {
   align-items: center;
   gap: 7px;
   margin: 4px;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--ci-border);
   border-radius: 999px;
   background: var(--ci-surface-soft);
   color: var(--ci-text);
   font-size: 12px;
   font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .ci-capacity-warn {
@@ -1548,12 +1579,24 @@ html.dark .ci-dep-meta {
   }
 
   .ci-id-section,
-  .ci-address-section,
-  .ci-personal-section,
   #ci-invoice-section {
     border: 1px solid var(--ci-border) !important;
-    border-radius: 10px !important;
+    border-radius: 14px !important;
     background: var(--ci-surface) !important;
+    padding: 10px 12px !important;
+  }
+
+  .ci-personal-section {
+    border: 1px solid #A8D8EA !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #A8D8EA22, #A8D8EA11) !important;
+    padding: 10px 12px !important;
+  }
+
+  .ci-address-section {
+    border: 1px solid #FCBAD3 !important;
+    border-radius: 14px !important;
+    background: linear-gradient(135deg, #FCBAD322, #FCBAD311) !important;
     padding: 10px 12px !important;
   }
 

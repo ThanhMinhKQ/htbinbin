@@ -15,6 +15,7 @@ from ..db.models import (
     Guest,
     GuestActivity,
     GuestIdentity,
+    HotelGuest,
     HotelRoom,
     HotelRoomType,
     HotelStay,
@@ -450,6 +451,7 @@ class BookingService:
         room_type_id = raw.get("room_type_id")
         if not room_type_id:
             room_type_id = self._resolve_room_type_id(booking.branch_id, booking.room_type)
+        checked_in_trace = self._checked_in_trace(booking) if booking.stay_id else None
         return {
             "id": booking.id,
             "external_id": booking.external_id,
@@ -527,6 +529,25 @@ class BookingService:
             "guest_tier": booking.guest.membership.tier.value if booking.guest and booking.guest.membership else "BASIC",
             "created_at": booking.created_at.isoformat() if booking.created_at else None,
             "updated_at": booking.updated_at.isoformat() if booking.updated_at else None,
+            "checked_in_trace": checked_in_trace,
+        }
+
+    def _checked_in_trace(self, booking: Booking) -> Optional[Dict[str, Any]]:
+        stay = self.db.query(HotelStay).options(
+            joinedload(HotelStay.guests).joinedload(HotelGuest.guest),
+        ).filter(HotelStay.id == booking.stay_id).first() if booking.stay_id else None
+        if not stay:
+            return None
+        primary = next((g for g in stay.guests if g.is_primary), None) or (stay.guests[0] if stay.guests else None)
+        if not primary:
+            return None
+        crm_guest = primary.guest
+        return {
+            "stay_id": stay.id,
+            "checked_in_at": stay.check_in_at.astimezone(VN_TZ).isoformat() if stay.check_in_at else None,
+            "guest_name": (crm_guest.full_name if crm_guest else None) or primary.full_name,
+            "guest_phone": (crm_guest.phone if crm_guest else None) or primary.phone,
+            "crm_guest_id": crm_guest.id if crm_guest else None,
         }
 
     def list_reservations(
@@ -675,6 +696,9 @@ class BookingService:
         is_ota = booking_type == "OTA"
         total_price = Decimal(str(payload.get("total_price") or 0))
         raw_payload = dict(payload.get("raw_data") or {})
+        manual_total_override = bool(raw_payload.get("manual_total_override"))
+        if manual_total_override and raw_payload.get("manual_total_price") is not None:
+            total_price = Decimal(str(raw_payload.get("manual_total_price") or 0))
         ota_group_code = str(
             payload.get("external_id")
             or raw_payload.get("booking_reference_code")
@@ -687,7 +711,8 @@ class BookingService:
             single_payload = dict(payload)
             single_payload.pop("room_items", None)
             single_payload["room_type_id"] = single["room_type"].id
-            single_payload["total_price"] = float(total_price if is_ota and total_price else single["unit_total"] or total_price)
+            use_payload_total = (is_ota or manual_total_override) and total_price
+            single_payload["total_price"] = float(total_price if use_payload_total else single["unit_total"] or total_price)
             if is_ota:
                 raw_data = dict(raw_payload)
                 raw_data.update({
@@ -722,7 +747,7 @@ class BookingService:
         group_index = 0
         reference_total = sum((item["reference_unit_total"] * item["quantity"] for item in normalized_items), Decimal("0"))
         has_item_totals = any(item["unit_total"] > 0 for item in normalized_items)
-        split_total = total_price if total_price and (is_ota or not has_item_totals) else Decimal("0")
+        split_total = total_price if total_price and (is_ota or manual_total_override or not has_item_totals) else Decimal("0")
         price_left = split_total
         ref_left = reference_total
         deposit_left = deposit_amount
@@ -736,7 +761,7 @@ class BookingService:
                 if split_total:
                     if is_last:
                         unit_total = price_left
-                    elif is_ota and reference_total > 0 and reference_unit_total > 0:
+                    elif (is_ota or manual_total_override) and reference_total > 0 and reference_unit_total > 0:
                         unit_total = (split_total * reference_unit_total / reference_total).quantize(Decimal("1"))
                     else:
                         unit_total = (split_total / Decimal(total_qty)).quantize(Decimal("1"))
@@ -774,6 +799,14 @@ class BookingService:
                         "ota_actual_total": float(unit_total),
                         "pms_reference_total": float(reference_child_total),
                         "ota_price_delta": float(unit_total - reference_child_total),
+                    })
+                elif manual_total_override:
+                    raw_data.update({
+                        "manual_group_total": float(total_price),
+                        "manual_group_child_total": float(unit_total),
+                        "manual_group_reference_total": float(reference_total),
+                        "manual_group_reference_child_total": float(reference_child_total),
+                        "manual_group_delta": float(total_price - reference_total),
                     })
                 item_payload = dict(payload)
                 item_payload.pop("room_items", None)

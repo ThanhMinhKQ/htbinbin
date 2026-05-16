@@ -1575,3 +1575,163 @@ async function rdPayV2Submit() {
     el.value = raw.toLocaleString('vi-VN');
   }
 </script>
+
+<!-- ── BILL TRANSFER MODAL (body-level: must stay outside .v-dialog due to its transform) ── -->
+<style>
+  #rd-sub-modal-bill-transfer.rd-bt-overlay {
+    display: none; position: fixed; inset: 0; z-index: 20000;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    align-items: center; justify-content: center; padding: 24px;
+  }
+  .rd-bt-shell {
+    background: #fff; border-radius: 24px; width: 100%; max-width: 880px;
+    box-shadow: 0 30px 60px -12px rgba(9, 99, 126, 0.35);
+    overflow: hidden; position: relative; z-index: 1;
+    animation: rdModalPop 0.35s cubic-bezier(0.19, 1, 0.22, 1);
+    display: flex; flex-direction: column; max-height: 90vh;
+  }
+  .rd-bt-header {
+    padding: 20px 28px; border-bottom: 1px solid #e2e8f0;
+    display: flex; align-items: center; gap: 14px; background: #fff;
+  }
+  .rd-bt-header-icon {
+    width: 44px; height: 44px; border-radius: 13px; background: #eff6ff;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .rd-bt-title { font-size: 17px; font-weight: 850; color: #0f172a; margin: 0 0 3px; letter-spacing: -.02em; }
+  .rd-bt-subtitle { font-size: 12px; color: #64748b; margin: 0; font-weight: 600; }
+  .rd-bt-close {
+    margin-left: auto; width: 36px; height: 36px; border-radius: 12px;
+    border: 1px solid #e2e8f0; background: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s; flex-shrink: 0; color: #64748b;
+  }
+  .rd-bt-close:hover { background: #fee2e2; border-color: #fecaca; color: #ef4444; }
+  .rd-bt-body {
+    display: grid; grid-template-columns: 1.1fr 1fr;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+  .rd-bt-col-left {
+    padding: 22px 24px; display: flex; flex-direction: column; gap: 12px;
+    background: #f8fafc; border-right: 1px solid #e2e8f0; min-height: 0;
+  }
+  .rd-bt-col-right {
+    padding: 22px 24px; display: flex; flex-direction: column; gap: 14px;
+    background: #fff; min-height: 0;
+  }
+  .rd-bt-section-label {
+    font-size: 10px; font-weight: 850; color: #64748b;
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;
+  }
+  .rd-bt-search {
+    width: 100%; height: 44px; border-radius: 12px;
+    border: 1.5px solid #e2e8f0; background: #fff; padding: 0 14px;
+    font-size: 13px; font-weight: 600; color: #0f172a; outline: none;
+    transition: all .2s;
+  }
+  .rd-bt-search:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+  .rd-bt-target-list {
+    flex: 1; min-height: 280px; max-height: 420px; overflow-y: auto;
+    border: 1px solid #e2e8f0; border-radius: 14px; background: #fff;
+    padding: 8px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .rd-bt-input {
+    width: 100%; height: 48px; border-radius: 12px;
+    border: 1.5px solid #e2e8f0; background: #fff; padding: 0 14px;
+    font-size: 14px; font-weight: 700; color: #0f172a; outline: none;
+    transition: all .2s; font-family: 'Outfit', 'Inter', sans-serif;
+  }
+  .rd-bt-input:focus { border-color: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+  .rd-bt-amount-input { font-size: 18px; font-weight: 900; color: #0d9488; height: 56px; }
+  .rd-bt-error {
+    display: none; padding: 12px 14px; border-radius: 12px;
+    background: #fef2f2; color: #b91c1c; font-size: 12px; font-weight: 700;
+    border: 1px solid #fecaca;
+  }
+  .rd-bt-footer {
+    padding: 16px 28px 20px; display: flex; gap: 12px;
+    border-top: 1px solid #e2e8f0; background: #fff;
+  }
+  .rd-bt-btn-cancel {
+    flex: 1; height: 46px; border-radius: 12px;
+    border: 1.5px solid #e2e8f0; background: #fff;
+    font-size: 13px; font-weight: 700; color: #475569; cursor: pointer;
+    transition: all .2s;
+  }
+  .rd-bt-btn-cancel:hover { background: #f1f5f9; }
+  .rd-bt-btn-submit {
+    flex: 2; height: 46px; border-radius: 12px; border: none;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    font-size: 13px; font-weight: 850; color: #fff; cursor: pointer;
+    box-shadow: 0 8px 16px -4px rgba(37, 99, 235, 0.35);
+    transition: all .2s;
+  }
+  .rd-bt-btn-submit:hover { transform: translateY(-1px); box-shadow: 0 12px 20px -4px rgba(37, 99, 235, 0.45); }
+
+  @media (max-width: 720px) {
+    .rd-bt-body { grid-template-columns: 1fr; }
+    .rd-bt-col-left { border-right: none; border-bottom: 1px solid #e2e8f0; }
+    .rd-bt-target-list { min-height: 200px; max-height: 260px; }
+  }
+
+  html.dark #rd-sub-modal-bill-transfer.rd-bt-overlay { background: rgba(2, 6, 23, 0.72); }
+  html.dark .rd-bt-shell { background: #0f172a; box-shadow: 0 30px 70px -18px rgba(0, 0, 0, 0.75); }
+  html.dark .rd-bt-header,
+  html.dark .rd-bt-col-right,
+  html.dark .rd-bt-footer { background: #0f172a; border-color: rgba(148, 163, 184, 0.18); }
+  html.dark .rd-bt-col-left { background: #111827; border-color: rgba(148, 163, 184, 0.18); }
+  html.dark .rd-bt-title { color: #f8fafc; }
+  html.dark .rd-bt-subtitle, html.dark .rd-bt-section-label { color: #94a3b8; }
+  html.dark .rd-bt-header-icon { background: rgba(37, 99, 235, 0.18); }
+  html.dark .rd-bt-close { background: #1e293b; border-color: rgba(148, 163, 184, 0.24); color: #e2e8f0; }
+  html.dark .rd-bt-search,
+  html.dark .rd-bt-target-list,
+  html.dark .rd-bt-input { background: #1e293b; border-color: rgba(148, 163, 184, 0.24); color: #f8fafc; }
+  html.dark .rd-bt-amount-input { color: #5eead4; }
+  html.dark .rd-bt-btn-cancel { background: #1e293b; border-color: rgba(148, 163, 184, 0.24); color: #e2e8f0; }
+</style>
+<div id="rd-sub-modal-bill-transfer" class="rd-bt-overlay">
+  <div class="rd-bt-shell">
+    <div class="rd-bt-header">
+      <div class="rd-bt-header-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/><path d="M18 4v3"/><path d="M6 20v-3"/></svg>
+      </div>
+      <div style="min-width:0;">
+        <h5 class="rd-bt-title">Gộp hoá đơn sang phòng khác</h5>
+        <p id="rd-transfer-source-summary" class="rd-bt-subtitle">Chọn phòng nhận thanh toán</p>
+      </div>
+      <button class="rd-bt-close" onclick="rdCloseBillTransferModal()" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="rd-bt-body">
+      <div class="rd-bt-col-left">
+        <div>
+          <div class="rd-bt-section-label">Tìm phòng nhận</div>
+          <input id="rd-transfer-target-search" class="rd-bt-search" type="text" placeholder="Số phòng, tên khách, SĐT..." oninput="rdSearchBillTransferTargets()">
+        </div>
+        <div id="rd-transfer-target-list" class="rd-bt-target-list"></div>
+      </div>
+
+      <div class="rd-bt-col-right">
+        <div>
+          <div class="rd-bt-section-label">Số tiền gộp (VND)</div>
+          <input id="rd-transfer-amount" class="rd-bt-input rd-bt-amount-input" type="number" min="0" step="1000">
+        </div>
+        <div>
+          <div class="rd-bt-section-label">Ghi chú</div>
+          <input id="rd-transfer-note" class="rd-bt-input" type="text" placeholder="Ví dụ: Khách đi cùng đoàn, phòng 201 thanh toán chung">
+        </div>
+        <div id="rd-transfer-error" class="rd-bt-error"></div>
+        <div style="flex:1;"></div>
+      </div>
+    </div>
+
+    <div class="rd-bt-footer">
+      <button type="button" class="rd-bt-btn-cancel" onclick="rdCloseBillTransferModal()">Hủy</button>
+      <button id="rd-transfer-submit-btn" class="rd-bt-btn-submit" type="button" onclick="rdSubmitBillTransfer()">Xác nhận gộp hoá đơn</button>
+    </div>
+  </div>
+</div>

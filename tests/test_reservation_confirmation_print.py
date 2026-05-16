@@ -9,14 +9,17 @@ ROUTE_PATH = Path("app/api/pms/reservation_api.py")
 
 
 class ReservationConfirmationPrintTest(unittest.TestCase):
-    def render_template(self, booking):
+    def render_template(self, booking, extras=None):
         env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
         template = env.get_template("pms/reservation_confirmation_print.html")
-        return template.render(
+        context = dict(
             booking=booking,
             current_user={"name": "Alice Reception", "username": "alice"},
             current_time="10/05/2026 12:00",
         )
+        if extras:
+            context.update(extras)
+        return template.render(**context)
 
     def base_booking(self):
         return {
@@ -129,6 +132,40 @@ class ReservationConfirmationPrintTest(unittest.TestCase):
         self.assertIn("1 đêm / night(s)", html)
         self.assertIn("300.000", html)
         self.assertIn("Go2Joy", html)
+
+    def test_print_extras_use_manual_total_override_for_confirmation_amount(self):
+        from app.api.pms.reservation_api import _build_print_extras
+
+        booking = self.base_booking()
+        booking.update({
+            "total_price": 500000,
+            "raw_data": {
+                "manual_total_override": True,
+                "manual_total_price": "450.000",
+                "manual_total_reference": 500000,
+                "pricing_preview": {
+                    "breakdown": [
+                        {
+                            "type": "ROOM_CHARGE",
+                            "description": "Tiền phòng",
+                            "days": 1,
+                            "amount": 500000,
+                        },
+                    ],
+                },
+            },
+        })
+
+        extras = _build_print_extras(booking)
+        html = self.render_template(booking, extras)
+
+        self.assertEqual(450000, booking["total_price"])
+        self.assertEqual("MANUAL_TOTAL_ADJUSTMENT", extras["breakdown"][-1]["type"])
+        self.assertEqual(-50000, extras["breakdown"][-1]["amount"])
+        self.assertIn("Chênh lệch xác nhận / Adjustment", html)
+        self.assertNotIn("Điều chỉnh theo xác nhận tổng tiền", html)
+        self.assertIn("-50.000", html)
+        self.assertIn("450.000", html)
 
     def test_edit_submit_reopens_detail_with_updated_booking(self):
         source = Path("app/static/js/pms/reservation_hub/form.js").read_text(encoding="utf-8")

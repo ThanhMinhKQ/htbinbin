@@ -98,3 +98,40 @@
                                                                     { "loai_phong": "Twin Room", "danh_sach_phong": ["302", "402", "502", "602"] }
                                                                 ]
 }
+
+{
+    "rooms": [
+        {
+            "room_type": "Deluxe",
+            "rooms": ["102", "103", "104", "204", "205", "305", "405", "505", "605"]
+        },
+        {
+            "room_type": "Deluxe Flexiable",
+            "rooms": ["304", "404", "504", "604"]
+        },
+        {
+            "room_type": "Suite",
+            "rooms": ["101", "201", "202"]
+        },
+        {
+            "room_type": "Suite Flexiable",
+            "rooms": ["301", "401", "501", "601"]
+        },
+        {
+            "room_type": "Superior",
+            "rooms": ["203", "303", "403", "503", "603"]
+        },
+        {
+            "room_type": "Twin",
+            "rooms": ["302", "402", "502", "602"]
+        }
+    ],
+        "total_rooms": 31
+}
+
+{ type: "Superior (2 People)", day: 550000, offer: 500000, month: 16000000, hour: "200000 next hour 50000" },
+{ type: "Deluxe Flexiable (2 People)", day: 650000, offer: 550000, month: 17500000, hour: "250000 next hour 50000" },
+{ type: "Deluxe Suite (2 People)", day: 650000, offer: 550000, month: 17500000, hour: "250000 next hour 50000" },
+{ type: "Suite Flexiable (2 People)", day: 750000, offer: 600000, month: 19000000, hour: "300000 next hour 50000" },
+{ type: "Suite (2 People)", day: 750000, offer: 600000, month: 19000000, hour: "300000 next hour 50000" },
+{ type: "Twin (2 People)", day: 850000, offer: 650000, month: 20500000, hour: "300000 next hour 50000" }

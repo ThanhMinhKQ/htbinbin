@@ -914,6 +914,102 @@ async def add_shift_transaction_from_pms(
 # ----------------------------------------------------------------------
 # ENDPOINT CHỈNH SỬA (SỬA)
 # ----------------------------------------------------------------------
+@router.get("/edit-source/{item_id}", response_model=dict)
+async def get_shift_edit_source(item_id: int, request: Request, db: Session = Depends(get_db)):
+    """Trả về thông tin nguồn (truy vết) của một dòng giao ca trước khi cho user sửa.
+
+    UI dùng kết quả này để render cảnh báo: dòng giao ca này đang link tới Folio nào,
+    Payment nào, sửa sẽ tác động đến đâu — user phải xác nhận mới được cascade.
+    """
+    user_data = request.session.get("user")
+    if not user_data:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    item = (
+        db.query(ShiftReportTransaction)
+        .options(
+            joinedload(ShiftReportTransaction.folio).joinedload(Folio.stay),
+            joinedload(ShiftReportTransaction.folio_transaction),
+        )
+        .filter(ShiftReportTransaction.id == item_id)
+        .first()
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch.")
+
+    folio = getattr(item, "folio", None)
+    folio_tx = getattr(item, "folio_transaction", None)
+
+    payment = None
+    if folio_tx is not None and folio_tx.reference_type == "payment" and folio_tx.reference_id:
+        payment = db.query(Payment).filter(Payment.id == folio_tx.reference_id).first()
+
+    room_number = item.room_number
+    if not room_number and folio is not None and folio.stay is not None:
+        stay_room = getattr(folio.stay, "room", None)
+        if stay_room:
+            room_number = getattr(stay_room, "room_number", None)
+
+    payment_method_raw = (
+        item.payment_method.value
+        if hasattr(item.payment_method, "value")
+        else (item.payment_method or "CASH")
+    )
+
+    impacts: list[str] = []
+    if folio_tx is not None and not folio_tx.is_voided:
+        impacts.append("folio_transaction")
+    if folio is not None:
+        impacts.append("folio_balance")
+    if payment is not None and not payment.is_refunded:
+        impacts.append("payment")
+
+    folio_status = None
+    if folio is not None and folio.status:
+        folio_status = folio.status.value if hasattr(folio.status, "value") else str(folio.status)
+
+    cascade_locked_reason = None
+    if folio is not None and folio_status == "CLOSED":
+        cascade_locked_reason = "Folio đã đóng — chỉ admin/boss mới được cascade."
+
+    return {
+        "id": item.id,
+        "transaction_code": item.transaction_code,
+        "amount": float(item.amount or 0),
+        "transaction_type": _shift_enum_value(item.transaction_type),
+        "payment_method": payment_method_raw,
+        "is_auto_posted": bool(item.is_auto_posted),
+        "room_number": room_number,
+        "folio": {
+            "id": folio.id,
+            "folio_code": folio.folio_code,
+            "status": folio_status,
+            "balance": float(folio.balance or 0),
+            "total_charge": float(folio.total_charge or 0),
+            "total_paid": float(folio.total_paid or 0),
+        } if folio is not None else None,
+        "folio_transaction": {
+            "id": folio_tx.id,
+            "transaction_type": folio_tx.transaction_type.value if folio_tx.transaction_type else None,
+            "description": folio_tx.description,
+            "amount": float(folio_tx.amount or 0),
+            "is_voided": bool(folio_tx.is_voided),
+            "created_at": folio_tx.created_at.isoformat() if folio_tx.created_at else None,
+        } if folio_tx is not None else None,
+        "payment": {
+            "id": payment.id,
+            "amount": float(payment.amount or 0),
+            "method": payment.method.value if payment.method else None,
+            "status": payment.status.value if payment.status else None,
+            "transaction_code": payment.transaction_code,
+            "is_refunded": bool(payment.is_refunded),
+            "paid_at": payment.paid_at.isoformat() if payment.paid_at else None,
+        } if payment is not None else None,
+        "impacts": impacts,
+        "cascade_locked_reason": cascade_locked_reason,
+    }
+
+
 @router.post("/edit-details/{item_id}", response_model=dict)
 async def edit_shift_transaction_details( # SỬA
     item_id: int,
@@ -924,8 +1020,9 @@ async def edit_shift_transaction_details( # SỬA
     amount: str = Form(...),
     room_number: Optional[str] = Form(None), # THÊM
     transaction_info: Optional[str] = Form(None), # THÊM
-    recorded_by: Optional[str] = Form(None), 
+    recorded_by: Optional[str] = Form(None),
     chi_nhanh: Optional[str] = Form(None),
+    confirm_cascade: Optional[str] = Form("false"),  # User phải tick để cascade về folio/payment
 ):
     user_data = request.session.get("user")
     if not user_data:
@@ -939,20 +1036,20 @@ async def edit_shift_transaction_details( # SỬA
     item = db.query(ShiftReportTransaction).filter(ShiftReportTransaction.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch.")
-        
+
     # Chỉ cho phép sửa khi status là PENDING
     if item.status != ShiftReportStatus.PENDING:
         raise HTTPException(status_code=400, detail="Không thể sửa giao dịch đã kết ca hoặc đã xoá.")
 
     # (Logic lấy recorder và branch giữ nguyên)
     recorder = None
-    if recorded_by: 
+    if recorded_by:
         if '(' in recorded_by and ')' in recorded_by:
             recorded_by_code = recorded_by.split('(')[-1].strip(')')
             recorder = db.query(User).filter(User.employee_code == recorded_by_code).first()
             if not recorder:
                 raise HTTPException(status_code=400, detail=f"Không tìm thấy người ghi nhận với mã: {recorded_by_code}")
-    else: 
+    else:
         recorder = item.recorder
 
     branch = None
@@ -967,31 +1064,77 @@ async def edit_shift_transaction_details( # SỬA
 
     # SỬA: Cập nhật các trường mới
     old_amount = _model_value(item.amount)
+    old_tx_type = _shift_enum_value(item.transaction_type)
     try:
         new_amount = int(amount)
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Số tiền không hợp lệ.")
+
+    type_changed = transaction_type != old_tx_type
+    amount_changed = new_amount != old_amount
+    cascade_requested = str(confirm_cascade).lower() in ("true", "1", "yes", "on")
+
+    # Suy ra payment_method mới từ transaction_type → đồng bộ về Folio/Payment
+    from ..services.shift_report_service import (
+        shift_method_from_tx_type,
+        shift_method_to_payment_method,
+        shift_payment_method_label,
+    )
+    new_shift_method = shift_method_from_tx_type(transaction_type, fallback=item.payment_method)
+
     _set_model_attr(item, "transaction_type", transaction_type)
     _set_model_attr(item, "amount", new_amount)
     _set_model_attr(item, "room_number", room_number)
     _set_model_attr(item, "transaction_info", transaction_info)
     _set_model_attr(item, "recorder_id", _model_value(recorder.id) if recorder else _model_value(item.recorder_id))
     _set_model_attr(item, "branch_id", _model_value(branch.id))
+    if type_changed:
+        _set_model_attr(item, "payment_method", new_shift_method)
 
-    # Cascade: cập nhật FolioTransaction nếu có liên kết và số tiền thay đổi
-    cascade_folio = False
-    if _model_value(item.folio_transaction_id) and new_amount != old_amount:
-        folio_tx = db.query(FolioTransaction).filter(FolioTransaction.id == _model_value(item.folio_transaction_id)).first()
+    # Cascade: cập nhật FolioTransaction + Payment khi user xác nhận và có liên kết
+    cascade_summary = {
+        "folio_transaction": False,
+        "payment": False,
+        "folio_rebalanced": False,
+        "skipped_reason": None,
+    }
+
+    folio_tx_id = _model_value(item.folio_transaction_id)
+    needs_cascade = folio_tx_id and (amount_changed or type_changed)
+
+    if needs_cascade and not cascade_requested:
+        cascade_summary["skipped_reason"] = "Chưa xác nhận cascade — chỉ cập nhật giao ca."
+    elif needs_cascade and cascade_requested:
+        folio_tx = db.query(FolioTransaction).filter(FolioTransaction.id == folio_tx_id).first()
         if folio_tx and not _model_value(folio_tx.is_voided):
-            # Cập nhật số tiền (đảo dấu: ShiftReport lưu số dương, Folio lưu số âm)
-            _set_model_attr(folio_tx, "amount", money(-new_amount))
-            cascade_folio = True
-            # Rebalance folio nếu có liên kết
-            if _model_value(folio_tx.folio_id):
-                from ..services.folio_service import rebalance_folio
-                rebalance_folio(db, _model_value(folio_tx.folio_id))
-    
-    # XOÁ: Logic cập nhật cho status RETURNED, DISPOSED
+            folio = db.query(Folio).filter(Folio.id == _model_value(folio_tx.folio_id)).first() if _model_value(folio_tx.folio_id) else None
+            folio_status_val = folio.status.value if folio and folio.status and hasattr(folio.status, "value") else None
+            folio_locked = folio_status_val == "CLOSED" and user_data.get("role") not in ("admin", "boss")
+            if folio_locked:
+                cascade_summary["skipped_reason"] = "Folio đã đóng — chỉ admin/boss mới được cascade."
+            else:
+                if amount_changed:
+                    _set_model_attr(folio_tx, "amount", money(-new_amount))
+                if type_changed:
+                    new_label = shift_payment_method_label(new_shift_method)
+                    base_desc = (folio_tx.description or "").split(" (", 1)[0]
+                    _set_model_attr(folio_tx, "description", f"{base_desc} ({new_label})")
+                cascade_summary["folio_transaction"] = True
+
+                # Cascade Payment table khi folio_tx.reference_type='payment'
+                if folio_tx.reference_type == "payment" and folio_tx.reference_id:
+                    payment_row = db.query(Payment).filter(Payment.id == folio_tx.reference_id).first()
+                    if payment_row and not _model_value(payment_row.is_refunded):
+                        if amount_changed:
+                            _set_model_attr(payment_row, "amount", money(new_amount))
+                        if type_changed:
+                            _set_model_attr(payment_row, "method", shift_method_to_payment_method(new_shift_method))
+                        cascade_summary["payment"] = True
+
+                if folio is not None:
+                    from ..services.folio_service import rebalance_folio
+                    rebalance_folio(db, folio)
+                    cascade_summary["folio_rebalanced"] = True
 
     db.commit()
     # SỬA: Refresh quan hệ
@@ -1000,7 +1143,8 @@ async def edit_shift_transaction_details( # SỬA
         "status": "success",
         "message": "Đã cập nhật giao dịch thành công.",
         "item": _serialize_transaction(item),
-        "cascade_folio_updated": cascade_folio,
+        "cascade_folio_updated": cascade_summary["folio_transaction"],  # backward compat
+        "cascade_summary": cascade_summary,
     }
 
 # ----------------------------------------------------------------------

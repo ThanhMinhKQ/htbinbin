@@ -1,7 +1,7 @@
 """Background jobs for Reservation Hub inventory and booking hygiene."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, time, timedelta
 
 from ..core.config import logger
 from ..core.utils import VN_TZ
@@ -45,32 +45,35 @@ def release_expired_inventory_holds() -> None:
 
 
 def mark_reservation_no_shows() -> None:
+    """No-show booking CONFIRMED chưa nhận phòng sau khi quá thời điểm trả phòng + 30 phút.
+
+    - Ưu tiên dùng raw.check_out_at (ISO datetime) để bắt booking giờ chính xác.
+    - Fallback: dùng Booking.check_out (date) + 12:00 cho booking đêm cũ.
+    - Job chạy mỗi giờ nên bắt được mọi loại booking trong vòng tối đa ~90 phút sau giờ trả.
+    """
     db = SessionLocal()
+    grace = timedelta(minutes=30)
     try:
         now = datetime.now(VN_TZ)
-        today = now.date()
-        is_past_noon = now.hour >= 12
-
-        # Noshow nếu booking CONFIRMED chưa check-in và:
-        # - checkout < today (đã qua hẳn ngày checkout), HOẶC
-        # - checkout == today và đã qua 12:00 trưa
-        if is_past_noon:
-            bookings = db.query(Booking).filter(
-                Booking.reservation_status == "CONFIRMED",
-                Booking.stay_id.is_(None),
-                Booking.check_out <= today,
-            ).all()
-        else:
-            bookings = db.query(Booking).filter(
-                Booking.reservation_status == "CONFIRMED",
-                Booking.stay_id.is_(None),
-                Booking.check_out < today,
-            ).all()
+        bookings = db.query(Booking).filter(
+            Booking.reservation_status == "CONFIRMED",
+            Booking.stay_id.is_(None),
+        ).all()
 
         service = BookingService(db)
         count = 0
         for booking in bookings:
-            service.cancel_reservation(booking.id, "Tự động no-show sau 12:00 ngày trả phòng", None, no_show=True)
+            checkout_dt = _resolve_checkout_datetime(booking)
+            if checkout_dt is None:
+                continue
+            if now < checkout_dt + grace:
+                continue
+            service.cancel_reservation(
+                booking.id,
+                "Tự động no-show sau giờ trả phòng",
+                None,
+                no_show=True,
+            )
             count += 1
         db.commit()
         if count:
@@ -80,3 +83,19 @@ def mark_reservation_no_shows() -> None:
         logger.error("[ReservationHub] Auto no-show failed: %s", exc, exc_info=True)
     finally:
         db.close()
+
+
+def _resolve_checkout_datetime(booking: Booking) -> datetime | None:
+    raw = booking.raw_data if isinstance(booking.raw_data, dict) else {}
+    raw_checkout = raw.get("check_out_at")
+    if raw_checkout:
+        try:
+            parsed = datetime.fromisoformat(str(raw_checkout))
+            if parsed.tzinfo is None:
+                parsed = VN_TZ.localize(parsed)
+            return parsed.astimezone(VN_TZ)
+        except (TypeError, ValueError):
+            pass
+    if booking.check_out:
+        return VN_TZ.localize(datetime.combine(booking.check_out, time(12, 0)))
+    return None

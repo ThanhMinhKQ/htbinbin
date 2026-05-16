@@ -282,21 +282,11 @@ async def startup_event():
             )
             scheduler.add_job(
                 mark_reservation_no_shows,
-                'cron', hour=12, minute=5,
+                'interval', hours=1,
                 misfire_grace_time=1800,
                 id="reservation_auto_no_show",
             )
             logger.info("✅ Reservation Hub jobs đã đăng ký: inventory, holds, no-show")
-
-            # --- OTA POLLING FALLBACK (Mỗi 30 phút) ---
-            from app.api.ota_dashboard import _run_polling_fallback
-            scheduler.add_job(
-                _run_polling_fallback,
-                'interval', minutes=30,
-                misfire_grace_time=300,
-                id="ota_polling_fallback",
-            )
-            logger.info("📧 OTA Polling Fallback đã đăng ký (mỗi 30 phút)")
 
             # --- GATECHEAP KEEP-ALIVE (Mỗi 3 phút) ---
             # Provider gatecheap.io.vn ngủ đông sau idle, request đầu fail/chậm.

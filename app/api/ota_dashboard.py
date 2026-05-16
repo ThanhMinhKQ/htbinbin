@@ -1240,80 +1240,8 @@ async def _scan_emails_for_date(target_date, scan_requested_at=None):
 
 
 # ===========================================================================
-# OTA POLLING FALLBACK (Safety net khi Pub/Sub miss)
+# OTA POLLING FALLBACK — đã gỡ bỏ (Gmail Push + Manual Scan đã đủ tin cậy)
 # ===========================================================================
-
-_polling_fallback_running = False
-
-
-def _run_polling_fallback():
-    """Sync wrapper cho APScheduler."""
-    global _polling_fallback_running
-    if _polling_fallback_running:
-        return
-    _polling_fallback_running = True
-    try:
-        asyncio.run(_polling_fallback_scan())
-    finally:
-        _polling_fallback_running = False
-
-
-async def _polling_fallback_scan():
-    """
-    Polling fallback: quét email OTA trong 30 phút gần nhất.
-    Chạy mỗi 10 phút bởi scheduler, đảm bảo không miss email khi Pub/Sub fail.
-    Skip email đã xử lý thành công.
-    """
-    from app.core.config import settings, logger
-    from app.core.utils import VN_TZ
-
-    if not settings.OTA_ENABLED:
-        return
-
-    try:
-        service = gmail_service.build_service()
-        if not service:
-            logger.warning("[Polling Fallback] Không thể kết nối Gmail API")
-            return
-
-        ota_senders = gmail_service.ota_senders
-        if not ota_senders:
-            return
-
-        now = datetime.now(VN_TZ)
-        after_ts = int((now - timedelta(minutes=30)).timestamp())
-        sender_query = " OR ".join([f"from:{s}" for s in ota_senders])
-        query = f"({sender_query}) after:{after_ts}"
-
-        result = service.users().messages().list(
-            userId='me', q=query, maxResults=50
-        ).execute()
-        messages = result.get('messages', [])
-
-        if not messages:
-            return
-
-        message_ids = [msg['id'] for msg in messages if msg.get('id')]
-        skipped_ids = await _skip_success_message_ids(message_ids)
-        pending_ids = [mid for mid in message_ids if mid not in skipped_ids]
-
-        if not pending_ids:
-            return
-
-        logger.info(f"[Polling Fallback] Phát hiện {len(pending_ids)} email OTA chưa xử lý (30 phút gần nhất)")
-
-        emails = await _fetch_gmail_messages(pending_ids, "Polling Fallback")
-        if not emails:
-            return
-
-        emails = sorted(emails, key=_email_sort_key)
-        processed, failed = await _process_ota_emails(emails, "Polling Fallback", sequential=False)
-        logger.info(f"[Polling Fallback] ✅ Xử lý {processed}/{len(emails)}, thất bại={failed}")
-
-    except Exception as e:
-        logger.error(f"[Polling Fallback] Lỗi: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
 
 
 @router.post("/gmail/watch")

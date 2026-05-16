@@ -5,6 +5,7 @@ const vm = require('vm');
 const source = fs.readFileSync('app/static/js/pms/reservation_hub/form.js', 'utf8');
 const methods = source.match(/Object\.assign\(BookingHub, \{([\s\S]*)\n\}\);/)[1];
 const sandbox = {
+  elements: {},
   BookingHub: {
     state: {},
     getRoomCart() { return this.state.roomCart || []; },
@@ -14,7 +15,16 @@ const sandbox = {
     isOtaBookingForm() { return false; },
     renderPaymentRoomSummary() {},
   },
-  document: { getElementById() { return null; }, querySelectorAll() { return []; } },
+  document: {
+    getElementById(id) {
+      if (sandbox.elements[id]) return sandbox.elements[id];
+      if (sandbox.BookingHub.values && Object.prototype.hasOwnProperty.call(sandbox.BookingHub.values, id)) {
+        return { value: sandbox.BookingHub.values[id] };
+      }
+      return null;
+    },
+    querySelectorAll() { return []; },
+  },
   pmsMoney(value) { return String(value); },
   pmsToast() {},
   pmsApi() {},
@@ -76,3 +86,12 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(hub.splitDepositAmountByQuantit
 
 assert.strictEqual(hub.formatDepositSplitInput(500000), '500.000');
 assert.strictEqual(hub.parseDepositSplitInput('500.000'), 500000);
+
+hub.state.roomCart = [
+  { room_type_id: 1, room_type: 'Sup', quantity: 1, unit_total: 500000 },
+];
+sandbox.elements['bk-form-total'] = { value: '450.000', dataset: { bkUserEdited: '1' } };
+assert.strictEqual(hub.isBookingTotalManualOverride(450000, 500000), true);
+assert.strictEqual(hub.isBookingTotalManualOverride(500000, 500000), false);
+sandbox.elements['bk-form-total'] = { value: '450.000', dataset: {} };
+assert.strictEqual(hub.isBookingTotalManualOverride(450000, 500000), false);

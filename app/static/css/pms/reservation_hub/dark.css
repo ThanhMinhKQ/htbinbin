@@ -110,6 +110,11 @@
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-source-pill,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-badge,
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-method-pill { background: var(--bk-surface-soft) !important; color: var(--bk-text) !important; border-color: var(--bk-line) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-source-pill.soft-shadow { background: var(--bk-surface-muted) !important; color: var(--bk-muted) !important; border-color: var(--bk-line-strong) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-reservations-table tbody tr.soft-shadow { opacity: 0.6 !important; background: var(--bk-surface-muted) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-reservations-table tbody tr.soft-shadow:hover { opacity: 1 !important; background: var(--bk-surface-soft) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-checkin-trace { border-top-color: var(--bk-line) !important; color: var(--bk-muted) !important; }
+:is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-crm-link { color: var(--bk-primary) !important; }
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-badge.assigned { background: var(--bk-success-bg) !important; color: var(--bk-success-text) !important; border-color: var(--bk-success-border) !important; }
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-room-badge.unassigned { background: var(--bk-warning-bg) !important; color: var(--bk-warning-text) !important; border-color: var(--bk-warning-border) !important; }
 :is(html.dark, body.dark, .dark-mode, .dark) #pms-booking-page .bk-avail-card.low-inventory { background: var(--bk-warning-bg) !important; border-color: var(--bk-warning-border) !important; }

@@ -142,6 +142,86 @@ class BookingServiceGroupDepositTest(unittest.TestCase):
         self.assertEqual(float(bookings[0].deposit_amount), 300_000)
         self.assertEqual(float(bookings[1].deposit_amount), 700_000)
 
+    def test_single_room_group_reservation_honors_manual_total_override(self):
+        room_type = SimpleNamespace(id=11, branch_id=1, name="Deluxe")
+        db = DbStub([[room_type], [room_type]])
+        service = BookingService(db)
+        service.inventory = InventoryStub()
+        service._post_booking_deposit_once = lambda *args, **kwargs: None
+
+        bookings = service.create_group_reservation({
+            "branch_id": 1,
+            "booking_type": "DIRECT",
+            "reservation_status": "PENDING",
+            "guest_name": "Nguyen Van A",
+            "check_in": date(2026, 5, 6),
+            "check_out": date(2026, 5, 7),
+            "total_price": 450_000,
+            "deposit_amount": 100_000,
+            "room_items": [{
+                "room_type_id": 11,
+                "quantity": 1,
+                "unit_total": 500_000,
+                "reference_unit_total": 500_000,
+            }],
+            "raw_data": {
+                "manual_total_override": True,
+                "manual_total_price": 450_000,
+                "manual_total_reference": 500_000,
+                "manual_total_delta": -50_000,
+            },
+        }, user_id=9)
+
+        self.assertEqual(len(bookings), 1)
+        self.assertEqual(float(bookings[0].total_price), 450_000)
+        self.assertEqual(float(bookings[0].deposit_amount), 100_000)
+        self.assertTrue(bookings[0].raw_data["manual_total_override"])
+
+    def test_multi_room_group_reservation_distributes_manual_total_by_reference(self):
+        deluxe = SimpleNamespace(id=11, branch_id=1, name="Deluxe")
+        suite = SimpleNamespace(id=12, branch_id=1, name="Suite")
+        db = DbStub([[deluxe], [suite], [deluxe], [suite]])
+        service = BookingService(db)
+        service.inventory = InventoryStub()
+        service._post_booking_deposit_once = lambda *args, **kwargs: None
+
+        bookings = service.create_group_reservation({
+            "branch_id": 1,
+            "booking_type": "DIRECT",
+            "reservation_status": "PENDING",
+            "guest_name": "Nguyen Van A",
+            "check_in": date(2026, 5, 6),
+            "check_out": date(2026, 5, 7),
+            "total_price": 900_000,
+            "deposit_amount": 0,
+            "room_items": [
+                {
+                    "room_type_id": 11,
+                    "quantity": 1,
+                    "unit_total": 600_000,
+                    "reference_unit_total": 600_000,
+                },
+                {
+                    "room_type_id": 12,
+                    "quantity": 1,
+                    "unit_total": 400_000,
+                    "reference_unit_total": 400_000,
+                },
+            ],
+            "raw_data": {
+                "manual_total_override": True,
+                "manual_total_price": 900_000,
+                "manual_total_reference": 1_000_000,
+                "manual_total_delta": -100_000,
+            },
+        }, user_id=9)
+
+        self.assertEqual(len(bookings), 2)
+        self.assertEqual(float(bookings[0].total_price), 540_000)
+        self.assertEqual(float(bookings[1].total_price), 360_000)
+        self.assertEqual(sum(float(b.total_price) for b in bookings), 900_000)
+        self.assertEqual(float(bookings[0].raw_data["manual_group_child_total"]), 540_000)
+
 
 if __name__ == "__main__":
     unittest.main()

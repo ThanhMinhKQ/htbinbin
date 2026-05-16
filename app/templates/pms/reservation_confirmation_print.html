@@ -646,10 +646,10 @@
 
         {% set raw = booking.raw_data or {} %}
         {% set pricing = raw.pricing_preview or {} %}
-        {% set breakdown = pricing.breakdown if pricing.breakdown is iterable and pricing.breakdown is not string and pricing.breakdown is not mapping else [] %}
-        {% set services = raw.services or [] %}
-        {% set check_in_time = (raw.check_in_at or booking.estimated_arrival or '14:00')[-5:] %}
-        {% set check_out_time = (raw.check_out_at or '12:00')[-5:] %}
+        {% if breakdown is not defined %}{% set breakdown = pricing.breakdown if pricing.breakdown is iterable and pricing.breakdown is not string and pricing.breakdown is not mapping else [] %}{% endif %}
+        {% if services is not defined %}{% set services = raw.services or [] %}{% endif %}
+        {% if check_in_time is not defined %}{% set check_in_time = (raw.check_in_at or booking.estimated_arrival or '14:00')[-5:] %}{% endif %}
+        {% if check_out_time is not defined %}{% set check_out_time = (raw.check_out_at or '12:00')[-5:] %}{% endif %}
         {% set legacy_breakdown = pricing.breakdown if pricing.breakdown is mapping else {} %}
         {% set early_fee = legacy_breakdown.early_checkin_fee or raw.early_checkin_fee or raw.early_fee or 0 %}
         {% set late_fee = legacy_breakdown.late_checkout_fee or raw.late_checkout_fee or raw.late_fee or 0 %}
@@ -738,21 +738,23 @@
                 </tr>
                 {% endfor %}
                 {% for item in breakdown %}
-                {% if item.amount and item.amount > 0 %}
+                {% set item_amount = (item.amount or 0)|float %}
+                {% if item_amount != 0 %}
                 {% set fee_label = 'Phí nhận phòng sớm' if item.type == 'EARLY_CHECKIN_FEE' else ('Phí trả phòng muộn'
                 if item.type == 'LATE_CHECKOUT_FEE' else ('Tiền phòng' if item.type in ['ROOM_CHARGE', 'HOURLY_CHARGE'] else (item.description or 'Chi phí phát sinh'))) %}
                 {% set fee_qty = item.hours or item.days or 1 %}
-                {% set fee_unit = (item.amount / fee_qty) if fee_qty else item.amount %}
+                {% set display_amount = -item_amount if item_amount < 0 else item_amount %}
+                {% set fee_unit = (display_amount / fee_qty) if fee_qty else display_amount %}
                 <tr>
-                    <td class="desc-col"><strong>{{ fee_label }}</strong><br><span
+                    <td class="desc-col"><strong>{{ fee_label }}</strong>{% if item.type != 'MANUAL_TOTAL_ADJUSTMENT' %}<br><span
                             class="line-note">{% if item.hours
                             %}{{ item.hours }} tiếng × {{ '{:,.0f}'.format(fee_unit or 0).replace(',', '.') }}{% elif
                             item.days %}{{ item.days }} đêm × {{ '{:,.0f}'.format(fee_unit or 0).replace(',', '.')
-                            }}{% else %}{{ fee_label }}{% endif %}</span></td>
+                            }}{% else %}{{ fee_label }}{% endif %}</span>{% endif %}</td>
                     <td class="center">{% if item.start_iso %}{{ item.start_iso[:10] }}<br><span class="date-time">{{ item.start_iso[11:16] }}</span>{% else %}—{% endif %}</td>
                     <td class="center">{% if item.end_iso %}{{ item.end_iso[:10] }}<br><span class="date-time">{{ item.end_iso[11:16] }}</span>{% else %}—{% endif %}</td>
                     <td class="center">{{ fee_qty }}</td>
-                    <td class="right money">{{ '{:,.0f}'.format(item.amount or 0).replace(',', '.') }}</td>
+                    <td class="right money">{{ '-' if item_amount < 0 else '' }}{{ '{:,.0f}'.format(display_amount).replace(',', '.') }}</td>
                 </tr>
                 {% endif %}
                 {% endfor %}
@@ -780,7 +782,7 @@
                     <td class="right money">{{ '{:,.0f}'.format(late_fee or 0).replace(',', '.') }}</td>
                 </tr>
                 {% endif %}
-                {% if not services and not breakdown and not early_fee and not late_fee and booking.total_price and booking.total_price > 0 %}
+                {% if not services and not breakdown and not early_fee and not late_fee %}
                 {% set stay_nights = raw.nights if raw and raw.nights else 1 %}
                 <tr>
                     <td class="desc-col"><strong>Tiền phòng / Room charge</strong><br><span

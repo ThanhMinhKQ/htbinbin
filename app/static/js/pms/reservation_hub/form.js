@@ -84,6 +84,10 @@ Object.assign(BookingHub, {
         } else {
             el.value = Number(val).toLocaleString('vi-VN');
         }
+        if (el.id === 'bk-form-total') {
+            el.dataset.bkUserEdited = '1';
+            this.updateBookingTotalPreview();
+        }
         // Force update UI if it's total money or deposit
         this.renderPaymentRoomSummary();
     },
@@ -156,6 +160,8 @@ Object.assign(BookingHub, {
         set('bk-form-guests', booking.num_guests || 1);
         set('bk-form-total', Math.round(Number(booking.total_price || 0)).toLocaleString('vi-VN'));
         set('bk-form-deposit', Math.round(Number(booking.deposit_amount || 0)).toLocaleString('vi-VN'));
+        const totalInputForEdit = document.getElementById('bk-form-total');
+        if (totalInputForEdit) totalInputForEdit.dataset.bkUserEdited = '1';
         set('bk-form-payment-method', booking.deposit_type || booking.payment_method || 'Chi nhánh');
         set('bk-form-payment-ref', booking.deposit_meta?.ref_code || booking.deposit_meta?.beneficiary || booking.deposit_meta?.card_ref || '');
         set('bk-form-requests', booking.special_requests || '');
@@ -1105,6 +1111,7 @@ Object.assign(BookingHub, {
                     this.renderPaymentRoomSummary();
                 };
                 el.addEventListener('input', () => {
+                    if (id === 'bk-form-total') el.dataset.bkUserEdited = '1';
                     if (id !== 'bk-form-deposit') refreshMoneyPreview();
                 });
                 el.addEventListener('blur', () => {
@@ -1232,6 +1239,16 @@ Object.assign(BookingHub, {
         return this.getRoomCart().reduce((sum, item) => {
             return sum + Number(item.unit_total || item.base_price || 0) * Number(item.quantity || 1);
         }, 0);
+    },
+
+    isBookingTotalManualOverride(totalPrice = this.getMoneyValue('bk-form-total'), referenceTotal = this.getPmsReferenceTotal()) {
+        if (this.isOtaBookingForm()) return false;
+        const totalInput = document.getElementById('bk-form-total');
+        if (totalInput?.dataset.bkUserEdited !== '1') return false;
+        const total = Number(totalPrice || 0);
+        const reference = Number(referenceTotal || 0);
+        if (!Number.isFinite(total) || total <= 0) return false;
+        return !Number.isFinite(reference) || Math.round(total) !== Math.round(reference);
     },
 
     updateBookingTotalPreview() {
@@ -1409,7 +1426,7 @@ Object.assign(BookingHub, {
             }));
             const total = results.reduce((sum, row) => sum + row.unitTotal * Number(row.item.quantity || 1), 0);
             this.state.bookingPricingPreview = results[0]?.data || null;
-            if (totalInput && !isOta) totalInput.value = Number(total).toLocaleString('vi-VN');
+            if (totalInput && !isOta && !totalInput.dataset.bkUserEdited) totalInput.value = Number(total).toLocaleString('vi-VN');
             this.renderBookingPriceBreakdown(results[0]?.data || {}, { referenceLabel: isOta ? 'Tổng PMS tham chiếu' : 'Tổng cộng' });
             if (breakdown && results.length > 1) {
                 const summary = results.map((row) => {
@@ -1427,7 +1444,7 @@ Object.assign(BookingHub, {
                 item.unit_total = unit;
                 return sum + unit * Number(item.quantity || 1);
             }, 0);
-            if (totalInput && !isOta) totalInput.value = Number(fallbackTotal).toLocaleString('vi-VN');
+            if (totalInput && !isOta && !totalInput.dataset.bkUserEdited) totalInput.value = Number(fallbackTotal).toLocaleString('vi-VN');
             if (breakdown) {
                 const hint = this.escape(err.message || 'Không tính được giá từ PricingEngine.');
                 breakdown.innerHTML = `<div class="bk-field-hint">${hint} ${isOta ? 'Giữ nguyên giá OTA đã nhập và chỉ dùng giá cơ bản để tham chiếu.' : 'Đang dùng giá cơ bản.'}</div>`;
@@ -1920,6 +1937,7 @@ Object.assign(BookingHub, {
         const totalPrice = Number(this.getMoneyValue('bk-form-total') || 0);
         const depositAmount = Number(this.getEffectiveBookingDeposit() || 0);
         const pmsReferenceTotal = Number(this.getPmsReferenceTotal() || 0);
+        const manualTotalOverride = this.isBookingTotalManualOverride(totalPrice, pmsReferenceTotal);
         const selectedRoomTypeId = Number(this.value('bk-form-room-type'));
         const otaPricing = this.isOtaBookingForm()
             ? {
@@ -1965,6 +1983,10 @@ Object.assign(BookingHub, {
                 check_in_at: this.value('bk-form-check-in-at'),
                 check_out_at: this.value('bk-form-check-out-at'),
                 pricing_preview: this.state.bookingPricingPreview || null,
+                manual_total_override: manualTotalOverride,
+                manual_total_price: manualTotalOverride ? totalPrice : null,
+                manual_total_reference: Number.isFinite(pmsReferenceTotal) ? pmsReferenceTotal : 0,
+                manual_total_delta: manualTotalOverride && Number.isFinite(totalPrice - pmsReferenceTotal) ? totalPrice - pmsReferenceTotal : 0,
                 source_label: this.getBookingSourceLabel(),
                 booking_reference_code: this.value('bk-form-booking-type') === 'OTA' ? this.value('bk-form-booking-code') : '',
                 ota_channel: this.value('bk-form-booking-type') === 'OTA' ? this.value('bk-form-ota-channel') : '',
@@ -1983,7 +2005,7 @@ Object.assign(BookingHub, {
                 return {
                     room_type_id: Number(item.room_type_id),
                     quantity: Math.max(1, Number(item.quantity || 1)),
-                    unit_total: isOta || !Number.isFinite(unitTotal) ? 0 : unitTotal,
+                    unit_total: isOta || manualTotalOverride || !Number.isFinite(unitTotal) ? 0 : unitTotal,
                     reference_unit_total: Number.isFinite(unitTotal) ? unitTotal : 0,
                     room_type: item.room_type,
                 };
@@ -2136,7 +2158,10 @@ Object.assign(BookingHub, {
             'bk-form-new-province', 'bk-form-new-ward'
         ].forEach((id) => {
             const el = document.getElementById(id);
-            if (el) el.value = id === 'bk-form-total' || id === 'bk-form-deposit' ? '0' : '';
+            if (el) {
+                el.value = id === 'bk-form-total' || id === 'bk-form-deposit' ? '0' : '';
+                if (id === 'bk-form-total') delete el.dataset.bkUserEdited;
+            }
         });
         const nat = document.getElementById('bk-form-nationality');
         if (nat) nat.value = 'VNM - Việt Nam';

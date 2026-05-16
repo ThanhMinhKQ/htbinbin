@@ -957,12 +957,155 @@ def page_reservation_confirmation_print(
     if not booking:
         raise HTTPException(status_code=404, detail="Không tìm thấy đặt phòng")
     _target_branch_id(request, db, user, booking.branch_id)
+    serialized = BookingService(db).serialize(booking)
+    extras = _build_print_extras(serialized)
     return templates.TemplateResponse(request, "pms/reservation_confirmation_print.html", {
         "request": request,
-        "booking": BookingService(db).serialize(booking),
+        "booking": serialized,
         "current_user": user,
         "current_time": datetime.now(VN_TZ).strftime("%d/%m/%Y %H:%M"),
+        **extras,
     })
+
+
+def _build_print_extras(booking: dict[str, Any]) -> dict[str, Any]:
+    """Đảm bảo template print có đủ breakdown/services/time cho mọi loại booking,
+    đặc biệt booking theo giờ vốn không luôn có pricing_preview chuẩn."""
+    def as_float(value: Any) -> float:
+        if isinstance(value, str):
+            cleaned = re.sub(r"[^\d,.\-]", "", value.strip())
+            if not cleaned:
+                return 0.0
+            if "." in cleaned and "," in cleaned:
+                if cleaned.rfind(",") > cleaned.rfind("."):
+                    cleaned = cleaned.replace(".", "").replace(",", ".")
+                else:
+                    cleaned = cleaned.replace(",", "")
+            elif "." in cleaned:
+                parts = cleaned.split(".")
+                if len(parts) > 1 and all(len(part) == 3 for part in parts[1:]):
+                    cleaned = "".join(parts)
+            elif "," in cleaned:
+                parts = cleaned.split(",")
+                if len(parts) > 1 and all(len(part) == 3 for part in parts[1:]):
+                    cleaned = "".join(parts)
+                else:
+                    cleaned = cleaned.replace(",", ".")
+        try:
+            return float(cleaned if isinstance(value, str) else (value or 0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    raw = booking.get("raw_data") or {}
+    pricing = raw.get("pricing_preview") or {}
+    pricing_breakdown = pricing.get("breakdown") if isinstance(pricing, dict) else None
+    breakdown = [dict(item) for item in pricing_breakdown if isinstance(item, dict)] if isinstance(pricing_breakdown, list) else []
+    services = raw.get("services") or []
+    manual_override_value = raw.get("manual_total_override")
+    manual_total_override = manual_override_value is True or str(manual_override_value).strip().lower() in {"1", "true", "yes", "on"}
+    manual_total_price = as_float(raw.get("manual_total_price"))
+    if manual_total_override and manual_total_price > 0:
+        booking["total_price"] = manual_total_price
+
+    check_in_at = str(raw.get("check_in_at") or "")
+    check_out_at = str(raw.get("check_out_at") or "")
+    check_in_time = (check_in_at[-5:] if "T" in check_in_at else "") or (booking.get("estimated_arrival") or "14:00")[-5:]
+    check_out_time = (check_out_at[-5:] if "T" in check_out_at else "") or "12:00"
+
+    cross_midnight = bool(raw.get("ota_cross_midnight_booking"))
+    same_day_flag = bool(raw.get("ota_same_day_booking"))
+    pricing_mode = str(raw.get("pricing_mode") or pricing.get("pricing_mode") or "").upper()
+    same_day_dates = bool(booking.get("check_in") and booking.get("check_out") and booking["check_in"] == booking["check_out"])
+    special_req = str(booking.get("special_requests") or "").lower()
+    hourly_in_notes = "giờ" in special_req or "hourly" in special_req or "hour" in special_req
+    is_hourly = (
+        pricing_mode in {"HOUR", "HOURLY", "FORCE_HOURLY"}
+        or (same_day_flag and not cross_midnight)
+        or same_day_dates
+        or hourly_in_notes
+    )
+
+    if not breakdown and not services:
+        total_price = float(booking.get("total_price") or 0)
+        ci_iso = check_in_at if "T" in check_in_at else f"{booking.get('check_in') or ''}T{check_in_time}"
+        co_iso = check_out_at if "T" in check_out_at else f"{booking.get('check_out') or ''}T{check_out_time}"
+        if is_hourly:
+            hours = _stay_hours(ci_iso, co_iso) or 1
+            breakdown = [{
+                "type": "HOURLY_CHARGE",
+                "description": f"Tiền phòng theo giờ ({hours} tiếng)",
+                "amount": total_price,
+                "hours": hours,
+                "start_iso": ci_iso,
+                "end_iso": co_iso,
+                "slice_type": "core",
+            }]
+        else:
+            nights = max(1, _date_diff(booking.get("check_in"), booking.get("check_out")))
+            breakdown = [{
+                "type": "ROOM_CHARGE",
+                "description": f"Tiền phòng ({nights} đêm)",
+                "amount": total_price,
+                "days": nights,
+                "start_iso": ci_iso,
+                "end_iso": co_iso,
+                "slice_type": "core",
+            }]
+
+    if manual_total_override:
+        total_price = as_float(booking.get("total_price"))
+        line_total = sum(as_float(item.get("amount")) for item in breakdown)
+        for service in services if isinstance(services, list) else []:
+            if not isinstance(service, dict):
+                continue
+            service_qty = as_float(service.get("qty") or service.get("quantity") or 1) or 1
+            service_price = service.get("total")
+            if service_price is None:
+                service_price = service.get("amount")
+            if service_price is None:
+                service_price = as_float(service.get("price")) * service_qty
+            line_total += as_float(service_price)
+        if isinstance(pricing_breakdown, dict):
+            legacy_early = raw.get("early_checkin_fee") or raw.get("early_fee") or pricing_breakdown.get("early_checkin_fee")
+            legacy_late = raw.get("late_checkout_fee") or raw.get("late_fee") or pricing_breakdown.get("late_checkout_fee")
+            line_total += as_float(legacy_early) + as_float(legacy_late)
+        delta = round(total_price - line_total)
+        if total_price > 0 and delta:
+            breakdown.append({
+                "type": "MANUAL_TOTAL_ADJUSTMENT",
+                "description": "Chênh lệch xác nhận / Adjustment",
+                "amount": delta,
+                "manual_total_override": True,
+                "reference_total": raw.get("manual_total_reference"),
+                "confirmed_total": total_price,
+            })
+
+    return {
+        "services": services,
+        "breakdown": breakdown,
+        "check_in_time": check_in_time,
+        "check_out_time": check_out_time,
+        "is_hourly_booking": is_hourly,
+    }
+
+
+def _stay_hours(check_in_at: str, check_out_at: str) -> int:
+    try:
+        ci = datetime.fromisoformat(check_in_at)
+        co = datetime.fromisoformat(check_out_at)
+        delta = (co - ci).total_seconds() / 3600
+        return max(1, int(round(delta)))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _date_diff(start: Optional[str], end: Optional[str]) -> int:
+    try:
+        a = date.fromisoformat(str(start)[:10])
+        b = date.fromisoformat(str(end)[:10])
+        return max(0, (b - a).days)
+    except (TypeError, ValueError):
+        return 0
 
 
 @router.put("/api/pms/reservations/{booking_id}", tags=["PMS Reservations"])

@@ -1202,6 +1202,66 @@ html.dark {
   border-color: var(--bk-line);
 }
 
+.bk-source-pill.soft-shadow {
+  color: #64748b;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.bk-reservations-table tbody tr.soft-shadow {
+  opacity: 0.62;
+  background: linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%);
+}
+
+.bk-reservations-table tbody tr.soft-shadow:hover {
+  opacity: 1;
+  background: var(--bk-surface-soft);
+}
+
+.bk-checkin-trace {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--bk-line);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--bk-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.bk-checkin-trace .bk-trace-label {
+  color: var(--bk-muted);
+  font-weight: 600;
+}
+
+.bk-crm-link {
+  color: var(--bk-primary-strong);
+  font-weight: 700;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.bk-crm-link:hover {
+  text-decoration: underline;
+}
+
+.bk-crm-link.disabled {
+  color: var(--bk-ink);
+  cursor: default;
+}
+
+.bk-request-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .bk-room-badge {
   min-height: 28px;
   padding: 0 10px;

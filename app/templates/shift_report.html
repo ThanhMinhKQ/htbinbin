@@ -1205,6 +1205,47 @@
                                         focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm"></textarea>
                     </div>
                 </div>
+
+                <!-- SOURCE TRACE WARNING -->
+                <div x-show="editSource && editSource.folio_transaction" class="rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-3">
+                    <div class="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-semibold text-sm">
+                        <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                        <span>Giao dịch này liên kết với dòng tiền PMS</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs text-slate-700 dark:text-slate-300">
+                        <div x-show="editSource && editSource.folio">
+                            <span class="font-medium text-slate-500 dark:text-slate-400">Folio:</span>
+                            <span x-text="editSource?.folio?.folio_code || '—'" class="font-semibold"></span>
+                            <span x-text="'(' + (editSource?.folio?.status || '') + ')'" class="text-slate-400"></span>
+                        </div>
+                        <div x-show="editSource && editSource.room_number">
+                            <span class="font-medium text-slate-500 dark:text-slate-400">Phòng:</span>
+                            <span x-text="editSource?.room_number || '—'" class="font-semibold"></span>
+                        </div>
+                        <div x-show="editSource && editSource.folio_transaction">
+                            <span class="font-medium text-slate-500 dark:text-slate-400">Mô tả gốc:</span>
+                            <span x-text="editSource?.folio_transaction?.description || '—'" class="font-semibold"></span>
+                        </div>
+                        <div x-show="editSource && editSource.payment">
+                            <span class="font-medium text-slate-500 dark:text-slate-400">Payment:</span>
+                            <span x-text="(editSource?.payment?.method || '—') + ' — ' + formatCurrency(editSource?.payment?.amount || 0)" class="font-semibold"></span>
+                        </div>
+                    </div>
+                    <div x-show="editSource && editSource.cascade_locked_reason" class="text-xs text-rose-600 dark:text-rose-400 font-semibold" x-text="editSource?.cascade_locked_reason"></div>
+
+                    <div x-show="editNeedsCascadeConfirm() && !(editSource && editSource.cascade_locked_reason)" class="pt-2 border-t border-amber-200 dark:border-amber-800">
+                        <label class="flex items-start gap-2 cursor-pointer select-none">
+                            <input type="checkbox" x-model="editConfirmCascade" name="confirm_cascade" class="mt-0.5 w-4 h-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500">
+                            <span class="text-xs text-amber-900 dark:text-amber-200 leading-tight">
+                                Tôi xác nhận cập nhật cả <strong>Folio</strong> và <strong>bảng thanh toán</strong> theo thay đổi này.
+                                <span class="block mt-1 text-slate-500 dark:text-slate-400">Nếu không tick, chỉ giao ca được sửa — dòng tiền PMS giữ nguyên.</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <!-- END SOURCE TRACE WARNING -->
+
+                <input type="hidden" name="confirm_cascade" :value="editConfirmCascade ? 'true' : 'false'">
             </form>
     
             <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
@@ -2065,6 +2106,12 @@
 
             formattedAmount: '', // THÊM: State cho input tiền
             addTransactionType: '', // THÊM: State cho loại giao dịch khi thêm mới
+            // Source-trace state cho edit modal
+            editSource: null,
+            editSourceLoading: false,
+            editConfirmCascade: false,
+            originalAmount: 0,
+            originalTxType: '',
             userRole: '{{ user.role }}',
             recorderSuggestions: [],
             // XOÁ: reporterSuggestions, disposerSuggestions
@@ -2564,6 +2611,12 @@
                 this.editItem = JSON.parse(JSON.stringify(item));
                 // SỬA: Hiển thị số tiền đã format
                 this.formattedAmount = this.formatCurrency(this.editItem.amount, false); // false = không có ' VNĐ'
+                // Reset source-trace state mỗi lần mở
+                this.editSource = null;
+                this.editSourceLoading = true;
+                this.editConfirmCascade = false;
+                this.originalAmount = this.editItem.amount;
+                this.originalTxType = this.editItem.transaction_type;
                 // THÊM: Đóng modal chi tiết trước khi mở modal sửa
                 this.closeDetailsModal();
                 setTimeout(() => {
@@ -2571,13 +2624,43 @@
                     this.$nextTick(() => {
                         const editRecordedBySearch = document.getElementById('edit_recorded_by_search');
                         if (editRecordedBySearch && this.editItem.recorded_by) {
-                            editRecordedBySearch.value = this.editItem.recorded_by; 
+                            editRecordedBySearch.value = this.editItem.recorded_by;
                         }
                         this.recorderSuggestions = [];
                     });
                 }, 250); // Tăng thời gian chờ để khớp với transition:leave duration (200ms)
+                // Fetch source trace song song để render cảnh báo nguồn
+                this.fetchEditSource(item.id);
             },
             closeEditModal: function() { this.isEditModalOpen = false; },
+
+            fetchEditSource: async function(itemId) {
+                try {
+                    const resp = await fetch(`/shift-report/edit-source/${itemId}`);
+                    if (!resp.ok) {
+                        this.editSource = null;
+                        return;
+                    }
+                    this.editSource = await resp.json();
+                } catch (e) {
+                    this.editSource = null;
+                } finally {
+                    this.editSourceLoading = false;
+                }
+            },
+
+            editHasFinancialChange: function() {
+                const newAmount = parseInt(this.getRawAmount('edit') || '0', 10);
+                const oldAmount = parseInt(this.originalAmount || 0, 10);
+                return newAmount !== oldAmount || this.editItem.transaction_type !== this.originalTxType;
+            },
+
+            editNeedsCascadeConfirm: function() {
+                if (!this.editSource) return false;
+                const impacts = this.editSource.impacts || [];
+                if (impacts.length === 0) return false;
+                return this.editHasFinancialChange();
+            },
 
             openDetailsModal: function(item) {
                 this.selectedItem = item;
@@ -3169,14 +3252,17 @@
                 submitBtn.innerHTML = 'Đang lưu...';
 
                 const formData = new FormData(form);
-                
+
                 // Ghi đè 'amount' bằng giá trị số
                 formData.set('amount', this.getRawAmount());
+
+                // Ghi đúng confirm_cascade từ Alpine state (hidden input có thể bị override bởi checkbox cùng name)
+                formData.set('confirm_cascade', this.editConfirmCascade ? 'true' : 'false');
 
                 // Validation
                 const transactionType = formData.get('transaction_type');
                 const amount = formData.get('amount');
-                
+
                 if (!transactionType || !amount || parseInt(amount, 10) === 0) {
                     alert('Vui lòng chọn "Loại giao dịch" và nhập "Số tiền" hợp lệ.');
                     submitBtn.disabled = false;
@@ -3184,18 +3270,27 @@
                     return;
                 }
 
+                // Nếu có thay đổi tài chính + có liên kết folio nhưng user chưa tick xác nhận → cảnh báo
+                if (this.editNeedsCascadeConfirm() && !this.editConfirmCascade && !(this.editSource && this.editSource.cascade_locked_reason)) {
+                    const proceed = confirm('Bạn chưa xác nhận cập nhật Folio/Payment.\nChỉ giao ca sẽ được sửa, dòng tiền PMS giữ nguyên.\n\nTiếp tục không?');
+                    if (!proceed) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnText;
+                        return;
+                    }
+                }
+
                 try {
-                    // SỬA: API endpoint
                     const response = await fetch(`/shift-report/edit-details/${this.editItem.id}`, {
                         method: 'POST',
                         body: formData,
                     });
-                    
+
                     const result = await response.json();
                     if (!response.ok) {
                         let errorMessage = result.detail || 'Lỗi không xác định.';
                         if (Array.isArray(result.detail)) {
-                             errorMessage = result.detail.map(e => `${e.loc.join(' -> ')}: ${e.msg}`).join('\n');
+                            errorMessage = result.detail.map(e => `${e.loc.join(' -> ')}: ${e.msg}`).join('\n');
                         }
                         throw new Error(errorMessage);
                     }
@@ -3205,9 +3300,14 @@
                         this.closeEditModal();
                         await this.refreshShiftReportState();
 
-                        // Cascade toast: Folio cũng được cập nhật
-                        if (result.cascade_folio_updated) {
+                        // Cascade toast chi tiết
+                        const cs = result.cascade_summary || {};
+                        if (cs.folio_transaction && cs.payment) {
+                            showToast('edit', 'Đã cập nhật — Folio + Payment cũng thay đổi ✓');
+                        } else if (cs.folio_transaction) {
                             showToast('edit', 'Đã cập nhật — Folio thanh toán cũng thay đổi ✓');
+                        } else if (cs.skipped_reason) {
+                            showToast('update', 'Giao ca đã lưu. ' + cs.skipped_reason);
                         }
                     } else {
                         alert('Lỗi: ' + (result.message || 'Không nhận được dữ liệu hợp lệ.'));

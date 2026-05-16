@@ -95,6 +95,7 @@ Object.assign(BookingHub, {
         const status = booking.reservation_status || 'PENDING';
         const rawData = booking.raw_data || {};
         const isTransferShadow = Boolean(rawData.transfer_shadow);
+        const isSoftShadow = ['CHECKED_IN', 'CHECKED_OUT'].includes(status) && Boolean(booking.stay_id);
         const overCapacityPending = Boolean(rawData.over_capacity_pending);
         const canConfirm = status === 'PENDING' && !booking.assigned_room_id && !isTransferShadow;
         const canMarkPending = status === 'CONFIRMED' && !booking.assigned_room_id && !isTransferShadow;
@@ -130,6 +131,9 @@ Object.assign(BookingHub, {
         const transferLabel = isTransferShadow
             ? `<span class="bk-source-pill transfer-shadow">Đã chuyển sang ${this.escape(rawData.transferred_to_branch_name || 'chi nhánh khác')}</span>`
             : '';
+        const softShadowLabel = isSoftShadow
+            ? `<span class="bk-source-pill soft-shadow" title="Bản mềm để thống kê — đã nhận phòng"><i class="bi bi-archive"></i> Bản mềm</span>`
+            : '';
         const overCapacityLabel = overCapacityPending
             ? '<span class="bk-source-pill over-capacity">Chờ đủ tồn</span>'
             : '';
@@ -158,12 +162,22 @@ Object.assign(BookingHub, {
         const checkOutText = this.formatStayDateTime(checkOutDate, checkOutTime);
         const guests = Number(booking.num_guests || 1);
         const requestText = (booking.special_requests || booking.internal_notes || booking.cancel_reason || '').trim();
+        const trace = booking.checked_in_trace || null;
+        const traceHtml = trace ? (() => {
+            const traceName = this.escape(trace.guest_name || 'Khách lẻ');
+            const tracePhone = trace.guest_phone ? ` · ${this.escape(trace.guest_phone)}` : '';
+            const traceLink = trace.crm_guest_id
+                ? `<a class="bk-crm-link" href="/pms/crm/guest/${trace.crm_guest_id}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Mở hồ sơ CRM"><i class="bi bi-person-vcard"></i> ${traceName}</a>`
+                : `<span class="bk-crm-link disabled"><i class="bi bi-person"></i> ${traceName}</span>`;
+            return `<div class="bk-checkin-trace"><span class="bk-trace-label">Đã nhận bởi:</span> ${traceLink}${tracePhone}</div>`;
+        })() : '';
         const isUnassigned = canAssign && !booking.assigned_room_id;
         const rowClass = [
             status === 'PENDING' ? 'needs-confirm' : '',
             canCheckin ? 'ready-checkin' : '',
             isUnassigned ? 'needs-room' : '',
             isTransferShadow ? 'transfer-shadow' : '',
+            isSoftShadow ? 'soft-shadow' : '',
         ].filter(Boolean).join(' ');
         const nextAction = isTransferShadow ? `Đã chuyển sang ${rawData.transferred_to_branch_name || 'chi nhánh khác'}`
             : overCapacityPending ? 'Chờ đủ tồn để xác nhận'
@@ -203,6 +217,7 @@ Object.assign(BookingHub, {
                         <span class="bk-source-pill">${source}</span>
                         ${groupLabel}
                         ${transferLabel}
+                        ${softShadowLabel}
                         ${overCapacityLabel}
                         <span class="bk-ota-id">ID: ${this.escape(booking.id)}</span>
                     </div>
@@ -245,8 +260,10 @@ Object.assign(BookingHub, {
                     </div>
                 </td>
                 <td>
-                    <div class="bk-request-cell ${requestText ? '' : 'empty'}">
-                        ${requestText ? `<i class="bi bi-chat-dots"></i> ${this.escape(requestText)}` : '<span class="bk-no-request">Không có yêu cầu</span>'}
+                    <div class="bk-request-cell ${requestText || traceHtml ? '' : 'empty'}">
+                        ${requestText ? `<div class="bk-request-text"><i class="bi bi-chat-dots"></i> ${this.escape(requestText)}</div>` : ''}
+                        ${traceHtml}
+                        ${!requestText && !traceHtml ? '<span class="bk-no-request">Không có yêu cầu</span>' : ''}
                     </div>
                 </td>
                 <td><div class="bk-row-actions" onclick="event.stopPropagation()">${actions || '<span class="bk-no-actions">Không còn thao tác</span>'}</div></td>
