@@ -5,7 +5,7 @@ PMS Stays API - Stay management (detail, update, transfer)
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from decimal import Decimal
 from typing import Optional
 
@@ -939,6 +939,16 @@ def api_update_stay(
 
     if stay_type:
         stay.stay_type = stay_type
+        # Cập nhật description của CHECK_IN activity cho đúng tiếng Việt
+        from ...db.models import GuestActivity
+        stay_type_vn = "Phòng giờ" if stay_type.upper() in ("HOUR", "HOURLY", "FORCE_HOURLY") else "Qua đêm"
+        room_number = stay.room.room_number if stay.room else ""
+        checkin_act = db.query(GuestActivity).filter(
+            GuestActivity.stay_id == stay.id,
+            GuestActivity.activity_type == "CHECK_IN",
+        ).first()
+        if checkin_act:
+            checkin_act.description = f"Nhận phòng {stay_type_vn}" + (f" - Phòng {room_number}" if room_number else "")
 
     if deposit is not None:
         stay.deposit = deposit
@@ -983,16 +993,18 @@ def api_transfer_stay(
     request: Request,
     stay_id: int,
     new_room_id: int = Form(...),
+    transfer_charge: Optional[float] = Form(None),
+    transfer_note: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """Chuyển phòng"""
+    """Chuyển phòng — snapshot tiền phòng cũ vào folio, reset check_in_at"""
     user = _require_login(request)
     branch_name = _active_branch(request)
 
     # Get current stay
     stay = (
         db.query(HotelStay)
-        .options(joinedload(HotelStay.room))
+        .options(joinedload(HotelStay.room).joinedload(HotelRoom.room_type_obj))
         .filter(HotelStay.id == stay_id, HotelStay.status == HotelStayStatus.ACTIVE)
         .first()
     )
@@ -1009,17 +1021,162 @@ def api_transfer_stay(
     if not new_room:
         raise HTTPException(status_code=404, detail="Không tìm thấy phòng mới")
 
-    # Check if new room is available
-    occupied = _get_occupied_rooms_for_dates(
-        db, stay.branch_id, stay.check_in_at, stay.check_out_at or _now_vn()
-    )
-    if new_room_id in occupied:
+    # Check new room not occupied (ACTIVE stay in same branch)
+    already_occupied = db.query(HotelStay.room_id).filter(
+        HotelStay.branch_id == stay.branch_id,
+        HotelStay.status == HotelStayStatus.ACTIVE,
+        HotelStay.room_id == new_room_id,
+    ).first()
+    if already_occupied:
         raise HTTPException(status_code=400, detail="Phòng mới đã có người đặt")
 
-    # Update stay
+    now = _now_vn()
     old_room = stay.room
     old_room_number = old_room.room_number
+    old_rt = old_room.room_type_obj
+    old_type_name = old_rt.name if old_rt else "—"
+
+    # ── OTA stays: không áp dụng segment billing ──────────────────────────────
+    is_ota = stay.pricing_mode_initial == "OTA_MANUAL"
+
+    # ── Tính tiền phòng cũ + xác định mốc billing_start_at theo nghiệp vụ ──
+    segment_amount = money(0)
+    segment_desc = ""
+    extra_fee_amount = money(0)
+    extra_fee_desc = ""
+    new_billing_start = now
+    is_dead_zone = False
+
+    if not is_ota:
+        effective_mode = MODE_TO_STAY_TYPE.get(stay.pricing_mode_initial or "AUTO", "AUTO")
+        billing_from = stay.billing_start_at if stay.billing_start_at else stay.check_in_at
+
+        # Convert sang VN timezone
+        billing_from_vn = billing_from.astimezone(VN_TZ) if billing_from.tzinfo else VN_TZ.localize(billing_from)
+        transfer_time_vn = now.astimezone(VN_TZ) if now.tzinfo else VN_TZ.localize(now)
+
+        # std_in / std_out của hạng phòng cũ (mặc định 14:00 / 12:00)
+        std_in_time = old_rt.standard_checkin_time if old_rt and old_rt.standard_checkin_time else time(14, 0)
+        std_out_time = old_rt.standard_checkout_time if old_rt and old_rt.standard_checkout_time else time(12, 0)
+
+        # Tìm next_std_out (std_out đầu tiên > billing_from)
+        std_out_same_day = VN_TZ.localize(datetime.combine(billing_from_vn.date(), std_out_time))
+        if billing_from_vn >= std_out_same_day:
+            next_std_out = std_out_same_day + timedelta(days=1)
+        else:
+            next_std_out = std_out_same_day
+
+        # Forward để tìm last_completed_std_out (std_out gần nhất ≤ transfer_time)
+        last_completed_std_out = None
+        while next_std_out <= transfer_time_vn:
+            last_completed_std_out = next_std_out
+            next_std_out = next_std_out + timedelta(days=1)
+
+        # std_in của ngày transfer_time
+        std_in_today = VN_TZ.localize(datetime.combine(transfer_time_vn.date(), std_in_time))
+
+        # Phân loại kịch bản
+        if last_completed_std_out is None:
+            # Chưa qua std_out nào → cùng hotel day với lần transfer trước
+            # KHÔNG ghi segment (tránh double charge), giữ nguyên billing_start_at
+            # Khi checkout sẽ tính 1 đêm với giá phòng cuối cùng
+            segment_end = None
+            new_billing_start = billing_from  # giữ nguyên
+            is_dead_zone = False
+        elif transfer_time_vn >= std_in_today:
+            # Kịch bản C: đã vào hotel day mới (sau std_in của ngày transfer)
+            segment_end = last_completed_std_out
+            new_billing_start = std_in_today
+            is_dead_zone = False
+        else:
+            # transfer_time < std_in_today
+            # std_in sau last_completed_std_out (cùng ngày)
+            std_in_after_last = VN_TZ.localize(datetime.combine(
+                last_completed_std_out.date(), std_in_time
+            ))
+            if transfer_time_vn >= std_in_after_last:
+                # Kịch bản A: trong hotel day chưa kết thúc, đã qua std_in
+                segment_end = next_std_out
+                new_billing_start = next_std_out
+                is_dead_zone = False
+            else:
+                # Kịch bản B: dead zone (giữa std_out và std_in)
+                segment_end = last_completed_std_out
+                new_billing_start = std_in_after_last
+                is_dead_zone = True
+
+        # Tính tiền phòng cũ từ billing_from → segment_end (chỉ khi có segment)
+        if segment_end is not None:
+            old_charge_raw, _ = calculate_full_charge(effective_mode, old_rt, billing_from, segment_end)
+            segment_amount = money(old_charge_raw)
+
+            segment_end_vn = segment_end.astimezone(VN_TZ) if segment_end.tzinfo else VN_TZ.localize(segment_end)
+            segment_desc = (
+                f"Tiền phòng {old_room_number} ({old_type_name}) — "
+                f"{billing_from_vn.strftime('%H:%M %d/%m')} → {segment_end_vn.strftime('%H:%M %d/%m')}"
+            )
+
+        # Phí chuyển phòng — chỉ áp dụng khi KHÔNG phải dead zone
+        if not is_dead_zone and transfer_charge is not None and transfer_charge > 0:
+            extra_fee_amount = money(transfer_charge)
+            extra_fee_desc = (
+                f"Phí chuyển phòng ({old_room_number} → {new_room.room_number})"
+            )
+            if transfer_note:
+                extra_fee_desc += f" | {transfer_note}"
+
+    # ── Ghi FolioTransaction ──────────────────────────────────────────────────
+    folio = None
+    if segment_amount > 0 or extra_fee_amount > 0:
+        folio = db.query(Folio).filter(
+            Folio.stay_id == stay_id,
+            Folio.status != "CLOSED",
+        ).first()
+
+    if folio and segment_amount > 0:
+        db.add(FolioTransaction(
+            folio_id=folio.id,
+            stay_id=stay_id,
+            branch_id=stay.branch_id,
+            transaction_type=FTT.ROOM_CHARGE,
+            category=FTC.ROOM,
+            description=segment_desc,
+            amount=segment_amount,
+            quantity=1,
+            unit_price=segment_amount,
+            reference_type="room_transfer_segment",
+            reference_id=stay_id,
+            created_by=user.get("id"),
+        ))
+
+    if folio and extra_fee_amount > 0:
+        db.add(FolioTransaction(
+            folio_id=folio.id,
+            stay_id=stay_id,
+            branch_id=stay.branch_id,
+            transaction_type=FTT.SURCHARGE,
+            category=FTC.SURCHARGE,
+            description=extra_fee_desc,
+            amount=extra_fee_amount,
+            quantity=1,
+            unit_price=extra_fee_amount,
+            reference_type="room_transfer_fee",
+            reference_id=stay_id,
+            created_by=user.get("id"),
+        ))
+
+    if folio and (segment_amount > 0 or extra_fee_amount > 0):
+        db.flush()
+        folio.recalculate_balance()
+
+    # ── Cập nhật stay ──────────────────────────────────────────────────────────
+    # Lưu mốc check-in gốc lần đầu chuyển phòng (không ghi đè nếu đã có)
+    if not is_ota and stay.original_check_in_at is None:
+        stay.original_check_in_at = stay.check_in_at
+
     stay.room_id = new_room_id
+    if not is_ota:
+        stay.billing_start_at = new_billing_start  # mốc tính giá phòng mới (now hoặc std_checkout nếu đã trả đủ)
 
     # ── Guest Activity Logging ─────────────────────────────────────────────────
     primary_guest = db.query(HotelGuest).filter(
@@ -1037,10 +1194,13 @@ def api_transfer_stay(
     db.commit()
 
     return JSONResponse({
-        "message": f"Chuyển phòng thành công từ {old_room.room_number} sang {new_room.room_number}",
+        "message": f"Chuyển phòng thành công từ {old_room_number} sang {new_room.room_number}",
         "stay_id": stay.id,
-        "old_room": old_room.room_number,
+        "old_room": old_room_number,
         "new_room": new_room.room_number,
+        "segment_charge": float(segment_amount),
+        "extra_fee": float(extra_fee_amount),
+        "is_dead_zone": is_dead_zone,
     })
 
 

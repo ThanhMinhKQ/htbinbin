@@ -136,8 +136,8 @@ class ReservationHubBookingTableUiContractTest(unittest.TestCase):
 
     def test_no_show_button_only_after_checkout_for_not_checked_in_bookings(self):
         js = RESERVATIONS_JS.read_text(encoding="utf-8")
-        self.assertIn("const canNoShow", js)
-        self.assertIn("this.isPastCheckoutDate(booking.check_out)", js)
+        self.assertIn("canNoShow", js)
+        self.assertIn("this.isPastCheckoutTime(booking.check_out, checkOutTime)", js)
         self.assertIn("!['CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(status)", js)
         self.assertNotRegex(js, r"canCancel \? `[^`]*noShow")
 

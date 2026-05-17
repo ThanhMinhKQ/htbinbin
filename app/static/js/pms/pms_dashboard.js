@@ -526,7 +526,7 @@ function pmsRoomCard(r) {
     const canCheckin = !isOcc && cond === 'CLEAN';
     const badgeClick = isOcc && s
         ? "openRoomDetail(" + s.id + ",'" + r.room_number + "')"
-        : (canCheckin ? "openCI(" + r.id + ")" : '');
+        : (canCheckin ? "openCI(" + r.id + ")" : (!isOcc && cond !== 'CLEAN' ? "pmsQuickClean(" + r.id + ")" : ''));
 
     // ── Info section ──
     let info;
@@ -593,7 +593,7 @@ function pmsRoomCard(r) {
             + PMS_SVG.logOut + '</button>'
             + '<button class="ra-btn ra-ag" onclick="openAG(' + s.id + ',\'' + r.room_number + '\')" title="Thêm khách">'
             + PMS_SVG.addUser + '</button>'
-            + '<button class="ra-btn ra-tf" onclick="openTF(' + s.id + ',\'' + r.room_number + '\')" title="Đổi phòng">'
+            + '<button class="ra-btn ra-tf" onclick="openTF(' + s.id + ',\'' + r.room_number + '\',\'' + (r.room_type_name || '').replace(/'/g, "\\'") + '\',' + (r.price_per_night || 0) + ')" title="Đổi phòng">'
             + PMS_SVG.swap + '</button>';
     } else if (canCheckin) {
         const arrivalMatches = pmsGetRoomArrivalMatches(r);
@@ -617,7 +617,8 @@ function pmsRoomCard(r) {
         };
         var cfg = condCfg[cond];
         if (cfg) {
-            residentsContent = '<div class="rc-cond-status rc-cond-status--big ' + cfg.cls + '">'
+            var clickAttr = !isOcc ? ' onclick="pmsQuickClean(' + r.id + ')" style="cursor:pointer;" title="Click để chuyển về Sẵn sàng"' : '';
+            residentsContent = '<div class="rc-cond-status rc-cond-status--big ' + cfg.cls + '"' + clickAttr + '>'
                 + '<span class="rc-cond-icon">' + cfg.icon + '</span>'
                 + '<span class="rc-cond-text">' + cfg.text + '</span>'
                 + '</div>';
@@ -670,6 +671,11 @@ window.pmsChangeBranch = pmsChangeBranch;
 window.pmsSetTab = pmsSetTab;
 window.pmsSetView = pmsSetView;
 window.pmsRender = pmsRender;
+
+function pmsQuickClean(roomId) {
+    pmsToggleRoomCondition(roomId, 'CLEAN');
+}
+window.pmsQuickClean = pmsQuickClean;
 
 async function pmsToggleRoomCondition(roomId, condition) {
     try {

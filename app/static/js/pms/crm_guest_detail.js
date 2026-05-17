@@ -236,6 +236,48 @@ function guestDetail() {
       };
       return labels[type] || type;
     },
+    preferenceValue(pref) {
+      if (!pref || !pref.value) return '-';
+      if (pref.type === 'stay_type') {
+        const map = {
+          HOUR: 'Phòng giờ', HOURLY: 'Phòng giờ', FORCE_HOURLY: 'Phòng giờ',
+          NIGHT: 'Qua đêm', OVERNIGHT: 'Qua đêm', FORCE_OVERNIGHT: 'Qua đêm',
+          AUTO: 'Tự động',
+        };
+        return map[pref.value.toUpperCase()] || pref.value;
+      }
+      if (pref.type === 'pricing_mode') {
+        const map = {
+          AUTO: 'Tự động',
+          FORCE_HOURLY: 'Theo giờ',
+          FORCE_OVERNIGHT: 'Theo đêm',
+          OTA_MANUAL: 'OTA thủ công',
+          HOURLY: 'Theo giờ', HOURLY_CHARGE: 'Theo giờ',
+          OVERNIGHT: 'Theo đêm', NIGHT: 'Theo đêm',
+        };
+        return map[pref.value.toUpperCase()] || pref.value;
+      }
+      return pref.value;
+    },
+    fmtStayType(val) {
+      if (!val) return '-';
+      const map = {
+        HOUR: 'Phòng giờ', HOURLY: 'Phòng giờ', FORCE_HOURLY: 'Phòng giờ',
+        NIGHT: 'Qua đêm', OVERNIGHT: 'Qua đêm', FORCE_OVERNIGHT: 'Qua đêm',
+        AUTO: 'Tự động',
+      };
+      return map[val.toUpperCase()] || val;
+    },
+    fmtPricingMode(val) {
+      if (!val) return '-';
+      const map = {
+        AUTO: 'Tự động',
+        FORCE_HOURLY: 'Theo giờ', HOURLY: 'Theo giờ', HOURLY_CHARGE: 'Theo giờ',
+        FORCE_OVERNIGHT: 'Theo đêm', OVERNIGHT: 'Theo đêm', NIGHT: 'Theo đêm',
+        OTA_MANUAL: 'OTA thủ công',
+      };
+      return map[val.toUpperCase()] || val;
+    },
     stayActivities(stay) {
       return (stay?.activities || []).slice(0, 4);
     },

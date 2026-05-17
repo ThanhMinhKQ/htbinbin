@@ -168,6 +168,7 @@ def log_checkin(
 
     room_number = _get_room_number(stay)
     stay_type = stay.stay_type or "night"
+    stay_type_vn = "Phòng giờ" if stay_type.upper() in ("HOUR", "HOURLY", "FORCE_HOURLY") else "Qua đêm"
 
     return log_activity(
         db=db,
@@ -175,7 +176,7 @@ def log_checkin(
         activity_type=ActivityType.CHECK_IN,
         activity_group=ActivityGroup.STAY,
         title=f"Nhận phòng {room_number or ''}",
-        description=f"Nhận phòng {stay_type}" + (f" - Phòng {room_number}" if room_number else ""),
+        description=f"Nhận phòng {stay_type_vn}" + (f" - Phòng {room_number}" if room_number else ""),
         stay_id=stay.id,
         branch_id=stay.branch_id,
         actor_type=ActorType.USER if actor_id else ActorType.SYSTEM,

@@ -102,11 +102,9 @@ Object.assign(BookingHub, {
         const canAssign = status === 'CONFIRMED' && !isTransferShadow;
         const canCancel = ['PENDING', 'CONFIRMED'].includes(status) && !isTransferShadow;
         const canCheckin = status === 'CONFIRMED' && booking.assigned_room_id && this.isCheckinDateReached(booking.check_in) && !isTransferShadow;
-        const canNoShow = this.isPastCheckoutDate(booking.check_out)
-            && !['CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(status)
-            && !isTransferShadow;
+        let canNoShow = false;
         const canEdit = status === 'CONFIRMED' && !isTransferShadow;
-        const canTransfer = ['PENDING', 'CONFIRMED'].includes(status) && !booking.assigned_room_id && !booking.stay_id && !isTransferShadow;
+        const canTransfer = status === 'PENDING' && !booking.assigned_room_id && !booking.stay_id && !isTransferShadow;
         const canRestore = ['CANCELLED', 'NO_SHOW'].includes(status) && !isTransferShadow;
         const sourceLabels = {
             DIRECT: 'Trực tiếp', OTA: 'OTA', SALES: 'Sales',
@@ -123,7 +121,16 @@ Object.assign(BookingHub, {
         const roomTypeRaw = booking.room_type || 'Chưa rõ loại phòng';
         const roomTypeParts = roomTypeRaw.split(/\s*[-–—]\s*/);
         const roomTypeClean = (roomTypeParts.length >= 2 ? roomTypeParts[1] : roomTypeParts[0]).split(/\s*(?:Hệ thống|Hướng dẫn|Payment)/i)[0].trim();
-        const roomType = this.escape(roomTypeClean.substring(0, 80) || roomTypeParts[0].substring(0, 80));
+        let roomType = this.escape(roomTypeClean.substring(0, 80) || roomTypeParts[0].substring(0, 80));
+        const originalRoomType = booking.original_room_type_name ? this.escape(booking.original_room_type_name) : '';
+        const roomTypeChanged = originalRoomType && originalRoomType.toLowerCase() !== roomType.toLowerCase();
+        let originalRoomTypeHtml = '';
+        if (roomTypeChanged && status === 'PENDING') {
+            originalRoomTypeHtml = `<span class="bk-room-type-original" title="Hạng phòng hệ thống: ${roomType}">${roomType}</span>`;
+            roomType = originalRoomType;
+        } else if (roomTypeChanged) {
+            originalRoomTypeHtml = `<span class="bk-room-type-original" title="Hạng phòng gốc từ OTA">${originalRoomType}</span>`;
+        }
         const roomSummary = booking.group_summary ? `<div class="bk-room-extra">${this.escape(booking.group_summary)}</div>` : '';
         const groupLabel = booking.group_code
             ? `<span class="bk-source-pill group">Nhóm ${this.escape(booking.group_index || 1)}/${this.escape(booking.group_total || 1)}</span>`
@@ -139,6 +146,9 @@ Object.assign(BookingHub, {
             : '';
         const checkInTime = rawData.check_in_time || rawData.estimated_arrival || booking.estimated_arrival;
         const checkOutTime = rawData.check_out_time || rawData.estimated_departure || booking.estimated_departure;
+        canNoShow = this.isPastCheckoutTime(booking.check_out, checkOutTime)
+            && !['CHECKED_IN', 'CHECKED_OUT', 'CANCELLED', 'NO_SHOW'].includes(status)
+            && !isTransferShadow;
         const parseStayMinutes = (value) => {
             const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
             if (!match) return null;
@@ -237,6 +247,7 @@ Object.assign(BookingHub, {
                             <i class="bi bi-door-open"></i> ${this.escape(room)}
                         </span>
                         <span class="bk-room-type-label">${roomType}</span>
+                        ${originalRoomTypeHtml}
                         ${roomSummary}
                     </div>
                 </td>

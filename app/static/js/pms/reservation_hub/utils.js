@@ -86,6 +86,18 @@ Object.assign(BookingHub, {
         return String(value).slice(0, 10) < this.toDateInput(new Date());
     },
 
+    isPastCheckoutTime(checkOutDate, checkOutTime) {
+        if (!checkOutDate) return false;
+        const dateStr = String(checkOutDate).slice(0, 10);
+        const today = this.toDateInput(new Date());
+        if (dateStr < today) return true;
+        if (dateStr > today) return false;
+        const timeStr = String(checkOutTime || '12:00').slice(0, 5);
+        const [h, m] = timeStr.split(':').map(Number);
+        const now = new Date();
+        return now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
+    },
+
     formatDate(value) {
         if (!value) return '—';
         const [y, m, d] = String(value).slice(0, 10).split('-');

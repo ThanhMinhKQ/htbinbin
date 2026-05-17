@@ -10,6 +10,7 @@ Key endpoints:
 """
 from __future__ import annotations
 
+from datetime import time
 from decimal import Decimal
 from typing import Optional
 
@@ -19,13 +20,14 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, selectinload
 
 from ...core.config import logger
+from ...core.utils import VN_TZ
 from ...db.models import (
     DebtRecord, Folio, FolioStatus, FolioTransaction, FolioTransactionCategory, FolioTransactionType,
     HotelGuest, HotelRoom, HotelStay, HotelStayStatus, RefundRecord,
 )
 from ...db.session import TaskSessionLocal, get_db
 from ...services.checkout_service import execute_checkout, preview_checkout
-from ...services.folio_service import get_folio_financial_totals
+from ...services.folio_service import get_folio_financial_totals, mark_transaction_void
 from ...services.pricing_service import money, get_engine_config
 from .guest_activity import log_checkout
 from .pms_helpers import _now_vn, _require_login
@@ -127,6 +129,19 @@ def api_checkout_info(
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+    # Tính dead_zone — khoảng 12:00–14:00 (giữa std_out và std_in của hạng phòng hiện tại)
+    stay = db.query(HotelStay).options(
+        selectinload(HotelStay.room).selectinload(HotelRoom.room_type_obj)
+    ).filter(HotelStay.id == stay_id).first()
+    dead_zone = False
+    if stay and stay.room and stay.room.room_type_obj:
+        rt = stay.room.room_type_obj
+        std_in = rt.standard_checkin_time or time(14, 0)
+        std_out = rt.standard_checkout_time or time(12, 0)
+        now_vn_time = now.astimezone(VN_TZ).time() if now.tzinfo else now.time()
+        dead_zone = std_out <= now_vn_time < std_in
+    result["dead_zone"] = dead_zone
 
     return JSONResponse(result)
 
@@ -403,6 +418,65 @@ def api_checkout_transfer_bill(
     except Exception as exc:
         logger.error(f"[Checkout Transfer] source_stay_id={source_stay_id} target_stay_id={target_stay_id}: {exc}")
         raise HTTPException(status_code=400, detail=f"Không thể gộp hoá đơn: {exc}")
+
+
+@router.post("/api/pms/checkout/transfer/{tx_id}/undo", tags=["PMS"])
+def api_checkout_undo_transfer(
+    request: Request,
+    tx_id: int,
+    reason: str = Query(default="Hủy gộp hoá đơn"),
+    db: Session = Depends(get_db),
+):
+    """
+    Hủy gộp hoá đơn — void cả 2 giao dịch paired (source DISCOUNT + target SURCHARGE).
+    Gọi từ phòng nhận khi muốn hoàn tác thao tác gộp.
+    """
+    user = _require_login(request)
+    actor_id = user.get("id")
+
+    try:
+        with db.begin():
+            tx_a = db.query(FolioTransaction).filter(
+                FolioTransaction.id == tx_id,
+                FolioTransaction.reference_type == "room_bill_transfer",
+            ).with_for_update().first()
+            if not tx_a:
+                raise HTTPException(status_code=404, detail="Giao dịch không tìm thấy hoặc không phải giao dịch gộp")
+            if tx_a.is_voided:
+                raise HTTPException(status_code=400, detail="Giao dịch đã bị hủy trước đó")
+
+            folio_a = db.query(Folio).filter(Folio.id == tx_a.folio_id).with_for_update().first()
+            if folio_a and folio_a.status == FolioStatus.CLOSED:
+                raise HTTPException(status_code=400, detail="Folio đã đóng, không thể hủy gộp")
+
+            tx_b = db.query(FolioTransaction).filter(
+                FolioTransaction.stay_id == tx_a.reference_id,
+                FolioTransaction.reference_type == "room_bill_transfer",
+                FolioTransaction.reference_id == tx_a.stay_id,
+                FolioTransaction.is_voided == False,
+            ).with_for_update().first()
+
+            if tx_b:
+                folio_b = db.query(Folio).filter(Folio.id == tx_b.folio_id).with_for_update().first()
+                if folio_b and folio_b.status == FolioStatus.CLOSED:
+                    raise HTTPException(status_code=400, detail="Folio phòng nguồn đã đóng, không thể hủy gộp")
+
+            mark_transaction_void(db, tx_a, reason, actor_id)
+            if tx_b:
+                mark_transaction_void(db, tx_b, reason, actor_id)
+            db.flush()
+
+        voided_ids = [tx_a.id] + ([tx_b.id] if tx_b else [])
+        return JSONResponse({
+            "status": "success",
+            "message": "Đã hủy gộp hoá đơn",
+            "voided_tx_ids": voided_ids,
+        })
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"[Undo Transfer] tx_id={tx_id}: {exc}")
+        raise HTTPException(status_code=400, detail=f"Không thể hủy gộp: {exc}")
 
 
 @router.get("/api/pms/checkout/{stay_id}/preview-checked-out", tags=["PMS"])

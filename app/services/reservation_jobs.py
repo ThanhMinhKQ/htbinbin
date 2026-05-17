@@ -45,7 +45,7 @@ def release_expired_inventory_holds() -> None:
 
 
 def mark_reservation_no_shows() -> None:
-    """No-show booking CONFIRMED chưa nhận phòng sau khi quá thời điểm trả phòng + 30 phút.
+    """No-show booking PENDING/CONFIRMED chưa nhận phòng sau khi quá thời điểm trả phòng + 30 phút.
 
     - Ưu tiên dùng raw.check_out_at (ISO datetime) để bắt booking giờ chính xác.
     - Fallback: dùng Booking.check_out (date) + 12:00 cho booking đêm cũ.
@@ -56,7 +56,7 @@ def mark_reservation_no_shows() -> None:
     try:
         now = datetime.now(VN_TZ)
         bookings = db.query(Booking).filter(
-            Booking.reservation_status == "CONFIRMED",
+            Booking.reservation_status.in_(["CONFIRMED", "PENDING"]),
             Booking.stay_id.is_(None),
         ).all()
 

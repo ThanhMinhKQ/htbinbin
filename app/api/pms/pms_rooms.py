@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_
 
 from ...core.utils import VN_TZ
-from ...db.models import Branch, HotelRoom, HotelRoomType, HotelStay, HotelStayStatus
+from ...db.models import Branch, HotelRoom, HotelRoomType, HotelStay, HotelStayStatus, RoomCondition
 from ...db.session import get_db
 from ...services.pricing_service import calculate_room_price
 from .pms_helpers import (
@@ -161,14 +161,21 @@ def api_get_available_rooms(
         raise HTTPException(status_code=404, detail="Không tìm thấy lưu trú")
 
     current_room_id = stay.room_id
-    check_in = stay.check_in_at
-    check_out = stay.check_out_at or _now_vn()
     branch_id = stay.branch_id
 
-    # Get occupied room IDs in the stay date range
-    occupied_ids = _get_occupied_rooms_for_dates(db, branch_id, check_in, check_out)
+    # Lấy tất cả phòng đang có khách ở (ACTIVE stay) trong cùng branch
+    occupied_ids = [
+        r[0] for r in
+        db.query(HotelStay.room_id)
+        .filter(
+            HotelStay.branch_id == branch_id,
+            HotelStay.status == HotelStayStatus.ACTIVE,
+        )
+        .distinct()
+        .all()
+    ]
 
-    # Query available rooms (not current, not occupied, same branch, active)
+    # Query available rooms (not current, not occupied, same branch, active, clean)
     q = (
         db.query(HotelRoom)
         .options(joinedload(HotelRoom.room_type_obj))
@@ -177,6 +184,7 @@ def api_get_available_rooms(
             HotelRoom.id != current_room_id,
             HotelRoom.id.notin_(occupied_ids) if occupied_ids else True,
             HotelRoom.branch_id == branch_id,
+            HotelRoom.condition == RoomCondition.CLEAN,
         )
         .order_by(HotelRoom.floor, HotelRoom.sort_order, HotelRoom.room_number)
     )

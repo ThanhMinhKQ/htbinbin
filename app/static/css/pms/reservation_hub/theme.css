@@ -1080,6 +1080,18 @@ html.dark {
   display: block;
 }
 
+.bk-room-type-original {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--bk-text-muted, #64748b);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 .bk-order-code {
   color: var(--bk-primary-strong);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;

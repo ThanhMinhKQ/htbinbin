@@ -940,6 +940,8 @@ async function rdSubmitBillTransfer() {
         rdSetBillTransferError('Số tiền gộp phải lớn hơn 0 và không vượt quá số còn phải thu');
         return;
     }
+    const targetRoom = target.room_number || target.stay_id;
+    if (!confirm(`Xác nhận gộp ${pmsMoney(amount)} từ phòng hiện tại sang phòng ${targetRoom}?\nThao tác này có thể hoàn tác từ phòng nhận.`)) return;
     const btn = document.getElementById('rd-transfer-submit-btn');
     rdBillTransferState.submiting = true;
     if (btn) {
@@ -1820,9 +1822,7 @@ async function fetchFolio(stayId) {
     try {
         // ── Bước 1 & 2: FETCH PARALLEL ĐỂ TĂNG TỐC ──
         // Khởi chạy load folios và load preview đồng thời thay vì chờ tuần tự
-        const folioUrl = rdIsCheckedOut
-            ? `/api/pms/folio/${stayId}?include_transactions=1`
-            : `/api/pms/folio/${stayId}`;
+        const folioUrl = `/api/pms/folio/${stayId}?include_transactions=1`;
         const folioPromise = pmsApi(folioUrl);
         let previewPromise = Promise.resolve(null);
 

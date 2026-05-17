@@ -563,6 +563,107 @@
         text-align: center;
       }
 
+      /* ── Charge Preview Panel ── */
+      #tf-charge-preview {
+        padding: 14px 26px;
+        background: #f8f7ff;
+        border-top: 1px solid #ede9fe;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+
+      .tf-cp-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .tf-cp-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+
+      .tf-cp-value {
+        font-size: 13px;
+        font-weight: 700;
+        color: #7c3aed;
+      }
+
+      .tf-fee-input {
+        width: 160px;
+        border: 1.5px solid #ddd6fe;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+        background: #fff;
+        outline: none;
+        text-align: right;
+        transition: border-color .15s;
+      }
+
+      .tf-fee-input:focus {
+        border-color: #7c3aed;
+      }
+
+      .tf-note-input {
+        flex: 1;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        color: #1e293b;
+        background: #fff;
+        outline: none;
+        transition: border-color .15s;
+      }
+
+      .tf-note-input:focus {
+        border-color: #7c3aed;
+      }
+
+      .tf-charge-hint {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #94a3b8;
+        text-align: right;
+      }
+
+      .tf-charge-hint.up   { color: #ea580c; }
+      .tf-charge-hint.down { color: #16a34a; }
+      .tf-charge-hint.same { color: #94a3b8; }
+
+      html.dark #tf-charge-preview {
+        background: #1a1630;
+        border-top-color: #2e2060;
+      }
+
+      html.dark .tf-cp-label { color: #94a3b8; }
+      html.dark .tf-cp-value { color: #c4b5fd; }
+
+      html.dark .tf-fee-input {
+        background: #0d1117;
+        border-color: #3b2d6e;
+        color: #e2e8f0;
+      }
+
+      html.dark .tf-fee-input:focus { border-color: #7c3aed; }
+
+      html.dark .tf-note-input {
+        background: #0d1117;
+        border-color: #334155;
+        color: #e2e8f0;
+      }
+
+      html.dark .tf-note-input:focus { border-color: #7c3aed; }
+
       /* ── FOOTER ── */
       .tf-footer {
         padding: 14px 26px;
@@ -891,12 +992,28 @@
       </div>
     </div>
 
+    <!-- ── Charge Preview Panel ── -->
+    <div id="tf-charge-preview" style="display:none;">
+      <div class="tf-cp-row">
+        <span class="tf-cp-label">Tiền phòng cũ (đã ở)</span>
+        <span class="tf-cp-value" id="tf-old-charge">—</span>
+      </div>
+      <div class="tf-cp-row">
+        <label class="tf-cp-label" for="tf-transfer-fee-input">Phí chuyển phòng</label>
+        <input id="tf-transfer-fee-input" type="text" inputmode="numeric"
+               placeholder="0" class="tf-fee-input"
+               oninput="pmsTfFormatFeeInput(this)" />
+      </div>
+      <div class="tf-cp-row">
+        <label class="tf-cp-label" for="tf-transfer-note-input">Ghi chú</label>
+        <input id="tf-transfer-note-input" type="text"
+               placeholder="Không bắt buộc" class="tf-note-input" />
+      </div>
+    </div>
+
     <!-- ── Footer ── -->
     <div class="tf-footer">
-      <div class="tf-footer-info" id="tf-footer-hint">
-        Chọn một phòng trống để tiếp tục
-      </div>
-      <div class="tf-footer-actions">
+      <div class="tf-footer-actions" style="margin-left:auto;">
         <button class="tf-btn-cancel" onclick="closeModal('tfModal')">Huỷ bỏ</button>
         <button class="tf-btn-confirm" id="tf-submit-btn" onclick="submitTF()" disabled>
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

@@ -94,6 +94,14 @@
           
           <div class="gd-stay-details">
             <div class="gd-stay-detail-item">
+              <span class="gd-stay-detail-label">Kiểu lưu trú</span>
+              <span class="gd-stay-detail-value" x-text="fmtStayType(stay.stay_type)">-</span>
+            </div>
+            <div class="gd-stay-detail-item">
+              <span class="gd-stay-detail-label">Cách tính giá</span>
+              <span class="gd-stay-detail-value" x-text="fmtPricingMode(stay.pricing_mode)">-</span>
+            </div>
+            <div class="gd-stay-detail-item">
               <span class="gd-stay-detail-label">Đêm ở</span>
               <span class="gd-stay-detail-value" x-text="stay.nights || 0">0</span>
             </div>

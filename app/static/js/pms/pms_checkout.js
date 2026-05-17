@@ -522,12 +522,14 @@ function pmsRdRenderFolio() {
             const txType = t.type || t.transaction_type;
             const isPayment = ['PAYMENT', 'DEBT_PAYMENT', 'REFUND', 'REFUND_PAYMENT'].includes(txType);
             const isDepositUsed = (t.type || t.transaction_type) === 'DEPOSIT_USED';
+            const isTransferTarget = !t.is_voided && t.reference_type === 'room_bill_transfer' && txType === 'SURCHARGE';
+            const isTransferSource = !t.is_voided && t.reference_type === 'room_bill_transfer' && txType === 'DISCOUNT_MANUAL';
             const txAmount = rdPayNum(t.amount);
             const amtStr = (isPayment || isDepositUsed) ? `-${pmsMoney(Math.abs(txAmount))}` : (isDisc ? `-${pmsMoney(Math.abs(txAmount))}` : pmsMoney(txAmount));
             const iconHtml = getLgIcon(t.category, txType);
             const rowClass = (isPayment || isDepositUsed) ? 'style="background:#f0fdf4;"' : '';
             const amountClass = (isPayment || isDepositUsed) ? 'style="color:#059669;"' : (isDisc ? 'class="discount"' : '');
-            const canVoid = !rdIsCheckedOut && !t.is_virtual && !isPayment && !isDepositUsed;
+            const canVoid = !rdIsCheckedOut && !t.is_virtual && !isPayment && !isDepositUsed && !isTransferTarget && !isTransferSource;
             const isRoomTx = isRoomCharge(t);
             const descName = t.description || (isRoomTx ? 'Tiền phòng' : (isPayment ? 'Thanh toán' : (t.category === 'SERVICE' ? 'Dịch vụ' : 'Phí phát sinh')));
             const typeBadge = getTxTypeBadge(t);
@@ -540,6 +542,7 @@ function pmsRdRenderFolio() {
                     </div>
                     <div class="chk-ledger-qty">x${t.quantity || 1}</div>
                     <div class="chk-ledger-actions">
+                    ${isTransferTarget ? `<div class="chk-ledger-btn" title="Hủy gộp" onclick="rdPayUndoTransfer(${t.id})"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></div>` : ''}
                     ${hasMultipleFolios && canVoid ? `<div class="chk-ledger-btn" title="Chuyển bill" onclick="rdPayTransferTx('${t.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/></svg></div>` : ''}
                     ${canVoid ? `<div class="chk-ledger-btn void" title="Xóa bỏ" onclick="rdPayVoidTx('${t.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>` : ''}
                             </div>
@@ -713,6 +716,23 @@ async function rdPayVoidTx(txId) {
     } catch(e) { pmsToast(e.message, false); }
 }
 
+async function rdPayUndoTransfer(txId) {
+    if (!confirm('Hủy gộp hoá đơn này? Cả hai phòng sẽ được hoàn lại số tiền đã gộp.')) return;
+    try {
+        const resp = await pmsApi(`/api/pms/checkout/transfer/${txId}/undo`, { method: 'POST' });
+        pmsToast(resp?.message || 'Đã hủy gộp hoá đơn', true);
+        rdResetPaymentRenderCache();
+        rdFolioLoaded = false;
+        const stayId = rdStayData?.id;
+        if (stayId) {
+            await fetchFolio(stayId);
+            if (typeof rdLoadPayment === 'function') rdLoadPayment();
+        }
+    } catch (e) {
+        pmsToast(e.message || 'Không thể hủy gộp hoá đơn', false);
+    }
+}
+
 function rdPayOpenPopup(popupId) {
     const popup = document.getElementById(popupId);
     if (!popup) return;
@@ -880,6 +900,7 @@ window.rdPayOpenPopup = rdPayOpenPopup;
 window.rdPaySubmitDiscount = rdPaySubmitDiscount;
 window.rdPaySubmitRecord = rdPaySubmitRecord;
 window.rdPayVoidTx = rdPayVoidTx;
+window.rdPayUndoTransfer = rdPayUndoTransfer;
 window.rdPayAddCharge = rdPayAddCharge;
 window.pmsPayFormatCurrency = pmsPayFormatCurrency;
 window.rdPayRequestRefund = rdPayRequestRefund;

@@ -65,8 +65,11 @@ def calculate_checkout_charges(
     effective_mode = stay.pricing_mode_initial or "AUTO"
     effective_stay_type = MODE_TO_STAY_TYPE.get(effective_mode, "AUTO")
 
+    # Dùng billing_start_at nếu có (sau chuyển phòng), ngược lại dùng check_in_at
+    billing_from = stay.billing_start_at if stay.billing_start_at else stay.check_in_at
+
     room_charge_total, breakdown = calculate_full_charge(
-        effective_stay_type, room_type_obj, stay.check_in_at, now
+        effective_stay_type, room_type_obj, billing_from, now
     )
 
     pricing_mode_final = detect_pricing_mode_from_breakdown(breakdown)
@@ -432,10 +435,11 @@ def preview_checkout(
 
     # Pricing engine: tính room charge cho thời gian lưu trú
     pms_reference_mode = "AUTO" if stay.pricing_mode_initial == "OTA_MANUAL" else MODE_TO_STAY_TYPE.get(stay.pricing_mode_initial or "AUTO", "AUTO")
+    billing_from = stay.billing_start_at if stay.billing_start_at else stay.check_in_at
     room_charge_total, breakdown = calculate_full_charge(
         pms_reference_mode,
         rt,
-        stay.check_in_at,
+        billing_from,
         effective_end,
     )
 

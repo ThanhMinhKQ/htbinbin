@@ -1,9 +1,52 @@
 {% extends "base.html" %}
 {% block title %}CRM - Hồ sơ Khách hàng{% endblock %}
-{% block page_title %}Hồ sơ Khách hàng{% endblock %}
+{% block page_title %}
+<button class="gd-back-btn-inline" onclick="window.location.href='/pms/crm'">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path>
+  </svg>
+  Quay lại
+</button>
+<span style="font-size:15px; font-weight:800;">Hồ sơ Khách hàng</span>
+{% endblock %}
+
+{% block app_header_actions %}
+<div class="gd-tabs" id="gd-header-tabs">
+  <div class="gd-tab active" data-tab="overview" onclick="gdSwitchTab('overview')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
+    </svg>
+    Tổng quan
+  </div>
+  <div class="gd-tab" data-tab="stays" onclick="gdSwitchTab('stays')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>
+    </svg>
+    Lưu trú
+  </div>
+  <div class="gd-tab" data-tab="services" onclick="gdSwitchTab('services')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+    Dịch vụ
+  </div>
+  <div class="gd-tab" data-tab="payments" onclick="gdSwitchTab('payments')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line>
+    </svg>
+    Thanh toán
+  </div>
+  <div class="gd-tab" data-tab="coguests" onclick="gdSwitchTab('coguests')">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
+    Người cùng ở
+  </div>
+</div>
+{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', path='/css/crm_guest_detail.css') }}?v=20260512-palette-sidebar-v3">
+<link rel="stylesheet" href="{{ url_for('static', path='/css/crm_guest_detail.css') }}?v=20260517-header-integrated">
 {% endblock %}
 
 {% block content %}
@@ -49,8 +92,22 @@
 
 {% block scripts %}
 <script>
-  // Read guest_id from DOM data attribute (set by Jinja2, parsed correctly by browser)
   const GUEST_ID = parseInt(document.getElementById('gd-shell').dataset.guestId) || 0;
+
+  function gdSwitchTab(tab) {
+    const shell = document.getElementById('gd-shell');
+    if (shell && shell._x_dataStack) {
+      const data = shell._x_dataStack[0];
+      data.activeTab = tab;
+      if (tab === 'stays' && typeof data.loadStays === 'function') data.loadStays();
+      if (tab === 'services' && typeof data.loadServices === 'function') data.loadServices();
+      if (tab === 'payments' && typeof data.loadPayments === 'function') data.loadPayments();
+      if (tab === 'coguests' && typeof data.loadCoGuests === 'function') data.loadCoGuests();
+    }
+    document.querySelectorAll('#gd-header-tabs .gd-tab').forEach(el => {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
+  }
 </script>
 <script src="{{ url_for('static', path='/js/pms/crm_guest_detail.js') }}"></script>
 {% endblock %}

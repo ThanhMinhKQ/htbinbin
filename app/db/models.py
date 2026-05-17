@@ -1071,7 +1071,9 @@ class HotelStay(Base):
     pricing_mode_final   = Column(String(20), nullable=True)  # HOURLY_CHARGE | ROOM_CHARGE | FORCE_DAILY — settled at checkout only
     pricing_mode_initial = Column(String(20), nullable=True)  # HOURLY | NIGHT | AUTO — locked at check-in
     pricing_locked       = Column(Boolean, default=False)      # TRUE = pricing locked at check-in
-    check_in_at  = Column(DateTime(timezone=True), nullable=False, index=True)
+    check_in_at          = Column(DateTime(timezone=True), nullable=False, index=True)
+    original_check_in_at = Column(DateTime(timezone=True), nullable=True)  # Mốc check-in gốc, không đổi khi chuyển phòng
+    billing_start_at     = Column(DateTime(timezone=True), nullable=True)   # Mốc tính giá hiện tại, reset sau mỗi lần chuyển phòng
     check_out_at = Column(DateTime(timezone=True), nullable=True)       # Null khi đang ở
     status       = Column(
         SQLAlchemyEnum(HotelStayStatus, name="hotelstaystatus", native_enum=True),

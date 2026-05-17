@@ -616,6 +616,9 @@ function pmsEnsureToastStyles() {
             transform-origin: left center;
             animation: pmsToastProgress var(--toast-duration, 4200ms) linear forwards;
         }
+        .pms-toast-card.is-paused .pms-toast-progress span {
+            animation-play-state: paused;
+        }
         html.dark .pms-toast-card,
         body.dark .pms-toast-card,
         .dark-mode .pms-toast-card,
@@ -871,7 +874,28 @@ function pmsToast(input, status = true) {
     el.querySelector('.pms-toast-close')?.addEventListener('click', dismiss, { once: true });
     stack.appendChild(el);
     while (stack.children.length > 4) stack.firstElementChild?.remove();
-    el._t = setTimeout(dismiss, duration);
+
+    // Auto-dismiss + pause on hover
+    let remaining = duration;
+    let startedAt = Date.now();
+    el._t = setTimeout(dismiss, remaining);
+
+    el.addEventListener('mouseenter', () => {
+        if (el._t) {
+            clearTimeout(el._t);
+            el._t = null;
+            remaining -= (Date.now() - startedAt);
+            el.classList.add('is-paused');
+        }
+    });
+    el.addEventListener('mouseleave', () => {
+        if (!el._t && remaining > 0) {
+            startedAt = Date.now();
+            el._t = setTimeout(dismiss, remaining);
+            el.classList.remove('is-paused');
+        }
+    });
+
     if (config.sound) pmsPlayToastSound(config.sound);
     else pmsPlaySound(config.type);
     return el;

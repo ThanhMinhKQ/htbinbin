@@ -64,26 +64,18 @@ html.dark {
   background: var(--crm-bg);
 }
 
-/* ── Header Bar ── */
+/* ── Header Bar (now integrated into app-header) ── */
 .gd-header-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--crm-surface);
-  border-bottom: 1px solid var(--crm-border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  display: none;
 }
 
-.gd-back-btn-inline {
+.app-header .gd-back-btn-inline {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
-  border-radius: var(--crm-radius-sm);
-  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--crm-border);
   background: var(--crm-surface);
@@ -93,15 +85,54 @@ html.dark {
   white-space: nowrap;
 }
 
-.gd-back-btn-inline:hover {
+.app-header .gd-back-btn-inline:hover {
   border-color: var(--crm-accent);
   color: var(--crm-accent);
   background: var(--crm-accent-soft);
 }
 
-.gd-back-btn-inline svg {
-  width: 16px;
-  height: 16px;
+.app-header .gd-tabs {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  overflow-x: auto;
+  padding: 2px;
+}
+
+.app-header .gd-tabs::-webkit-scrollbar { height: 0; }
+
+.app-header .gd-tab {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--crm-text-secondary, #5d5549);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+}
+
+.app-header .gd-tab:hover {
+  color: var(--crm-accent, #278884);
+  background: var(--crm-accent-soft, rgba(139, 223, 221, 0.12));
+}
+
+.app-header .gd-tab.active {
+  color: #fff;
+  background: var(--crm-accent, #278884);
+  border-color: var(--crm-accent, #278884);
+  box-shadow: 0 2px 8px rgba(39, 136, 132, 0.25);
+}
+
+.app-header .gd-tab svg { width: 14px; height: 14px; }
+
+@media (max-width: 768px) {
+  .app-header .gd-tab span,
+  .app-header .gd-tab { font-size: 11px; padding: 6px 10px; }
 }
 
 /* ── Layout ── */
@@ -597,29 +628,28 @@ html.dark .gd-risk-alert.danger {
   gap: 16px;
 }
 
-/* Tabs */
+/* Tabs (in app-header) */
 .gd-tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   align-items: center;
-  flex: 1;
   overflow-x: auto;
 }
 
 .gd-tabs::-webkit-scrollbar { height: 0; }
 
 .gd-tab {
-  padding: 10px 20px;
-  font-size: 13px;
+  padding: 7px 14px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--crm-text-secondary);
   cursor: pointer;
-  border-radius: var(--crm-radius-sm);
+  border-radius: 8px;
   transition: all 0.2s ease;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .gd-tab:hover { color: var(--crm-accent); background: var(--crm-accent-soft); }
@@ -628,10 +658,10 @@ html.dark .gd-risk-alert.danger {
 .gd-tab.active {
   color: #fff;
   background: var(--crm-accent);
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 8px rgba(39, 136, 132, 0.25);
 }
 
-.gd-tab svg { width: 16px; height: 16px; }
+.gd-tab svg { width: 14px; height: 14px; }
 
 /* Tab panels */
 .gd-panel {
@@ -1910,7 +1940,6 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   background: transparent;
 }
 
-.gd-header-bar,
 .gd-sidebar,
 .gd-card,
 .gd-ov-section,
@@ -1927,14 +1956,6 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   box-shadow: var(--crm-shadow-sm);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-}
-
-.gd-header-bar {
-  top: 16px;
-  margin: 16px 24px 0;
-  border-radius: var(--crm-radius-lg);
-  padding: 10px 12px;
-  box-shadow: var(--crm-shadow);
 }
 
 .gd-back-btn-inline,
@@ -2180,7 +2201,6 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
   font-style: italic;
 }
 
-html.dark .gd-header-bar,
 html.dark .gd-sidebar,
 html.dark .gd-card,
 html.dark .gd-ov-section,
@@ -2827,7 +2847,6 @@ html.dark .gd-shell {
   grid-template-columns: minmax(320px, 370px) minmax(0, 1fr);
 }
 
-.gd-header-bar,
 .gd-card,
 .gd-ov-section,
 .gd-ov-card,
@@ -2843,7 +2862,6 @@ html.dark .gd-shell {
   box-shadow: var(--crm-shadow-sm);
 }
 
-html.dark .gd-header-bar,
 html.dark .gd-card,
 html.dark .gd-ov-section,
 html.dark .gd-ov-card,
@@ -2856,11 +2874,6 @@ html.dark .gd-skeleton-sidebar,
 html.dark .gd-skeleton-tabs {
   background: var(--crm-surface) !important;
   border-color: var(--crm-border) !important;
-}
-
-.gd-header-bar {
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(48, 42, 34, 0.08);
 }
 
 .gd-back-btn-inline {

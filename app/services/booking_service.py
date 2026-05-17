@@ -465,6 +465,7 @@ class BookingService:
             "check_out": booking.check_out.isoformat() if booking.check_out else None,
             "room_type": booking.room_type,
             "room_type_id": room_type_id,
+            "original_room_type_name": raw.get("original_room_type_name"),
             "group_code": raw.get("group_code"),
             "group_index": raw.get("group_index"),
             "group_total": raw.get("group_total"),
@@ -617,6 +618,8 @@ class BookingService:
 
         raw_data = dict(payload.get("raw_data") or {})
         raw_data["room_type_id"] = room_type.id
+        raw_data["original_room_type_id"] = room_type.id
+        raw_data["original_room_type_name"] = room_type.name
         if reservation_status == "CONFIRMED" and not self._has_available_inventory(branch_id, room_type.id, check_in, check_out, 1):
             reservation_status = "PENDING"
             raw_data = self._mark_over_capacity_pending(raw_data, branch_id, room_type.id, check_in, check_out, 1)
@@ -840,6 +843,9 @@ class BookingService:
         room_type_id = old_room_type_id or self._resolve_room_type_id(booking.branch_id, booking.room_type)
         if room_type_id:
             raw["room_type_id"] = int(room_type_id)
+            if not raw.get("original_room_type_id"):
+                raw["original_room_type_id"] = int(room_type_id)
+                raw["original_room_type_name"] = booking.room_type
 
         for key in ("special_requests", "special_request", "guest_requests", "guest_notes", "notes", "remarks", "requests"):
             if raw.get(key) and not booking.special_requests:
@@ -1136,6 +1142,13 @@ class BookingService:
         booking.status = reservation_to_legacy_status("PENDING")
         booking.confirmed_at = None
         self._mark_unreserved(booking)
+
+        raw = dict(booking.raw_data or {})
+        original_rt_id = raw.get("original_room_type_id")
+        if original_rt_id and raw.get("room_type_id") != original_rt_id:
+            raw["room_type_id"] = original_rt_id
+            booking.raw_data = raw
+
         booking.updated_by = user_id
         booking.updated_at = self._now()
         self._log_booking_activity(booking, "BOOKING_MODIFIED", "Chuyển về chờ xác nhận", user_id)
@@ -1297,10 +1310,17 @@ class BookingService:
         if booking.reservation_status not in {"CANCELLED", "NO_SHOW"}:
             return booking
 
+        raw = dict(booking.raw_data or {})
+        original_rt_id = raw.get("original_room_type_id")
+        if original_rt_id and raw.get("room_type_id") != original_rt_id:
+            raw["room_type_id"] = original_rt_id
+            booking.raw_data = raw
+
         booking.reservation_status = "PENDING"
         booking.status = BookingStatus.CONFIRMED
         booking.no_show_at = None
         booking.cancel_reason = None
+        booking.assigned_room_id = None
         booking.updated_by = user_id
         booking.updated_at = self._now()
         self._log_booking_activity(booking, "BOOKING_MODIFIED", "Khôi phục đặt phòng", user_id)
