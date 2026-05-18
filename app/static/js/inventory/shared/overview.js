@@ -443,6 +443,146 @@ export default function(config = {}) {
         this.stockSearch = '';
     },
 
+    exportStockToExcel() {
+        const rows = this.getFlatFilteredStocks();
+        if (!rows.length) {
+            alert('Không có dữ liệu để xuất.');
+            return;
+        }
+        if (typeof XLSX === 'undefined') {
+            alert('Thư viện xuất Excel chưa tải xong, vui lòng thử lại.');
+            return;
+        }
+
+        const warehouseName = (this.allWarehouses || []).find(w => String(w.id) === String(this.currentWarehouseId))?.name || 'Kho';
+        const monthLabel = this.selectedMonthInput || '';
+        const exportedAt = new Date().toLocaleString('vi-VN');
+
+        // Build data rows
+        const headers = ['STT', 'Mã SP', 'Tên sản phẩm', 'Nhóm', 'Tồn kho', 'Đơn vị', 'Nhập', 'Xuất', 'Trạng thái'];
+        const dataRows = rows.map((item, i) => [
+            i + 1,
+            item.product_code || '',
+            item.product_name || '',
+            item.categoryName || '',
+            item.display_quantity !== undefined ? item.display_quantity : (item.quantity ?? 0),
+            item.base_unit || '',
+            item.total_import ?? 0,
+            item.total_export ?? 0,
+            item.status || '',
+        ]);
+
+        // Title rows
+        const titleRows = [
+            [`BÁO CÁO TỒN KHO — ${warehouseName.toUpperCase()}`],
+            [`Kỳ: ${monthLabel}   |   Xuất lúc: ${exportedAt}`],
+            [],
+            headers,
+            ...dataRows,
+        ];
+
+        const ws = XLSX.utils.aoa_to_sheet(titleRows);
+
+        // Column widths
+        ws['!cols'] = [
+            { wch: 5 },   // STT
+            { wch: 22 },  // Mã SP
+            { wch: 36 },  // Tên SP
+            { wch: 28 },  // Nhóm
+            { wch: 12 },  // Tồn kho
+            { wch: 10 },  // Đơn vị
+            { wch: 10 },  // Nhập
+            { wch: 10 },  // Xuất
+            { wch: 12 },  // Trạng thái
+        ];
+
+        // Merge title cells A1:I1 and A2:I2
+        ws['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+        ];
+
+        // Style helpers
+        const titleStyle = {
+            font: { bold: true, sz: 14, color: { rgb: '1A5276' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: 'D6EAF8' } },
+        };
+        const subtitleStyle = {
+            font: { sz: 10, italic: true, color: { rgb: '555555' } },
+            alignment: { horizontal: 'center' },
+        };
+        const headerStyle = {
+            font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+            fill: { fgColor: { rgb: '1A5276' } },
+            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+            border: {
+                top: { style: 'thin', color: { rgb: 'AAAAAA' } },
+                bottom: { style: 'thin', color: { rgb: 'AAAAAA' } },
+                left: { style: 'thin', color: { rgb: 'AAAAAA' } },
+                right: { style: 'thin', color: { rgb: 'AAAAAA' } },
+            },
+        };
+        const cellBorder = {
+            border: {
+                top: { style: 'thin', color: { rgb: 'DDDDDD' } },
+                bottom: { style: 'thin', color: { rgb: 'DDDDDD' } },
+                left: { style: 'thin', color: { rgb: 'DDDDDD' } },
+                right: { style: 'thin', color: { rgb: 'DDDDDD' } },
+            },
+        };
+        const warningStyle = {
+            ...cellBorder,
+            fill: { fgColor: { rgb: 'FEF9E7' } },
+            font: { color: { rgb: 'B7770D' } },
+        };
+        const evenRowStyle = {
+            ...cellBorder,
+            fill: { fgColor: { rgb: 'F4F6F7' } },
+        };
+
+        // Apply title styles
+        if (ws['A1']) ws['A1'].s = titleStyle;
+        if (ws['A2']) ws['A2'].s = subtitleStyle;
+
+        // Apply header row styles (row index 3 = 0-based row 3)
+        headers.forEach((_, ci) => {
+            const addr = XLSX.utils.encode_cell({ r: 3, c: ci });
+            if (ws[addr]) ws[addr].s = headerStyle;
+        });
+
+        // Apply data row styles
+        dataRows.forEach((row, ri) => {
+            const isWarning = row[8] === 'Cảnh báo';
+            const isEven = ri % 2 === 1;
+            row.forEach((_, ci) => {
+                const addr = XLSX.utils.encode_cell({ r: ri + 4, c: ci });
+                if (!ws[addr]) return;
+                if (isWarning) {
+                    ws[addr].s = warningStyle;
+                } else if (isEven) {
+                    ws[addr].s = evenRowStyle;
+                } else {
+                    ws[addr].s = cellBorder;
+                }
+            });
+        });
+
+        // Row heights
+        ws['!rows'] = [
+            { hpt: 28 }, // title
+            { hpt: 16 }, // subtitle
+            { hpt: 6 },  // spacer
+            { hpt: 22 }, // header
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Tồn kho');
+
+        const fileName = `ton-kho_${warehouseName}_${monthLabel}.xlsx`.replace(/\s+/g, '-');
+        XLSX.writeFile(wb, fileName);
+    },
+
     openReference(item) {
         if (!item.ref_ticket_id) return;
 

@@ -1,180 +1,177 @@
 <template x-teleport="body">
-<div x-show="isShiftSalesModalOpen" class="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4" x-cloak>
-    <!-- Backdrop -->
-    <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" @click="closeShiftSales()"></div>
+<div x-show="isShiftSalesModalOpen" class="fixed inset-0 z-[200] flex items-center justify-center" x-cloak
+     style="padding: 1rem; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);">
+    <div class="absolute inset-0" @click="closeShiftSales()"></div>
 
-    <!-- Modal box -->
-    <div class="relative z-10 w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col
-                bg-white dark:bg-slate-900
-                rounded-t-3xl sm:rounded-3xl
-                shadow-2xl border border-slate-200/80 dark:border-slate-700/60
-                overflow-hidden">
+    <div class="relative z-10 flex flex-col bg-white dark:bg-slate-900 shadow-2xl"
+         style="width: min(640px, calc(100vw - 2rem)); max-height: 86vh; border-radius: 28px; overflow: hidden;">
 
-        <!-- Drag handle (mobile) -->
-        <div class="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
-            <div class="w-10 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></div>
-        </div>
-
-        <!-- Header -->
-        <div class="px-5 pt-3 pb-4 sm:pt-5 shrink-0 flex items-start justify-between gap-3">
-            <div class="min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <span class="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm shrink-0">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <!-- ── HEADER ── -->
+        <div class="shrink-0 px-6 pt-5 pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div class="flex items-start justify-between gap-4">
+                <!-- Left -->
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="shrink-0 w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-200 dark:shadow-emerald-900/40">
+                        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
                         </svg>
-                    </span>
-                    <h3 class="text-base font-black text-slate-900 dark:text-white">Bán trong ca</h3>
-                    <span class="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-wider"
-                        x-text="shiftSales.shift?.shift_name || 'Ca hiện tại'"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h3 class="text-base font-black text-slate-900 dark:text-white tracking-tight">Bán trong ca</h3>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
+                                x-text="shiftSales.shift?.shift_name || 'Ca hiện tại'"></span>
+                        </div>
+                        <div class="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                            <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            <span class="font-semibold text-slate-700 dark:text-slate-200" x-text="shiftSales.actor?.name || '—'"></span>
+                            <span class="text-slate-300 dark:text-slate-600">·</span>
+                            <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span x-text="formatShiftRange(shiftSales.shift)"></span>
+                        </div>
+                    </div>
                 </div>
-                <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
-                    <span class="font-bold text-slate-700 dark:text-slate-200" x-text="shiftSales.actor?.name || ''"></span>
-                    <span class="text-slate-300 dark:text-slate-600">·</span>
-                    <span x-text="formatShiftRange(shiftSales.shift)"></span>
-                </p>
+                <!-- Close -->
+                <button type="button" @click="closeShiftSales()"
+                    class="shrink-0 w-8 h-8 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
             </div>
-            <button type="button" @click="closeShiftSales()"
-                class="shrink-0 p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+
+            <!-- Admin staff selector -->
+            <div x-show="isAdminRole() && shiftSalesStaff.length > 0" class="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0"/>
                 </svg>
-            </button>
+                <select x-model="shiftSalesTargetUserId" @change="onShiftSalesStaffChange()"
+                    class="flex-1 text-xs font-semibold bg-transparent border-0 text-slate-700 dark:text-slate-200 focus:ring-0 p-0 cursor-pointer">
+                    <option :value="null">— Của tôi —</option>
+                    <template x-for="s in shiftSalesStaff" :key="s.id">
+                        <option :value="s.id" x-text="`${s.name}  (${s.tx_count} GD)`"></option>
+                    </template>
+                </select>
+            </div>
         </div>
 
-        <!-- Admin staff selector -->
-        <div x-show="isAdminRole() && shiftSalesStaff.length > 0"
-            class="mx-5 mb-3 shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <select x-model="shiftSalesTargetUserId" @change="onShiftSalesStaffChange()"
-                class="flex-1 text-xs font-bold rounded-lg border-0 bg-transparent text-slate-700 dark:text-slate-200 focus:ring-0 p-0 cursor-pointer">
-                <option :value="null">— Của tôi —</option>
-                <template x-for="s in shiftSalesStaff" :key="s.id">
-                    <option :value="s.id" x-text="`${s.name} (${s.tx_count} GD)`"></option>
-                </template>
-            </select>
-        </div>
-
-        <!-- KPI strip -->
-        <div class="mx-5 mb-4 shrink-0 grid grid-cols-3 gap-2">
-            <div class="rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800/40 px-3 py-2.5 text-center">
-                <p class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Doanh thu</p>
-                <p class="mt-1 text-sm font-black text-emerald-700 dark:text-emerald-300 leading-tight"
+        <!-- ── KPI STRIP ── -->
+        <div class="shrink-0 grid grid-cols-3 divide-x divide-slate-100 dark:divide-slate-800 border-b border-slate-100 dark:border-slate-800">
+            <div class="px-4 py-3 text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Doanh thu</p>
+                <p class="mt-0.5 text-sm font-black text-emerald-700 dark:text-emerald-300 tabular-nums"
                     x-text="formatMoney(shiftSales.totals?.total_amount || 0)"></p>
             </div>
-            <div class="rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-2.5 text-center">
-                <p class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">SL bán</p>
-                <p class="mt-1 text-sm font-black text-slate-900 dark:text-white leading-tight"
+            <div class="px-4 py-3 text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">SL bán</p>
+                <p class="mt-0.5 text-sm font-black text-slate-900 dark:text-white tabular-nums"
                     x-text="shiftSales.totals?.total_qty ?? 0"></p>
             </div>
-            <div class="rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 px-3 py-2.5 text-center">
-                <p class="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">Giao dịch</p>
-                <p class="mt-1 text-sm font-black text-slate-900 dark:text-white leading-tight"
+            <div class="px-4 py-3 text-center">
+                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Giao dịch</p>
+                <p class="mt-0.5 text-sm font-black text-slate-900 dark:text-white tabular-nums"
                     x-text="shiftSales.totals?.tx_count ?? 0"></p>
             </div>
         </div>
 
-        <!-- Loading -->
-        <div x-show="loadingShiftSales" class="flex items-center justify-center py-12 shrink-0">
-            <svg class="animate-spin h-6 w-6 text-emerald-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <!-- ── LOADING ── -->
+        <div x-show="loadingShiftSales" class="flex items-center justify-center py-14 shrink-0">
+            <svg class="animate-spin h-6 w-6 text-emerald-500" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
             </svg>
         </div>
 
-        <!-- Scrollable content -->
-        <div x-show="!loadingShiftSales" class="flex-1 overflow-y-auto custom-scrollbar px-5 pb-4 space-y-2">
+        <!-- ── CONTENT ── -->
+        <div x-show="!loadingShiftSales" class="flex-1 overflow-y-auto custom-scrollbar">
 
-            <!-- Empty state -->
+            <!-- Empty -->
             <div x-show="(shiftSales.items || []).length === 0"
-                class="flex flex-col items-center justify-center py-10 text-center">
-                <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-                    <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4" />
+                class="flex flex-col items-center justify-center py-14 px-6 text-center">
+                <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
+                    <svg class="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4"/>
                     </svg>
                 </div>
                 <p class="text-sm font-bold text-slate-600 dark:text-slate-300">Chưa bán món nào trong ca này.</p>
-                <p class="mt-1 text-xs text-slate-400">Các giao dịch dịch vụ PMS sẽ xuất hiện ở đây.</p>
+                <p class="mt-1 text-xs text-slate-400">Giao dịch dịch vụ PMS sẽ xuất hiện ở đây.</p>
             </div>
 
-            <!-- Product rows with inline timeline -->
-            <template x-for="item in shiftSales.items" :key="item.product_id">
-                <div class="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-800/60 overflow-hidden">
+            <!-- Product list -->
+            <div x-show="(shiftSales.items || []).length > 0" class="p-4 space-y-2">
+                <template x-for="item in shiftSales.items" :key="item.product_id">
+                    <div class="rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden bg-slate-50/50 dark:bg-slate-800/40">
 
-                    <!-- Product summary row -->
-                    <button type="button"
-                        @click="item._open = !item._open"
-                        class="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors text-left">
+                        <!-- Row — click to toggle -->
+                        <button type="button" @click="item._open = !item._open"
+                            class="w-full flex items-center gap-4 px-4 py-3.5 text-left transition-colors"
+                            :class="item._open ? 'bg-white dark:bg-slate-800' : 'hover:bg-white dark:hover:bg-slate-800/80'">
 
-                        <!-- Left: name + code -->
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold text-slate-900 dark:text-white truncate" x-text="item.product_name"></p>
-                            <p class="mt-0.5 text-[10px] font-mono text-slate-400 uppercase tracking-wider" x-text="item.product_code"></p>
-                        </div>
+                            <!-- Dot indicator -->
+                            <span class="shrink-0 w-2 h-2 rounded-full mt-0.5"
+                                :class="item.void_qty > 0 ? 'bg-rose-400' : 'bg-emerald-400'"></span>
 
-                        <!-- Right: qty + amount + void badge -->
-                        <div class="text-right shrink-0">
-                            <div class="flex items-baseline gap-1 justify-end">
-                                <span class="text-sm font-black text-slate-900 dark:text-white" x-text="item.net_qty"></span>
-                                <span class="text-[10px] font-bold text-slate-400 uppercase" x-text="item.base_unit || ''"></span>
+                            <!-- Name + code -->
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-bold text-slate-900 dark:text-white truncate leading-tight" x-text="item.product_name"></p>
+                                <p class="text-[10px] font-mono text-slate-400 uppercase tracking-wider mt-0.5" x-text="item.product_code"></p>
                             </div>
-                            <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400" x-text="formatMoney(item.amount)"></p>
-                            <p x-show="item.void_qty > 0"
-                                class="text-[10px] font-bold text-rose-500"
-                                x-text="`Hoàn ${item.void_qty}`"></p>
-                        </div>
 
-                        <!-- Expand chevron -->
-                        <svg class="w-4 h-4 text-slate-400 shrink-0 transition-transform"
-                            :class="item._open ? 'rotate-180' : ''"
-                            fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </button>
-
-                    <!-- Inline timeline -->
-                    <div x-show="item._open" class="border-t border-slate-100 dark:border-slate-700/60">
-                        <template x-for="tx in (shiftSales.transactions || []).filter(t => t.product_id === item.product_id)" :key="tx.id">
-                            <div class="flex items-center gap-3 px-4 py-2 text-xs border-b border-slate-50 dark:border-slate-700/40 last:border-0"
-                                :class="tx.type === 'VOID_SERVICE' ? 'bg-rose-50/60 dark:bg-rose-900/10' : 'bg-emerald-50/40 dark:bg-emerald-900/10'">
-                                <!-- Time -->
-                                <span class="tabular-nums text-slate-400 dark:text-slate-500 w-10 shrink-0"
-                                    x-text="tx.created_at ? new Date(tx.created_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}) : ''"></span>
-                                <!-- Type badge -->
-                                <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider shrink-0"
-                                    :class="tx.type === 'VOID_SERVICE'
-                                        ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300'
-                                        : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'"
-                                    x-text="tx.type === 'VOID_SERVICE' ? 'Hoàn' : 'Bán'"></span>
-                                <!-- Qty -->
-                                <span class="font-black tabular-nums ml-auto"
-                                    :class="tx.type === 'VOID_SERVICE' ? 'text-rose-500' : 'text-slate-800 dark:text-slate-100'"
-                                    x-text="(tx.quantity_change > 0 ? '+' : '') + tx.quantity_change"></span>
+                            <!-- Stats -->
+                            <div class="text-right shrink-0 space-y-0.5">
+                                <div class="flex items-baseline gap-1 justify-end">
+                                    <span class="text-sm font-black text-slate-900 dark:text-white tabular-nums" x-text="item.net_qty"></span>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase" x-text="item.base_unit || ''"></span>
+                                </div>
+                                <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400 tabular-nums" x-text="formatMoney(item.amount)"></p>
+                                <p x-show="item.void_qty > 0" class="text-[10px] font-bold text-rose-500 tabular-nums" x-text="`−${item.void_qty} hoàn`"></p>
                             </div>
-                        </template>
-                        <!-- No transactions fallback -->
-                        <div x-show="(shiftSales.transactions || []).filter(t => t.product_id === item.product_id).length === 0"
-                            class="px-4 py-2 text-xs text-slate-400 italic">
-                            Không có chi tiết giao dịch.
+                        </button>
+
+                        <!-- Timeline -->
+                        <div x-show="item._open" class="border-t border-slate-100 dark:border-slate-700/50 bg-white dark:bg-slate-800/60">
+                            <template x-for="tx in (shiftSales.transactions || []).filter(t => t.product_id === item.product_id)" :key="tx.id">
+                                <div class="flex items-center gap-3 px-4 py-2 border-b border-slate-50 dark:border-slate-700/30 last:border-0 text-xs">
+                                    <!-- Time -->
+                                    <span class="tabular-nums text-slate-400 dark:text-slate-500 w-10 shrink-0 font-mono"
+                                        x-text="tx.created_at ? new Date(tx.created_at).toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}) : ''"></span>
+                                    <!-- Badge -->
+                                    <span class="shrink-0 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider"
+                                        :class="tx.type === 'VOID_SERVICE'
+                                            ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300'
+                                            : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'"
+                                        x-text="tx.type === 'VOID_SERVICE' ? 'Hoàn' : 'Bán'"></span>
+                                    <!-- Qty -->
+                                    <span class="font-black tabular-nums ml-auto"
+                                        :class="tx.type === 'VOID_SERVICE' ? 'text-rose-500' : 'text-slate-700 dark:text-slate-200'"
+                                        x-text="(tx.quantity_change > 0 ? '+' : '') + tx.quantity_change"></span>
+                                </div>
+                            </template>
+                            <div x-show="(shiftSales.transactions || []).filter(t => t.product_id === item.product_id).length === 0"
+                                class="px-4 py-2.5 text-xs text-slate-400 italic">
+                                Không có chi tiết giao dịch.
+                            </div>
                         </div>
                     </div>
-                </div>
-            </template>
+                </template>
+            </div>
         </div>
 
-        <!-- Footer -->
-        <div class="px-5 py-3 border-t border-slate-100 dark:border-slate-800 shrink-0 flex items-center justify-between gap-3 bg-white dark:bg-slate-900">
+        <!-- ── FOOTER ── -->
+        <div class="shrink-0 px-5 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
             <button type="button" @click="fetchShiftSales()"
-                class="inline-flex items-center gap-1.5 text-xs font-black text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 uppercase tracking-wider transition-colors">
+                class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
                 <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
                 Tải lại
             </button>
             <button type="button" @click="closeShiftSales()"
-                class="px-5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-wider hover:bg-slate-700 dark:hover:bg-slate-100 transition-colors">
+                class="px-5 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-wider hover:opacity-80 transition-opacity">
                 Đóng
             </button>
         </div>

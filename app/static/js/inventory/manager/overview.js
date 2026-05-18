@@ -1,4 +1,4 @@
-import createOverview from '../shared/overview.js?v=3.6-shift';
+import createOverview from '../shared/overview.js?v=4.0-shift';
 
 export default createOverview({
     switchToImportOnReference: true

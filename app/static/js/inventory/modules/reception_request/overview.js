@@ -1,3 +1,3 @@
-import createOverview from '../../shared/overview.js?v=3.7-shift';
+import createOverview from '../../shared/overview.js?v=4.0-shift';
 
 export default createOverview();

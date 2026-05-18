@@ -1485,6 +1485,13 @@ html.dark #inventory-page .inv-warehouse-header {
   }
 }
 
+/* Inventory stock toolbar — tách khỏi health card */
+#inventory-page .inv-toolbar.inv-stock-toolbar {
+  margin-top: 40px !important;
+  border-top: 2px solid var(--inv-border) !important;
+  padding-top: 20px !important;
+}
+
 /* ============================================================
    DARK MODE — OVERVIEW IMPROVEMENTS
    ============================================================ */
