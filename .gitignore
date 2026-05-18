@@ -77,3 +77,6 @@ node_modules/
 .beads
 .gitnexus
 .claude/
+
+# Compound Engineering local config
+.compound-engineering/*.local.yaml

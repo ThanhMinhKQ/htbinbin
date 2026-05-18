@@ -411,10 +411,12 @@ def get_hr_dashboard(
                 }
 
     def top_by(key: str, reverse: bool = True):
+        import re as _re
+        hotel_rows = [r for r in active_rows if _re.match(r"^B\d+$", str(r.get("branch_code") or ""), _re.IGNORECASE)]
         if reverse:
-            ranked = sorted(active_rows, key=lambda r: (-(r.get(key) or 0), r.get("name") or ""))
+            ranked = sorted(hotel_rows, key=lambda r: (-(r.get(key) or 0), r.get("name") or ""))
         else:
-            ranked = sorted(active_rows, key=lambda r: (r.get(key) or 0, r.get("name") or ""))
+            ranked = sorted(hotel_rows, key=lambda r: (r.get(key) or 0, r.get("name") or ""))
         return ranked[:5]
 
     total_work_units = sum(r["total_work_units"] for r in active_rows)
