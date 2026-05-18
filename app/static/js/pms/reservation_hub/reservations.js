@@ -219,17 +219,12 @@ Object.assign(BookingHub, {
                 <td>
                     <div class="bk-order-cell">
                         <strong class="bk-order-code">${bookingCode}</strong>
-                        <span class="bk-order-date"><i class="bi bi-clock-history"></i> ${this.formatDateTime(booking.created_at || booking.check_in) || this.formatDate(booking.created_at || booking.check_in)}</span>
-                    </div>
-                </td>
-                <td>
-                    <div class="bk-ota-cell">
                         <span class="bk-source-pill">${source}</span>
                         ${groupLabel}
                         ${transferLabel}
                         ${softShadowLabel}
                         ${overCapacityLabel}
-                        <span class="bk-ota-id">ID: ${this.escape(booking.id)}</span>
+                        <span class="bk-order-date"><i class="bi bi-clock-history"></i> ${this.formatDateTime(booking.created_at || booking.check_in) || this.formatDate(booking.created_at || booking.check_in)}</span>
                     </div>
                 </td>
                 <td>
@@ -651,20 +646,39 @@ Object.assign(BookingHub, {
         const code = booking.external_id || `#${booking.id}`;
         const guestName = booking.guest_name || 'Khách lẻ';
 
-        const nights = Math.max(1, this.dateDiff(booking.check_in, booking.check_out) || 1);
+        const rawData = booking.raw_data || {};
+
+        const parseStayMinutes = (value) => {
+            const match = String(value || '').match(/^(\d{1,2}):(\d{2})/);
+            if (!match) return null;
+            const h = Number(match[1]);
+            const m = Number(match[2]);
+            if (!Number.isFinite(h) || !Number.isFinite(m) || h > 23 || m > 59) return null;
+            return h * 60 + m;
+        };
+
+        const checkInTime = String(rawData.check_in_at || rawData.check_in_time || rawData.estimated_arrival || booking.estimated_arrival || '14:00').includes('T')
+            ? String(rawData.check_in_at || rawData.check_in_time || rawData.estimated_arrival || booking.estimated_arrival || '14:00').slice(11, 16)
+            : String(rawData.check_in_at || rawData.check_in_time || rawData.estimated_arrival || booking.estimated_arrival || '14:00').slice(0, 5);
+        const checkOutTime = String(rawData.check_out_at || rawData.check_out_time || rawData.estimated_departure || '12:00').includes('T')
+            ? String(rawData.check_out_at || rawData.check_out_time || rawData.estimated_departure || '12:00').slice(11, 16)
+            : String(rawData.check_out_at || rawData.check_out_time || rawData.estimated_departure || '12:00').slice(0, 5);
+
+        const checkInMinutes = parseStayMinutes(checkInTime);
+        const checkOutMinutes = parseStayMinutes(checkOutTime);
+        const crossesMidnight = Boolean(
+            rawData.ota_cross_midnight_booking
+            || (rawData.ota_same_day_booking && checkInMinutes !== null && checkOutMinutes !== null && checkOutMinutes <= checkInMinutes)
+        );
+        const checkOutDate = rawData.ota_actual_check_out && !crossesMidnight ? rawData.ota_actual_check_out : booking.check_out;
+        const actualStayDays = this.dateDiff(booking.check_in, checkOutDate);
+        const isHourlyStay = Boolean(rawData.ota_same_day_booking && !crossesMidnight && actualStayDays <= 0);
+
         const guests = Number(booking.num_guests || booking.num_adults || 1);
         const totalPrice = Number(booking.total_price || 0);
         const depositAmount = Number(booking.deposit_amount || 0);
         const balance = Math.max(0, totalPrice - depositAmount);
         const roomLabel = booking.assigned_room_number ? `Phòng ${booking.assigned_room_number}` : 'Chưa gán';
-
-        const rawData = booking.raw_data || {};
-        const checkInTime = String(rawData.check_in_at || booking.estimated_arrival || '14:00').includes('T')
-            ? String(rawData.check_in_at || booking.estimated_arrival || '14:00').slice(11, 16)
-            : String(rawData.check_in_at || booking.estimated_arrival || '14:00').slice(0, 5);
-        const checkOutTime = String(rawData.check_out_at || '12:00').includes('T')
-            ? String(rawData.check_out_at || '12:00').slice(11, 16)
-            : String(rawData.check_out_at || '12:00').slice(0, 5);
         const isTransferShadow = Boolean(rawData.transfer_shadow);
         const canConfirm = status === 'PENDING' && !booking.assigned_room_id && !isTransferShadow;
         const canAssign = status === 'CONFIRMED' && !isTransferShadow;
@@ -715,17 +729,15 @@ Object.assign(BookingHub, {
                     <div class="bk-receipt-row">
                         <div class="bk-receipt-col">
                             <span class="bk-receipt-label">Nhận Phòng / Check-in</span>
-                            <strong class="bk-receipt-value">${this.formatDate(booking.check_in)}</strong>
-                            <span class="bk-receipt-subvalue">Từ ${this.escape(checkInTime)}</span>
+                            <strong class="bk-receipt-value">${this.escape(this.formatStayDateTime(booking.check_in, checkInTime))}</strong>
                         </div>
                         <div class="bk-receipt-col">
                             <span class="bk-receipt-label">Trả Phòng / Check-out</span>
-                            <strong class="bk-receipt-value">${this.formatDate(booking.check_out)}</strong>
-                            <span class="bk-receipt-subvalue">Trước ${this.escape(checkOutTime)}</span>
+                            <strong class="bk-receipt-value">${this.escape(this.formatStayDateTime(checkOutDate, checkOutTime))}</strong>
                         </div>
                         <div class="bk-receipt-col">
                             <span class="bk-receipt-label">Lưu Trú / Duration</span>
-                            <strong class="bk-receipt-value">${nights} đêm</strong>
+                            <strong class="bk-receipt-value">${isHourlyStay ? 'Theo giờ' : `${Math.max(1, this.dateDiff(booking.check_in, booking.check_out) || 1)} đêm`}</strong>
                             <span class="bk-receipt-subvalue">${guests} người lớn</span>
                         </div>
                     </div>

@@ -648,8 +648,18 @@
         {% set pricing = raw.pricing_preview or {} %}
         {% if breakdown is not defined %}{% set breakdown = pricing.breakdown if pricing.breakdown is iterable and pricing.breakdown is not string and pricing.breakdown is not mapping else [] %}{% endif %}
         {% if services is not defined %}{% set services = raw.services or [] %}{% endif %}
-        {% if check_in_time is not defined %}{% set check_in_time = (raw.check_in_at or booking.estimated_arrival or '14:00')[-5:] %}{% endif %}
-        {% if check_out_time is not defined %}{% set check_out_time = (raw.check_out_at or '12:00')[-5:] %}{% endif %}
+        {% if check_in_time is not defined %}{% set check_in_time = (raw.check_in_at or raw.check_in_time or raw.estimated_arrival or booking.estimated_arrival or '14:00')[-5:] %}{% endif %}
+        {% if check_out_time is not defined %}{% set check_out_time = (raw.check_out_at or raw.check_out_time or raw.estimated_departure or '12:00')[-5:] %}{% endif %}
+        {% set _ci_mins = check_in_time.split(':') %}
+        {% set _co_mins = check_out_time.split(':') %}
+        {% set _ci_total = (_ci_mins[0]|int) * 60 + (_ci_mins[1]|int) if _ci_mins|length == 2 else 0 %}
+        {% set _co_total = (_co_mins[0]|int) * 60 + (_co_mins[1]|int) if _co_mins|length == 2 else 0 %}
+        {% set crosses_midnight = raw.ota_cross_midnight_booking or (raw.ota_same_day_booking and _co_total <= _ci_total) %}
+        {% set actual_check_out_date = raw.ota_actual_check_out if (raw.ota_actual_check_out and not crosses_midnight) else booking.check_out %}
+        {% set is_hourly = is_hourly_booking if is_hourly_booking is defined else (raw.ota_same_day_booking and not crosses_midnight) %}
+        {% set display_check_out_date = display_check_out_date if display_check_out_date is defined and display_check_out_date else (booking.check_in if is_hourly else actual_check_out_date) %}
+        {% macro fmt_date(d) %}{% if d %}{{ d[8:10] }}/{{ d[5:7] }}/{{ d[0:4] }}{% else %}—{% endif %}{% endmacro %}
+        {% macro fmt_datetime(d, t) %}{{ fmt_date(d) }}{% if t %} {{ t }}{% endif %}{% endmacro %}
         {% set legacy_breakdown = pricing.breakdown if pricing.breakdown is mapping else {} %}
         {% set early_fee = legacy_breakdown.early_checkin_fee or raw.early_checkin_fee or raw.early_fee or 0 %}
         {% set late_fee = legacy_breakdown.late_checkout_fee or raw.late_checkout_fee or raw.late_fee or 0 %}
@@ -696,13 +706,16 @@
                 <div class="info-row info-row-pair">
                     <div class="info-date-pair">
                         {% if booking.check_in %}
-                        <div><span class="info-label">Nhận phòng / Check-in</span><span class="info-val">{{ booking.check_in }} {{ check_in_time }}</span></div>
+                        <div><span class="info-label">Nhận phòng / Check-in</span><span class="info-val">{{ fmt_datetime(booking.check_in, check_in_time) }}</span></div>
                         {% endif %}
                         {% if booking.check_out %}
-                        <div><span class="info-label">Trả phòng / Check-out</span><span class="info-val">{{ booking.check_out }} {{ check_out_time }}</span></div>
+                        <div><span class="info-label">Trả phòng / Check-out</span><span class="info-val">{{ fmt_datetime(display_check_out_date, check_out_time) }}</span></div>
                         {% endif %}
                     </div>
                 </div>
+                {% endif %}
+                {% if is_hourly %}
+                <div class="info-row"><span class="info-label">Loại lưu trú / Stay Type</span><span class="info-val">Theo giờ / Hourly</span></div>
                 {% endif %}
                 {% if booking.special_requests %}
                 <div class="info-row"><span class="info-label">Yêu cầu / Requests</span><span class="info-val">{{ booking.special_requests }}</span></div>
@@ -751,8 +764,8 @@
                             %}{{ item.hours }} tiếng × {{ '{:,.0f}'.format(fee_unit or 0).replace(',', '.') }}{% elif
                             item.days %}{{ item.days }} đêm × {{ '{:,.0f}'.format(fee_unit or 0).replace(',', '.')
                             }}{% else %}{{ fee_label }}{% endif %}</span>{% endif %}</td>
-                    <td class="center">{% if item.start_iso %}{{ item.start_iso[:10] }}<br><span class="date-time">{{ item.start_iso[11:16] }}</span>{% else %}—{% endif %}</td>
-                    <td class="center">{% if item.end_iso %}{{ item.end_iso[:10] }}<br><span class="date-time">{{ item.end_iso[11:16] }}</span>{% else %}—{% endif %}</td>
+                    <td class="center">{% if item.start_iso %}{{ fmt_date(item.start_iso[:10]) }}<br><span class="date-time">{{ item.start_iso[11:16] }}</span>{% else %}—{% endif %}</td>
+                    <td class="center">{% if item.end_iso %}{{ fmt_date(item.end_iso[:10]) }}<br><span class="date-time">{{ item.end_iso[11:16] }}</span>{% else %}—{% endif %}</td>
                     <td class="center">{{ fee_qty }}</td>
                     <td class="right money">{{ '-' if item_amount < 0 else '' }}{{ '{:,.0f}'.format(display_amount).replace(',', '.') }}</td>
                 </tr>
@@ -764,8 +777,8 @@
                 <tr>
                     <td class="desc-col"><strong>Phí nhận phòng sớm / Early check-in fee</strong><br><span
                             class="line-note">{{ early_hours }} tiếng × {{ '{:,.0f}'.format(early_unit or 0).replace(',', '.') }}</span></td>
-                    <td class="center">{{ booking.check_in or '—' }}<br><span class="date-time">{{ check_in_time }}</span></td>
-                    <td class="center">{{ booking.check_in or '—' }}<br><span class="date-time">14:00</span></td>
+                    <td class="center">{{ fmt_date(booking.check_in) }}<br><span class="date-time">{{ check_in_time }}</span></td>
+                    <td class="center">{{ fmt_date(booking.check_in) }}<br><span class="date-time">14:00</span></td>
                     <td class="center">{{ early_hours }}</td>
                     <td class="right money">{{ '{:,.0f}'.format(early_fee or 0).replace(',', '.') }}</td>
                 </tr>
@@ -776,8 +789,8 @@
                 <tr>
                     <td class="desc-col"><strong>Phí trả phòng muộn / Late check-out fee</strong><br><span
                             class="line-note">{{ late_hours }} tiếng × {{ '{:,.0f}'.format(late_unit or 0).replace(',', '.') }}</span></td>
-                    <td class="center">{{ booking.check_out or '—' }}<br><span class="date-time">12:00</span></td>
-                    <td class="center">{{ booking.check_out or '—' }}<br><span class="date-time">{{ check_out_time }}</span></td>
+                    <td class="center">{{ fmt_date(booking.check_out) }}<br><span class="date-time">12:00</span></td>
+                    <td class="center">{{ fmt_date(actual_check_out_date) }}<br><span class="date-time">{{ check_out_time }}</span></td>
                     <td class="center">{{ late_hours }}</td>
                     <td class="right money">{{ '{:,.0f}'.format(late_fee or 0).replace(',', '.') }}</td>
                 </tr>
@@ -785,11 +798,11 @@
                 {% if not services and not breakdown and not early_fee and not late_fee %}
                 {% set stay_nights = raw.nights if raw and raw.nights else 1 %}
                 <tr>
-                    <td class="desc-col"><strong>Tiền phòng / Room charge</strong><br><span
-                            class="line-note">{{ stay_nights }} đêm / night(s)</span></td>
-                    <td class="center">{{ booking.check_in or '—' }}<br><span class="date-time">{{ check_in_time }}</span></td>
-                    <td class="center">{{ booking.check_out or '—' }}<br><span class="date-time">{{ check_out_time }}</span></td>
-                    <td class="center">{{ stay_nights }}</td>
+                    <td class="desc-col"><strong>{% if is_hourly %}Tiền phòng theo giờ / Hourly room charge{% else %}Tiền phòng / Room charge{% endif %}</strong><br><span
+                            class="line-note">{% if is_hourly %}Theo giờ / Hourly{% else %}{{ stay_nights }} đêm / night(s){% endif %}</span></td>
+                    <td class="center">{{ fmt_date(booking.check_in) }}<br><span class="date-time">{{ check_in_time }}</span></td>
+                    <td class="center">{{ fmt_date(actual_check_out_date) }}<br><span class="date-time">{{ check_out_time }}</span></td>
+                    <td class="center">{% if is_hourly %}—{% else %}{{ stay_nights }}{% endif %}</td>
                     <td class="right money">{{ '{:,.0f}'.format(booking.total_price or 0).replace(',', '.') }}</td>
                 </tr>
                 {% endif %}

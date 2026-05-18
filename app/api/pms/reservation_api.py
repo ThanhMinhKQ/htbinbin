@@ -1009,8 +1009,7 @@ def _build_print_extras(booking: dict[str, Any]) -> dict[str, Any]:
 
     check_in_at = str(raw.get("check_in_at") or "")
     check_out_at = str(raw.get("check_out_at") or "")
-    check_in_time = (check_in_at[-5:] if "T" in check_in_at else "") or (booking.get("estimated_arrival") or "14:00")[-5:]
-    check_out_time = (check_out_at[-5:] if "T" in check_out_at else "") or "12:00"
+    check_in_time = (check_in_at[11:16] if "T" in check_in_at else "") or str(raw.get("check_in_time") or booking.get("estimated_arrival") or "14:00")[-5:]
 
     cross_midnight = bool(raw.get("ota_cross_midnight_booking"))
     same_day_flag = bool(raw.get("ota_same_day_booking"))
@@ -1025,10 +1024,38 @@ def _build_print_extras(booking: dict[str, Any]) -> dict[str, Any]:
         or hourly_in_notes
     )
 
+    # Với booking giờ, check_out_at thường là ngày hôm sau (DB lưu check_out+1).
+    # Lấy giờ thực từ raw.check_out_time hoặc ota_actual_check_out nếu có.
+    if is_hourly:
+        actual_co_time = str(raw.get("check_out_time") or "")
+        if not actual_co_time and raw.get("ota_actual_check_out"):
+            # ota_actual_check_out dạng "HH:MM" hoặc "YYYY-MM-DDTHH:MM"
+            aco = str(raw["ota_actual_check_out"])
+            actual_co_time = aco[11:16] if "T" in aco else aco[:5]
+        if not actual_co_time and "T" in check_out_at:
+            # check_out_at có thể là ngày hôm sau nhưng giờ vẫn đúng
+            actual_co_time = check_out_at[11:16]
+        check_out_time = actual_co_time or "12:00"
+        # Ngày checkout hiển thị là ngày check_in (cùng ngày)
+        display_check_out_date = booking.get("check_in") or ""
+    else:
+        check_out_time = (check_out_at[11:16] if "T" in check_out_at else "") or str(raw.get("check_out_time") or "12:00")[-5:]
+        display_check_out_date = booking.get("check_out") or ""
+
+    ci_iso = check_in_at if "T" in check_in_at else f"{booking.get('check_in') or ''}T{check_in_time}"
+    co_iso = f"{display_check_out_date}T{check_out_time}" if display_check_out_date else (check_out_at if "T" in check_out_at else f"{booking.get('check_out') or ''}T{check_out_time}")
+
+    # Nếu là hourly và breakdown từ pricing_preview có start/end_iso sai ngày,
+    # rebuild lại để đảm bảo hiển thị đúng.
+    if is_hourly and breakdown:
+        for item in breakdown:
+            if item.get("start_iso") and "T" in str(item["start_iso"]):
+                item["start_iso"] = ci_iso
+            if item.get("end_iso") and "T" in str(item["end_iso"]):
+                item["end_iso"] = co_iso
+
     if not breakdown and not services:
         total_price = float(booking.get("total_price") or 0)
-        ci_iso = check_in_at if "T" in check_in_at else f"{booking.get('check_in') or ''}T{check_in_time}"
-        co_iso = check_out_at if "T" in check_out_at else f"{booking.get('check_out') or ''}T{check_out_time}"
         if is_hourly:
             hours = _stay_hours(ci_iso, co_iso) or 1
             breakdown = [{
@@ -1086,6 +1113,7 @@ def _build_print_extras(booking: dict[str, Any]) -> dict[str, Any]:
         "check_in_time": check_in_time,
         "check_out_time": check_out_time,
         "is_hourly_booking": is_hourly,
+        "display_check_out_date": display_check_out_date,
     }
 
 
