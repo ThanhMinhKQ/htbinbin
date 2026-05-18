@@ -4,7 +4,7 @@ import requests from './requests.js?v=3.1';
 import approvals from './approvals.js?v=3.3';
 import imports from './imports.js?v=3.1';
 import exports from './exports.js?v=3.1';
-import overview from './overview.js?v=3.1';
+import overview from './overview.js?v=3.2-shift';
 
 function inventoryManagerApp(totalRecords, currentPage, totalPages) {
     return {

@@ -12,6 +12,7 @@ from .stocktake import router as stocktake_router
 from .pms_integration import router as pms_router
 from .alerts import router as alerts_router
 from .audit import router as audit_router
+from .shift_sales import router as shift_sales_router
 from .ui import router as ui_router
 
 router = APIRouter()
@@ -31,6 +32,7 @@ router.include_router(stocktake_router, tags=["Inventory Stocktake"])
 router.include_router(pms_router, tags=["Inventory PMS Integration"])
 router.include_router(alerts_router, tags=["Inventory Alerts & Analytics"])
 router.include_router(audit_router, tags=["Inventory Audit Trail"])
+router.include_router(shift_sales_router, tags=["Inventory Shift Sales"])
 
 # UI Router
 router_ui.include_router(ui_router)

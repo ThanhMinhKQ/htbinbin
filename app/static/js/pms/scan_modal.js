@@ -62,6 +62,14 @@ let _smLastCameraText  = '';
 /* ── helpers ─────────────────────────────────────────────────── */
 function _smEl(id) { return document.getElementById(id); }
 
+function _smIsTouchDevice() {
+    return (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    );
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    RAW DATA SANITIZER
    ═══════════════════════════════════════════════════════════════════ */
@@ -125,6 +133,11 @@ function openScanModal(onSuccess) {
     _smFocusInput();
     setTimeout(_smFocusInput, 80);
     setTimeout(_smFocusInput, 200);
+
+    // ── Auto-start camera on touch devices ──────────────────────
+    if (_smIsTouchDevice()) {
+        setTimeout(scanModalStartCamera, 300);
+    }
 }
 
 function scanModalClose() {

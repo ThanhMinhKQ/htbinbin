@@ -640,7 +640,7 @@ function hrApp() {
                     ward: '',
                     address: '',
                     gender: '',
-                    addressMode: 'new',
+                    addressMode: 'old',
                 };
                 this.showEmployeeModal = true;
                 this.$nextTick(() => this.hrSwitchAddrMode());

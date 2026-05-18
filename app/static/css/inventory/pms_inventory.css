@@ -1484,3 +1484,172 @@ html.dark #inventory-page .inv-warehouse-header {
     scroll-behavior: auto !important;
   }
 }
+
+/* ============================================================
+   DARK MODE — OVERVIEW IMPROVEMENTS
+   ============================================================ */
+
+/* KPI cards: stronger contrast for labels and values */
+html.dark #inventory-page .inv-kpi-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.98)) !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.dark #inventory-page .inv-kpi-label {
+  color: #94a3b8 !important;
+}
+
+html.dark #inventory-page .inv-kpi-value {
+  color: #f1f5f9 !important;
+}
+
+html.dark #inventory-page .inv-kpi-card[data-accent="teal"] .inv-kpi-value {
+  color: #6ee7b7 !important;
+}
+
+html.dark #inventory-page .inv-kpi-card[data-accent="yellow"] .inv-kpi-value {
+  color: #fca5a5 !important;
+}
+
+/* Metric chips (chờ / giao / xong) */
+html.dark #inventory-page .inv-metric-chip {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark #inventory-page .inv-metric-chip.is-warning {
+  background: rgba(120, 53, 15, 0.5) !important;
+  border-color: rgba(217, 119, 6, 0.4) !important;
+  color: #fcd34d !important;
+}
+
+html.dark #inventory-page .inv-metric-chip.is-info {
+  background: rgba(30, 58, 138, 0.5) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+  color: #93c5fd !important;
+}
+
+html.dark #inventory-page .inv-metric-chip.is-success {
+  background: rgba(6, 78, 59, 0.5) !important;
+  border-color: rgba(52, 211, 153, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+
+/* Flow lanes panel */
+html.dark #inventory-page .inv-overview-panel {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+html.dark #inventory-page .inv-panel-topline {
+  color: #e2e8f0 !important;
+}
+
+html.dark #inventory-page .inv-panel-pills span {
+  background: rgba(30, 41, 59, 0.8) !important;
+  color: #94a3b8 !important;
+}
+
+html.dark #inventory-page .inv-panel-pills span strong {
+  color: #e2e8f0 !important;
+}
+
+html.dark #inventory-page .inv-flow-lane-head span {
+  color: #94a3b8 !important;
+}
+
+html.dark #inventory-page .inv-flow-lane-head strong {
+  color: #f1f5f9 !important;
+}
+
+html.dark #inventory-page .inv-flow-track {
+  background: rgba(30, 41, 59, 0.8) !important;
+}
+
+/* Health card */
+html.dark #inventory-page .inv-health-card {
+  background: rgba(17, 24, 39, 0.95) !important;
+}
+
+html.dark #inventory-page .inv-health-total {
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+html.dark #inventory-page .inv-health-total span {
+  color: #94a3b8 !important;
+}
+
+html.dark #inventory-page .inv-health-total strong {
+  color: #f1f5f9 !important;
+}
+
+html.dark #inventory-page .inv-risk-chip {
+  background: rgba(127, 29, 29, 0.5) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+
+/* Stock cards */
+html.dark #inventory-page article.group {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+html.dark #inventory-page article.group h5 {
+  color: #f1f5f9 !important;
+}
+
+html.dark #inventory-page article.group p[class*="font-mono"] {
+  color: #64748b !important;
+}
+
+/* Stock list table */
+html.dark #inventory-page .inv-table-card {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+html.dark #inventory-page .inv-table-head th {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: #94a3b8 !important;
+  border-color: rgba(148, 163, 184, 0.12) !important;
+}
+
+html.dark #inventory-page .inv-row:hover,
+html.dark #inventory-page .inv-table-row:hover {
+  background: rgba(30, 41, 59, 0.6) !important;
+}
+
+html.dark #inventory-page .inv-row td,
+html.dark #inventory-page .inv-table-row td {
+  border-color: rgba(148, 163, 184, 0.08) !important;
+}
+
+/* Toolbar / search area */
+html.dark #inventory-page .inv-toolbar {
+  background: rgba(17, 24, 39, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.15) !important;
+}
+
+html.dark #inventory-page .inv-field,
+html.dark #inventory-page .inv-field-search {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark #inventory-page .inv-field::placeholder,
+html.dark #inventory-page .inv-field-search::placeholder {
+  color: #475569 !important;
+}
+
+/* Category section headers */
+html.dark #inventory-page section h4 {
+  color: #e2e8f0 !important;
+}
+
+html.dark #inventory-page section span[class*="rounded-full"][class*="bg-slate"] {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #94a3b8 !important;
+}

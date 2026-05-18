@@ -4,7 +4,7 @@
 {% block page_title %}Quản lý Yêu Cầu Kho{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.3">
+<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.4">
 {% endblock %}
 
 {% block app_header_actions %}
@@ -116,6 +116,7 @@
         {
             "id": {{ w.id }},
             "name": "{{ w.name }}",
+            "type": "{{ w.type or 'BRANCH' }}",
             "branch_id": {{ w.branch_id if w.branch_id else 'null' }},
             "branch_name": "{{ w.branch.name if w.branch else 'Kho Tổng' }}"
         }{{ "," if not loop.last }}
@@ -155,7 +156,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.3")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.5-shift")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;
@@ -207,6 +208,7 @@
                 {% include "inventory/shared/approvals/tab_approvals.html" %}
                 {% include "inventory/reception_request/overview/tab_overview.html" %}
                 {% include "inventory/reception_request/overview/modal_product_history.html" %}
+                {% include "inventory/reception_request/overview/modal_shift_sales.html" %}
                 {% include "inventory/shared/imports/tab_import.html" %}
                 {% include "inventory/reception_request/exports/tab_export.html" %}
 

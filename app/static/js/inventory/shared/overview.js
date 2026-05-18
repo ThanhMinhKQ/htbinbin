@@ -29,6 +29,19 @@ export default function(config = {}) {
     productHistoryList: [],
     historyFilterType: 'ALL', // ALL, IMPORT, EXPORT, ADJUSTMENT
 
+    // Shift Sales Quick View State
+    isShiftSalesModalOpen: false,
+    loadingShiftSales: false,
+    shiftSalesStaff: [],
+    shiftSalesTargetUserId: null,
+    shiftSales: {
+        shift: null,
+        actor: null,
+        items: [],
+        transactions: [],
+        totals: { total_qty: 0, total_amount: 0, tx_count: 0 },
+    },
+
     transactionTypeMap: {
         'IMPORT_PO': 'Nhập từ NCC',
         'IMPORT_TRANSFER': 'Nhập chuyển kho',
@@ -116,8 +129,8 @@ export default function(config = {}) {
 
     getStockStatusClass(item) {
         return item.status === 'Cảnh báo'
-            ? 'bg-[#F2EAE0] text-amber-800 border-amber-200'
-            : 'bg-[#B4D3D9]/40 text-teal-800 border-teal-200';
+            ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50'
+            : 'bg-teal-100 dark:bg-teal-900/40 text-teal-800 dark:text-teal-300 border border-teal-200 dark:border-teal-700/50';
     },
 
     isOverviewMainScope() {
@@ -498,6 +511,92 @@ export default function(config = {}) {
         this.isHistoryModalOpen = false;
         this.viewingHistoryProduct = null;
         this.productHistoryList = [];
-    }
+    },
+
+    isCurrentWarehouseBranch() {
+        if (!this.currentWarehouseId) return false;
+        const wh = (this.allWarehouses || []).find(w => String(w.id) === String(this.currentWarehouseId));
+        return wh ? wh.type === 'BRANCH' : false;
+    },
+
+    // --- SHIFT SALES QUICK VIEW ---
+    async openShiftSales() {
+        this.isShiftSalesModalOpen = true;
+        this.shiftSalesTargetUserId = null;
+        this.shiftSalesStaff = [];
+        await Promise.all([
+            this.fetchShiftSales(),
+            this.fetchShiftSalesStaff(),
+        ]);
+    },
+
+    closeShiftSales() {
+        this.isShiftSalesModalOpen = false;
+    },
+
+    isAdminRole() {
+        const role = window.USER_ROLE || '';
+        return ['boss', 'admin', 'quanly'].includes(role);
+    },
+
+    formatShiftRange(shift) {
+        if (!shift || !shift.start || !shift.end) return '';
+        try {
+            const fmt = (iso) => new Date(iso).toLocaleString('vi-VN', {
+                hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit'
+            });
+            return `${fmt(shift.start)} → ${fmt(shift.end)}`;
+        } catch (e) {
+            return '';
+        }
+    },
+
+    async fetchShiftSales() {
+        this.loadingShiftSales = true;
+        try {
+            const params = new URLSearchParams();
+            if (this.currentWarehouseId) params.set('warehouse_id', this.currentWarehouseId);
+            if (this.shiftSalesTargetUserId) params.set('target_user_id', this.shiftSalesTargetUserId);
+            const res = await fetch(`/api/inventory/my-shift-sales?${params.toString()}`, {
+                credentials: 'same-origin'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                this.shiftSales = {
+                    shift: data.shift || null,
+                    actor: data.actor || null,
+                    items: data.items || [],
+                    transactions: data.transactions || [],
+                    totals: data.totals || { total_qty: 0, total_amount: 0, tx_count: 0 },
+                };
+            } else {
+                console.error('Failed to load shift sales', res.status);
+            }
+        } catch (e) {
+            console.error('Error fetching shift sales:', e);
+        } finally {
+            this.loadingShiftSales = false;
+        }
+    },
+
+    async fetchShiftSalesStaff() {
+        if (!this.isAdminRole()) return;
+        try {
+            const params = new URLSearchParams();
+            if (this.currentWarehouseId) params.set('warehouse_id', this.currentWarehouseId);
+            const res = await fetch(`/api/inventory/shift-sales-staff?${params.toString()}`, {
+                credentials: 'same-origin'
+            });
+            if (res.ok) {
+                this.shiftSalesStaff = await res.json();
+            }
+        } catch (e) {
+            console.error('Error fetching shift sales staff:', e);
+        }
+    },
+
+    async onShiftSalesStaffChange() {
+        await this.fetchShiftSales();
+    },
 };
 }

@@ -5,9 +5,8 @@
      x-transition:enter-end="hr-emp-fade-end"
      class="hr-modal-backdrop hr-emp-backdrop" @click.self="showEmployeeModal = false">
     <div class="hr-modal hr-emp-modal" @click.stop>
-        <!-- HERO HEADER -->
+        <!-- HEADER -->
         <div class="hr-emp-hero" :class="editingEmployee ? 'is-edit' : 'is-new'">
-            <div class="hr-emp-hero-bg"></div>
             <div class="hr-emp-hero-content">
                 <div class="hr-emp-hero-avatar" x-text="editingEmployee ? getInitials(editingEmployee.name || form.name) : (form.name ? getInitials(form.name) : '+')"></div>
                 <div class="hr-emp-hero-meta">
@@ -82,43 +81,27 @@
                             </div>
                         </div>
 
-                        <div class="hr-form-row">
-                            <div class="hr-field">
-                                <label>Ca làm việc</label>
-                                <div class="hr-emp-shift">
-                                    <label class="hr-emp-shift-chip" :class="{ active: !form.shift }">
-                                        <input type="radio" value="" x-model="form.shift">
-                                        <i class="bi bi-dash-circle"></i> Không có ca
-                                    </label>
-                                    <label class="hr-emp-shift-chip" :class="{ active: form.shift === 'CS' }">
-                                        <input type="radio" value="CS" x-model="form.shift">
-                                        <i class="bi bi-sun-fill"></i> CS · Sáng
-                                    </label>
-                                    <label class="hr-emp-shift-chip" :class="{ active: form.shift === 'CT' }">
-                                        <input type="radio" value="CT" x-model="form.shift">
-                                        <i class="bi bi-moon-stars-fill"></i> CT · Tối
-                                    </label>
-                                </div>
+                        <div class="hr-field">
+                            <label>Ca làm việc</label>
+                            <div class="hr-emp-shift">
+                                <label class="hr-emp-shift-chip" :class="{ active: !form.shift }">
+                                    <input type="radio" value="" x-model="form.shift">
+                                    <i class="bi bi-dash-circle"></i> Không có ca
+                                </label>
+                                <label class="hr-emp-shift-chip" :class="{ active: form.shift === 'CS' }">
+                                    <input type="radio" value="CS" x-model="form.shift">
+                                    <i class="bi bi-sun-fill"></i> CS · Sáng
+                                </label>
+                                <label class="hr-emp-shift-chip" :class="{ active: form.shift === 'CT' }">
+                                    <input type="radio" value="CT" x-model="form.shift">
+                                    <i class="bi bi-moon-stars-fill"></i> CT · Tối
+                                </label>
                             </div>
                         </div>
 
-                        <div class="hr-form-row" x-show="!editingEmployee">
-                            <div class="hr-field">
-                                <label>Mật khẩu ban đầu</label>
-                                <input class="hr-input" type="text" x-model="form.password" placeholder="123456">
-                                <span class="hr-emp-hint"><i class="bi bi-info-circle"></i> Mặc định 123456 — nhân viên có thể đổi sau khi đăng nhập</span>
-                            </div>
-                        </div>
-
-                        <div class="hr-form-row">
-                            <div class="hr-field">
-                                <label>Số điện thoại</label>
-                                <input class="hr-input" type="text" x-model="form.phone_number" placeholder="0901234567">
-                            </div>
-                            <div class="hr-field">
-                                <label>Email</label>
-                                <input class="hr-input" type="email" x-model="form.email" placeholder="abc@gmail.com">
-                            </div>
+                        <div class="hr-field" x-show="!editingEmployee">
+                            <label>Mật khẩu ban đầu</label>
+                            <input class="hr-input" type="text" x-model="form.password" placeholder="123456">
                         </div>
 
                         <!-- Trạng thái (chỉ khi sửa) -->
@@ -166,20 +149,12 @@
                             </div>
                             <div class="hr-field">
                                 <label>Giới tính</label>
-                                <div class="hr-emp-gender">
-                                    <label :class="{ active: form.gender === 'Nam' }">
-                                        <input type="radio" value="Nam" x-model="form.gender">
-                                        <i class="bi bi-gender-male"></i> Nam
-                                    </label>
-                                    <label :class="{ active: form.gender === 'Nữ' }">
-                                        <input type="radio" value="Nữ" x-model="form.gender">
-                                        <i class="bi bi-gender-female"></i> Nữ
-                                    </label>
-                                    <label :class="{ active: form.gender === 'Khác' }">
-                                        <input type="radio" value="Khác" x-model="form.gender">
-                                        <i class="bi bi-gender-ambiguous"></i> Khác
-                                    </label>
-                                </div>
+                                <select class="hr-select" x-model="form.gender">
+                                    <option value="">Chọn giới tính</option>
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                    <option value="Khác">Khác</option>
+                                </select>
                             </div>
                         </div>
 
@@ -187,6 +162,17 @@
                             <div class="hr-field">
                                 <label>Ngày sinh</label>
                                 <input class="hr-input" type="date" x-model="form.date_of_birth">
+                            </div>
+                            <div class="hr-field">
+                                <label>Số điện thoại</label>
+                                <input class="hr-input" type="text" x-model="form.phone_number" placeholder="0901234567">
+                            </div>
+                        </div>
+
+                        <div class="hr-form-row">
+                            <div class="hr-field">
+                                <label>Email</label>
+                                <input class="hr-input" type="email" x-model="form.email" placeholder="abc@gmail.com">
                             </div>
                         </div>
 
@@ -209,7 +195,7 @@
                                 </div>
                             </div>
 
-                            <div class="hr-form-row">
+                            <div class="hr-emp-addr-grid">
                                 <div class="hr-field">
                                     <label>Tỉnh / TP</label>
                                     <input class="hr-input" type="text" x-model="form.province"
@@ -224,8 +210,6 @@
                                         @change="HrAddress.onDistrictChange(form.district, form.province)">
                                     <datalist id="hr-dl-district"></datalist>
                                 </div>
-                            </div>
-                            <div class="hr-form-row">
                                 <div class="hr-field">
                                     <label>Phường / Xã</label>
                                     <input class="hr-input" type="text" x-model="form.ward"
