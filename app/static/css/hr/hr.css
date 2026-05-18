@@ -1865,7 +1865,7 @@ body.hr-modal-open #app {
     height: 100%;
 }
 .hr-emp-col {
-    padding: 24px 28px 28px;
+    padding: 18px 22px 22px;
     border-right: 1px solid var(--bk-line);
     overflow-y: auto;
     max-height: 60vh;
@@ -1881,54 +1881,51 @@ body.hr-modal-open #app {
 .hr-emp-section {
     display: flex;
     align-items: center;
-    gap: 13px;
-    margin-bottom: 20px;
-    padding-bottom: 14px;
-    border-bottom: 1px dashed var(--bk-line);
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--bk-line);
 }
 .hr-emp-section-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 13px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(59,130,246,.15), rgba(139,92,246,.15));
+    background: linear-gradient(135deg, rgba(59,130,246,.12), rgba(139,92,246,.12));
     color: var(--bk-primary);
-    font-size: 17px;
+    font-size: 14px;
     flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba(59,130,246,.12);
 }
 .hr-emp-col:last-child .hr-emp-section-icon {
-    background: linear-gradient(135deg, rgba(236,72,153,.15), rgba(245,158,11,.15));
+    background: linear-gradient(135deg, rgba(236,72,153,.12), rgba(245,158,11,.12));
     color: #db2777;
-    box-shadow: 0 2px 8px rgba(236,72,153,.12);
 }
 .hr-emp-section-title {
     display: block;
-    font-size: 14.5px;
-    font-weight: 850;
+    font-size: 13px;
+    font-weight: 800;
     color: var(--bk-ink);
     line-height: 1.2;
+    white-space: nowrap;
 }
 .hr-emp-section-sub {
-    display: block;
-    font-size: 12px;
-    color: var(--bk-muted);
-    margin-top: 3px;
-    font-weight: 600;
+    display: none;
 }
 
 /* ── Form grid inside modal ── */
-.hr-emp-col .hr-form-grid { gap: 18px; }
-.hr-emp-col .hr-form-row  { gap: 14px; }
-.hr-emp-col .hr-field      { gap: 7px; }
+.hr-emp-col .hr-form-grid { gap: 14px; }
+.hr-emp-col .hr-form-row  { gap: 10px; }
+.hr-emp-col .hr-field      { gap: 5px; }
 .hr-emp-col .hr-field label {
     font-size: 11.5px;
-    font-weight: 800;
+    font-weight: 700;
     color: var(--bk-muted);
-    letter-spacing: .05em;
-    text-transform: uppercase;
+    letter-spacing: .01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .hr-emp-col .hr-input,
 .hr-emp-col .hr-select {
@@ -2193,7 +2190,7 @@ html.dark .hr-emp-addr {
     letter-spacing: .05em;
 }
 .hr-emp-addr-title i { color: #ec4899; font-size: 15px; }
-.hr-emp-addr .hr-form-row { gap: 12px; margin-top: 14px; }
+.hr-emp-addr .hr-form-row { gap: 10px; margin-top: 12px; }
 .hr-emp-addr .hr-input {
     height: 40px;
     border-radius: 11px;
