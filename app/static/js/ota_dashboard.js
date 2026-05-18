@@ -232,7 +232,7 @@ async function _checkForModifications() {
     } catch (e) { }
 }
 
-
+function showNewBookingBanner(count) {
     const existing = document.getElementById('newBookingBanner');
     if (existing) existing.remove();
 
