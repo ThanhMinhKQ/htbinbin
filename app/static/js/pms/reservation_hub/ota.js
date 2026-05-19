@@ -7,9 +7,8 @@ Object.assign(BookingHub, {
         if (btn?.disabled || this.state.otaScanRunning) return;
         const dateInput = document.getElementById('bk-ota-scan-date');
         const today = this.toDateInput(new Date());
-        const scanDate = dateInput?.value || today;
+        const scanDate = (dateInput?._fp_get_iso?.() || dateInput?.value || today);
         if (!window.confirm(`Bạn có chắc muốn quét email OTA ngày ${this.formatDate(scanDate)} không?`)) return;
-        if (dateInput && !dateInput.value) dateInput.value = scanDate;
         const params = new URLSearchParams();
         params.set('scan_date', scanDate);
         this.state.otaScanRunning = true;
@@ -32,7 +31,7 @@ Object.assign(BookingHub, {
 
     async loadOtaPanel() {
         const dateInput = document.getElementById('bk-ota-scan-date');
-        if (dateInput && !dateInput.value) dateInput.value = this.toDateInput(new Date());
+        if (dateInput && !dateInput._flatpickr && !dateInput.value) dateInput.value = this.toDateInput(new Date());
         try {
             const params = new URLSearchParams();
             params.set('days', '1');
@@ -53,6 +52,7 @@ Object.assign(BookingHub, {
     },
 
     renderOtaStatus(data) {
+        this.state.otaStatusData = data;
         this.text('bk-ota-total', data.ota_total || 0);
         this.text('bk-ota-confirmed', data.ota_confirmed || 0);
         this.text('bk-ota-cancelled', data.ota_cancelled || data.cancelled_emails || 0);
@@ -68,6 +68,25 @@ Object.assign(BookingHub, {
             const status = data.latest_email_status ? ` • ${data.latest_email_status}` : '';
             latest.textContent = `${when}${status}`;
         }
+    },
+
+    renderOtaLogDashboardSkeleton() {
+        ['bk-ota-dash-total', 'bk-ota-dash-confirmed', 'bk-ota-dash-updated', 'bk-ota-dash-cancelled', 'bk-ota-dash-failed'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = '<span class="bk-ota-log-skeleton short" style="display:inline-block;width:32px;height:18px;"></span>';
+        });
+        const branchEl = document.getElementById('bk-ota-dash-branch');
+        if (branchEl) branchEl.innerHTML = '<span class="bk-ota-log-skeleton medium" style="display:inline-block;width:80px;height:10px;"></span>';
+    },
+
+    updateOtaLogDashboard(res) {
+        const c = res?.counts || {};
+        this.text('bk-ota-dash-total', res?.total ?? 0);
+        this.text('bk-ota-dash-confirmed', c.NEW ?? 0);
+        this.text('bk-ota-dash-updated', c.UPDATE ?? 0);
+        this.text('bk-ota-dash-cancelled', c.CANCEL ?? 0);
+        this.text('bk-ota-dash-failed', c.FAILED ?? 0);
+        this.text('bk-ota-dash-branch', res?.branch_name || 'Tất cả chi nhánh');
     },
 
     startOtaRealtimePolling() {
@@ -152,6 +171,19 @@ Object.assign(BookingHub, {
         modal.classList.add('show');
         modal.setAttribute('aria-hidden', 'false');
         document.body.classList.add('bk-modal-open');
+
+        // Default range: từ đầu tháng → hôm nay
+        const fromInput = document.getElementById('bk-ota-log-from-date');
+        const toInput = document.getElementById('bk-ota-log-to-date');
+        if (fromInput && !fromInput.value) {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            fromInput.value = `${yyyy}-${mm}-01`;
+            if (toInput && !toInput.value) toInput.value = `${yyyy}-${mm}-${dd}`;
+        }
+
         this.loadOtaLogs();
     },
 
@@ -170,7 +202,6 @@ Object.assign(BookingHub, {
         const fields = [
             ['status', 'bk-ota-log-status-filter'],
             ['booking_source', 'bk-ota-log-source-filter'],
-            ['parser_method', 'bk-ota-log-method-filter'],
             ['action_type', 'bk-ota-log-action-filter'],
             ['from_date', 'bk-ota-log-from-date'],
             ['to_date', 'bk-ota-log-to-date'],
@@ -191,10 +222,8 @@ Object.assign(BookingHub, {
         if (!rows) return;
         rows.innerHTML = Array.from({ length: count }).map(() => `
             <tr class="bk-ota-log-skeleton-row" aria-hidden="true">
-                <td><span class="bk-ota-log-skeleton wide"></span></td>
-                <td><span class="bk-ota-log-skeleton medium"></span></td>
-                <td><span class="bk-ota-log-skeleton short"></span></td>
-                <td><span class="bk-ota-log-skeleton short"></span></td>
+                <td><span class="bk-ota-log-skeleton wide"></span><span class="bk-ota-log-skeleton medium"></span></td>
+                <td><span class="bk-ota-log-skeleton wide"></span><span class="bk-ota-log-skeleton medium"></span></td>
                 <td><span class="bk-ota-log-skeleton wide"></span><span class="bk-ota-log-skeleton medium"></span></td>
                 <td><span class="bk-ota-log-skeleton short"></span></td>
                 <td><span class="bk-ota-log-skeleton wide"></span><span class="bk-ota-log-skeleton medium"></span></td>
@@ -211,6 +240,7 @@ Object.assign(BookingHub, {
         const requestId = (this.state.otaLogRequestId || 0) + 1;
         this.state.otaLogRequestId = requestId;
         this.renderOtaLogSkeleton();
+        this.renderOtaLogDashboardSkeleton();
         if (meta) meta.textContent = 'Đang tải log booking/hủy OTA...';
         try {
             const params = this.buildOtaLogParams(page);
@@ -222,9 +252,10 @@ Object.assign(BookingHub, {
             this.renderOtaLogTable(this.state.otaLogs);
             this.renderOtaLogPagination();
             if (meta) meta.textContent = `Hiển thị ${this.state.otaLogs.length} / ${this.state.otaLogTotal} log • Trang ${page}/${this.state.otaLogTotalPages}`;
+            this.updateOtaLogDashboard(res);
         } catch (err) {
             if (requestId !== this.state.otaLogRequestId) return;
-            rows.innerHTML = `<tr><td colspan="8" class="bk-ota-log-error">${this.escape(err.message || 'Không tải được log OTA')}</td></tr>`;
+            rows.innerHTML = `<tr><td colspan="6" class="bk-ota-log-error">${this.escape(err.message || 'Không tải được log OTA')}</td></tr>`;
             if (meta) meta.textContent = 'Không tải được log OTA.';
         }
     },
@@ -255,36 +286,54 @@ Object.assign(BookingHub, {
         const rows = document.getElementById('bk-ota-log-rows');
         if (!rows) return;
         if (!logs.length) {
-            rows.innerHTML = '<tr><td colspan="8" class="bk-ota-log-empty">Không có log đặt/hủy phòng phù hợp bộ lọc.</td></tr>';
+            rows.innerHTML = '<tr><td colspan="6" class="bk-ota-log-empty">Không có log đặt/hủy phòng phù hợp bộ lọc.</td></tr>';
             return;
         }
         rows.innerHTML = logs.map((log) => {
             const status = String(log.status || '').toUpperCase();
             const failed = status === 'FAILED';
-            const method = String(log.parser_method || '').toLowerCase();
-            const methodLabel = method === 'ai' || method === 'gemini' ? 'GPT-5.4' : (method === 'rule' ? 'Rule' : '—');
             const actionType = String(log.action_type || 'NEW').toUpperCase();
             const actionLabel = actionType === 'CANCEL' ? 'Hủy phòng' : (actionType === 'UPDATE' ? 'Cập nhật' : 'Đặt phòng');
             const source = log.booking_source || 'OTA';
             const branch = log.branch_name || 'Chưa xác định';
-            const bookingBits = [
-                log.booking_id ? `#${log.booking_id}` : '',
-                log.external_id ? `OTA ${log.external_id}` : '',
-                log.guest_name || '',
-            ].filter(Boolean).join(' • ') || '—';
-            const stay = [log.check_in ? this.formatDate(log.check_in) : '', log.check_out ? this.formatDate(log.check_out) : ''].filter(Boolean).join(' → ');
+            const bookingCode = log.external_id || '';
+            const guestName = log.guest_name || '';
+            const roomTypeName = log.room_type_name || '';
+            const checkInTime = log.check_in_time || '';
+            const checkOutTime = log.check_out_time || '';
+            const parseStayMinutes = (v) => {
+                const m = String(v || '').match(/^(\d{1,2}):(\d{2})/);
+                if (!m) return null;
+                const h = Number(m[1]), min = Number(m[2]);
+                return (h <= 23 && min <= 59) ? h * 60 + min : null;
+            };
+            const ciMin = parseStayMinutes(checkInTime);
+            const coMin = parseStayMinutes(checkOutTime);
+            const crossesMidnight = Boolean(log.ota_cross_midnight_booking || (log.ota_same_day_booking && ciMin !== null && coMin !== null && coMin <= ciMin));
+            const checkOutDate = log.ota_actual_check_out && !crossesMidnight ? log.ota_actual_check_out : log.check_out;
+            const actualStayDays = this.dateDiff(log.check_in, checkOutDate);
+            const isHourly = Boolean(log.ota_same_day_booking && !crossesMidnight && actualStayDays <= 0);
+            const nights = Math.max(1, this.dateDiff(log.check_in, log.check_out) || 1);
+            const stayLengthText = isHourly ? 'Theo giờ' : `${nights} đêm`;
+            const checkInText = this.formatStayDateTime(log.check_in, checkInTime);
+            const checkOutText = this.formatStayDateTime(checkOutDate, checkOutTime);
+            const guests = Number(log.num_guests || 1);
             const subject = log.email_subject || 'Email OTA';
-            const detail = failed && log.error_message ? log.error_message : (stay || log.email_sender || '');
+            const detail = failed && log.error_message ? log.error_message : (log.email_sender || '');
+            const statusLabel = failed ? 'Thất bại' : 'Thành công';
             return `
                 <tr class="${failed ? 'failed' : ''}">
-                    <td><strong>${this.escape(this.formatDateTime(log.received_at) || '—')}</strong></td>
-                    <td>${this.escape(branch)}</td>
-                    <td><span class="bk-source-pill">${this.escape(source)}</span><small>${this.escape(actionLabel)}</small></td>
-                    <td><span class="bk-method-pill ${this.escape(method || 'unknown')}">${this.escape(methodLabel)}</span></td>
-                    <td><div class="bk-ota-log-booking">${this.escape(bookingBits)}${stay ? `<small>${this.escape(stay)}</small>` : ''}</div></td>
-                    <td><span class="bk-status ${failed ? 'CANCELLED' : 'CONFIRMED'}">${this.escape(status || '—')}</span></td>
+                    <td><div style="display:flex;flex-direction:column;gap:3px;"><strong>${this.escape(this.formatDateTime(log.received_at) || '—')}</strong><small>${this.escape(branch)}</small><span class="bk-source-pill" style="align-self:flex-start;">${this.escape(source)}</span></div></td>
+                    <td>${failed ? '' : `<div style="display:flex;flex-direction:column;gap:2px;">${bookingCode ? `<small style="opacity:.7;">${this.escape(bookingCode)}</small>` : ''}${guestName ? `<strong>${this.escape(guestName)}</strong>` : ''}${roomTypeName ? `<small style="opacity:.7;">${this.escape(roomTypeName)}</small>` : ''}</div>`}</td>
+                    <td>${failed ? '' : `
+                        <div class="bk-stay-cell">
+                            <strong class="bk-stay-datetime">${this.escape(checkInText || '—')}</strong>
+                            <span class="bk-stay-checkout">→ ${this.escape(checkOutText || '—')}</span>
+                            <span class="bk-stay-nights"><i class="bi bi-moon-stars"></i> ${this.escape(stayLengthText)} • ${guests} khách</span>
+                        </div>`}</td>
+                    <td><div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start;"><span class="bk-status ${failed ? 'CANCELLED' : 'CONFIRMED'}">${statusLabel}</span><small>${this.escape(actionLabel)}</small></div></td>
                     <td><div class="bk-ota-log-subject"><strong>${this.escape(subject)}</strong>${detail ? `<small>${this.escape(detail)}</small>` : ''}</div></td>
-                    <td class="bk-ota-log-actions">${failed ? `<button class="bk-mini-btn" type="button" onclick="BookingHub.retryOtaLog(${Number(log.id) || 0})">Retry</button>` : ''}</td>
+                    <td class="bk-ota-log-actions">${failed ? `<button class="bk-mini-btn" type="button" onclick="BookingHub.retryOtaLog(${Number(log.id) || 0})">Thử lại</button>` : ''}</td>
                 </tr>
             `;
         }).join('');
@@ -295,7 +344,7 @@ Object.assign(BookingHub, {
     },
 
     resetOtaLogFilters() {
-        ['bk-ota-log-status-filter', 'bk-ota-log-source-filter', 'bk-ota-log-method-filter', 'bk-ota-log-action-filter', 'bk-ota-log-from-date', 'bk-ota-log-to-date', 'bk-ota-log-branch-filter', 'bk-ota-log-search'].forEach((id) => {
+        ['bk-ota-log-branch-filter', 'bk-ota-log-status-filter', 'bk-ota-log-source-filter', 'bk-ota-log-action-filter', 'bk-ota-log-from-date', 'bk-ota-log-to-date', 'bk-ota-log-search'].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -324,7 +373,7 @@ Object.assign(BookingHub, {
             pmsToast(err.message || 'Không retry được email OTA', false);
             if (btn) {
                 btn.disabled = false;
-                btn.textContent = 'Retry';
+                btn.textContent = 'Thử lại';
             }
         }
     },

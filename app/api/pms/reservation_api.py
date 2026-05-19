@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, defer
 
 from ...core.utils import VN_TZ
 from ...db.models import Booking, Branch, Guest, HotelRoomType, OTAParsingLog, OTAParsingStatus, RoomBlock
@@ -253,8 +253,8 @@ def _is_success_booking_log(log: OTAParsingLog) -> bool:
     data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
     if data.get("status") == "SKIPPED" or data.get("non_booking"):
         return False
-    action_type = str(data.get("action_type") or "NEW").upper()
-    return action_type not in {"SKIP", "CANCEL", "CANCELLED"} and not _booking_is_cancelled(log.booking)
+    action_type = _ota_log_action_type(log)
+    return action_type == "NEW"
 
 
 def _is_cancel_booking_log(log: OTAParsingLog) -> bool:
@@ -263,30 +263,16 @@ def _is_cancel_booking_log(log: OTAParsingLog) -> bool:
     data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
     if data.get("status") == "SKIPPED" or data.get("non_booking"):
         return False
-    action_type = str(data.get("action_type") or "").upper()
-    if action_type not in {"CANCEL", "CANCELLED"} and not _booking_is_cancelled(log.booking):
-        return False
-    return bool(log.booking_id or data.get("external_id") or data.get("booking_source"))
+    return _ota_log_action_type(log) == "CANCEL"
 
 
 def _is_modification_booking_log(log: OTAParsingLog) -> bool:
-    """Log có action_type=MODIFY và booking có has_unread_modification=true."""
-    try:
-        if log.status != OTAParsingStatus.SUCCESS or not log.booking_id:
-            return False
-        data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
-        if data.get("status") == "SKIPPED" or data.get("non_booking"):
-            return False
-        action_type = str(data.get("action_type") or "").upper()
-        if action_type != "MODIFY":
-            return False
-        booking = log.booking
-        if not booking:
-            return False
-        raw = booking.raw_data if isinstance(booking.raw_data, dict) else {}
-        return bool(raw.get("has_unread_modification"))
-    except Exception:
+    if log.status != OTAParsingStatus.SUCCESS:
         return False
+    data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
+    if data.get("status") == "SKIPPED" or data.get("non_booking"):
+        return False
+    return _ota_log_action_type(log) == "UPDATE"
 
 
 def _ota_log_matches_branch(log: OTAParsingLog, target_branch: Optional[int]) -> bool:
@@ -308,7 +294,17 @@ def _ota_log_matches_branch(log: OTAParsingLog, target_branch: Optional[int]) ->
 
 def _ota_log_action_type(log: OTAParsingLog) -> str:
     data = log.extracted_data if isinstance(log.extracted_data, dict) else {}
-    return str(data.get("action_type") or ("CANCEL" if log.booking and getattr(log.booking.status, "value", log.booking.status) == "CANCELLED" else "NEW")).upper()
+    raw = str(data.get("action_type") or "").upper()
+    if raw in ("CANCEL", "CANCELLED"):
+        return "CANCEL"
+    if raw in ("MODIFY", "MODIFIED", "UPDATE", "UPDATED", "AMENDMENT", "AMEND"):
+        return "UPDATE"
+    if raw == "NEW":
+        return "NEW"
+    # Fallback: suy từ booking status
+    if log.booking and getattr(log.booking.status, "value", log.booking.status) == "CANCELLED":
+        return "CANCEL"
+    return "NEW"
 
 
 def _ota_log_branch_from_data(log: OTAParsingLog, data: dict[str, Any]) -> tuple[Optional[int], str]:
@@ -349,7 +345,7 @@ def _serialize_ota_log(log: OTAParsingLog) -> dict[str, Any]:
     if not branch_name:
         branch_id, branch_name = _ota_log_branch_from_data(log, data)
     status_value = log.status.value if hasattr(log.status, "value") else str(log.status or "")
-    action_type = str(data.get("action_type") or ("CANCEL" if booking and getattr(booking.status, "value", booking.status) == "CANCELLED" else "NEW")).upper()
+    action_type = _ota_log_action_type(log)
     return {
         "id": log.id,
         "received_at": _iso_vn(log.received_at),
@@ -364,8 +360,16 @@ def _serialize_ota_log(log: OTAParsingLog) -> dict[str, Any]:
         "booking_source": booking.booking_source if booking else _json_value(data, "booking_source", "OTA"),
         "external_id": booking.external_id if booking else _json_value(data, "external_id", ""),
         "guest_name": booking.guest_name if booking else _json_value(data, "guest_name", ""),
+        "num_guests": booking.num_guests if booking else int(_json_value(data, "num_guests", 1) or 1),
+        "booking_type": booking.booking_type if booking else "OTA",
+        "room_type_name": booking.room_type if booking else _json_value(data, "room_type", ""),
         "check_in": booking.check_in.isoformat() if booking and booking.check_in else str(_json_value(data, "check_in", "") or ""),
         "check_out": booking.check_out.isoformat() if booking and booking.check_out else str(_json_value(data, "check_out", "") or ""),
+        "check_in_time": str(data.get("check_in_time") or data.get("estimated_arrival") or ""),
+        "check_out_time": str(data.get("check_out_time") or data.get("estimated_departure") or ""),
+        "ota_same_day_booking": bool(data.get("ota_same_day_booking")),
+        "ota_actual_check_out": str(data.get("ota_actual_check_out") or ""),
+        "ota_cross_midnight_booking": bool(data.get("ota_cross_midnight_booking")),
         "error_message": log.error_message,
         "retry_count": log.retry_count or 0,
     }
@@ -643,9 +647,10 @@ def api_ota_status(
         "booking_stats": {},
         "branch_id": target_branch,
         "branch_name": branch.name if branch else "Tất cả chi nhánh",
-        "ota_total": len(success_booking_logs),
+        "ota_total": len(relevant_logs),
         "ota_confirmed": len(success_booking_logs),
         "ota_cancelled": len(cancel_booking_logs),
+        "ota_updated": len(modification_booking_logs),
         "ota_pending": 0,
         "failed_emails": sum(1 for log in relevant_logs if log.status == OTAParsingStatus.FAILED),
         "success_emails": len(success_booking_logs),
@@ -726,7 +731,9 @@ def api_ota_logs(
         ),
     )
     q = db.query(OTAParsingLog).options(
-        joinedload(OTAParsingLog.booking).joinedload(Booking.branch)
+        joinedload(OTAParsingLog.booking).joinedload(Booking.branch),
+        defer(OTAParsingLog.raw_content),
+        defer(OTAParsingLog.error_traceback),
     ).outerjoin(OTAParsingLog.booking).filter(or_(
         OTAParsingLog.booking_id.isnot(None),
         relevant_action,
@@ -736,7 +743,8 @@ def api_ota_logs(
     if from_date:
         q = q.filter(OTAParsingLog.received_at >= _parse_date(from_date, "from_date"))
     elif not search:
-        default_since = datetime.now(VN_TZ) - timedelta(days=14)
+        now_vn = datetime.now(VN_TZ)
+        default_since = now_vn.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         q = q.filter(OTAParsingLog.received_at >= default_since)
     if to_date:
         q = q.filter(OTAParsingLog.received_at < _parse_date(to_date, "to_date") + timedelta(days=1))
@@ -767,7 +775,7 @@ def api_ota_logs(
             Booking.booking_source.ilike(like),
         ))
 
-    raw_logs = q.limit(max(limit * 3, 80)).all()
+    raw_logs = q.all()
     logs = [log for log in raw_logs if _is_relevant_ota_log(log) and _ota_log_matches_branch(log, target_branch)]
     if parser_method and parser_method.lower() not in {"all", ""}:
         normalized_method = parser_method.lower()
@@ -781,12 +789,25 @@ def api_ota_logs(
     offset = (page - 1) * limit
     page_logs = logs[offset:offset + limit]
 
+    # Aggregate counts từ toàn bộ logs (không phân trang) để dashboard khớp bảng
+    counts = {"NEW": 0, "UPDATE": 0, "CANCEL": 0, "FAILED": 0}
+    for log in logs:
+        if log.status == OTAParsingStatus.FAILED:
+            counts["FAILED"] += 1
+        else:
+            counts[_ota_log_action_type(log)] = counts.get(_ota_log_action_type(log), 0) + 1
+
+    branch_obj = db.query(Branch).filter(Branch.id == target_branch).first() if target_branch else None
+    branch_name_label = branch_obj.name if branch_obj else "Tất cả chi nhánh"
+
     return JSONResponse({
         "items": [_serialize_ota_log(log) for log in page_logs],
         "total": total,
         "page": page,
         "limit": limit,
         "total_pages": total_pages,
+        "counts": counts,
+        "branch_name": branch_name_label,
         "filters": {
             "status": status,
             "booking_source": booking_source,

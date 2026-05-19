@@ -57,9 +57,9 @@ body.ci-modal-open .rd-sub-modal-overlay {
 }
 
 #ci-dialog {
-  width: min(1560px, 98vw) !important;
-  max-width: 1560px !important;
-  max-height: calc(100vh - 20px) !important;
+  width: min(1248px, 96vw) !important;
+  max-width: 1248px !important;
+  max-height: calc(100vh - 40px) !important;
   margin: 0 auto !important;
   background: var(--ci-bg) !important;
   border: 1px solid var(--ci-border) !important;
@@ -274,9 +274,34 @@ html.dark #ciModal .v-btn.success:hover {
 
   .ci-guest-form-grid {
     display: grid !important;
-    grid-template-columns: 1fr;
-    gap: 12px !important;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 16px !important;
     align-items: start !important;
+  }
+
+  .ci-guest-form-grid > .ci-personal-section,
+  .ci-guest-form-grid > #ci-invoice-anchor-left,
+  .ci-guest-form-grid > #ci-invoice-anchor-right {
+    grid-column: 1;
+  }
+
+  .ci-guest-form-grid > .ci-address-section {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ci-guest-form-grid > .ci-address-section > .f-grid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ci-guest-form-grid > .ci-address-section > .f-grid > .f-grp {
+    margin-bottom: 0;
   }
 
   .ci-guest-form-col {
@@ -1600,7 +1625,30 @@ html.dark .ci-dep-meta {
     padding: 10px 12px !important;
   }
 
-  .ci-personal-section {
+  /* Khi address section nằm trong 2-col guest grid: dùng flex column thay vì grid 4 cột */
+  .ci-guest-form-grid > .ci-address-section .f-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    grid-template-columns: none !important;
+  }
+
+  .ci-guest-form-grid > .ci-address-section .f-grid > .f-grp {
+    margin-bottom: 0 !important;
+    grid-column: unset !important;
+  }
+
+  .ci-guest-form-grid > .ci-address-section #ci-grp-area {
+    grid-column: unset !important;
+  }
+
+  .ci-guest-form-grid > .ci-address-section #ci-grp-address {
+    grid-column: unset !important;
+  }
+
+  .ci-guest-form-grid > .ci-address-section #ci-conversion-grp {
+    grid-column: unset !important;
+  }
     grid-template-columns: repeat(4, minmax(120px, 1fr));
     gap: 9px 12px !important;
   }
@@ -1611,15 +1659,6 @@ html.dark .ci-dep-meta {
 
   .ci-personal-section--wide .ci-field-notes {
     grid-column: span 2;
-  }
-
-  .ci-address-section .f-grid {
-    grid-template-columns: minmax(150px, 0.75fr) minmax(140px, 0.9fr) minmax(140px, 0.9fr) minmax(220px, 1.45fr) !important;
-    align-items: end;
-  }
-
-  .ci-address-section .f-grid {
-    gap: 9px 12px !important;
   }
 
   .ci-address-section #ci-grp-area {
@@ -1762,4 +1801,168 @@ html.dark .ci-dep-meta {
     flex-direction: column;
     gap: 4px;
   }
+}
+
+/* ── Address Area Segment Control ── */
+.ci-area-segment {
+  display: flex;
+  background: #f1f5f9;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 3px;
+  width: 100%;
+}
+
+.ci-area-seg-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #94a3b8;
+  transition: all .18s cubic-bezier(.4,0,.2,1);
+  user-select: none;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.ci-area-seg-item input[type="radio"] {
+  display: none;
+}
+
+.ci-area-seg-item:has(input:checked) {
+  background: #fff;
+  color: #088395;
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(8,131,149,0.12), 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.ci-area-seg-item:hover:not(:has(input:checked)) {
+  color: #64748b;
+  background: rgba(255,255,255,0.5);
+}
+
+html.dark .ci-area-segment {
+  background: #1e293b;
+}
+
+html.dark .ci-area-seg-item {
+  color: #475569;
+}
+
+html.dark .ci-area-seg-item:has(input:checked) {
+  background: #0f172a;
+  color: #38bdf8;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+html.dark .ci-area-seg-item:hover:not(:has(input:checked)) {
+  color: #94a3b8;
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Hero Price Loading Shimmer ── */
+.ci-hero-price {
+  position: relative;
+}
+
+/* ── Address Lock Overlay (Passport/Visa) ── */
+.ci-addr-lock-overlay {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(248, 250, 252, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 15px;
+  border-radius: inherit;
+  animation: ciLockFade 0.3s ease-out;
+}
+
+.ci-addr-lock-overlay.show {
+  display: flex;
+}
+
+.ci-addr-lock-icon {
+  width: 80px;
+  height: 80px;
+  background: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  color: #6366f1;
+  animation: ciLockFloat 3s infinite ease-in-out;
+}
+
+.ci-addr-lock-msg {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+  text-align: center;
+  max-width: 200px;
+  line-height: 1.4;
+}
+
+.ci-address-section.ci-addr-disabled {
+  opacity: 0.55;
+  pointer-events: none;
+  filter: grayscale(0.6);
+}
+
+.ci-address-section.ci-addr-disabled .ci-addr-lock-overlay {
+  display: flex;
+}
+
+@keyframes ciLockFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ciLockFloat {
+  0%, 100% { transform: translateY(0) scale(1.05); }
+  50% { transform: translateY(-12px) scale(1); }
+}
+
+html.dark .ci-addr-lock-overlay {
+  background: rgba(15, 23, 42, 0.7);
+}
+
+html.dark .ci-addr-lock-icon {
+  background: #1e293b;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+html.dark .ci-addr-lock-msg {
+  color: #94a3b8;
+}
+
+.ci-hero-price.ci-hero-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    110deg,
+    rgba(255,255,255,0) 30%,
+    rgba(255,255,255,0.18) 50%,
+    rgba(255,255,255,0) 70%
+  );
+  background-size: 200% 100%;
+  animation: ciHeroShimmer 1.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes ciHeroShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }

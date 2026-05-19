@@ -897,7 +897,9 @@ def api_pricing_preview(
         if check_out:
             co = VN_TZ.localize(datetime.fromisoformat(check_out))
         else:
-            co = _now_vn()
+            # Thuê giờ chưa có checkout: preview tối thiểu min_hours để luôn trả giá hợp lệ
+            min_h = rt.min_hours or 1
+            co = ci + timedelta(hours=min_h)
     except Exception:
         raise HTTPException(status_code=400, detail="Datetime không hợp lệ")
 

@@ -6,22 +6,24 @@ API quản lý thông tin khách hàng, phân loại thành viên, xem lịch s�
 from __future__ import annotations
 
 import base64
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 import json
 import time
-from typing import Optional, List
+import unicodedata
+from typing import Any, Optional, List
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, or_, and_
+from sqlalchemy.exc import IntegrityError
 
 from ...db.models import (
     Guest, GuestMembership, GuestStaySummary, GuestServiceUsage,
     GuestPaymentSummary, GuestActivity, HotelStay, HotelGuest,
     HotelRoom, HotelRoomType, Folio, FolioTransaction, Payment, Branch, MemberTier,
-    GuestPreference, User,
+    GuestIdentity, GuestPreference, User,
     HotelStayStatus,
 )
 from ...db.session import get_db
@@ -57,6 +59,34 @@ _CRM_SEARCH_STATS_TTL_SECONDS = 30.0
 class GuestBlacklistPayload(BaseModel):
     is_blacklisted: bool
     reason: Optional[str] = None
+
+
+class GuestCreatePayload(BaseModel):
+    full_name: str = Field(..., min_length=1, max_length=255)
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    cccd: Optional[str] = None
+    id_type: Optional[str] = None
+    date_of_birth: Optional[Any] = None
+    birth_date: Optional[Any] = None
+    gender: Optional[str] = None
+    nationality: Optional[str] = None
+    id_expire: Optional[Any] = None
+    cccd_expire_date: Optional[Any] = None
+    default_address: Optional[str] = None
+    address: Optional[str] = None
+    address_type: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    ward: Optional[str] = None
+    new_city: Optional[str] = None
+    new_ward: Optional[str] = None
+    old_city: Optional[str] = None
+    old_district: Optional[str] = None
+    old_ward: Optional[str] = None
+    notes: Optional[str] = None
+    is_blacklisted: bool = False
+    blacklist_reason: Optional[str] = None
 
 
 class CrmMembershipTierPayload(BaseModel):
@@ -207,6 +237,174 @@ def _json_cache_set(cache: dict[tuple, tuple[float, dict]], key: tuple, payload:
 def _clear_crm_caches() -> None:
     _CRM_STATS_CACHE.clear()
     _CRM_SEARCH_CACHE.clear()
+
+
+def _clean_guest_text(value: Any, max_len: Optional[int] = None, *, lower: bool = False) -> Optional[str]:
+    if value is None:
+        return None
+    clean = str(value).strip()
+    if not clean:
+        return None
+    if lower:
+        clean = clean.lower()
+    if max_len and len(clean) > max_len:
+        clean = clean[:max_len]
+    return clean
+
+
+def _normalize_guest_name(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    text = unicodedata.normalize("NFD", value)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
+    text = text.replace("Đ", "D").replace("đ", "d")
+    return " ".join(text.lower().split())
+
+
+def _parse_guest_date(value: Any, field_label: str) -> Optional[date]:
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{field_label} không hợp lệ")
+
+
+def _sync_guest_identities(db: Session, guest: Guest) -> None:
+    identities = {
+        "phone": _clean_guest_text(guest.phone, 20),
+        "email": _clean_guest_text(guest.email, 255, lower=True),
+        "cccd": _clean_guest_text(guest.cccd, 20),
+    }
+    current_rows = db.query(GuestIdentity).filter(GuestIdentity.guest_id == guest.id).all()
+    current_by_type = {row.identity_type: row for row in current_rows}
+
+    for identity_type, value in identities.items():
+        row = current_by_type.get(identity_type)
+        if not value:
+            if row:
+                db.delete(row)
+            continue
+
+        conflict = db.query(GuestIdentity).filter(
+            GuestIdentity.identity_type == identity_type,
+            GuestIdentity.normalized_value == value,
+            GuestIdentity.guest_id != guest.id,
+        ).first()
+        if conflict:
+            raise HTTPException(status_code=409, detail=f"{identity_type.upper()} đã thuộc về khách khác")
+
+        if row:
+            row.identity_value = value
+            row.normalized_value = value
+            row.is_primary = True
+        else:
+            db.add(GuestIdentity(
+                guest_id=guest.id,
+                identity_type=identity_type,
+                identity_value=value,
+                normalized_value=value,
+                is_primary=True,
+            ))
+
+
+def _compose_guest_address(payload: GuestCreatePayload) -> Optional[str]:
+    detail = _clean_guest_text(payload.address)
+    mode = _clean_guest_text(payload.address_type, 10)
+    if mode == "old":
+        parts = [
+            detail,
+            _clean_guest_text(payload.old_ward, 100),
+            _clean_guest_text(payload.old_district, 100),
+            _clean_guest_text(payload.old_city, 100),
+        ]
+    else:
+        parts = [
+            detail,
+            _clean_guest_text(payload.ward or payload.new_ward, 100),
+            _clean_guest_text(payload.city or payload.new_city, 100),
+        ]
+    composed = ", ".join(part for part in parts if part)
+    return composed or detail
+
+
+def _apply_guest_core_fields(db: Session, guest: Guest, payload: GuestCreatePayload, user_id: Optional[int], *, is_create: bool) -> None:
+    fields = payload.model_fields_set
+
+    if is_create or "full_name" in fields:
+        full_name = _clean_guest_text(payload.full_name, 255)
+        if not full_name:
+            raise HTTPException(status_code=400, detail="Tên khách không được để trống")
+        guest.full_name = full_name
+        guest.normalized_name = _normalize_guest_name(full_name)
+
+    if is_create or "phone" in fields:
+        guest.phone = _clean_guest_text(payload.phone, 20)
+    if is_create or "email" in fields:
+        guest.email = _clean_guest_text(payload.email, 255, lower=True)
+    if is_create or "cccd" in fields:
+        cccd = _clean_guest_text(payload.cccd, 20)
+        if cccd:
+            existing = db.query(Guest).filter(
+                Guest.cccd == cccd,
+                Guest.deleted_at.is_(None),
+                Guest.id != guest.id,
+            ).first()
+            if existing:
+                raise HTTPException(status_code=409, detail="Số CCCD/giấy tờ đã tồn tại trong CRM")
+        guest.cccd = cccd
+    if is_create or "date_of_birth" in fields or "birth_date" in fields:
+        raw_birth = payload.date_of_birth if payload.date_of_birth is not None else payload.birth_date
+        guest.date_of_birth = _parse_guest_date(raw_birth, "Ngày sinh")
+    if is_create or "gender" in fields:
+        guest.gender = _clean_guest_text(payload.gender, 10)
+    if is_create or "nationality" in fields:
+        guest.nationality = _clean_guest_text(payload.nationality, 100)
+    if is_create or "id_expire" in fields or "cccd_expire_date" in fields:
+        raw_expire = payload.id_expire if payload.id_expire is not None else payload.cccd_expire_date
+        guest.id_expire = _parse_guest_date(raw_expire, "Hạn CCCD/giấy tờ")
+    if is_create or "default_address" in fields or "address" in fields:
+        raw_address = payload.default_address if payload.default_address is not None else _compose_guest_address(payload)
+        guest.default_address = _clean_guest_text(raw_address)
+
+    guest.updated_by = user_id
+    if guest.id is None:
+        db.flush()
+    _sync_guest_identities(db, guest)
+
+
+def _set_guest_blacklist_state(guest: Guest, is_blacklisted: bool) -> None:
+    guest.is_blacklisted = is_blacklisted
+    tags = list(guest.tags or [])
+    if is_blacklisted and "BLACKLIST" not in tags:
+        tags.append("BLACKLIST")
+    if not is_blacklisted:
+        tags = [t for t in tags if t != "BLACKLIST"]
+    guest.tags = tags
+
+
+def _guest_management_payload(db: Session, guest: Guest) -> dict:
+    return {
+        "id": guest.id,
+        "full_name": guest.full_name,
+        "phone": guest.phone,
+        "email": guest.email,
+        "cccd": guest.cccd,
+        "date_of_birth": guest.date_of_birth.isoformat() if guest.date_of_birth else None,
+        "gender": guest.gender,
+        "nationality": guest.nationality,
+        "id_expire": guest.id_expire.isoformat() if guest.id_expire else None,
+        "cccd_expire_date": guest.id_expire.isoformat() if guest.id_expire else None,
+        "default_address": guest.default_address,
+        "address": guest.default_address,
+        "is_blacklisted": bool(guest.is_blacklisted),
+        "tags": guest.tags or [],
+        "risk_flags": get_guest_risk_flags(db, guest.id),
+    }
 
 
 def _encode_guest_cursor(guest: Guest) -> str:
@@ -513,6 +711,10 @@ def api_search_guests(
             "company_address": getattr(hg, 'company_address', None) if hg else None,
             "is_blacklisted": g.is_blacklisted,
             "blacklist_info": blacklist_info_map.get(g.id),
+            "edit_guest": {
+                "hotel_guest_id": hg.id,
+                "stay_id": hg.stay_id,
+            } if hg else None,
             "has_unpaid_debt": debt_map.get(g.id, Decimal("0")) > 0,
             "unpaid_debt_amount": float(debt_map.get(g.id, Decimal("0"))),
             "risk_flags": {
@@ -557,6 +759,107 @@ def api_search_guests(
         "has_next": has_next,
         "next_cursor": next_cursor,
     })
+
+
+@router.post("/api/pms/crm/guests", tags=["PMS - CRM"])
+def api_create_crm_guest(
+    request: Request,
+    payload: GuestCreatePayload,
+    db: Session = Depends(get_db),
+):
+    """Tạo hồ sơ khách thủ công trong CRM, có thể đưa thẳng vào blacklist."""
+    user = _require_login(request)
+    now = _now_vn()
+    branch_id = _active_branch_id(request, db)
+
+    guest = Guest(
+        first_seen_at=now,
+        last_seen_at=now,
+        created_by=user.get("id"),
+        updated_by=user.get("id"),
+    )
+    db.add(guest)
+
+    try:
+        _apply_guest_core_fields(db, guest, payload, user.get("id"), is_create=True)
+        _set_guest_blacklist_state(guest, bool(payload.is_blacklisted))
+        manual_form = payload.model_dump(mode="json", exclude_none=True)
+
+        log_activity(
+            db=db,
+            guest_id=guest.id,
+            activity_type=ActivityType.PROFILE_UPDATED,
+            activity_group=ActivityGroup.SYSTEM,
+            title="Tạo hồ sơ khách thủ công",
+            description="Tạo hồ sơ khách từ trang CRM",
+            branch_id=branch_id,
+            actor_type=ActorType.USER,
+            actor_id=user.get("id"),
+            source=Source.PMS,
+            extra_data={"manual": True, "form": manual_form},
+        )
+
+        if payload.is_blacklisted:
+            log_activity(
+                db=db,
+                guest_id=guest.id,
+                activity_type=ActivityType.BLACKLISTED,
+                activity_group=ActivityGroup.SYSTEM,
+                title="Đưa vào danh sách đen",
+                description=payload.blacklist_reason or "Khách được thêm thủ công vào danh sách đen",
+                branch_id=branch_id,
+                actor_type=ActorType.USER,
+                actor_id=user.get("id"),
+                source=Source.PMS,
+                extra_data={"is_blacklisted": True, "reason": payload.blacklist_reason, "manual": True, "form": manual_form},
+            )
+
+        db.commit()
+        _clear_crm_caches()
+        db.refresh(guest)
+        return JSONResponse({"guest": _guest_management_payload(db, guest)}, status_code=201)
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Thông tin định danh khách đã tồn tại")
+
+
+@router.delete("/api/pms/crm/guests/{guest_id}", tags=["PMS - CRM"])
+def api_delete_crm_guest(
+    request: Request,
+    guest_id: int,
+    reason: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Xóa mềm hồ sơ khách khỏi CRM."""
+    user = _require_login(request)
+    branch_id = _active_branch_id(request, db)
+
+    guest = db.query(Guest).filter(Guest.id == guest_id, Guest.deleted_at.is_(None)).first()
+    if not guest:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách")
+
+    guest.deleted_at = _now_vn()
+    guest.updated_by = user.get("id")
+    log_activity(
+        db=db,
+        guest_id=guest.id,
+        activity_type=ActivityType.PROFILE_UPDATED,
+        activity_group=ActivityGroup.SYSTEM,
+        title="Xóa hồ sơ khách",
+        description=reason or "Hồ sơ khách được xóa khỏi danh sách CRM",
+        branch_id=branch_id,
+        actor_type=ActorType.USER,
+        actor_id=user.get("id"),
+        source=Source.PMS,
+        extra_data={"deleted": True, "reason": reason},
+    )
+
+    db.commit()
+    _clear_crm_caches()
+    return JSONResponse({"status": "success", "guest_id": guest_id})
 
 
 @router.get("/api/pms/crm/guests/{guest_id}", tags=["PMS - CRM"])
@@ -1769,9 +2072,13 @@ def api_crm_stats(
         func.coalesce(func.sum(GuestMembership.total_stays), 0).label("total_stays"),
         func.coalesce(func.sum(GuestMembership.total_nights), 0).label("total_nights"),
         func.coalesce(func.sum(GuestMembership.total_spent), 0).label("total_revenue"),
+    ).join(
+        Guest, Guest.id == GuestMembership.guest_id
+    ).filter(
+        Guest.deleted_at.is_(None)
     )
     if guest_filter:
-        membership_stats = membership_stats.join(Guest, Guest.id == GuestMembership.guest_id).filter(*guest_filter)
+        membership_stats = membership_stats.filter(*guest_filter)
     membership_rows = membership_stats.group_by(GuestMembership.tier).all()
 
     tier_counts = {tier.value: 0 for tier in MemberTier}

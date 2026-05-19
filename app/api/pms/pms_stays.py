@@ -1639,6 +1639,7 @@ async def api_update_guest(
     tax_code: Optional[str] = Form(None),
     invoice_contact: Optional[str] = Form(None),
     check_out_at: Optional[str] = Form(None),
+    vehicle: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     """Cập nhật thông tin khách hoặc checkout khách"""
@@ -1746,6 +1747,13 @@ async def api_update_guest(
         guest.tax_code = tax_code if tax_code else None
     if invoice_contact is not None:
         guest.invoice_contact = invoice_contact if invoice_contact else None
+
+    # Vehicle (from Form or JSON body)
+    veh_val = body.get("vehicle") if body else None
+    if veh_val is None and vehicle is not None:
+        veh_val = vehicle
+    if veh_val is not None:
+        guest.vehicle = veh_val.strip() if veh_val else None
 
     # Guest check-out: always use server-side VN time — ignore client timestamp to avoid TZ bugs
     co_val = body.get("check_out_at") if body else None

@@ -48,6 +48,13 @@ class ShiftTransactionDetails(ShiftTransactionBase):
     room_number: Optional[str] = None
     transaction_info: Optional[str] = None
 
+    folio_id: Optional[int] = None
+    folio_transaction_id: Optional[int] = None
+    stay_id: Optional[int] = None
+    is_auto_posted: Optional[bool] = None
+    payment_method: Optional[str] = None
+    status_raw: Optional[str] = None
+
 # --- Schema cho response API (danh sách) ---
 class ShiftTransactionsResponse(BaseModel):
     records: List[ShiftTransactionDetails]

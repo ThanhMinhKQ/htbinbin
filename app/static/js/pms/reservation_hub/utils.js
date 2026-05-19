@@ -151,5 +151,28 @@ Object.assign(BookingHub, {
             .replaceAll('>', '&gt;')
             .replaceAll('"', '&quot;')
             .replaceAll("'", '&#039;');
-    }
+    },
+
+    // Tái sử dụng: khởi tạo flatpickr range picker trên một input.
+    // onChange(from, to) nhận 2 string 'YYYY-MM-DD' hoặc '' nếu chưa chọn.
+    initDateRangePicker(inputEl, onChange) {
+        if (!inputEl || typeof flatpickr !== 'function') return null;
+        if (inputEl._flatpickr) inputEl._flatpickr.destroy();
+
+        const locale = flatpickr.l10ns?.vn || 'default';
+        return flatpickr(inputEl, {
+            mode: 'range',
+            dateFormat: 'd/m/Y',
+            locale,
+            allowInput: false,
+            disableMobile: true,
+            onClose(selectedDates) {
+                const fmt = (d) => d ? flatpickr.formatDate(d, 'Y-m-d') : '';
+                onChange(fmt(selectedDates[0] || null), fmt(selectedDates[1] || null));
+            },
+            onReady(_, __, instance) {
+                instance.calendarContainer.classList.add('bk-flatpickr-range-popup');
+            },
+        });
+    },
 });

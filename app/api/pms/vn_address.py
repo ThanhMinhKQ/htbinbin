@@ -3,8 +3,8 @@ app/api/pms/vn_address.py
 Backend API for Vietnamese address management.
 
 Data sources:
-- app/static/data/vn_new_wards.json   → new 34 provinces + their new wards (from Excel)
-- app/static/data/vn_ward_map.json    → old ward name (normalized) → (new_province, new_ward)
+- app/static/data/vn_intelligence.json → new 34 provinces + their new wards
+- app/static/data/vn_ward_map.json     → old ward name (normalized) → (new_province, new_ward)
 
 Endpoints:
 - GET  /api/vn-address/new-provinces          → 34 new province names
@@ -41,12 +41,13 @@ router = APIRouter(prefix="/api/vn-address", tags=["VN Address"])
 # Thêm Cache-Control để browser giữ response local, tránh hit server mỗi lần
 # mở form — trước đây đã thấy /new-provinces, /old-provinces mất 35-56s khi
 # server bị nghẽn pool.
-_CACHE_PROVINCES = "public, max-age=604800, immutable"   # 7 ngày
+_CACHE_PROVINCES = "public, max-age=86400"               # 1 ngày; client also version-busts
 _CACHE_OLD_ADDR = "public, max-age=2592000, immutable"   # 30 ngày (archive data)
 
 # ─── Data paths ───────────────────────────────────────────────────────────────
 _BASE = Path(__file__).resolve().parent.parent.parent  # app/
 _NEW_WARDS_FILE   = _BASE / "static" / "data" / "vn_new_wards.json"
+_NEW_WARDS_INTEL_FILE = _BASE / "static" / "data" / "vn_intelligence.json"
 _WARD_MAP_FILE   = _BASE / "static" / "data" / "vn_ward_map.json"
 _OLD_PROV_FILE   = _BASE / "static" / "data" / "vn_old_provinces.json"
 _OLD_DIST_FILE   = _BASE / "static" / "data" / "vn_old_districts.json"
@@ -94,7 +95,7 @@ def _norm_prov(s: str) -> str:
     s = s.replace('đ', 'd')
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
-    for prefix in ('thanh pho ', 'tinh ', 'thi xa ', 'tp '):
+    for prefix in ('thanh pho ', 'tinh ', 'thi xa ', 'tp. ', 'tp '):
         if s.startswith(prefix):
             s = s[len(prefix):]
             break
@@ -110,10 +111,54 @@ def _compound_key(old_prov: str, old_ward: str) -> str:
 
 @lru_cache(maxsize=1)
 def _load_new_wards() -> dict[str, list[str]]:
-    """Returns {province_short: [ward_name, ...]}"""
+    """Returns {new_province_short: [new_ward_name, ...]} for the 34 post-2025 units."""
+    result: dict[str, set[str]] = {}
+
+    # Preferred source: intelligence index built from the post-2025 official ward set.
+    # The legacy vn_new_wards.json in this repo may contain the pre-merge 63 provinces,
+    # so do not trust it as the first source for "new" address mode.
+    if _NEW_WARDS_INTEL_FILE.exists():
+        with open(_NEW_WARDS_INTEL_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            for province, wards in data.items():
+                short = _canonical_new_province_short(province)
+                if not short:
+                    continue
+                bucket = result.setdefault(short, set())
+                for ward in wards or []:
+                    ward_name = str(ward).split("|", 1)[0].strip()
+                    if ward_name:
+                        bucket.add(ward_name)
+            if result:
+                return {k: sorted(v) for k, v in result.items()}
+
+    # Fallback: derive official new wards from old→new mappings.
+    if _WARD_MAP_FILE.exists():
+        with open(_WARD_MAP_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            for mappings in data.values():
+                if not mappings or len(mappings[0]) < 2:
+                    continue
+                short = _canonical_new_province_short(mappings[0][0])
+                ward_name = str(mappings[0][1] or "").strip()
+                if short and ward_name:
+                    result.setdefault(short, set()).add(ward_name)
+            if result:
+                return {k: sorted(v) for k, v in result.items()}
+
+    # Last-resort compatibility with the older file, filtered to official 34 keys.
     if _NEW_WARDS_FILE.exists():
         with open(_NEW_WARDS_FILE, encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        if isinstance(data, dict):
+            for province, wards in data.items():
+                short = _canonical_new_province_short(province)
+                if short and short == province:
+                    result[short] = {str(w).strip() for w in (wards or []) if str(w).strip()}
+            if result:
+                return {k: sorted(v) for k, v in result.items()}
     return {}
 
 @lru_cache(maxsize=1)
@@ -175,6 +220,22 @@ PROV_DISPLAY = {
 # Reverse: display → short
 _DISPLAY_TO_SHORT = {v: k for k, v in PROV_DISPLAY.items()}
 
+
+def _canonical_new_province_short(value: str) -> Optional[str]:
+    """Map a short/display province name to one of the official 34 post-2025 keys."""
+    if not value:
+        return None
+    raw = str(value).strip()
+    if raw in PROV_DISPLAY:
+        return raw
+    if raw in _DISPLAY_TO_SHORT:
+        return _DISPLAY_TO_SHORT[raw]
+    norm = _norm_prov(raw)
+    for short, display in PROV_DISPLAY.items():
+        if _norm_prov(short) == norm or _norm_prov(display) == norm:
+            return short
+    return None
+
 # ─── Old API proxy (server-side, bypasses browser SSL issues) ─────────────────
 
 def _fetch_old(path: str):
@@ -233,13 +294,9 @@ def get_new_provinces():
 def get_new_wards(province_short: str):
     """Return wards for a new province from curated Excel data."""
     data = _load_new_wards()
-    # Try exact and URL-decoded variants
-    wards = data.get(province_short) or data.get(province_short.replace("%20", " "))
-    # Also try via display name
-    if wards is None:
-        short = _DISPLAY_TO_SHORT.get(province_short)
-        if short:
-            wards = data.get(short)
+    decoded = province_short.replace("%20", " ")
+    short = _canonical_new_province_short(decoded)
+    wards = data.get(short) if short else None
     if wards is None:
         return JSONResponse({"wards": []}, headers={"Cache-Control": _CACHE_PROVINCES})
     return JSONResponse({"wards": sorted(wards)}, headers={"Cache-Control": _CACHE_PROVINCES})

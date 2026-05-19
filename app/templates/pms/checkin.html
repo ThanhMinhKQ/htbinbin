@@ -479,15 +479,32 @@
               </div>
             </div>
 
-            <div class="ci-address-section" id="ci-addr-section" style="margin: 0;">
+            <div class="ci-address-section" id="ci-addr-section" style="margin: 0; position: relative;">
+              <!-- Lock overlay for Passport/Visa -->
+              <div class="ci-addr-lock-overlay" id="ci-addr-lock-overlay" style="display:none;">
+                <div class="ci-addr-lock-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                </div>
+                <div class="ci-addr-lock-msg">
+                  Thông tin lưu trú<br>
+                  <span style="font-size:11px; opacity:0.7; font-weight:500;">Không áp dụng cho Passport/Visa</span>
+                </div>
+              </div>
               <div class="ci-form-card-title">Địa chỉ lưu trú</div>
               <div class="f-grid">
                   <div class="f-grp f-grid-full" id="ci-grp-area" style="margin-bottom:4px;">
-                    <div class="ci-radio-group" style="display:flex; gap:20px; align-items:center;">
-                      <label><input type="radio" name="ci-area" value="new" checked onchange="vnSwitchMode('new');"> Địa
-                        bàn mới (2025)</label>
-                      <label><input type="radio" name="ci-area" value="old" onchange="vnSwitchMode('old');"> Địa bàn
-                        cũ</label>
+                    <div class="ci-area-segment">
+                      <label class="ci-area-seg-item">
+                        <input type="radio" name="ci-area" value="old" checked onchange="vnSwitchMode('old');">
+                        <span>Địa bàn cũ</span>
+                      </label>
+                      <label class="ci-area-seg-item">
+                        <input type="radio" name="ci-area" value="new" onchange="vnSwitchMode('new');">
+                        <span>Địa bàn mới (2025)</span>
+                      </label>
                     </div>
                   </div>
                   <div class="f-grp" id="ci-grp-province">
@@ -497,7 +514,7 @@
                       onblur="vnValidateDatalist(this)">
                     <datalist id="dl-province"></datalist>
                   </div>
-                  <div class="f-grp" id="ci-grp-district" style="display:none;">
+                  <div class="f-grp" id="ci-grp-district">
                     <label id="ci-lbl-district">Quận/Huyện <span class="f-req">*</span></label>
                     <input list="dl-district" class="f-ctrl" id="ci-district" placeholder="Chọn Quận/Huyện"
                       data-dl="dl-district" oninput="vnOnDistrictChange(this)" onchange="vnOnDistrictChange(this)"
@@ -622,24 +639,39 @@
 <!-- Modal Pricing Breakdown cho Check-in -->
 <div class="v-modal" id="ciBreakdownModal" style="z-index: 100001;">
   <div class="v-dialog"
-    style="max-width: 450px; margin: 10vh auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.15);">
-    <div
-      style="padding: 16px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc;">
-      <div style="font-weight: 800; font-size: 15px; color: #1e293b;">Chi tiết giá tạm tính</div>
+    style="max-width: 860px; margin: 10vh auto; background: #fff; border-radius: 28px; overflow: hidden; box-shadow: 0 40px 80px -12px rgba(9, 99, 126, 0.35); border: 1px solid #e2e8f0;">
+    <!-- Glassmorphism Header -->
+    <div style="padding: 24px 28px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(235, 244, 246, 0.5)); backdrop-filter: blur(20px);">
+      <div style="display: flex; align-items: center; gap: 14px; font-weight: 900; font-size: 20px; color: #093C5D;">
+        <div style="width: 40px; height: 40px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #088395; box-shadow: 0 4px 12px rgba(8, 131, 149, 0.15); border: 1px solid #e2e8f0;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        </div>
+        Chi Tiết Giá Tạm Tính
+      </div>
       <button type="button" onclick="document.getElementById('ciBreakdownModal').classList.remove('show')"
-        style="background: none; border: none; cursor: pointer; color: #64748b; padding: 4px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+        style="background: none; border: none; cursor: pointer; color: #64748b; padding: 8px; font-size: 24px; line-height: 1; border-radius: 50%; transition: background 0.2s;"
+        onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='none'">×</button>
     </div>
-    <div style="padding: 0;">
+    <div style="padding: 24px 28px 28px; background: #fff;">
+      <!-- Table Headers -->
+      <div style="display: grid; grid-template-columns: 2fr 2.5fr 1fr 1.5fr; gap: 20px; padding: 0 18px 12px; border-bottom: 1.5px solid #e2e8f0; margin-bottom: 16px; white-space: nowrap;">
+        <div style="font-size: 10px; font-weight: 850; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">Loại phí</div>
+        <div style="font-size: 10px; font-weight: 850; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">Khoảng thời gian</div>
+        <div style="font-size: 10px; font-weight: 850; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; text-align: right;">Thời lượng</div>
+        <div style="font-size: 10px; font-weight: 850; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em; text-align: right;">Thành tiền</div>
+      </div>
+      <!-- Row Container -->
       <div class="ci-bd-card" id="ci-bd-card" style="border: none; border-radius: 0; box-shadow: none;">
-        <div class="ci-bd-rows" id="ci-bd-rows"></div>
-        <div class="ci-bd-row ci-bd-row--total" style="padding: 16px 20px; border-top: 1px dashed #cbd5e1;">
-          <span>Tổng cộng</span>
-          <span id="ci-bd-total" style="font-size: 18px; color: #dc2626; font-weight: 800;">—</span>
+        <div class="ci-bd-rows" id="ci-bd-rows" style="display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; padding-right: 8px;"></div>
+        <!-- Footer Summary -->
+        <div style="margin-top: 24px; padding-top: 24px; border-top: 2px dashed #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 11px; font-weight: 850; color: #64748b; text-transform: uppercase; letter-spacing: 0.1em;">Tổng giá cộng dồn</span>
+            <span style="font-size: 14px; font-weight: 850; color: #093C5D;">Tổng thanh toán</span>
+          </div>
+          <div style="text-align: right;">
+            <span id="ci-bd-total" style="font-size: 28px; font-weight: 900; color: #093C5D; font-family: 'Outfit', sans-serif; letter-spacing: -0.5px;">—</span>
+          </div>
         </div>
       </div>
       <div id="ci-bd-empty" style="padding: 30px 20px; text-align: center; color: #94a3b8; display: none;">

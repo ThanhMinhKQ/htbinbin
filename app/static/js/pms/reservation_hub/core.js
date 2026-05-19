@@ -49,8 +49,30 @@ const BookingHub = {
         this.initAvailabilityBar();
         this.bindOtaCancellationRefresh();
         this.applyActiveTabUI();
+        this.initOtaScanDatePicker();
         this.loadAll({ availability: true });
         this.startOtaRealtimePolling();
+    },
+
+    initOtaScanDatePicker() {
+        const input = document.getElementById('bk-ota-scan-date');
+        if (!input || typeof flatpickr !== 'function') return;
+        const today = new Date();
+        flatpickr(input, {
+            dateFormat: 'd/m/Y',
+            defaultDate: today,
+            allowInput: false,
+            disableMobile: true,
+            locale: flatpickr.l10ns?.vn || 'default',
+            onReady(_, __, instance) {
+                instance.calendarContainer.classList.add('bk-flatpickr-range-popup');
+            },
+        });
+        // Lưu giá trị Y-m-d ra dataset để code cũ đọc dễ
+        input._fp_get_iso = () => {
+            const d = input._flatpickr?.selectedDates?.[0];
+            return d ? flatpickr.formatDate(d, 'Y-m-d') : '';
+        };
     },
 
     bindOtaCancellationRefresh() {

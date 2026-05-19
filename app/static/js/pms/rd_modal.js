@@ -458,6 +458,58 @@ async function pmsRdSaveRoomNotes(value) {
     }
 }
 
+let rdVehicleSaveTimer = null;
+let rdVehicleLastSavedValue = '';
+
+function rdSetVehicleSaveState(text, state = 'idle') {
+    const el = document.getElementById('rd-vehicle-save-state');
+    if (!el) return;
+    el.textContent = text || '';
+    const colorMap = { saving: '#d97706', saved: '#059669', error: '#dc2626', idle: 'var(--rd-text-muted)' };
+    el.style.color = colorMap[state] || colorMap.idle;
+}
+
+function pmsRdQueueVehicleAutosave(value) {
+    if (!rdStayData?.id) return;
+    if (value === rdVehicleLastSavedValue) {
+        rdSetVehicleSaveState('', 'idle');
+        return;
+    }
+    rdSetVehicleSaveState('...', 'saving');
+    clearTimeout(rdVehicleSaveTimer);
+    rdVehicleSaveTimer = setTimeout(() => pmsRdSaveVehicle(value || ''), 650);
+}
+
+async function pmsRdSaveVehicle(value) {
+    if (!rdStayData?.id) return;
+    const normalized = (value || '').trim();
+    rdSetVehicleSaveState('...', 'saving');
+    const primaryGuest = rdGuestList.find(g => g.is_primary) || rdGuestList[0];
+    if (!primaryGuest?.id) {
+        rdSetVehicleSaveState('Lỗi', 'error');
+        return;
+    }
+    try {
+        await pmsApi(`/api/pms/guests/${primaryGuest.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicle: normalized }),
+        });
+        rdVehicleLastSavedValue = normalized;
+        primaryGuest.vehicle = normalized;
+        const hiddenVeh = document.getElementById('rd-vehicle');
+        if (hiddenVeh) hiddenVeh.value = normalized;
+        rdSetVehicleSaveState('Đã lưu', 'saved');
+        setTimeout(() => {
+            const el = document.getElementById('rd-ri-vehicle');
+            if (el && el.value === rdVehicleLastSavedValue) rdSetVehicleSaveState('', 'idle');
+        }, 1200);
+    } catch (e) {
+        rdSetVehicleSaveState('Lỗi', 'error');
+        console.error('[pmsRdSaveVehicle]', e);
+    }
+}
+
 function rdUpdateClosedRoomRight() {
     const box = document.getElementById('rd-room-right-checkedout-summary');
     const text = document.getElementById('rd-room-right-checkedout-text');
@@ -1228,7 +1280,9 @@ async function openRoomDetail(stayId, num, targetTab = 'room') {
             const elVehPill = document.getElementById('rd-ri-vehicle-pill');
             const vehVal = (primaryGuest && primaryGuest.vehicle) ? primaryGuest.vehicle : '';
             if (elVehicle) elVehicle.value = vehVal;
-            if (elVehDisp) elVehDisp.textContent = vehVal || '—';
+            if (elVehDisp) elVehDisp.value = vehVal;
+            rdVehicleLastSavedValue = vehVal;
+            rdSetVehicleSaveState('', 'idle');
             if (elVehPill) {
                 elVehPill.style.display = 'flex';
             }

@@ -953,11 +953,12 @@
                   style="font-size: 14px; font-weight: 850; color: #10b981; font-family: 'Outfit', sans-serif;">—</div>
               </div>
               <div class="rd-info-row" id="rd-ri-vehicle-pill" style="flex: 1; display:flex;">
-                <div
-                  style="color: var(--rd-accent-bold); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em;">
+                <div style="color: var(--rd-accent-bold); font-size: 10px; font-weight: 850; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink:0;">
                   Phương tiện</div>
-                <div id="rd-ri-vehicle"
-                  style="font-size: 14px; font-weight: 850; color: var(--rd-accent-bold); max-width: 150px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">—</div>
+                <input type="text" id="rd-ri-vehicle"
+                  placeholder="Nhập biển số..."
+                  oninput="pmsRdQueueVehicleAutosave(this.value)"
+                  style="font-size: 14px; font-weight: 850; color: var(--rd-accent-bold); flex: 1; min-width: 0; text-align: right; border: none; background: transparent; outline: none; padding: 0; font-family: inherit;">
               </div>
             </div>
 

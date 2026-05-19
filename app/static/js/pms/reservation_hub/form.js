@@ -244,6 +244,8 @@ Object.assign(BookingHub, {
         }
         this.applyCompanyPaymentLock(isCompany);
         if (infoGrid) infoGrid.classList.toggle('has-source-extra', Object.prototype.hasOwnProperty.call(extraMap, type) || showReferenceCode);
+        const configRow = document.querySelector('#bk-step-1 .bk-config-row');
+        if (configRow) configRow.classList.toggle('bk-config-2col', type === 'OTA' || type === 'COMPANY');
         if (!status || this.state.editingBookingId) return;
         status.value = 'CONFIRMED';
     },

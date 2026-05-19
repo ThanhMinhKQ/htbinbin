@@ -28,6 +28,38 @@
 <div id="pms-toast"></div>
 {% endblock %}
 
+{% block app_header_actions %}
+{% if is_admin %}
+<div class="bk-header-ota-controls">
+  {% if branches and branches|length > 0 %}
+  <div class="bk-header-pill bk-header-branch">
+    <i class="bi bi-building"></i>
+    <select id="bk-branch" onchange="BookingHub.changeBranch(this.value)">
+      {% for b in branches %}
+      <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% elif not branch and loop.first %}selected{% endif %}>{{ b.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% elif branch %}
+  <div class="bk-header-pill bk-header-branch disabled">
+    <i class="bi bi-building"></i>
+    <select id="bk-branch" disabled>
+      <option value="{{ branch.id }}" selected>{{ branch_name or branch.name }}</option>
+    </select>
+  </div>
+  {% endif %}
+  <div class="bk-header-pill bk-header-date">
+    <i class="bi bi-calendar3"></i>
+    <input id="bk-ota-scan-date" type="text" placeholder="dd/mm/yyyy" readonly>
+  </div>
+  <button class="bk-header-action-btn" id="bk-ota-scan-btn" onclick="BookingHub.scanOtaToday()" title="Quét OTA">
+    <i class="bi bi-arrow-repeat"></i>
+    <span>Quét OTA</span>
+  </button>
+</div>
+{% endif %}
+{% endblock %}
+
 {% block scripts %}
 <script src="/static/js/pms/pms_common.js"></script>
 <script src="/static/js/pms/vn_address.js"></script>

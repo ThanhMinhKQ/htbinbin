@@ -3,6 +3,9 @@
 {% block page_title %}Khách hàng{% endblock %}
 
 {% block head %}
+<link rel="stylesheet" href="/static/css/pms/pms_modals.css">
+<link rel="stylesheet" href="/static/css/pms/pms_checkin_extras.css">
+<link rel="stylesheet" href="/static/css/pms/scan_modal.css">
 <style>
   :root {
     --crm-bg: var(--surface, rgba(255, 255, 255, 0.88));
@@ -938,6 +941,11 @@
     cursor: pointer;
   }
 
+  .crm-primary-btn.danger {
+    border-color: var(--crm-danger);
+    background: var(--crm-danger);
+  }
+
   .crm-primary-btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
@@ -953,6 +961,219 @@
     font-size: 12px;
     font-weight: 800;
     cursor: pointer;
+  }
+
+  .crm-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.46);
+    backdrop-filter: blur(4px);
+  }
+
+  .crm-modal {
+    width: min(760px, 100%);
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+    background: var(--crm-bg-solid);
+    border: 1px solid var(--crm-border);
+    border-radius: 18px;
+    box-shadow: 0 26px 70px rgba(15, 23, 42, 0.24);
+  }
+
+  .crm-blacklist-modal {
+    width: min(1160px, 100%);
+    background: var(--ci-bg, var(--crm-bg-solid));
+  }
+
+  .crm-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--crm-border);
+  }
+
+  .crm-modal-head h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 850;
+    color: var(--crm-text);
+  }
+
+  .crm-modal-head p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--crm-text-muted);
+  }
+
+  .crm-modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg);
+    color: var(--crm-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .crm-modal-close svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .crm-modal-body {
+    padding: 18px 20px 20px;
+  }
+
+  .crm-blacklist-body {
+    padding: 16px;
+  }
+
+  .crm-blacklist-modal .ci-section {
+    margin: 0;
+  }
+
+  .crm-blacklist-modal .ci-section-body {
+    padding: 16px;
+  }
+
+  .crm-blacklist-modal .ci-guest-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .crm-blacklist-modal .ci-personal-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .crm-blacklist-modal .ci-address-section .f-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+  }
+
+  .crm-blacklist-modal .f-grid-full {
+    grid-column: 1 / -1;
+  }
+
+  .crm-blacklist-modal .f-req {
+    color: var(--crm-danger);
+  }
+
+  .crm-blacklist-modal .f-ctrl.is-invalid {
+    border-color: #ef4444 !important;
+    background: #fef2f2 !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
+  }
+
+  .crm-blacklist-modal .f-ctrl.is-warning {
+    border-color: #eab308 !important;
+    background: #fefce8 !important;
+  }
+
+  .crm-blacklist-reason-field {
+    margin-top: 14px;
+  }
+
+  .crm-blacklist-reason-field textarea {
+    min-height: 78px;
+  }
+
+  .crm-blacklist-reason-field textarea.is-invalid {
+    border-color: #ef4444 !important;
+    background: #fef2f2 !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1) !important;
+  }
+
+  .crm-blacklist-match-note {
+    display: none;
+    align-items: center;
+    min-height: 34px;
+    padding: 8px 12px;
+    border: 1px solid rgba(16, 185, 129, 0.34);
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.1);
+    color: #047857;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .crm-blacklist-match-note.show {
+    display: inline-flex;
+  }
+
+  .crm-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .crm-field.full {
+    grid-column: 1 / -1;
+  }
+
+  .crm-field textarea,
+  .crm-field select {
+    border: 1px solid var(--crm-border);
+    border-radius: 12px;
+    background: var(--crm-bg-muted);
+    color: var(--crm-text);
+    padding: 10px;
+    font-size: 13px;
+    font-weight: 650;
+    outline: none;
+  }
+
+  .crm-field textarea:focus,
+  .crm-field select:focus {
+    border-color: var(--crm-accent);
+    box-shadow: 0 0 0 3px var(--crm-accent-soft);
+  }
+
+  .crm-field textarea {
+    min-height: 82px;
+    resize: vertical;
+  }
+
+  .crm-form-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 14px 0 0;
+    color: var(--crm-text);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .crm-form-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--crm-danger);
+  }
+
+  .crm-form-error {
+    margin-top: 12px;
+    color: var(--crm-danger);
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .crm-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
   }
 
   .crm-rule-card {
@@ -1376,6 +1597,32 @@
     .crm-settings-actions button {
       flex: 1;
     }
+
+    .crm-form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .crm-modal-backdrop {
+      padding: 12px;
+    }
+
+    .crm-blacklist-body {
+      padding: 12px;
+    }
+
+    .crm-blacklist-modal .ci-guest-form-grid,
+    .crm-blacklist-modal .ci-personal-section,
+    .crm-blacklist-modal .ci-address-section .f-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .crm-blacklist-modal .ci-guest-toolbar-inner {
+      align-items: stretch !important;
+    }
+
+    .crm-blacklist-modal .ci-guest-toolbar .v-btn {
+      width: 100%;
+    }
   }
 </style>
 {% endblock %}
@@ -1632,7 +1879,10 @@
           <p>Theo dõi khách cần cảnh báo khi check-in, lý do đưa vào danh sách, người thực hiện, chi nhánh và trạng thái
             công nợ.</p>
         </div>
-        <button class="crm-page-btn" @click="resetFilters()">Xóa lọc</button>
+        <div class="crm-settings-actions">
+          <button class="crm-primary-btn danger" @click="openManualBlacklistModal()">Thêm blacklist</button>
+          <button class="crm-page-btn" @click="resetFilters()">Xóa lọc</button>
+        </div>
       </div>
     </template>
     <div class="crm-table-card" x-show="activeTab !== 'settings'">
@@ -1792,6 +2042,12 @@
                           <circle cx="12" cy="12" r="3" />
                         </svg>
                       </a>
+                      <button class="crm-action-btn" title="Sửa thông tin khách" @click="openGuestEdit(g)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M12 20h9" />
+                          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                        </svg>
+                      </button>
                       <button class="crm-action-btn" title="Gọi điện" @click="window.open('tel:' + g.phone)"
                         x-show="g.phone">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1816,6 +2072,15 @@
                         <svg x-show="g.is_blacklisted" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                           stroke-width="2">
                           <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      </button>
+                      <button class="crm-action-btn danger" title="Xóa khách khỏi CRM" @click="deleteGuest(g)">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M3 6h18" />
+                          <path d="M8 6V4h8v2" />
+                          <path d="M19 6l-1 14H6L5 6" />
+                          <path d="M10 11v6" />
+                          <path d="M14 11v6" />
                         </svg>
                       </button>
                     </div>
@@ -1861,11 +2126,267 @@
     </div>
   </div>
 
+  <div class="crm-modal-backdrop" x-show="manualBlacklistOpen" x-cloak @click.self="closeManualBlacklistModal()">
+    <div class="crm-modal crm-blacklist-modal" id="crmManualBlacklistModal">
+      <div class="crm-modal-head">
+        <div>
+          <h2>Thêm khách vào danh sách đen</h2>
+          <p>Nhập thủ công hoặc quét QR CCCD, hỗ trợ khớp địa chỉ cũ/mới như form check-in.</p>
+        </div>
+        <button class="crm-modal-close" type="button" @click="closeManualBlacklistModal()" aria-label="Đóng">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form class="crm-modal-body crm-blacklist-body" @submit.prevent="submitManualBlacklist()">
+        <div class="ci-section ci-guest-section">
+          <div class="ci-section-body ci-guest-section-body">
+            <div class="ci-guest-toolbar">
+              <div class="ci-guest-toolbar-inner" style="display:flex; flex-wrap:wrap; gap:10px; align-items:center; width:100%;">
+                <button type="button" class="v-btn primary" @click="scanManualBlacklistCode()" title="F1">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                    <path d="M7 12h10" />
+                  </svg>
+                  Quét mã (F1)
+                </button>
+                <button type="button" class="v-btn outline" @click="resetManualBlacklistForm()">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg>
+                  Làm mới
+                </button>
+                <span class="crm-blacklist-match-note" :class="{ 'show': manualBlacklistExistingGuestId }">
+                  Đã khớp hồ sơ CRM, khi lưu sẽ cập nhật blacklist cho khách hiện có.
+                </span>
+              </div>
+            </div>
+            <div class="ci-crm-search-row">
+              <input type="text" class="f-ctrl" id="ci-crm-search-input" minlength="3"
+                x-model.trim="manualBlacklistSearchQuery"
+                placeholder="Tìm khách CRM theo tên, CCCD, SĐT, email..."
+                @keydown.enter.prevent="searchManualBlacklistGuest()">
+              <button type="button" class="v-btn outline" @click="searchManualBlacklistGuest()" title="Tìm khách CRM"
+                :disabled="manualBlacklistSearching">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Lọc
+              </button>
+            </div>
+            <div id="ci-guest-list-panel" class="ci-guest-list-panel"
+              :class="{ 'show': manualBlacklistSearchResults.length || manualBlacklistSearchMessage }">
+              <template x-if="manualBlacklistSearchMessage">
+                <p style="margin:4px; font-size:13px; color:#64748b;" x-text="manualBlacklistSearchMessage"></p>
+              </template>
+              <template x-for="guest in manualBlacklistSearchResults" :key="guest.id">
+                <button type="button" class="guest-chip" @click="selectManualBlacklistGuest(guest)">
+                  <span x-text="guest.full_name || 'Khách chưa tên'"></span>
+                  <span style="color:#64748b;" x-text="guest.cccd || guest.phone || ''"></span>
+                </button>
+              </template>
+            </div>
+
+            <div class="ci-guest-form-grid">
+              <div class="ci-personal-section ci-personal-section--wide">
+                <div class="ci-form-card-title">Thông tin cá nhân</div>
+                <div class="f-grp ci-field-name">
+                  <label>Họ và tên <span class="f-req">*</span></label>
+                  <input type="text" class="f-ctrl" id="ci-name" placeholder="Họ và tên"
+                    onblur="pmsCiFormatCapitalize(this)" maxlength="255">
+                </div>
+                <div class="f-grp">
+                  <label>Loại giấy <span class="f-req">*</span></label>
+                  <select class="f-ctrl" id="ci-id-type"
+                    onchange="pmsCiToggleIdFields(this); pmsCiFormatID(document.getElementById('ci-cccd'));">
+                    <option value="cccd">CCCD</option>
+                    <option value="cmnd">CMND</option>
+                    <option value="passport">Passport</option>
+                    <option value="visa">Visa</option>
+                    <option value="gplx">GPLX</option>
+                  </select>
+                </div>
+                <div class="f-grp" id="ci-grp-expire">
+                  <label>Hết hạn <span class="f-req">*</span></label>
+                  <input type="date" class="f-ctrl" id="ci-id-expire" onblur="pmsCiCheckIdExpire(this)">
+                </div>
+                <div class="f-grp">
+                  <label>Số giấy tờ <span class="f-req">*</span></label>
+                  <input type="text" class="f-ctrl" id="ci-cccd" placeholder="Số giấy tờ"
+                    oninput="pmsCiFormatID(this)" maxlength="20">
+                </div>
+                <div class="f-grp">
+                  <label>Giới tính <span class="f-req">*</span></label>
+                  <select class="f-ctrl" id="ci-gender">
+                    <option value="">Chọn giới tính</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+                <div class="f-grp">
+                  <label>Ngày sinh <span class="f-req">*</span></label>
+                  <input type="date" class="f-ctrl" id="ci-birth" onblur="pmsCiCheckBirth(this)">
+                </div>
+                <div class="f-grp">
+                  <label>Quốc tịch <span class="f-req">*</span></label>
+                  <input list="dl-nationality" class="f-ctrl" id="ci-nationality" placeholder="Quốc tịch"
+                    value="VNM - Việt Nam">
+                  <datalist id="dl-nationality"></datalist>
+                </div>
+                <div class="f-grp">
+                  <label>Số điện thoại</label>
+                  <input type="text" class="f-ctrl" id="ci-phone" placeholder="Số điện thoại"
+                    oninput="pmsCiFormatBasicNumeric(this)" maxlength="20">
+                </div>
+                <div class="f-grp ci-field-notes">
+                  <label>Ghi chú khách</label>
+                  <input type="text" class="f-ctrl" id="ci-guest-notes" placeholder="Sở thích, yêu cầu..."
+                    onblur="pmsCiFormatSentence(this)">
+                </div>
+              </div>
+
+              <div class="ci-address-section" id="ci-addr-section" style="margin:0; position:relative;">
+                <div class="ci-addr-lock-overlay" id="ci-addr-lock-overlay" style="display:none;">
+                  <div class="ci-addr-lock-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                  <div class="ci-addr-lock-msg">
+                    Thông tin lưu trú<br>
+                    <span style="font-size:11px; opacity:0.7; font-weight:500;">Không áp dụng cho Passport/Visa</span>
+                  </div>
+                </div>
+                <div class="ci-form-card-title">Địa chỉ lưu trú</div>
+                <div class="f-grid">
+                  <div class="f-grp f-grid-full" id="ci-grp-area" style="margin-bottom:4px;">
+                    <div class="ci-area-segment">
+                      <label class="ci-area-seg-item">
+                        <input type="radio" name="ci-area" value="old" checked onchange="vnSwitchMode('old');">
+                        <span>Địa bàn cũ</span>
+                      </label>
+                      <label class="ci-area-seg-item">
+                        <input type="radio" name="ci-area" value="new" onchange="vnSwitchMode('new');">
+                        <span>Địa bàn mới (2025)</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="f-grp" id="ci-grp-province">
+                    <label id="ci-lbl-province">Tỉnh/Thành phố <span class="f-req">*</span></label>
+                    <input list="dl-province" class="f-ctrl" id="ci-province" placeholder="Chọn Tỉnh/Thành"
+                      data-dl="dl-province" oninput="vnOnProvinceChange(this)" onchange="vnOnProvinceChange(this)"
+                      onblur="vnValidateDatalist(this)">
+                    <datalist id="dl-province"></datalist>
+                  </div>
+                  <div class="f-grp" id="ci-grp-district">
+                    <label id="ci-lbl-district">Quận/Huyện <span class="f-req">*</span></label>
+                    <input list="dl-district" class="f-ctrl" id="ci-district" placeholder="Chọn Quận/Huyện"
+                      data-dl="dl-district" oninput="vnOnDistrictChange(this)" onchange="vnOnDistrictChange(this)"
+                      onblur="vnValidateDatalist(this)">
+                    <datalist id="dl-district"></datalist>
+                  </div>
+                  <div class="f-grp" id="ci-grp-ward">
+                    <label id="ci-lbl-ward">Phường/Xã <span class="f-req">*</span></label>
+                    <input list="dl-ward" class="f-ctrl" id="ci-ward" placeholder="Chọn Phường/Xã"
+                      data-dl="dl-ward" oninput="vnOnWardChange(this)" onchange="vnOnWardChange(this)"
+                      onblur="vnValidateDatalist(this)">
+                    <datalist id="dl-ward"></datalist>
+                  </div>
+                  <div class="f-grp" id="ci-conversion-grp" style="display:none; grid-column:span 2;">
+                    <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7); border:1px solid #86efac; border-radius:8px; padding:10px 14px;">
+                      <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px; color:#15803d; font-weight:600; font-size:12px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2">
+                          <path d="M17 1l4 4-4 4" />
+                          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+                          <path d="M7 23l-4-4 4-4" />
+                          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+                        </svg>
+                        Chuyển đổi sang địa bàn mới:
+                      </div>
+                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div>
+                          <label style="font-size:11px; color:#64748b; margin-bottom:2px; display:block;">Tỉnh/TP (mới)</label>
+                          <input type="text" class="f-ctrl" id="ci-new-province" readonly
+                            style="background:#fff; border:1px solid #86efac; color:#15803d; font-weight:600; cursor:default;">
+                        </div>
+                        <div>
+                          <label style="font-size:11px; color:#64748b; margin-bottom:2px; display:block;">Phường/Xã (mới)</label>
+                          <input type="text" class="f-ctrl" id="ci-new-ward" readonly
+                            style="background:#fff; border:1px solid #86efac; color:#15803d; font-weight:600; cursor:default;">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="f-grp f-grid-full" id="ci-grp-address">
+                    <label>Địa chỉ chi tiết <span class="f-req">*</span></label>
+                    <input type="text" class="f-ctrl" id="ci-address" placeholder="Số nhà, ngách, hẻm, đường"
+                      onblur="pmsCiFormatCapitalize(this)">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="crm-field full crm-blacklist-reason-field">
+              <label>Lý do blacklist *</label>
+              <textarea id="ci-blacklist-reason" x-model.trim="manualBlacklistReason" required
+                placeholder="Nhập lý do đưa khách vào danh sách đen"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="crm-form-error" x-show="manualBlacklistError" x-text="manualBlacklistError"></div>
+        <div class="crm-modal-actions">
+          <button type="button" class="crm-secondary-btn" @click="closeManualBlacklistModal()"
+            :disabled="manualBlacklistSaving">Hủy</button>
+          <button type="submit" class="crm-primary-btn danger" :disabled="manualBlacklistSaving"
+            x-text="manualBlacklistSaving ? 'Đang lưu...' : 'Thêm vào blacklist'"></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 </div>
+{% include "pms/modals/eg_modal.html" %}
+{% include "pms/modals/scan_modal.html" %}
 {% endblock %}
 
 {% block scripts %}
 <script>
+  function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.removeProperty('display');
+      void el.offsetWidth;
+      setTimeout(() => el.classList.add('show'), 10);
+    }
+  }
+
+  function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('show');
+      setTimeout(() => el.style.removeProperty('display'), 200);
+    }
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.classList && e.target.classList.contains('v-modal')) {
+      closeModal(e.target.id);
+    }
+  });
+
   // Tier thresholds (points)
   const TIER_THRESHOLDS = {
     'BASIC': 0,
@@ -1877,7 +2398,142 @@
 
   const TIER_ORDER = ['BASIC', 'SILVER', 'GOLD', 'PLATINUM', 'VIP'];
 
+  function crmGuestField(id) {
+    return document.getElementById(id);
+  }
+
+  function crmGuestValue(id) {
+    return crmGuestField(id)?.value?.trim() || '';
+  }
+
+  function crmSetGuestValue(id, value) {
+    const el = crmGuestField(id);
+    if (el) {
+      el.value = value || '';
+      el.classList.remove('is-invalid', 'is-warning');
+    }
+  }
+
+  function pmsCiFormatID(input) {
+    if (input) input.value = input.value.replace(/\s+/g, '').toUpperCase();
+  }
+
+  function pmsCiFormatCapitalize(input) {
+    if (!input) return;
+    const val = input.value.trim().toLowerCase();
+    if (!val) return;
+    input.value = val.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  }
+
+  function pmsCiFormatSentence(input) {
+    if (!input) return;
+    const val = input.value.trim().toLowerCase();
+    if (!val) return;
+    input.value = val.charAt(0).toUpperCase() + val.slice(1);
+  }
+
+  function pmsCiFormatBasicNumeric(input) {
+    if (input) input.value = input.value.replace(/\s+/g, '').replace(/\D/g, '');
+  }
+
+  function pmsCiCheckIdExpire(inputEl) {
+    if (!inputEl) return;
+    if (typeof pmsIsCCCDPermanentExpiry === 'function' && pmsIsCCCDPermanentExpiry(inputEl)) {
+      inputEl.classList.remove('is-invalid');
+      return;
+    }
+    if (!inputEl.value) {
+      inputEl.classList.remove('is-invalid');
+      return;
+    }
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    inputEl.classList.toggle('is-invalid', inputEl.value <= todayStr);
+  }
+
+  function pmsCiApplyCCCDExpiryFromBirth() {
+    if (typeof pmsApplyCCCDExpiryFromBirth !== 'function') return false;
+    return pmsApplyCCCDExpiryFromBirth({
+      idTypeEl: crmGuestField('ci-id-type'),
+      birthEl: crmGuestField('ci-birth'),
+      expireEl: crmGuestField('ci-id-expire'),
+      checkExpire: pmsCiCheckIdExpire,
+    });
+  }
+
+  function pmsCiCheckBirth(inputEl) {
+    if (!inputEl) return;
+    if (!inputEl.value) {
+      inputEl.classList.remove('is-warning');
+      return;
+    }
+    pmsCiApplyCCCDExpiryFromBirth();
+    const parts = inputEl.value.split('-');
+    if (parts.length !== 3) return;
+    const birth = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDelta = today.getMonth() - birth.getMonth();
+    if (monthDelta < 0 || (monthDelta === 0 && today.getDate() < birth.getDate())) age--;
+    inputEl.classList.toggle('is-warning', age < 18);
+  }
+
+  function pmsCiToggleIdFields(select) {
+    const val = select?.value || 'cccd';
+    const isForeign = val === 'passport' || val === 'visa';
+    const noExpire = val === 'cmnd' || val === 'gplx';
+    const expireGrp = crmGuestField('ci-grp-expire');
+    const addrSection = crmGuestField('ci-addr-section');
+    const overlay = crmGuestField('ci-addr-lock-overlay');
+    if (expireGrp) expireGrp.style.display = noExpire ? 'none' : 'block';
+    if (addrSection) addrSection.classList.toggle('ci-addr-disabled', isForeign);
+    if (overlay) overlay.style.display = isForeign ? 'flex' : 'none';
+    if (typeof pmsSyncCCCDExpiryReadonly === 'function') {
+      pmsSyncCCCDExpiryReadonly({
+        idTypeEl: select,
+        birthEl: crmGuestField('ci-birth'),
+        expireEl: crmGuestField('ci-id-expire'),
+        checkExpire: pmsCiCheckIdExpire,
+      });
+    }
+  }
+
+  function pmsCiUnlockAllFields() {
+    ['ci-name', 'ci-cccd', 'ci-id-expire', 'ci-birth', 'ci-nationality', 'ci-address',
+      'ci-guest-notes', 'ci-province', 'ci-district', 'ci-ward', 'ci-phone'].forEach(id => {
+      const el = crmGuestField(id);
+      if (!el) return;
+      el.readOnly = false;
+      el.disabled = false;
+      el.classList.remove('is-invalid', 'is-warning');
+      el.style.background = '';
+      el.style.backgroundColor = '';
+      el.style.color = '';
+      el.style.cursor = '';
+    });
+    const idTypeEl = crmGuestField('ci-id-type');
+    if (idTypeEl) {
+      idTypeEl.disabled = false;
+      pmsCiToggleIdFields(idTypeEl);
+    }
+    const genderEl = crmGuestField('ci-gender');
+    if (genderEl) genderEl.disabled = false;
+    document.querySelectorAll('input[name="ci-area"]').forEach(r => { r.disabled = false; });
+  }
+
   function crmDashboard() {
+    const blankBlacklistForm = () => ({
+      full_name: '',
+      phone: '',
+      email: '',
+      cccd: '',
+      date_of_birth: '',
+      gender: '',
+      nationality: 'VNM - Việt Nam',
+      default_address: '',
+      blacklist_reason: '',
+    });
+
     return {
       searchQuery: '',
       activeTab: 'guests',
@@ -1905,6 +2561,17 @@
       settingsMessage: '',
       settingsMessageType: '',
       settingsUpdatedAt: '',
+      manualBlacklistOpen: false,
+      manualBlacklistSaving: false,
+      manualBlacklistError: '',
+      manualBlacklistForm: blankBlacklistForm(),
+      manualBlacklistReason: '',
+      manualBlacklistExistingGuestId: null,
+      manualBlacklistF1Bound: false,
+      manualBlacklistSearchQuery: '',
+      manualBlacklistSearchResults: [],
+      manualBlacklistSearching: false,
+      manualBlacklistSearchMessage: '',
       membershipSettings: {
         points_per_1000_vnd: 1,
         tiers: [],
@@ -1915,6 +2582,21 @@
         this.initialized = true;
         await this.loadGuests();
         this.loadStats();
+        window.addEventListener('pms:guest-updated', () => {
+          if (this.activeTab === 'settings') return;
+          this.loadGuests();
+          this.loadStats();
+        });
+        if (!this.manualBlacklistF1Bound) {
+          this.manualBlacklistF1Bound = true;
+          window.addEventListener('keydown', (e) => {
+            if (!this.manualBlacklistOpen || e.key !== 'F1') return;
+            if (document.getElementById('scanModal')?.classList.contains('show')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.scanManualBlacklistCode();
+          }, true);
+        }
       },
 
       resetPagination() {
@@ -2045,6 +2727,376 @@
         } catch (e) {
           console.error(e);
           alert(e.message || 'Không cập nhật được blacklist');
+        }
+      },
+
+      openGuestEdit(guest) {
+        const editGuest = guest?.edit_guest || {};
+        if (!editGuest.stay_id || !editGuest.hotel_guest_id) {
+          if (typeof pmsToast === 'function') {
+            pmsToast('Khách này chưa có lượt lưu trú để mở popup sửa khách.', false);
+          } else {
+            alert('Khách này chưa có lượt lưu trú để mở popup sửa khách.');
+          }
+          return;
+        }
+        if (typeof openEG !== 'function') {
+          if (typeof pmsToast === 'function') pmsToast('Popup sửa khách chưa sẵn sàng', false);
+          else alert('Popup sửa khách chưa sẵn sàng');
+          return;
+        }
+        openEG(Number(editGuest.stay_id), Number(editGuest.hotel_guest_id));
+      },
+
+      async deleteGuest(guest) {
+        if (!guest?.id) return;
+        if (!confirm(`Xóa khách "${guest.full_name || guest.id}" khỏi CRM?`)) return;
+        try {
+          const reason = 'Xóa từ trang CRM khách hàng';
+          const res = await fetch('/api/pms/crm/guests/' + guest.id + '?reason=' + encodeURIComponent(reason), {
+            method: 'DELETE',
+            credentials: 'same-origin',
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.detail || 'Không xóa được khách');
+          if (typeof pmsToast === 'function') pmsToast('Đã xóa khách khỏi CRM', true);
+          await this.loadGuests();
+          await this.loadStats();
+        } catch (e) {
+          console.error(e);
+          if (typeof pmsToast === 'function') pmsToast(e.message || 'Không xóa được khách', false);
+          else alert(e.message || 'Không xóa được khách');
+        }
+      },
+
+      clearManualBlacklistValidation() {
+        document.querySelectorAll('#crmManualBlacklistModal .is-invalid, #crmManualBlacklistModal .is-warning')
+          .forEach(el => el.classList.remove('is-invalid', 'is-warning'));
+      },
+
+      showManualBlacklistError(message, fieldId = '') {
+        this.manualBlacklistError = message;
+        if (fieldId) {
+          const el = crmGuestField(fieldId);
+          if (el) {
+            el.classList.add('is-invalid');
+            setTimeout(() => el.focus({ preventScroll: false }), 20);
+          }
+        }
+        if (typeof pmsToast === 'function') pmsToast(message, false);
+        return false;
+      },
+
+      async resetManualBlacklistForm() {
+        this.manualBlacklistForm = blankBlacklistForm();
+        this.manualBlacklistError = '';
+        this.manualBlacklistReason = '';
+        this.manualBlacklistExistingGuestId = null;
+        this.manualBlacklistSearchQuery = '';
+        this.manualBlacklistSearchResults = [];
+        this.manualBlacklistSearchMessage = '';
+        this.clearManualBlacklistValidation();
+
+        ['ci-name', 'ci-cccd', 'ci-id-expire', 'ci-birth', 'ci-phone', 'ci-guest-notes',
+          'ci-province', 'ci-district', 'ci-ward', 'ci-new-province', 'ci-new-ward', 'ci-address']
+          .forEach(id => crmSetGuestValue(id, ''));
+        crmSetGuestValue('ci-id-type', 'cccd');
+        crmSetGuestValue('ci-gender', '');
+        crmSetGuestValue('ci-nationality', 'VNM - Việt Nam');
+        const oldAreaRadio = document.querySelector('input[name="ci-area"][value="old"]');
+        if (oldAreaRadio) oldAreaRadio.checked = true;
+        if (typeof pmsPopulateNationalities === 'function') pmsPopulateNationalities('dl-nationality');
+        if (typeof vnSwitchMode === 'function') await vnSwitchMode('old', false);
+        pmsCiUnlockAllFields();
+        pmsCiToggleIdFields(crmGuestField('ci-id-type'));
+      },
+
+      openManualBlacklistModal() {
+        this.manualBlacklistOpen = true;
+        setTimeout(async () => {
+          await this.resetManualBlacklistForm();
+          crmGuestField('ci-name')?.focus();
+        }, 0);
+      },
+
+      closeManualBlacklistModal() {
+        if (this.manualBlacklistSaving) return;
+        this.manualBlacklistOpen = false;
+        this.manualBlacklistError = '';
+      },
+
+      manualBlacklistFullAddress(payload) {
+        const detail = payload.address || '';
+        if (payload.id_type === 'passport' || payload.id_type === 'visa') return detail;
+        if (payload.address_type === 'old') {
+          return [detail, payload.old_ward, payload.old_district, payload.old_city].filter(Boolean).join(', ');
+        }
+        return [detail, payload.ward, payload.city].filter(Boolean).join(', ');
+      },
+
+      collectManualBlacklistPayload() {
+        const idType = crmGuestValue('ci-id-type') || 'cccd';
+        const addressType = document.querySelector('input[name="ci-area"]:checked')?.value || 'old';
+        const province = crmGuestValue('ci-province');
+        const district = crmGuestValue('ci-district');
+        const ward = crmGuestValue('ci-ward');
+        const newProvince = crmGuestValue('ci-new-province');
+        const newWard = crmGuestValue('ci-new-ward');
+        const payload = {
+          full_name: crmGuestValue('ci-name'),
+          id_type: idType,
+          cccd: crmGuestValue('ci-cccd'),
+          id_expire: crmGuestValue('ci-id-expire'),
+          cccd_expire_date: crmGuestValue('ci-id-expire'),
+          gender: crmGuestValue('ci-gender'),
+          date_of_birth: crmGuestValue('ci-birth'),
+          birth_date: crmGuestValue('ci-birth'),
+          phone: crmGuestValue('ci-phone'),
+          nationality: crmGuestValue('ci-nationality') || 'VNM - Việt Nam',
+          notes: crmGuestValue('ci-guest-notes'),
+          address_type: addressType,
+          address: crmGuestValue('ci-address'),
+          city: addressType === 'old' ? (newProvince || province) : province,
+          district: addressType === 'old' ? '' : district,
+          ward: addressType === 'old' ? (newWard || ward) : ward,
+          new_city: addressType === 'old' ? newProvince : province,
+          new_ward: addressType === 'old' ? newWard : ward,
+          old_city: addressType === 'old' ? province : '',
+          old_district: addressType === 'old' ? district : '',
+          old_ward: addressType === 'old' ? ward : '',
+          is_blacklisted: true,
+          blacklist_reason: this.manualBlacklistReason.trim(),
+        };
+        payload.default_address = this.manualBlacklistFullAddress(payload);
+        return payload;
+      },
+
+      validateManualBlacklistPayload(payload) {
+        this.manualBlacklistError = '';
+        this.clearManualBlacklistValidation();
+        const isForeign = payload.id_type === 'passport' || payload.id_type === 'visa';
+        const noExpire = payload.id_type === 'cmnd' || payload.id_type === 'gplx';
+
+        if (!payload.full_name) return this.showManualBlacklistError('Vui lòng nhập họ tên khách', 'ci-name');
+        if (!payload.id_type) return this.showManualBlacklistError('Vui lòng chọn loại giấy tờ', 'ci-id-type');
+        if (!payload.cccd) return this.showManualBlacklistError('Vui lòng nhập số giấy tờ', 'ci-cccd');
+        if (!noExpire && !payload.id_expire) return this.showManualBlacklistError('Vui lòng nhập hạn giấy tờ', 'ci-id-expire');
+        if (!payload.gender) return this.showManualBlacklistError('Vui lòng chọn giới tính', 'ci-gender');
+        if (!payload.date_of_birth) return this.showManualBlacklistError('Vui lòng nhập ngày sinh', 'ci-birth');
+        if (!payload.nationality) return this.showManualBlacklistError('Vui lòng nhập quốc tịch', 'ci-nationality');
+
+        if (!isForeign) {
+          const mode = payload.address_type || 'old';
+          if (!crmGuestValue('ci-province')) return this.showManualBlacklistError('Vui lòng chọn Tỉnh/Thành phố', 'ci-province');
+          if (mode === 'old' && !crmGuestValue('ci-district')) return this.showManualBlacklistError('Vui lòng chọn Quận/Huyện', 'ci-district');
+          if (!crmGuestValue('ci-ward')) return this.showManualBlacklistError('Vui lòng chọn Phường/Xã', 'ci-ward');
+          if (!payload.address) return this.showManualBlacklistError('Vui lòng nhập địa chỉ chi tiết', 'ci-address');
+        }
+
+        if (!payload.blacklist_reason) return this.showManualBlacklistError('Vui lòng nhập lý do blacklist', 'ci-blacklist-reason');
+        return true;
+      },
+
+      async searchManualBlacklistGuest() {
+        const q = this.manualBlacklistSearchQuery.trim();
+        this.manualBlacklistSearchResults = [];
+        this.manualBlacklistSearchMessage = '';
+        if (q.length < 3) {
+          this.manualBlacklistSearchMessage = 'Nhập tối thiểu 3 ký tự để tìm khách CRM.';
+          return;
+        }
+
+        this.manualBlacklistSearching = true;
+        try {
+          const params = new URLSearchParams({
+            q,
+            include_total: 'false',
+            page_size: '8',
+          });
+          const res = await fetch('/api/pms/crm/guests/search?' + params, { credentials: 'same-origin' });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.detail || 'Không tìm được khách CRM');
+          this.manualBlacklistSearchResults = data.items || data.guests || [];
+          this.manualBlacklistSearchMessage = this.manualBlacklistSearchResults.length ? '' : 'Không tìm thấy khách phù hợp.';
+        } catch (e) {
+          console.error(e);
+          this.manualBlacklistSearchMessage = e.message || 'Không tìm được khách CRM';
+        } finally {
+          this.manualBlacklistSearching = false;
+        }
+      },
+
+      async selectManualBlacklistGuest(guest) {
+        await this.fillManualBlacklistFromExistingGuest(guest);
+        this.manualBlacklistSearchMessage = guest?.full_name ? `Đã chọn ${guest.full_name}` : 'Đã chọn khách CRM';
+      },
+
+      async findManualBlacklistGuestByIdNumber(idNumber) {
+        const normalized = String(idNumber || '').trim().toUpperCase();
+        if (!normalized || normalized.length < 3) return null;
+        const params = new URLSearchParams({
+          cccd: normalized,
+          include_total: 'false',
+          page_size: '5',
+        });
+        const res = await fetch('/api/pms/crm/guests/search?' + params, { credentials: 'same-origin' });
+        if (!res.ok) return null;
+        const data = await res.json().catch(() => ({}));
+        const rows = data.items || data.guests || [];
+        return rows.find(g => String(g.cccd || '').trim().toUpperCase() === normalized) || null;
+      },
+
+      async fillManualBlacklistFromExistingGuest(guest) {
+        if (!guest) return;
+        this.manualBlacklistExistingGuestId = guest.id || null;
+        crmSetGuestValue('ci-name', guest.full_name || '');
+        crmSetGuestValue('ci-id-type', (guest.id_type || 'cccd').toLowerCase());
+        crmSetGuestValue('ci-cccd', guest.cccd || '');
+        crmSetGuestValue('ci-gender', guest.gender || '');
+        crmSetGuestValue('ci-birth', String(guest.birth_date || guest.date_of_birth || '').slice(0, 10));
+        crmSetGuestValue('ci-phone', guest.phone || '');
+        crmSetGuestValue('ci-nationality', guest.nationality || 'VNM - Việt Nam');
+        crmSetGuestValue('ci-guest-notes', guest.notes || '');
+        if (typeof pmsSetGuestIdExpireValue === 'function') {
+          pmsSetGuestIdExpireValue(crmGuestField('ci-id-expire'), guest.id_expire || guest.cccd_expire_date || '');
+        } else {
+          crmSetGuestValue('ci-id-expire', String(guest.id_expire || guest.cccd_expire_date || '').slice(0, 10));
+        }
+
+        const hasOldAddress = !!(guest.old_city || guest.old_district || guest.old_ward);
+        const hasStructuredAddress = hasOldAddress || !!(guest.city || guest.ward);
+        if (hasStructuredAddress && typeof vnSwitchMode === 'function') {
+          const mode = hasOldAddress ? 'old' : (guest.address_type || 'new');
+          await vnSwitchMode(mode, false);
+          crmSetGuestValue('ci-province', hasOldAddress ? guest.old_city : guest.city);
+          if (typeof vnOnProvinceChange === 'function') await vnOnProvinceChange(crmGuestField('ci-province'));
+          crmSetGuestValue('ci-district', hasOldAddress ? guest.old_district : guest.district);
+          if (hasOldAddress && typeof vnOnDistrictChange === 'function') await vnOnDistrictChange(crmGuestField('ci-district'));
+          crmSetGuestValue('ci-ward', hasOldAddress ? guest.old_ward : guest.ward);
+          if (typeof vnOnWardChange === 'function') await vnOnWardChange(crmGuestField('ci-ward'));
+          crmSetGuestValue('ci-new-province', hasOldAddress ? (guest.city || '') : '');
+          crmSetGuestValue('ci-new-ward', hasOldAddress ? (guest.ward || '') : '');
+          crmSetGuestValue('ci-address', guest.address || guest.default_address || '');
+        } else {
+          crmSetGuestValue('ci-address', guest.default_address || guest.address || '');
+        }
+
+        pmsCiToggleIdFields(crmGuestField('ci-id-type'));
+      },
+
+      async fillManualBlacklistFromScan(parsed) {
+        this.manualBlacklistError = '';
+        if (!parsed || parsed.is_valid === false) {
+          this.showManualBlacklistError('Dữ liệu quét CCCD không hợp lệ');
+          return;
+        }
+
+        const isCmnd = parsed.card_type === 'CMND';
+        const idValue = isCmnd
+          ? (parsed.old_id || parsed.id_number || parsed.cccd || '')
+          : (parsed.id_number || parsed.cccd || '');
+        const normalizedId = String(idValue || '').trim().toUpperCase();
+
+        if (normalizedId) {
+          try {
+            const existingGuest = await this.findManualBlacklistGuestByIdNumber(normalizedId);
+            if (existingGuest) {
+              if (typeof PMS_ADDR !== 'undefined' && PMS_ADDR.markAutofill) PMS_ADDR.markAutofill();
+              await this.fillManualBlacklistFromExistingGuest(existingGuest);
+              crmSetGuestValue('ci-cccd', normalizedId);
+              if (typeof pmsToast === 'function') pmsToast(`Đã khớp hồ sơ CRM: ${existingGuest.full_name || normalizedId}`, true);
+              return;
+            }
+          } catch (e) {
+            console.warn('[CRM] Lookup guest from scan failed:', e);
+          }
+        }
+
+        this.manualBlacklistExistingGuestId = null;
+        crmSetGuestValue('ci-cccd', normalizedId);
+        crmSetGuestValue('ci-id-type', isCmnd ? 'cmnd' : 'cccd');
+        pmsCiToggleIdFields(crmGuestField('ci-id-type'));
+        crmSetGuestValue('ci-name', typeof pmsTitleCase === 'function' ? pmsTitleCase(parsed.name || '') : (parsed.name || ''));
+        crmSetGuestValue('ci-gender', parsed.gender || '');
+        if (parsed.dob && typeof pmsScanDateToISO === 'function') {
+          crmSetGuestValue('ci-birth', pmsScanDateToISO(parsed.dob));
+          pmsCiCheckBirth(crmGuestField('ci-birth'));
+        }
+        if (parsed.expiry_date) {
+          const expireEl = crmGuestField('ci-id-expire');
+          if (parsed.expiry_date === 'Không thời hạn' && typeof pmsSetCCCDPermanentExpiry === 'function') {
+            pmsSetCCCDPermanentExpiry(expireEl);
+          } else if (typeof pmsSetGuestIdExpireValue === 'function') {
+            pmsSetGuestIdExpireValue(expireEl, parsed.expiry_date);
+          } else if (typeof pmsScanDateToISO === 'function') {
+            crmSetGuestValue('ci-id-expire', pmsScanDateToISO(parsed.expiry_date));
+          }
+          pmsCiCheckIdExpire(expireEl);
+        }
+
+        const cardType = parsed.card_type || 'CCCD_CU';
+        if (typeof pmsMatchAddressToForm === 'function') {
+          await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ci', cardType);
+        }
+        if (typeof pmsShowAddressValidationIssues === 'function') pmsShowAddressValidationIssues('ci');
+        pmsCiUnlockAllFields();
+        crmGuestField('ci-phone')?.focus();
+      },
+
+      scanManualBlacklistCode() {
+        if (typeof openScanModal !== 'function') {
+          this.showManualBlacklistError('Popup quét CCCD chưa sẵn sàng');
+          return;
+        }
+        openScanModal(async (parsed) => {
+          await this.fillManualBlacklistFromScan(parsed);
+          if (parsed?.name && typeof pmsToast === 'function') pmsToast(`Đã quét: ${parsed.name}`, true);
+        });
+      },
+
+      async submitManualBlacklist() {
+        const payload = this.collectManualBlacklistPayload();
+        if (!this.validateManualBlacklistPayload(payload)) return;
+
+        this.manualBlacklistSaving = true;
+        try {
+          if (!this.manualBlacklistExistingGuestId && payload.cccd) {
+            const existingGuest = await this.findManualBlacklistGuestByIdNumber(payload.cccd);
+            if (existingGuest) this.manualBlacklistExistingGuestId = existingGuest.id;
+          }
+
+          const isExistingGuest = !!this.manualBlacklistExistingGuestId;
+          const res = isExistingGuest
+            ? await fetch('/api/pms/crm/guests/' + this.manualBlacklistExistingGuestId + '/blacklist', {
+              method: 'PATCH',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ is_blacklisted: true, reason: payload.blacklist_reason }),
+            })
+            : await fetch('/api/pms/crm/guests', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          const data = await res.json().catch(() => ({}));
+          const detail = typeof data.detail === 'string' ? data.detail : '';
+          if (!res.ok) throw new Error(detail || 'Không thêm được khách blacklist');
+          this.manualBlacklistOpen = false;
+          await this.resetManualBlacklistForm();
+          this.activeTab = 'blacklist';
+          this.blacklistFilter = 'true';
+          this.resetPagination();
+          await this.loadGuests();
+          await this.loadStats();
+          if (typeof pmsToast === 'function') {
+            pmsToast(isExistingGuest ? 'Đã cập nhật blacklist cho khách hiện có' : 'Đã thêm khách vào danh sách đen', true);
+          }
+        } catch (e) {
+          console.error(e);
+          this.manualBlacklistError = e.message || 'Không thêm được khách blacklist';
+        } finally {
+          this.manualBlacklistSaving = false;
         }
       },
 
@@ -2236,4 +3288,11 @@
     };
   }
 </script>
+<script src="/static/js/pms/pms_common.js?v=2"></script>
+<script src="/static/js/pms/nationalities.js"></script>
+<script src="/static/js/pms/pms_addr.js"></script>
+<script src="/static/js/pms/vn_address.js"></script>
+<script src="/static/js/pms/scan_modal.js"></script>
+<script src="/static/js/pms/eg_address.js"></script>
+<script src="/static/js/pms/eg_modal.js"></script>
 {% endblock %}

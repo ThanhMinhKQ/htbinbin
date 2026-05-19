@@ -26,12 +26,10 @@ function pmsCiOpenModal() {
     if (modal.parentElement !== document.body) {
         document.body.appendChild(modal);
     }
-    modal.style.removeProperty('display');
     document.body.classList.add('ci-modal-open');
     const body = document.getElementById('ci-body');
     if (body) body.scrollTop = 0;
-    void modal.offsetWidth;
-    modal.classList.add('show');
+    requestAnimationFrame(() => modal.classList.add('show'));
 }
 
 function pmsCiCloseModal() {
@@ -39,7 +37,6 @@ function pmsCiCloseModal() {
     if (!modal) return;
     modal.classList.remove('show');
     document.body.classList.remove('ci-modal-open');
-    setTimeout(() => modal.style.removeProperty('display'), 200);
 }
 
 window.pmsCiOpenModal = pmsCiOpenModal;
@@ -61,6 +58,9 @@ function openCI(id) {
     window._pmsCiRiskConfirmed = false;
     window._pmsCiRiskFlags = null;
     window._ciRoomNumber = r.room_number;
+    window._pmsLastPricingPreview = null;
+    clearTimeout(_pmsCalcPriceTimer);
+    _pmsCalcPriceSeq++;
     const elRoomId = document.getElementById('ci-room-id');
     if (elRoomId) elRoomId.value = id;
     const elTitle = document.getElementById('ci-title');
@@ -160,7 +160,7 @@ function pmsCiSetDateTime(inputId, value) {
     const input = document.getElementById(inputId);
     if (!input) return;
     input.value = value || '';
-    input.dispatchEvent(new Event('change'));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
     pmsCiSyncDateTimePicker(inputId);
 }
 
@@ -406,6 +406,9 @@ function pmsCiOpenReservationModal(context) {
     const otaReferenceCode = raw.booking_reference_code || raw.ota_group_code || data.external_id || raw.external_id || '';
     window._pmsCiReservationMode = !isBookingCheckin;
     window._pmsCiReservationContext = data;
+    window._pmsLastPricingPreview = null;
+    clearTimeout(_pmsCalcPriceTimer);
+    _pmsCalcPriceSeq++;
     window._pmsCiOtaPricing = isOtaBooking
         ? {
             actualTotal: Number(data.total_price || 0),
@@ -538,7 +541,7 @@ function pmsCiInitFlatpickr() {
 
     if (ciInEl) {
         const now = new Date();
-        const tzOffset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+        const tzOffset = now.getTimezoneOffset() * 60000;
         const localISOTime = (new Date(now.getTime() - tzOffset)).toISOString().slice(0, 16);
         ciInEl.value = localISOTime;
     }
@@ -546,7 +549,7 @@ function pmsCiInitFlatpickr() {
 
     pmsCiEnsureDateTimePickers();
 
-    if (typeof pmsCalcPrice === 'function') setTimeout(pmsCalcPrice, 100);
+    if (typeof pmsCalcPrice === 'function') setTimeout(pmsCalcPrice, 200);
 }
 
 function pmsCiGetFormGuest() {
@@ -676,15 +679,16 @@ function pmsCiRefreshGuestForm() {
     const g = document.getElementById('ci-gender');
     if (g) { g.value = ''; g.disabled = false; }
 
-    // Reset to new-mode radio
+    // Reset to old-mode radio (default)
     const newRadio = document.querySelector('input[name="ci-area"][value="new"]');
     const oldRadio = document.querySelector('input[name="ci-area"][value="old"]');
-    if (newRadio) newRadio.checked = true;
-    if (oldRadio) { oldRadio.disabled = false; oldRadio.style.display = ''; }
+    if (oldRadio) oldRadio.checked = true;
+    if (newRadio) { newRadio.disabled = false; newRadio.style.display = ''; }
     const distGrp = document.getElementById('ci-grp-district');
     const convGrp = document.getElementById('ci-conversion-grp');
-    if (distGrp) distGrp.style.display = 'none';
+    if (distGrp) distGrp.style.display = '';
     if (convGrp) convGrp.style.display = 'none';
+    if (typeof vnSwitchMode === 'function') vnSwitchMode('old', false);
 
     // Reset toolbar
     document.getElementById('ci-add-guest-btn').style.display = 'inline-flex';
@@ -1471,17 +1475,28 @@ function pmsCiToggleGuestList() {
     }
 }
 
+let _pmsCalcPriceTimer = null;
+let _pmsCalcPriceSeq = 0;
+
 async function pmsCalcPrice() {
+    clearTimeout(_pmsCalcPriceTimer);
+    _pmsCalcPriceTimer = setTimeout(_pmsCalcPriceExec, 250);
+}
+
+async function _pmsCalcPriceExec() {
     const ciV = document.getElementById('ci-in')?.value;
     const coV = document.getElementById('ci-out')?.value;
     const hero = document.getElementById('ci-hero-amount');
-    if (!ciV) { if (hero) hero.textContent = '—'; _hideBreakdown(); return; }
+    const heroPrice = document.getElementById('ci-hero-price');
+    if (!ciV) { if (hero) hero.textContent = '—'; if (heroPrice) heroPrice.classList.remove('ci-hero-loading'); _hideBreakdown(); return; }
 
     const roomTypeId = pmsCi.room_type_id;
-    if (!roomTypeId) { if (hero) hero.textContent = '—'; _hideBreakdown(); return; }
+    if (!roomTypeId) { if (hero) hero.textContent = '—'; if (heroPrice) heroPrice.classList.remove('ci-hero-loading'); _hideBreakdown(); return; }
 
-    // Dùng stay_type khớp với submitCI(): NIGHT khi có CO, HOUR khi không có CO
+    if (heroPrice) heroPrice.classList.add('ci-hero-loading');
+
     const stayType = coV ? 'NIGHT' : 'HOUR';
+    const seq = ++_pmsCalcPriceSeq;
 
     try {
         const data = await pmsApi('/api/pms/pricing/preview', {
@@ -1493,6 +1508,8 @@ async function pmsCalcPrice() {
                 stay_type: stayType,
             }),
         });
+        // Bỏ qua response cũ nếu đã có request mới hơn
+        if (seq !== _pmsCalcPriceSeq) return;
         if (window._pmsCiOtaPricing?.actualTotal) {
             data.ota_price_mode = 'manual_channel_total';
             data.ota_actual_total = window._pmsCiOtaPricing.actualTotal;
@@ -1501,9 +1518,12 @@ async function pmsCalcPrice() {
             window._pmsCiOtaPricing.referenceTotal = Number(data.total || 0);
         }
         window._pmsLastPricingPreview = data;
+        if (heroPrice) heroPrice.classList.remove('ci-hero-loading');
         _renderBreakdown(data);
     } catch {
+        if (seq !== _pmsCalcPriceSeq) return;
         if (hero) hero.textContent = '—';
+        if (heroPrice) heroPrice.classList.remove('ci-hero-loading');
         _hideBreakdown();
     }
 }
@@ -1579,35 +1599,79 @@ function _renderBreakdown(data) {
         REFUND: 'Hoàn tiền',
         DISCOUNT_MANUAL: 'Giảm giá',
     };
-    const cssClass = {
-        EARLY_CHECKIN_FEE: 'fee-early',
-        LATE_CHECKOUT_FEE: 'fee-late',
-        ROOM_CHARGE: 'fee-core',
-        HOURLY_CHARGE: 'fee-core',
-        REFUND: 'fee-refund',
-        DISCOUNT_MANUAL: 'fee-refund',
+
+    const iconMap = {
+        EARLY_CHECKIN_FEE: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        LATE_CHECKOUT_FEE: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        ROOM_CHARGE: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+        HOURLY_CHARGE: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+        REFUND: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+        DISCOUNT_MANUAL: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
+    };
+
+    const _fmtDate = (iso) => {
+        if (!iso) return '';
+        const d = pmsParseDate(iso);
+        if (isNaN(d.getTime())) return '';
+        const days = ['CN','T2','T3','T4','T5','T6','T7'];
+        const p = n => String(n).padStart(2,'0');
+        return `${days[d.getDay()]}, ${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;
     };
 
     rowsEl.innerHTML = (data?.breakdown || []).map(item => {
         const name = labelMap[item.type] || item.type;
-        const feeCss = cssClass[item.type] || '';
+        const icon = iconMap[item.type] || iconMap.ROOM_CHARGE;
         const isRefund = item.amount < 0 || ['REFUND', 'DISCOUNT_MANUAL'].includes(item.type);
         const amtStr = isRefund
             ? `-${pmsMoney(Math.abs(item.amount))}`
             : pmsMoney(item.amount);
 
-        // Khoảng thời gian: "10:35 → 14:00" hoặc "1 đêm"
-        const rangeStr = item.start_iso && item.end_iso
-            ? `${_hh(item.start_iso)} → ${_hh(item.end_iso)}`
-            : (item.days ? `${item.days} đêm` : (item.hours ? `${item.hours} giờ` : ''));
+        const timeRange = item.start_iso && item.end_iso
+            ? `${_hh(item.start_iso)} <span style="opacity:0.4; margin:0 4px;">→</span> ${_hh(item.end_iso)}`
+            : '';
+        const dateStr = item.start_iso ? _fmtDate(item.start_iso) : '';
+        const durationStr = item.days ? `${item.days} ngày` : (item.hours ? `${item.hours} giờ` : '');
 
         return `
-            <div class="ci-bd-row ${feeCss}">
-                <span class="ci-bd-row-label">
-                    <span class="ci-bd-row-name">${name}</span>
-                    ${rangeStr ? `<span class="ci-bd-row-time">${rangeStr}</span>` : ''}
-                </span>
-                <span class="ci-bd-row-amount">${amtStr}</span>
+            <div style="
+                background: #f8fafc;
+                border-radius: 18px;
+                padding: 14px 18px;
+                display: grid;
+                grid-template-columns: 2fr 2.5fr 1fr 1.5fr;
+                align-items: center;
+                gap: 20px;
+                flex-shrink: 0;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                border: 1px solid transparent;
+                white-space: nowrap;
+            " onmouseover="this.style.borderColor='#e2e8f0'; this.style.transform='translateY(-1px)';" onmouseout="this.style.borderColor='transparent'; this.style.transform='none';">
+                <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                    <div style="width:36px; height:36px; background:white; border-radius:12px; color:#088395; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+                        ${icon}
+                    </div>
+                    <div style="font-weight:850; font-size:13px; color:#093C5D; line-height:1.2; white-space:nowrap;" title="${name}">
+                        ${name}
+                    </div>
+                </div>
+                <div style="min-width:0;">
+                    <div style="display:flex; flex-direction:column; gap:2px;">
+                        <div style="font-weight:700; color:#093C5D; font-size:13px; font-family:'Outfit', sans-serif;">
+                            ${timeRange || '—'}
+                        </div>
+                        <div style="font-size:10px; color:#64748b; font-weight:700;">
+                            ${dateStr}
+                        </div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:13px; font-weight:850; color:#093C5D;">${durationStr || '—'}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-family:'Outfit', sans-serif; font-weight:900; font-size:16px; color:${isRefund ? '#dc2626' : '#088395'}; white-space:nowrap;">
+                        ${amtStr}
+                    </div>
+                </div>
             </div>`;
     }).join('');
 
@@ -1616,26 +1680,34 @@ function _renderBreakdown(data) {
         additionalRows += pmsCiServiceList.map(s => {
             const qtyStr = s.qty > 1 ? `x${s.qty}` : '';
             return `
-            <div class="ci-bd-row">
-                <span class="ci-bd-row-label">
-                    <span class="ci-bd-row-name" style="color:#0891b2;">Dịch vụ: ${pmsEscapeHtml(s.name)}</span>
-                    ${qtyStr ? `<span class="ci-bd-row-time">${qtyStr}</span>` : ''}
-                </span>
-                <span class="ci-bd-row-amount">${pmsMoney(s.price * s.qty)}</span>
+            <div style="background:#f0fdfa; border-radius:18px; padding:14px 18px; display:grid; grid-template-columns:2fr 2.5fr 1fr 1.5fr; align-items:center; gap:20px; border:1px solid transparent;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:36px; height:36px; background:white; border-radius:12px; color:#0891b2; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,0.04);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    </div>
+                    <div style="font-weight:850; font-size:13px; color:#0891b2;">Dịch vụ: ${pmsEscapeHtml(s.name)}</div>
+                </div>
+                <div></div>
+                <div style="text-align:right; font-size:13px; font-weight:850; color:#093C5D;">${qtyStr || '—'}</div>
+                <div style="text-align:right; font-family:'Outfit',sans-serif; font-weight:900; font-size:16px; color:#088395;">${pmsMoney(s.price * s.qty)}</div>
             </div>`;
         }).join('');
     }
-    
+
     if (pmsCiSurchargeList && pmsCiSurchargeList.length > 0) {
         additionalRows += pmsCiSurchargeList.map(s => {
             const qtyStr = s.qty > 1 ? `x${s.qty}` : '';
             return `
-            <div class="ci-bd-row">
-                <span class="ci-bd-row-label">
-                    <span class="ci-bd-row-name" style="color:#d97706;">Phát sinh: ${pmsEscapeHtml(s.name)}</span>
-                    ${qtyStr ? `<span class="ci-bd-row-time">${qtyStr}</span>` : ''}
-                </span>
-                <span class="ci-bd-row-amount">${pmsMoney(s.price * s.qty)}</span>
+            <div style="background:#fffbeb; border-radius:18px; padding:14px 18px; display:grid; grid-template-columns:2fr 2.5fr 1fr 1.5fr; align-items:center; gap:20px; border:1px solid transparent;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="width:36px; height:36px; background:white; border-radius:12px; color:#d97706; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 4px 12px rgba(0,0,0,0.04);">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg>
+                    </div>
+                    <div style="font-weight:850; font-size:13px; color:#d97706;">Phát sinh: ${pmsEscapeHtml(s.name)}</div>
+                </div>
+                <div></div>
+                <div style="text-align:right; font-size:13px; font-weight:850; color:#093C5D;">${qtyStr || '—'}</div>
+                <div style="text-align:right; font-family:'Outfit',sans-serif; font-weight:900; font-size:16px; color:#088395;">${pmsMoney(s.price * s.qty)}</div>
             </div>`;
         }).join('');
     }
@@ -2138,47 +2210,17 @@ function pmsCiToggleIdFields(select) {
     const isForeign = val === 'passport' || val === 'visa';
     const noExpire = val === 'cmnd' || val === 'gplx';
     const expireEl = document.getElementById('ci-grp-expire');
-    const areaEl = document.getElementById('ci-grp-area');
-    const addrEl = document.getElementById('ci-grp-address');
-    const provEl = document.getElementById('ci-grp-province');
-    const wardEl = document.getElementById('ci-grp-ward');
-    const addrSection = document.querySelector('.ci-address-section');
-    const oldRadio = document.querySelector('input[name="ci-area"][value="old"]');
+    const addrSection = document.getElementById('ci-addr-section');
+    const overlay = document.getElementById('ci-addr-lock-overlay');
 
     if (expireEl) expireEl.style.display = noExpire ? 'none' : 'block';
 
     if (isForeign) {
-        // Ẩn và disable toàn bộ section địa chỉ
-        if (areaEl) areaEl.style.display = 'none';
-        if (addrEl) addrEl.style.display = 'none';
-        if (provEl) provEl.style.display = 'none';
-        if (wardEl) wardEl.style.display = 'none';
-        if (addrSection) addrSection.style.display = 'none';
-        // Disable các address fields cụ thể
-        ['ci-province', 'ci-district', 'ci-ward', 'ci-address'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) { el.disabled = true; el.readOnly = true; }
-        });
-        // Disable radio buttons
-        document.querySelectorAll('#ciModal input[name="ci-area"]').forEach(r => {
-            if (r) r.disabled = true;
-        });
+        if (addrSection) addrSection.classList.add('ci-addr-disabled');
+        if (overlay) overlay.style.display = 'flex';
     } else {
-        // Hiện lại section địa chỉ
-        if (areaEl) areaEl.style.display = 'flex';
-        if (addrEl) addrEl.style.display = 'flex';
-        if (provEl) provEl.style.display = 'flex';
-        if (wardEl) wardEl.style.display = 'flex';
-        if (addrSection) addrSection.style.display = '';
-        // Enable các address fields
-        ['ci-province', 'ci-district', 'ci-ward', 'ci-address'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) { el.disabled = false; el.readOnly = false; }
-        });
-        // Enable radio buttons
-        document.querySelectorAll('#ciModal input[name="ci-area"]').forEach(r => {
-            if (r && r.style.display !== 'none') r.disabled = false;
-        });
+        if (addrSection) addrSection.classList.remove('ci-addr-disabled');
+        if (overlay) overlay.style.display = 'none';
     }
 
     if (typeof pmsSyncCCCDExpiryReadonly === 'function') {

@@ -768,6 +768,13 @@ async function egSaveGuest() {
         if (typeof openRoomDetail === 'function') openRoomDetail(parseInt(stayId), roomNum);
 
         pmsToast('Cập nhật thông tin khách thành công', true);
+        window.dispatchEvent(new CustomEvent('pms:guest-updated', {
+            detail: {
+                stayId: Number(stayId),
+                hotelGuestId: Number(guestId),
+                guest: _egGuestData,
+            },
+        }));
 
         if (typeof closeModal === 'function') closeModal('egModal');
         else if (typeof pmsCloseModal === 'function') pmsCloseModal('egModal');

@@ -698,10 +698,10 @@ Object.assign(BookingHub, {
                 <header class="bk-receipt-header">
                     <div class="bk-receipt-brand">
                         <div class="bk-receipt-logo">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                            <img src="/static/logo.png" alt="Bin Bin Hotel" style="width:44px;height:44px;object-fit:contain;">
                         </div>
                         <div class="bk-receipt-brand-text">
-                            <h2>BIN BIN HOTEL GROUP</h2>
+                            <h2>BIN BIN HOTEL</h2>
                             <p>Reservation Confirmation</p>
                         </div>
                     </div>

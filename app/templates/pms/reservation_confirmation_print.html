@@ -589,9 +589,9 @@
 
 <body>
     <div class="no-print">
-        <button class="btn primary" onclick="window.print()">In Phiếu (Ctrl + P)</button>
+        <button class="btn primary" onclick="window.print()">In Phiếu</button>
         <button class="btn" onclick="downloadSheetImage()">Chụp phiếu PNG</button>
-        <button class="btn" onclick="window.print()">Xuất PDF</button>
+        <button class="btn" onclick="exportPdf()">Xuất PDF</button>
         <button class="btn ghost" onclick="window.close()">Đóng</button>
     </div>
 
@@ -917,6 +917,13 @@
             el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111;color:#fff;padding:10px 16px;border-radius:6px;font-size:13px;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 2400);
+        }
+
+        function exportPdf() {
+            const originalTitle = document.title;
+            document.title = 'XacNhanDatPhong-{{ booking.external_id or booking.id }}';
+            window.print();
+            setTimeout(() => { document.title = originalTitle; }, 1000);
         }
 
         async function downloadSheetImage() {

@@ -14,6 +14,50 @@
 'use strict';
 
 const VN_API = '/api/vn-address';
+const VN_ADDRESS_DATA_VERSION = '2025-34-20260519';
+
+const VN_OFFICIAL_NEW_PROVINCES = [
+  { short: 'An Giang', name: 'Tỉnh An Giang' },
+  { short: 'Bắc Ninh', name: 'Tỉnh Bắc Ninh' },
+  { short: 'Cao Bằng', name: 'Tỉnh Cao Bằng' },
+  { short: 'Cà Mau', name: 'Tỉnh Cà Mau' },
+  { short: 'Cần Thơ', name: 'Thành phố Cần Thơ' },
+  { short: 'Gia Lai', name: 'Tỉnh Gia Lai' },
+  { short: 'Huế', name: 'Thành phố Huế' },
+  { short: 'Hà Nội', name: 'Thành phố Hà Nội' },
+  { short: 'Hà Tĩnh', name: 'Tỉnh Hà Tĩnh' },
+  { short: 'Hưng Yên', name: 'Tỉnh Hưng Yên' },
+  { short: 'Hải Phòng', name: 'Thành phố Hải Phòng' },
+  { short: 'Khánh Hòa', name: 'Tỉnh Khánh Hòa' },
+  { short: 'Lai Châu', name: 'Tỉnh Lai Châu' },
+  { short: 'Lào Cai', name: 'Tỉnh Lào Cai' },
+  { short: 'Lâm Đồng', name: 'Tỉnh Lâm Đồng' },
+  { short: 'Lạng Sơn', name: 'Tỉnh Lạng Sơn' },
+  { short: 'Nghệ An', name: 'Tỉnh Nghệ An' },
+  { short: 'Ninh Bình', name: 'Tỉnh Ninh Bình' },
+  { short: 'Phú Thọ', name: 'Tỉnh Phú Thọ' },
+  { short: 'Quảng Ngãi', name: 'Tỉnh Quảng Ngãi' },
+  { short: 'Quảng Ninh', name: 'Tỉnh Quảng Ninh' },
+  { short: 'Quảng Trị', name: 'Tỉnh Quảng Trị' },
+  { short: 'Sơn La', name: 'Tỉnh Sơn La' },
+  { short: 'TP HCM', name: 'Thành phố Hồ Chí Minh' },
+  { short: 'Thanh Hóa', name: 'Tỉnh Thanh Hóa' },
+  { short: 'Thái Nguyên', name: 'Tỉnh Thái Nguyên' },
+  { short: 'Tuyên Quang', name: 'Tỉnh Tuyên Quang' },
+  { short: 'Tây Ninh', name: 'Tỉnh Tây Ninh' },
+  { short: 'Vĩnh Long', name: 'Tỉnh Vĩnh Long' },
+  { short: 'Điện Biên', name: 'Tỉnh Điện Biên' },
+  { short: 'Đà Nẵng', name: 'Thành phố Đà Nẵng' },
+  { short: 'Đắk Lắk', name: 'Tỉnh Đắk Lắk' },
+  { short: 'Đồng Nai', name: 'Tỉnh Đồng Nai' },
+  { short: 'Đồng Tháp', name: 'Tỉnh Đồng Tháp' },
+];
+
+const VN_OFFICIAL_NEW_PROVINCE_KEYS = new Map();
+VN_OFFICIAL_NEW_PROVINCES.forEach(p => {
+  VN_OFFICIAL_NEW_PROVINCE_KEYS.set(vnNewProvinceKey(p.short), p);
+  VN_OFFICIAL_NEW_PROVINCE_KEYS.set(vnNewProvinceKey(p.name), p);
+});
 
 // ─── Client-side caches ───────────────────────────────────────────────────────
 const _vnCache = {
@@ -42,21 +86,23 @@ async function vnFetch(url) {
 
 async function vnLoadNewProvinces() {
   if (_vnCache.newProvinces) return _vnCache.newProvinces;
-  const data = await vnFetch(`${VN_API}/new-provinces`);
+  const data = await vnFetch(`${VN_API}/new-provinces?v=${VN_ADDRESS_DATA_VERSION}`);
   if (data?.provinces) {
-    _vnCache.newProvinces = data.provinces;   // [{short, name}, ...]
+    _vnCache.newProvinces = vnFilterNewProvinces(data.provinces);   // [{short, name}, ...]
     return _vnCache.newProvinces;
   }
-  return [];
+  _vnCache.newProvinces = VN_OFFICIAL_NEW_PROVINCES;
+  return _vnCache.newProvinces;
 }
 
 async function vnLoadNewWards(provinceShort) {
-  if (!provinceShort) return [];
-  if (_vnCache.newWards[provinceShort]) return _vnCache.newWards[provinceShort];
-  const encoded = encodeURIComponent(provinceShort);
-  const data = await vnFetch(`${VN_API}/new-wards/${encoded}`);
+  const canonicalShort = vnCanonicalNewProvinceShort(provinceShort);
+  if (!canonicalShort) return [];
+  if (_vnCache.newWards[canonicalShort]) return _vnCache.newWards[canonicalShort];
+  const encoded = encodeURIComponent(canonicalShort);
+  const data = await vnFetch(`${VN_API}/new-wards/${encoded}?v=${VN_ADDRESS_DATA_VERSION}`);
   if (data?.wards) {
-    _vnCache.newWards[provinceShort] = data.wards;
+    _vnCache.newWards[canonicalShort] = data.wards;
     return data.wards;
   }
   return [];
@@ -122,6 +168,33 @@ function vnNormVietnamese(s) {
 function vnNormWardNumber(s) {
   if (!s) return s;
   return s.replace(/^(phường|xã|thị trấn)\s*0+(\d+)/i, (match, prefix, num) => prefix + ' ' + parseInt(num, 10));
+}
+
+function vnNewProvinceKey(value) {
+  return vnNormVietnamese(vnStripPrefix(String(value || '').replace(/^tp\.\s*/i, 'TP ')))
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function vnCanonicalNewProvince(value) {
+  const key = vnNewProvinceKey(value);
+  return VN_OFFICIAL_NEW_PROVINCE_KEYS.get(key) || null;
+}
+
+function vnCanonicalNewProvinceShort(value) {
+  return vnCanonicalNewProvince(value)?.short || '';
+}
+
+function vnFilterNewProvinces(provinces) {
+  const seen = new Set();
+  const out = [];
+  (Array.isArray(provinces) ? provinces : []).forEach(item => {
+    const official = vnCanonicalNewProvince(item?.short) || vnCanonicalNewProvince(item?.name);
+    if (!official || seen.has(official.short)) return;
+    seen.add(official.short);
+    out.push({ short: official.short, name: official.name });
+  });
+  return out.length ? out : VN_OFFICIAL_NEW_PROVINCES;
 }
 
 function vnPopulateDatalist(datalistId, items) {
