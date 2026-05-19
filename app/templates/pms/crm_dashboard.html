@@ -2010,8 +2010,8 @@
                   <!-- Last Stay -->
                   <td>
                     <div class="crm-last-stay" x-show="g.last_stay">
-                      <span class="crm-last-room" x-text="'P.' + g.last_stay.room_number"
-                        x-show="g.last_stay.room_number">-</span>
+                      <span class="crm-last-room" x-text="g.last_stay && g.last_stay.room_number ? 'P.' + g.last_stay.room_number : ''"
+                        x-show="g.last_stay && g.last_stay.room_number">-</span>
                       <span class="crm-last-date" x-text="fmtDate(g.last_seen_at)">-</span>
                     </div>
                     <span x-show="!g.last_stay" style="color:var(--crm-text-subtle);">Chưa có</span>
