@@ -334,6 +334,10 @@ def create_folio(
     notes: Optional[str] = None,
     currency: str = "VND",
     created_by: Optional[int] = None,
+    invoice_name: Optional[str] = None,
+    invoice_tax_code: Optional[str] = None,
+    invoice_contact: Optional[str] = None,
+    invoice_address: Optional[str] = None,
 ) -> Folio:
     folio = Folio(
         stay_id=stay.id,
@@ -342,6 +346,10 @@ def create_folio(
         currency=currency,
         notes=notes,
         created_by=created_by,
+        invoice_name=invoice_name or None,
+        invoice_tax_code=invoice_tax_code or None,
+        invoice_contact=invoice_contact or None,
+        invoice_address=invoice_address or None,
     )
     db.add(folio)
     db.flush()

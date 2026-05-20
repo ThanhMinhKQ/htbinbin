@@ -775,11 +775,12 @@ async function pmsCiAddGuest() {
 
             if (res && res.is_active) {
                 const currentRoom = pmsCiRoomNumber;
-                console.log('[CI] CCCD is active at room:', res.room_number, 'Current room:', currentRoom);
+                const branchInfo = res.branch_name ? ` (${res.branch_name})` : '';
+                console.log('[CI] CCCD is active at room:', res.room_number, 'Branch:', res.branch_name, 'Current room:', currentRoom);
                 if (res.room_number === currentRoom) {
-                    pmsToast(`CẢNH BÁO: Khách ${g.cccd} đã có trong danh sách phòng ${currentRoom}.`, false);
+                    pmsToast(`CẢNH BÁO: Khách ${g.cccd} đã có trong danh sách phòng ${currentRoom}${branchInfo}.`, false);
                 } else {
-                    pmsToast(`CẢNH BÁO: Khách ${g.cccd} đang lưu trú tại phòng ${res.room_number}.`, false);
+                    pmsToast(`CẢNH BÁO: Khách ${g.cccd} đang lưu trú tại phòng ${res.room_number}${branchInfo}.`, false);
                 }
                 return;
             } else {
@@ -1052,12 +1053,13 @@ async function pmsCiUpdateGuest() {
             const res = await pmsApi(url);
             if (res && res.is_active) {
                 const currentRoom = pmsCiRoomNumber;
+                const branchInfo = res.branch_name ? ` (${res.branch_name})` : '';
                 if (res.room_number === currentRoom) {
-                    window.alert(`CẢNH BÁO: Khách ${g.cccd} đã có trong danh sách phòng ${currentRoom}. Không thể thêm trùng.`);
-                    pmsToast(`Khách ${g.cccd} đã có trong danh sách phòng ${currentRoom}. Không thể thêm trùng.`, false);
+                    window.alert(`CẢNH BÁO: Khách ${g.cccd} đã có trong danh sách phòng ${currentRoom}${branchInfo}. Không thể thêm trùng.`);
+                    pmsToast(`Khách ${g.cccd} đã có trong danh sách phòng ${currentRoom}${branchInfo}. Không thể thêm trùng.`, false);
                 } else {
-                    window.alert(`CẢNH BÁO: Khách ${g.cccd} đang lưu trú tại phòng ${res.room_number}. Không thể Cập nhật.`);
-                    pmsToast(`Khách hàng có số giấy tờ ${g.cccd} đang lưu trú tại phòng ${res.room_number}. Không thể Cập nhật.`, false);
+                    window.alert(`CẢNH BÁO: Khách ${g.cccd} đang lưu trú tại phòng ${res.room_number}${branchInfo}. Không thể Cập nhật.`);
+                    pmsToast(`Khách hàng có số giấy tờ ${g.cccd} đang lưu trú tại phòng ${res.room_number}${branchInfo}. Không thể Cập nhật.`, false);
                 }
                 return;
             }
@@ -1495,8 +1497,25 @@ async function _pmsCalcPriceExec() {
 
     if (heroPrice) heroPrice.classList.add('ci-hero-loading');
 
-    const stayType = coV ? 'NIGHT' : 'HOUR';
+    const stayType = coV ? 'NIGHT' : 'AUTO';
     const seq = ++_pmsCalcPriceSeq;
+
+    // Xác định check_out gửi lên backend:
+    // - Có checkout → dùng giá trị user nhập
+    // - Không có checkout + check-in đã qua → dùng now (tính giá live)
+    // - Không có checkout + check-in = now/tương lai → gửi rỗng (backend fallback min_hours)
+    let effectiveCo = '';
+    if (coV) {
+        effectiveCo = coV;
+    } else {
+        const ciDate = new Date(ciV);
+        const now = new Date();
+        const diffMs = now.getTime() - ciDate.getTime();
+        if (diffMs > 600000) {
+            const tzOff = now.getTimezoneOffset() * 60000;
+            effectiveCo = new Date(now.getTime() - tzOff).toISOString().slice(0, 16);
+        }
+    }
 
     try {
         const data = await pmsApi('/api/pms/pricing/preview', {
@@ -1504,7 +1523,7 @@ async function _pmsCalcPriceExec() {
             body: new URLSearchParams({
                 room_type_id: roomTypeId,
                 check_in: ciV,
-                check_out: coV,
+                check_out: effectiveCo,
                 stay_type: stayType,
             }),
         });
@@ -1520,8 +1539,9 @@ async function _pmsCalcPriceExec() {
         window._pmsLastPricingPreview = data;
         if (heroPrice) heroPrice.classList.remove('ci-hero-loading');
         _renderBreakdown(data);
-    } catch {
+    } catch (e) {
         if (seq !== _pmsCalcPriceSeq) return;
+        console.warn('[pmsCalcPrice] preview failed:', e);
         if (hero) hero.textContent = '—';
         if (heroPrice) heroPrice.classList.remove('ci-hero-loading');
         _hideBreakdown();
@@ -1563,10 +1583,20 @@ function _renderBreakdown(data) {
 
     // Std range label
     const cfg = (data && data.config) ? data.config : {};
+    const coV = document.getElementById('ci-out')?.value;
+    const ciV = document.getElementById('ci-in')?.value;
     if (heroStd) {
-        heroStd.textContent = otaPricing?.actualTotal
-            ? `Giá OTA thực thu${otaPricing.channel ? ` • ${otaPricing.channel}` : ''}`
-            : `Khung chuẩn ${cfg.std_checkin_time || '14:00'} → ${cfg.std_checkout_time || '12:00'}`;
+        if (otaPricing?.actualTotal) {
+            heroStd.textContent = `Giá OTA thực thu${otaPricing.channel ? ` • ${otaPricing.channel}` : ''}`;
+        } else if (!coV && data?.pricing_mode === 'HOUR') {
+            const ciDate = ciV ? new Date(ciV) : null;
+            const diffMs = ciDate ? (Date.now() - ciDate.getTime()) : 0;
+            heroStd.textContent = diffMs > 600000
+                ? `Phòng giờ • Tính đến hiện tại`
+                : `Phòng giờ • Tối thiểu ${cfg.min_hours || 1}h`;
+        } else {
+            heroStd.textContent = `Khung chuẩn ${cfg.std_checkin_time || '14:00'} → ${cfg.std_checkout_time || '12:00'}`;
+        }
     }
 
     const hasServices = (pmsCiServiceList && pmsCiServiceList.length > 0) || (pmsCiSurchargeList && pmsCiSurchargeList.length > 0);
@@ -2067,6 +2097,8 @@ async function submitCI() {
     if (requireInvoice) {
         fd.append('tax_code', mainInvoiceGuest.tax_code);
         fd.append('tax_contact', mainInvoiceGuest.invoice_contact || '');
+        fd.append('company_name', mainInvoiceGuest.company_name || '');
+        fd.append('company_address', mainInvoiceGuest.company_address || '');
     }
 
     // Use guestData (from form) with fallback to primary (from list)

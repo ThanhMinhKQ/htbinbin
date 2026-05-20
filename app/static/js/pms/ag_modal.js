@@ -430,12 +430,16 @@ async function agEditGuest(i) {
         if (radio1) { radio1.checked = true; agToggleInvoice(radio1); }
         const taxCodeEl = document.getElementById('ag-tax-code');
         const taxContactEl = document.getElementById('ag-tax-contact');
+        const compNameEl = document.getElementById('ag-company-name');
+        const compAddrEl = document.getElementById('ag-company-address');
         if (taxCodeEl) taxCodeEl.value = g.tax_code || '';
         if (taxContactEl) taxContactEl.value = g.invoice_contact || '';
+        if (compNameEl) compNameEl.value = g.company_name || '';
+        if (compAddrEl) compAddrEl.value = g.company_address || '';
     } else {
         const radio0 = document.querySelector('input[name="ag-invoice"][value="0"]');
         if (radio0) { radio0.checked = true; agToggleInvoice(radio0); }
-        ['ag-tax-code','ag-tax-contact'].forEach(id => {
+        ['ag-tax-code','ag-tax-contact','ag-company-name','ag-company-address'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -682,8 +686,12 @@ async function agLoadGuestIntoForm(guest) {
         if (radio1) { radio1.checked = true; agToggleInvoice(radio1); }
         const taxCodeEl = document.getElementById('ag-tax-code');
         const taxContactEl = document.getElementById('ag-tax-contact');
+        const compNameEl = document.getElementById('ag-company-name');
+        const compAddrEl = document.getElementById('ag-company-address');
         if (taxCodeEl) taxCodeEl.value = guest.tax_code || '';
         if (taxContactEl) taxContactEl.value = guest.invoice_contact || '';
+        if (compNameEl) compNameEl.value = guest.company_name || '';
+        if (compAddrEl) compAddrEl.value = guest.company_address || '';
     } else {
         const radio0 = document.querySelector('input[name="ag-invoice"][value="0"]');
         if (radio0) { radio0.checked = true; agToggleInvoice(radio0); }
@@ -1111,6 +1119,8 @@ async function submitAG() {
             if (g.new_ward) fd.append('new_ward', g.new_ward);
             if (g.tax_code) fd.append('tax_code', g.tax_code);
             if (g.invoice_contact) fd.append('invoice_contact', g.invoice_contact);
+            if (g.company_name) fd.append('company_name', g.company_name);
+            if (g.company_address) fd.append('company_address', g.company_address);
             if (g.notes) fd.append('notes', g.notes);
 
             await pmsApi(`/api/pms/stays/${stayId}/guests`, { method: 'POST', body: fd });

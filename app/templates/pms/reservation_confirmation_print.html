@@ -532,25 +532,33 @@
         .signature-block {
             display: flex;
             justify-content: space-between;
-            margin-top: 20px;
-            padding: 0 40px;
+            margin-top: 12px;
+            padding: 0 34px;
         }
 
         .signature-box {
             text-align: center;
+            min-width: 190px;
         }
 
         .signature-box strong {
             display: block;
-            font-size: 11px;
-            margin-bottom: 35px;
+            font-size: 10.5px;
+            margin-bottom: 22px;
+        }
+
+        .signature-hint {
+            margin: 0;
+            color: #555;
+            font-size: 9.5px;
+            line-height: 1.25;
         }
 
         .prepared-signature-name {
-            margin: 14px 0 0 0;
+            margin: 4px 0 0 0;
             color: #111;
             font-family: "Dancing Script", "Segoe UI", Arial, sans-serif;
-            font-size: 28px;
+            font-size: 22px;
             font-weight: 700;
             line-height: 1.1;
             letter-spacing: .3px;
@@ -861,7 +869,7 @@
         <div class="signature-block">
             <div class="signature-box guest-signature-box">
                 <strong>Khách hàng / Guest</strong>
-                <p style="font-size: 11px;">(Ký, ghi rõ họ tên / Sign & Print Name)</p>
+                <p class="signature-hint">(Ký, ghi rõ họ tên / Sign & Print Name)</p>
             </div>
             <div class="signature-box">
                 <strong>Người lập đơn / Prepared by</strong>

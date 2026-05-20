@@ -66,7 +66,7 @@
     border: 1px solid rgba(244, 143, 104, 0.28);
     border-radius: 22px;
     padding: 20px 24px;
-    margin: 16px 24px 0;
+    margin: 16px 24px 18px;
     position: relative;
     z-index: 1;
     box-shadow: 0 14px 34px rgba(244, 143, 104, 0.12);
@@ -141,13 +141,16 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+    justify-content: flex-end;
+    flex: 1;
+    min-width: 0;
   }
 
   .crm-search {
     position: relative;
     flex: 1;
-    min-width: 280px;
-    max-width: 400px;
+    min-width: 240px;
+    max-width: 360px;
   }
 
   .crm-search input {
@@ -222,6 +225,58 @@
     flex-wrap: wrap;
   }
 
+  .crm-list-controls {
+    margin: -4px 24px 18px;
+    padding: 14px 16px;
+    border: 1px solid var(--crm-border);
+    border-radius: 14px;
+    background: var(--crm-bg);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: var(--crm-shadow);
+  }
+
+  .crm-list-controls .crm-search {
+    max-width: none;
+    min-width: 320px;
+  }
+
+  .crm-list-controls .crm-filter-group {
+    margin-left: auto;
+  }
+
+  .crm-refresh-btn {
+    width: 38px;
+    height: 38px;
+    flex: 0 0 38px;
+    border-radius: 12px;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-bg-muted);
+    color: var(--crm-text-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .crm-refresh-btn:hover:not(:disabled) {
+    border-color: var(--crm-accent);
+    color: var(--crm-accent);
+    background: var(--crm-accent-soft);
+  }
+
+  .crm-refresh-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .crm-refresh-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+
   .crm-filter-btn {
     padding: 8px 16px;
     border-radius: 8px;
@@ -249,16 +304,17 @@
   .crm-tabs {
     display: flex;
     gap: 8px;
-    padding: 16px 24px;
+    padding: 0;
     background: transparent;
+    flex-wrap: wrap;
   }
 
   .crm-tab-btn {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 14px;
-    border-radius: 999px;
+    padding: 9px 13px;
+    border-radius: 12px;
     border: 1px solid var(--crm-border);
     background: var(--crm-bg);
     color: var(--crm-text-muted);
@@ -275,8 +331,20 @@
     box-shadow: 0 10px 22px rgba(244, 143, 104, 0.22);
   }
 
+  .crm-settings-tab-btn {
+    width: 40px;
+    flex: 0 0 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .crm-settings-tab-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+
   .crm-filter-select {
-    min-width: 150px;
+    min-width: 144px;
     padding: 8px 12px;
     border-radius: 12px;
     border: 1px solid var(--crm-border);
@@ -285,35 +353,6 @@
     font-size: 12px;
     font-weight: 600;
     outline: none;
-  }
-
-  .crm-blacklist-card {
-    margin-bottom: 16px;
-    padding: 16px 20px;
-    border: 1px solid #fecaca;
-    background: #fff7f7;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-  }
-
-  html.dark .crm-blacklist-card {
-    background: rgba(127, 29, 29, 0.2);
-    border-color: #7f1d1d;
-  }
-
-  .crm-blacklist-card h2 {
-    margin: 0 0 4px;
-    font-size: 15px;
-    color: var(--crm-text);
-  }
-
-  .crm-blacklist-card p {
-    margin: 0;
-    font-size: 12px;
-    color: var(--crm-text-muted);
   }
 
   /* ── Stats Cards ── */
@@ -888,6 +927,85 @@
 
   .crm-blacklist-meta strong {
     color: var(--crm-text);
+  }
+
+  .crm-blacklist-reason {
+    min-width: 280px;
+    max-width: 420px;
+  }
+
+  .crm-blacklist-reason-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 850;
+    color: var(--crm-danger);
+  }
+
+  .crm-blacklist-reason-title svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+
+  .crm-blacklist-reason-text {
+    padding: 10px 12px;
+    border: 1px solid rgba(239, 68, 68, 0.22);
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.07);
+    color: var(--crm-text);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
+    white-space: normal;
+  }
+
+  .crm-blacklist-person {
+    min-width: 170px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--crm-text-muted);
+  }
+
+  .crm-blacklist-person strong {
+    color: var(--crm-text);
+    font-size: 13px;
+  }
+
+  .crm-blacklist-date {
+    min-width: 125px;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 3px;
+    color: var(--crm-text-muted);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .crm-blacklist-date strong {
+    color: var(--crm-text);
+    font-size: 13px;
+  }
+
+  .crm-blacklist-profile {
+    min-width: 170px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: var(--crm-text-muted);
+    font-size: 12px;
+  }
+
+  .crm-blacklist-profile strong {
+    color: var(--crm-text);
+  }
+
+  .crm-actions.always-visible {
+    opacity: 1;
   }
 
   /* ── Membership Settings ── */
@@ -1546,10 +1664,51 @@
 
     .crm-controls {
       flex-direction: column;
+      align-items: stretch;
     }
 
     .crm-search {
+      width: 100%;
       max-width: none;
+    }
+
+    .crm-list-controls {
+      margin: 0 16px 16px;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .crm-list-controls .crm-search {
+      min-width: 0;
+    }
+
+    .crm-list-controls .crm-filter-group {
+      margin-left: 0;
+    }
+
+    .crm-refresh-btn {
+      width: 100%;
+      flex-basis: 38px;
+    }
+
+    .crm-tabs,
+    .crm-filter-group {
+      width: 100%;
+    }
+
+    .crm-tabs {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      padding-bottom: 2px;
+    }
+
+    .crm-tab-btn {
+      flex: 1 0 auto;
+      justify-content: center;
+    }
+
+    .crm-filter-select {
+      flex: 1;
     }
 
     .crm-stats {
@@ -1649,53 +1808,23 @@
       </div>
 
       <div class="crm-controls">
-        <div class="crm-search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <input type="text" placeholder="Tìm theo tên, CCCD, SĐT, email..." x-model="searchQuery"
-            @keydown.enter="refreshGuests()" @input.debounce.400ms="refreshGuests()">
-          <button class="clear-btn" :class="{ show: searchQuery.length > 0 }"
-            @click="searchQuery=''; refreshGuests()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M18 6L6 18M6 6l12 12" />
+        <div class="crm-tabs">
+          <button class="crm-tab-btn" :class="{ active: activeTab === 'guests' }" @click="switchTab('guests')">Khách
+            hàng</button>
+          <button class="crm-tab-btn" :class="{ active: activeTab === 'blacklist' }" @click="switchTab('blacklist')">Danh
+            sách đen</button>
+          <button class="crm-tab-btn crm-settings-tab-btn" :class="{ active: activeTab === 'settings' }"
+            @click="switchTab('settings')" title="Thiết lập hạng" aria-label="Thiết lập hạng">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06A2 2 0 0 1 7.04 4.4l.06.06a1.65 1.65 0 0 0 1.82.33h.08a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.08a1.65 1.65 0 0 0 1.82-.33l.06-.06A2 2 0 0 1 19.8 7.04l-.06.06a1.65 1.65 0 0 0-.33 1.82v.08a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
-        </div>
-
-        <div class="crm-filter-group">
-          <select class="crm-filter-select" x-model="tierFilter" @change="refreshGuests()">
-            <option value="">Tất cả hạng</option>
-            <option value="VIP">VIP</option>
-            <option value="PLATINUM">Platinum</option>
-            <option value="GOLD">Gold</option>
-            <option value="SILVER">Silver</option>
-            <option value="BASIC">Basic</option>
-          </select>
-          <select class="crm-filter-select" x-model="debtFilter" @change="refreshGuests()">
-            <option value="">Tất cả thanh toán</option>
-            <option value="paid">Đã thanh toán đủ</option>
-            <option value="unpaid">Còn nợ</option>
-          </select>
-          <select class="crm-filter-select" x-model="blacklistFilter" @change="setBlacklistFilter()">
-            <option value="">Tất cả trạng thái</option>
-            <option value="false">Không blacklist</option>
-            <option value="true">Blacklist</option>
-          </select>
         </div>
       </div>
     </div>
   </header>
-
-  <div class="crm-tabs">
-    <button class="crm-tab-btn" :class="{ active: activeTab === 'guests' }" @click="switchTab('guests')">Khách
-      hàng</button>
-    <button class="crm-tab-btn" :class="{ active: activeTab === 'blacklist' }" @click="switchTab('blacklist')">Danh sách
-      đen</button>
-    <button class="crm-tab-btn" :class="{ active: activeTab === 'settings' }" @click="switchTab('settings')">Thiết lập
-      hạng</button>
-  </div>
 
   <!-- ── Stats ── -->
   <div class="crm-stats">
@@ -1777,6 +1906,50 @@
         <div class="crm-stat-label">Khách VIP</div>
       </div>
     </div>
+  </div>
+
+  <div class="crm-list-controls" x-show="activeTab !== 'settings'">
+    <div class="crm-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
+      <input type="text" placeholder="Tìm theo tên, CCCD, SĐT, email..." x-model="searchQuery"
+        @keydown.enter="refreshGuests()" @input.debounce.400ms="refreshGuests()">
+      <button class="clear-btn" :class="{ show: searchQuery.length > 0 }"
+        @click="searchQuery=''; refreshGuests()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="crm-filter-group">
+      <select class="crm-filter-select" x-model="tierFilter" @change="refreshGuests()">
+        <option value="">Tất cả hạng</option>
+        <option value="VIP">VIP</option>
+        <option value="PLATINUM">Platinum</option>
+        <option value="GOLD">Gold</option>
+        <option value="SILVER">Silver</option>
+        <option value="BASIC">Basic</option>
+      </select>
+      <select class="crm-filter-select" x-model="debtFilter" @change="refreshGuests()">
+        <option value="">Tất cả thanh toán</option>
+        <option value="paid">Đã thanh toán đủ</option>
+        <option value="unpaid">Còn nợ</option>
+      </select>
+    </div>
+
+    <button type="button" class="crm-refresh-btn" @click="refreshGuests({ refreshStats: true })"
+      :disabled="loading" title="Làm mới danh sách" aria-label="Làm mới danh sách">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 0 1-15.5 6.3" />
+        <path d="M3 12a9 9 0 0 1 15.5-6.3" />
+        <path d="M18 3v5h-5" />
+        <path d="M6 21v-5h5" />
+      </svg>
+    </button>
   </div>
 
   <!-- ── Main Content ── -->
@@ -1872,19 +2045,6 @@
       </div>
     </template>
 
-    <template x-if="activeTab === 'blacklist'">
-      <div class="crm-blacklist-card">
-        <div>
-          <h2>Danh sách đen khách hàng</h2>
-          <p>Theo dõi khách cần cảnh báo khi check-in, lý do đưa vào danh sách, người thực hiện, chi nhánh và trạng thái
-            công nợ.</p>
-        </div>
-        <div class="crm-settings-actions">
-          <button class="crm-primary-btn danger" @click="openManualBlacklistModal()">Thêm blacklist</button>
-          <button class="crm-page-btn" @click="resetFilters()">Xóa lọc</button>
-        </div>
-      </div>
-    </template>
     <div class="crm-table-card" x-show="activeTab !== 'settings'">
 
       <!-- Table Header -->
@@ -1898,6 +2058,8 @@
           <span x-text="activeTab === 'blacklist' ? 'Khách trong danh sách đen' : 'Danh sách khách hàng'"></span>
           <span class="crm-table-count" x-text="total">0</span>
         </div>
+        <button class="crm-primary-btn danger" x-show="activeTab === 'blacklist'"
+          @click="openManualBlacklistModal()">Thêm blacklist</button>
       </div>
 
       <!-- Loading State -->
@@ -1931,13 +2093,16 @@
           <table class="crm-table">
             <thead>
               <tr>
-                <th>Khách hàng</th>
-                <th>Hạng</th>
-                <th>Số lần ở</th>
-                <th>Điểm tích lũy</th>
-                <th>Lần cuối ở</th>
-                <th x-show="activeTab === 'blacklist'">Blacklist</th>
+                <th x-text="activeTab === 'blacklist' ? 'Khách cảnh báo' : 'Khách hàng'"></th>
+                <th x-show="activeTab !== 'blacklist'">Hạng</th>
+                <th x-show="activeTab !== 'blacklist'">Số lần ở</th>
+                <th x-show="activeTab !== 'blacklist'">Điểm tích lũy</th>
+                <th x-show="activeTab !== 'blacklist'">Lần cuối ở</th>
+                <th x-show="activeTab === 'blacklist'">Lý do</th>
+                <th x-show="activeTab === 'blacklist'">Người thực hiện</th>
+                <th x-show="activeTab === 'blacklist'">Ngày đưa vào</th>
                 <th>Thanh toán</th>
+                <th x-show="activeTab === 'blacklist'">Hồ sơ</th>
                 <th></th>
               </tr>
             </thead>
@@ -1972,13 +2137,13 @@
                   </td>
 
                   <!-- Tier -->
-                  <td>
+                  <td x-show="activeTab !== 'blacklist'">
                     <span class="tier-badge" :class="'tier-' + (g.tier || 'BASIC')"
                       x-text="g.tier_display || 'Khách thường'"></span>
                   </td>
 
                   <!-- Stays -->
-                  <td>
+                  <td x-show="activeTab !== 'blacklist'">
                     <div class="crm-stays">
                       <span class="crm-stays-count" x-text="g.total_stays || 0">0</span>
                       <span class="crm-stays-label">lần</span>
@@ -1986,7 +2151,7 @@
                   </td>
 
                   <!-- Points & Progress -->
-                  <td>
+                  <td x-show="activeTab !== 'blacklist'">
                     <div class="crm-points-box">
                       <div class="crm-points-header">
                         <svg class="crm-points-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -2008,7 +2173,7 @@
                   </td>
 
                   <!-- Last Stay -->
-                  <td>
+                  <td x-show="activeTab !== 'blacklist'">
                     <div class="crm-last-stay" x-show="g.last_stay">
                       <span class="crm-last-room" x-text="g.last_stay && g.last_stay.room_number ? 'P.' + g.last_stay.room_number : ''"
                         x-show="g.last_stay && g.last_stay.room_number">-</span>
@@ -2018,13 +2183,31 @@
                   </td>
 
                   <td x-show="activeTab === 'blacklist'">
-                    <div class="crm-blacklist-meta" x-show="g.blacklist_info">
-                      <div><strong>Lý do:</strong> <span x-text="g.blacklist_info?.reason || '-'"></span></div>
-                      <div><strong>Thực hiện:</strong> <span x-text="g.blacklist_info?.actor_name || '-'"></span></div>
-                      <div><strong>Chi nhánh:</strong> <span x-text="g.blacklist_info?.branch_name || '-'"></span></div>
-                      <div><strong>Ngày:</strong> <span x-text="fmtDate(g.blacklist_info?.created_at)"></span></div>
+                    <div class="crm-blacklist-reason">
+                      <div class="crm-blacklist-reason-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                          <line x1="12" y1="9" x2="12" y2="13" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span>Lý do blacklist</span>
+                      </div>
+                      <div class="crm-blacklist-reason-text" x-text="blacklistReason(g)"></div>
                     </div>
-                    <span x-show="!g.blacklist_info" style="color:var(--crm-text-subtle);">Chưa có log</span>
+                  </td>
+
+                  <td x-show="activeTab === 'blacklist'">
+                    <div class="crm-blacklist-person">
+                      <strong x-text="g.blacklist_info?.actor_name || 'Chưa ghi nhận'"></strong>
+                      <span x-text="g.blacklist_info?.branch_name || 'Chưa có chi nhánh'"></span>
+                    </div>
+                  </td>
+
+                  <td x-show="activeTab === 'blacklist'">
+                    <div class="crm-blacklist-date">
+                      <strong x-text="fmtDate(g.blacklist_info?.created_at)"></strong>
+                      <span x-text="g.blacklist_info?.created_at ? fmtTime(g.blacklist_info.created_at) : '-'"></span>
+                    </div>
                   </td>
 
                   <td>
@@ -2033,9 +2216,16 @@
                     <span class="crm-paid-badge" x-show="!g.has_unpaid_debt">Đã đủ</span>
                   </td>
 
+                  <td x-show="activeTab === 'blacklist'">
+                    <div class="crm-blacklist-profile">
+                      <strong x-text="guestIdentityLabel(g)"></strong>
+                      <span x-text="(g.total_stays || 0) + ' lượt lưu trú'"></span>
+                    </div>
+                  </td>
+
                   <!-- Actions -->
                   <td @click.stop>
-                    <div class="crm-actions">
+                    <div class="crm-actions" :class="{ 'always-visible': activeTab === 'blacklist' }">
                       <a :href="'/pms/crm/guest/' + g.id" class="crm-action-btn" title="Xem chi tiết">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -2130,8 +2320,8 @@
     <div class="crm-modal crm-blacklist-modal" id="crmManualBlacklistModal">
       <div class="crm-modal-head">
         <div>
-          <h2>Thêm khách vào danh sách đen</h2>
-          <p>Nhập thủ công hoặc quét QR CCCD, hỗ trợ khớp địa chỉ cũ/mới như form check-in.</p>
+          <h2 x-text="manualBlacklistMode === 'edit' ? 'Sửa hồ sơ khách blacklist' : 'Thêm khách vào danh sách đen'"></h2>
+          <p x-text="manualBlacklistMode === 'edit' ? 'Cập nhật thông tin nhận diện, liên hệ và lý do cảnh báo cho khách chưa có lượt lưu trú.' : 'Nhập thủ công hoặc quét QR CCCD, hỗ trợ khớp địa chỉ cũ/mới như form check-in.'"></p>
         </div>
         <button class="crm-modal-close" type="button" @click="closeManualBlacklistModal()" aria-label="Đóng">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -2351,7 +2541,7 @@
           <button type="button" class="crm-secondary-btn" @click="closeManualBlacklistModal()"
             :disabled="manualBlacklistSaving">Hủy</button>
           <button type="submit" class="crm-primary-btn danger" :disabled="manualBlacklistSaving"
-            x-text="manualBlacklistSaving ? 'Đang lưu...' : 'Thêm vào blacklist'"></button>
+            x-text="manualBlacklistSaving ? 'Đang lưu...' : (manualBlacklistMode === 'edit' ? 'Lưu hồ sơ blacklist' : 'Thêm vào blacklist')"></button>
         </div>
       </form>
     </div>
@@ -2539,7 +2729,6 @@
       activeTab: 'guests',
       tierFilter: '',
       debtFilter: '',
-      blacklistFilter: '',
       page: 1,
       pageSize: 20,
       total: 0,
@@ -2566,6 +2755,8 @@
       manualBlacklistError: '',
       manualBlacklistForm: blankBlacklistForm(),
       manualBlacklistReason: '',
+      manualBlacklistOriginalReason: '',
+      manualBlacklistMode: 'create',
       manualBlacklistExistingGuestId: null,
       manualBlacklistF1Bound: false,
       manualBlacklistSearchQuery: '',
@@ -2626,7 +2817,7 @@
           if (this.tierFilter) params.set('tier', this.tierFilter);
           if (this.debtFilter) params.set('debt', this.debtFilter);
           if (this.activeTab === 'blacklist') params.set('blacklist', 'true');
-          else if (this.blacklistFilter) params.set('blacklist', this.blacklistFilter);
+          else params.set('blacklist', 'false');
 
           const res = await fetch('/api/pms/crm/guests/search?' + params, { credentials: 'same-origin' });
           if (!res.ok) throw new Error('API error');
@@ -2691,14 +2882,6 @@
           this.loadMembershipSettings();
           return;
         }
-        if (tab === 'blacklist') this.blacklistFilter = 'true';
-        else if (this.blacklistFilter === 'true') this.blacklistFilter = '';
-        this.refreshGuests();
-      },
-
-      setBlacklistFilter() {
-        if (this.blacklistFilter === 'true') this.activeTab = 'blacklist';
-        else if (this.activeTab === 'blacklist') this.activeTab = 'guests';
         this.refreshGuests();
       },
 
@@ -2706,7 +2889,6 @@
         this.searchQuery = '';
         this.tierFilter = '';
         this.debtFilter = '';
-        this.blacklistFilter = this.activeTab === 'blacklist' ? 'true' : '';
         this.refreshGuests({ refreshStats: true });
       },
 
@@ -2733,6 +2915,10 @@
       openGuestEdit(guest) {
         const editGuest = guest?.edit_guest || {};
         if (!editGuest.stay_id || !editGuest.hotel_guest_id) {
+          if (guest?.is_blacklisted) {
+            this.openManualBlacklistModal(guest);
+            return;
+          }
           if (typeof pmsToast === 'function') {
             pmsToast('Khách này chưa có lượt lưu trú để mở popup sửa khách.', false);
           } else {
@@ -2791,6 +2977,8 @@
         this.manualBlacklistForm = blankBlacklistForm();
         this.manualBlacklistError = '';
         this.manualBlacklistReason = '';
+        this.manualBlacklistOriginalReason = '';
+        this.manualBlacklistMode = 'create';
         this.manualBlacklistExistingGuestId = null;
         this.manualBlacklistSearchQuery = '';
         this.manualBlacklistSearchResults = [];
@@ -2811,11 +2999,20 @@
         pmsCiToggleIdFields(crmGuestField('ci-id-type'));
       },
 
-      openManualBlacklistModal() {
+      openManualBlacklistModal(guest = null) {
         this.manualBlacklistOpen = true;
         setTimeout(async () => {
           await this.resetManualBlacklistForm();
-          crmGuestField('ci-name')?.focus();
+          if (guest) {
+            this.manualBlacklistMode = 'edit';
+            await this.fillManualBlacklistFromExistingGuest(guest);
+            this.manualBlacklistReason = guest.blacklist_info?.reason || '';
+            this.manualBlacklistOriginalReason = this.manualBlacklistReason;
+            this.manualBlacklistSearchMessage = guest.full_name ? `Đang sửa hồ sơ blacklist: ${guest.full_name}` : 'Đang sửa hồ sơ blacklist';
+            crmGuestField('ci-blacklist-reason')?.focus();
+          } else {
+            crmGuestField('ci-name')?.focus();
+          }
         }, 0);
       },
 
@@ -2887,10 +3084,15 @@
 
         if (!isForeign) {
           const mode = payload.address_type || 'old';
-          if (!crmGuestValue('ci-province')) return this.showManualBlacklistError('Vui lòng chọn Tỉnh/Thành phố', 'ci-province');
-          if (mode === 'old' && !crmGuestValue('ci-district')) return this.showManualBlacklistError('Vui lòng chọn Quận/Huyện', 'ci-district');
-          if (!crmGuestValue('ci-ward')) return this.showManualBlacklistError('Vui lòng chọn Phường/Xã', 'ci-ward');
-          if (!payload.address) return this.showManualBlacklistError('Vui lòng nhập địa chỉ chi tiết', 'ci-address');
+          const hasStructuredAddress = !!crmGuestValue('ci-province');
+          if (!hasStructuredAddress && this.manualBlacklistMode === 'edit') {
+            if (!payload.address) return this.showManualBlacklistError('Vui lòng nhập địa chỉ chi tiết', 'ci-address');
+          } else {
+            if (!crmGuestValue('ci-province')) return this.showManualBlacklistError('Vui lòng chọn Tỉnh/Thành phố', 'ci-province');
+            if (mode === 'old' && !crmGuestValue('ci-district')) return this.showManualBlacklistError('Vui lòng chọn Quận/Huyện', 'ci-district');
+            if (!crmGuestValue('ci-ward')) return this.showManualBlacklistError('Vui lòng chọn Phường/Xã', 'ci-ward');
+            if (!payload.address) return this.showManualBlacklistError('Vui lòng nhập địa chỉ chi tiết', 'ci-address');
+          }
         }
 
         if (!payload.blacklist_reason) return this.showManualBlacklistError('Vui lòng nhập lý do blacklist', 'ci-blacklist-reason');
@@ -2948,37 +3150,47 @@
 
       async fillManualBlacklistFromExistingGuest(guest) {
         if (!guest) return;
+        const manualForm = (guest.blacklist_info && guest.blacklist_info.form) || {};
+        const pick = (...values) => values.find(v => v !== undefined && v !== null && String(v).trim() !== '') || '';
         this.manualBlacklistExistingGuestId = guest.id || null;
-        crmSetGuestValue('ci-name', guest.full_name || '');
-        crmSetGuestValue('ci-id-type', (guest.id_type || 'cccd').toLowerCase());
-        crmSetGuestValue('ci-cccd', guest.cccd || '');
-        crmSetGuestValue('ci-gender', guest.gender || '');
-        crmSetGuestValue('ci-birth', String(guest.birth_date || guest.date_of_birth || '').slice(0, 10));
-        crmSetGuestValue('ci-phone', guest.phone || '');
-        crmSetGuestValue('ci-nationality', guest.nationality || 'VNM - Việt Nam');
-        crmSetGuestValue('ci-guest-notes', guest.notes || '');
+        crmSetGuestValue('ci-name', pick(guest.full_name, manualForm.full_name));
+        crmSetGuestValue('ci-id-type', pick(guest.id_type, manualForm.id_type, 'cccd').toLowerCase());
+        crmSetGuestValue('ci-cccd', pick(guest.cccd, manualForm.cccd));
+        crmSetGuestValue('ci-gender', pick(guest.gender, manualForm.gender));
+        crmSetGuestValue('ci-birth', String(pick(guest.birth_date, guest.date_of_birth, manualForm.birth_date, manualForm.date_of_birth)).slice(0, 10));
+        crmSetGuestValue('ci-phone', pick(guest.phone, manualForm.phone));
+        crmSetGuestValue('ci-nationality', pick(guest.nationality, manualForm.nationality, 'VNM - Việt Nam'));
+        crmSetGuestValue('ci-guest-notes', pick(guest.notes, manualForm.notes));
         if (typeof pmsSetGuestIdExpireValue === 'function') {
-          pmsSetGuestIdExpireValue(crmGuestField('ci-id-expire'), guest.id_expire || guest.cccd_expire_date || '');
+          pmsSetGuestIdExpireValue(crmGuestField('ci-id-expire'), pick(guest.id_expire, guest.cccd_expire_date, manualForm.id_expire, manualForm.cccd_expire_date));
         } else {
-          crmSetGuestValue('ci-id-expire', String(guest.id_expire || guest.cccd_expire_date || '').slice(0, 10));
+          crmSetGuestValue('ci-id-expire', String(pick(guest.id_expire, guest.cccd_expire_date, manualForm.id_expire, manualForm.cccd_expire_date)).slice(0, 10));
         }
 
-        const hasOldAddress = !!(guest.old_city || guest.old_district || guest.old_ward);
-        const hasStructuredAddress = hasOldAddress || !!(guest.city || guest.ward);
+        const oldCity = pick(guest.old_city, manualForm.old_city);
+        const oldDistrict = pick(guest.old_district, manualForm.old_district);
+        const oldWard = pick(guest.old_ward, manualForm.old_ward);
+        const city = pick(guest.city, manualForm.city, manualForm.new_city);
+        const district = pick(guest.district, manualForm.district);
+        const ward = pick(guest.ward, manualForm.ward, manualForm.new_ward);
+        const addressType = pick(guest.address_type, manualForm.address_type, oldCity ? 'old' : 'new');
+        const addressDetail = pick(guest.address, manualForm.address, guest.default_address, manualForm.default_address);
+        const hasOldAddress = !!(oldCity || oldDistrict || oldWard);
+        const hasStructuredAddress = hasOldAddress || !!(city || ward);
         if (hasStructuredAddress && typeof vnSwitchMode === 'function') {
-          const mode = hasOldAddress ? 'old' : (guest.address_type || 'new');
+          const mode = hasOldAddress ? 'old' : addressType;
           await vnSwitchMode(mode, false);
-          crmSetGuestValue('ci-province', hasOldAddress ? guest.old_city : guest.city);
+          crmSetGuestValue('ci-province', hasOldAddress ? oldCity : city);
           if (typeof vnOnProvinceChange === 'function') await vnOnProvinceChange(crmGuestField('ci-province'));
-          crmSetGuestValue('ci-district', hasOldAddress ? guest.old_district : guest.district);
+          crmSetGuestValue('ci-district', hasOldAddress ? oldDistrict : district);
           if (hasOldAddress && typeof vnOnDistrictChange === 'function') await vnOnDistrictChange(crmGuestField('ci-district'));
-          crmSetGuestValue('ci-ward', hasOldAddress ? guest.old_ward : guest.ward);
+          crmSetGuestValue('ci-ward', hasOldAddress ? oldWard : ward);
           if (typeof vnOnWardChange === 'function') await vnOnWardChange(crmGuestField('ci-ward'));
-          crmSetGuestValue('ci-new-province', hasOldAddress ? (guest.city || '') : '');
-          crmSetGuestValue('ci-new-ward', hasOldAddress ? (guest.ward || '') : '');
-          crmSetGuestValue('ci-address', guest.address || guest.default_address || '');
+          crmSetGuestValue('ci-new-province', hasOldAddress ? city : '');
+          crmSetGuestValue('ci-new-ward', hasOldAddress ? ward : '');
+          crmSetGuestValue('ci-address', addressDetail);
         } else {
-          crmSetGuestValue('ci-address', guest.default_address || guest.address || '');
+          crmSetGuestValue('ci-address', addressDetail);
         }
 
         pmsCiToggleIdFields(crmGuestField('ci-id-type'));
@@ -3067,11 +3279,11 @@
 
           const isExistingGuest = !!this.manualBlacklistExistingGuestId;
           const res = isExistingGuest
-            ? await fetch('/api/pms/crm/guests/' + this.manualBlacklistExistingGuestId + '/blacklist', {
+            ? await fetch('/api/pms/crm/guests/' + this.manualBlacklistExistingGuestId, {
               method: 'PATCH',
               credentials: 'same-origin',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ is_blacklisted: true, reason: payload.blacklist_reason }),
+              body: JSON.stringify(payload),
             })
             : await fetch('/api/pms/crm/guests', {
               method: 'POST',
@@ -3085,12 +3297,11 @@
           this.manualBlacklistOpen = false;
           await this.resetManualBlacklistForm();
           this.activeTab = 'blacklist';
-          this.blacklistFilter = 'true';
           this.resetPagination();
           await this.loadGuests();
           await this.loadStats();
           if (typeof pmsToast === 'function') {
-            pmsToast(isExistingGuest ? 'Đã cập nhật blacklist cho khách hiện có' : 'Đã thêm khách vào danh sách đen', true);
+            pmsToast(isExistingGuest ? 'Đã cập nhật hồ sơ blacklist' : 'Đã thêm khách vào danh sách đen', true);
           }
         } catch (e) {
           console.error(e);
@@ -3227,6 +3438,20 @@
         if (!iso) return '-';
         const d = new Date(iso);
         return d.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      },
+
+      fmtTime(iso) {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      },
+
+      blacklistReason(guest) {
+        return guest?.blacklist_info?.reason || guest?.risk_flags?.warnings?.find(w => w.type === 'blacklist')?.message || 'Chưa ghi nhận lý do';
+      },
+
+      guestIdentityLabel(guest) {
+        return guest?.cccd || guest?.phone || guest?.email || 'Chưa có định danh';
       },
 
       avatarColor(name) {

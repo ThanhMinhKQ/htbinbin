@@ -237,6 +237,14 @@ def api_checkin(
             ota_actual_total = float(booking.total_price or 0)
         if booking.booking_type == "OTA" and not ota_channel:
             ota_channel = booking.booking_source or (booking.raw_data or {}).get("ota_channel") or ""
+        # Fallback invoice fields from booking raw_data (nguồn Công ty)
+        bk_raw = booking.raw_data or {}
+        if not tax_code and bk_raw.get("company_tax_code"):
+            tax_code = bk_raw["company_tax_code"]
+            company_name = company_name or bk_raw.get("company_name", "")
+            company_address = company_address or bk_raw.get("company_address", "")
+            if not require_invoice:
+                require_invoice = True
 
     # Parse datetime
     try:
@@ -431,6 +439,12 @@ def api_checkin(
             guest_master.default_address = ", ".join(_parts) if _parts else guest_master.default_address
             guest_master.last_seen_at = _now_vn()
             guest_master.total_stays = (guest_master.total_stays or 0) + 1
+            # Sync invoice info lên Guest master
+            if tax_code:
+                guest_master.tax_code = tax_code
+                guest_master.invoice_contact = tax_contact or None
+                guest_master.company_name = company_name or None
+                guest_master.company_address = company_address or None
         else:
             # Create new master guest
             guest_master = Guest(
@@ -442,6 +456,10 @@ def api_checkin(
                 id_expire=id_expire_date,
                 nationality=guest_nationality,
                 default_address=", ".join([p for p in [_addr_s, new_ward_v, new_district_v, new_city_v] if p]) or None,
+                tax_code=tax_code or None,
+                invoice_contact=tax_contact or None,
+                company_name=company_name or None,
+                company_address=company_address or None,
                 first_seen_at=_now_vn(),
                 last_seen_at=_now_vn(),
                 total_stays=1,

@@ -35,6 +35,8 @@ function agGetFormGuest() {
     const invoiceVal = document.querySelector('input[name="ag-invoice"]:checked')?.value || '0';
     const taxCode = invoiceVal === '1' ? (document.getElementById('ag-tax-code')?.value?.trim() || '') : '';
     const invoiceContact = invoiceVal === '1' ? (document.getElementById('ag-tax-contact')?.value?.trim() || '') : '';
+    const companyName = invoiceVal === '1' ? (document.getElementById('ag-company-name')?.value?.trim() || '') : '';
+    const companyAddress = invoiceVal === '1' ? (document.getElementById('ag-company-address')?.value?.trim() || '') : '';
 
     return {
         full_name: document.getElementById('ag-name')?.value?.trim() || '',
@@ -61,6 +63,8 @@ function agGetFormGuest() {
         notes: document.getElementById('ag-notes')?.value?.trim() || '',
         tax_code: taxCode,
         invoice_contact: invoiceContact,
+        company_name: companyName,
+        company_address: companyAddress,
         from_old: _agIsOldGuest
     };
 }

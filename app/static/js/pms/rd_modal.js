@@ -57,6 +57,24 @@ function rdResetRoomInfoRenderCache() {
     rdRoomInfoSkeletonKey = '';
 }
 
+function pmsRdNotifyInventoryInvalidated(stayId, detail = {}) {
+    const payload = {
+        stay_id: Number(stayId) || Number(rdStayData?.id) || null,
+        branch_id: rdStayData?.branch_id || null,
+        check_in_at: detail.check_in_at ?? rdStayData?.check_in_at ?? null,
+        check_out_at: detail.check_out_at ?? rdStayData?.check_out_at ?? null,
+        reason: detail.reason || 'stay_updated',
+        ts: Date.now(),
+    };
+    try {
+        window.dispatchEvent(new CustomEvent('pms:stay-updated', { detail: payload }));
+        window.dispatchEvent(new CustomEvent('pms:inventory-invalidated', { detail: payload }));
+    } catch { /* noop */ }
+    try {
+        localStorage.setItem('pms:inventory-invalidated', JSON.stringify(payload));
+    } catch { /* noop */ }
+}
+
 function rdSetBusy(isBusy, text = 'Đang tải dữ liệu...') {
     const dialog = document.getElementById('rd-dialog');
     if (!dialog) return;
@@ -1328,6 +1346,8 @@ async function openRoomDetail(stayId, num, targetTab = 'room') {
                 id_type: g.id_type || 'cccd',
                 tax_code: g.tax_code || '',
                 invoice_contact: g.invoice_contact || '',
+                company_name: g.company_name || '',
+                company_address: g.company_address || '',
                 nationality: g.nationality || 'VNM - Việt Nam',
                 check_in_at: g.check_in_at || d.check_in_at,
                 check_out_at: g.check_out_at || null,
@@ -1413,18 +1433,35 @@ async function pmsRdUpdateStay() {
         });
         
         pmsToast('Cập nhật thành công');
+        if (rdStayData) {
+            rdStayData = {
+                ...rdStayData,
+                check_in_at: ciVal || rdStayData.check_in_at || null,
+                check_out_at: r?.check_out_at || coEstVal || null,
+                deposit: depositVal ? parseFloat(depositVal.replace(/[.,\s]/g, '')) || 0 : 0,
+                notes: notesVal || null,
+            };
+        }
 
         // Re-fetch pricing preview to update Room Info Card
         rdRenderRoomInfoCard();
+
+        pmsRdNotifyInventoryInvalidated(stayId, {
+            check_in_at: ciVal || null,
+            check_out_at: r?.check_out_at || coEstVal || null,
+            reason: 'stay_time_updated',
+        });
 
         const elRdRoomNum = document.getElementById('rd-room-num');
         const roomNum = elRdRoomNum ? elRdRoomNum.textContent : '';
         if (typeof pmsSetRoomLoading === 'function') pmsSetRoomLoading(null, roomNum);
         if (typeof pmsLoadRooms === 'function') await pmsLoadRooms(undefined, true);
+        return r;
 
     } catch (e) {
         console.error('[rd] updateStay failed:', e);
         pmsToast(e.message, false);
+        return null;
     }
 }
 function pmsRdUpdateCapacityWarn() {
@@ -1967,7 +2004,9 @@ async function fetchFolio(stayId) {
                 // Vì ROOM_CHARGE/SURCHARGE bị xóa sau checkout, cần lấy từ breakdown
                 if (previewData.breakdown && previewData.breakdown.length > 0) {
                     const checkoutTime = previewData.check_out_at || rdStayData?.check_out_at || new Date().toISOString();
-                    
+                    const checkInIso = rdStayData?.check_in_at || previewData.check_in_at || null;
+                    const checkInMs = checkInIso ? (pmsParseDate(checkInIso)?.getTime() || null) : null;
+
                     // Deduplicate breakdown: chỉ giữ entry CUỐI cho mỗi transaction_type
                     // (tránh trùng lặp khi breakdown có nhiều dòng cùng loại)
                     const seenTypes = new Set();
@@ -1979,19 +2018,34 @@ async function fetchFolio(stayId) {
                             dedupedBreakdown.unshift(b);
                         }
                     }
-                    
-                    const virtualTxs = dedupedBreakdown.map((b, idx) => ({
-                        id: 'virtual-' + (b.type || 'charge') + '-' + idx,
-                        category: ['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type) ? 'ROOM' : 'SURCHARGE',
-                        transaction_type: b.type,
-                        description: b.description || (['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type) ? 'Tiền phòng' : 'Phí phát sinh'),
-                        amount: parseFloat(b.amount) || 0,
-                        quantity: b.hours || b.days || 1,
-                        created_at: checkoutTime,
-                        created_by_name: 'Tạm tính',
-                        is_virtual: true,
-                        is_voided: false,
-                    }));
+
+                    let cumulativeHourlyHrs = 0;
+                    const virtualTxs = dedupedBreakdown.map((b, idx) => {
+                        const isRoomType = ['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type);
+                        let chargedAt = null;
+                        if (b.type === 'HOURLY_CHARGE' && checkInMs) {
+                            const hrs = parseInt(b.hours) || 0;
+                            cumulativeHourlyHrs += hrs;
+                            const offsetHrs = Math.max(0, cumulativeHourlyHrs - 1);
+                            chargedAt = new Date(checkInMs + offsetHrs * 3600 * 1000).toISOString();
+                        } else if (isRoomType) {
+                            chargedAt = b.start_iso || checkInIso || checkoutTime;
+                        } else {
+                            chargedAt = b.created_at || checkoutTime;
+                        }
+                        return {
+                            id: 'virtual-' + (b.type || 'charge') + '-' + idx,
+                            category: isRoomType ? 'ROOM' : 'SURCHARGE',
+                            transaction_type: b.type,
+                            description: b.description || (isRoomType ? 'Tiền phòng' : 'Phí phát sinh'),
+                            amount: parseFloat(b.amount) || 0,
+                            quantity: b.hours || b.days || 1,
+                            created_at: chargedAt,
+                            created_by_name: 'Tạm tính',
+                            is_virtual: true,
+                            is_voided: false,
+                        };
+                    });
                     
                     if (rdCurrentFolio) {
                         // Chỉ thêm virtual transaction nếu chưa tồn tại (theo transaction_type)
@@ -2010,18 +2064,36 @@ async function fetchFolio(stayId) {
                 const virtualSource = isOtaManualPreview
                     ? previewData.breakdown.filter(b => !['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type))
                     : previewData.breakdown;
-                const virtualTxs = virtualSource.map((b, idx) => ({
-                    id: 'virtual-' + (b.type || 'charge') + '-' + idx,
-                    category: ['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type) ? 'ROOM' : 'SURCHARGE',
-                    transaction_type: b.type,
-                    description: b.description || (['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type) ? 'Tiền phòng' : 'Phí phát sinh'),
-                    amount: parseFloat(b.amount) || 0,
-                    quantity: b.hours || b.days || 1,
-                    created_at: new Date().toISOString(),
-                    created_by_name: 'Tạm tính',
-                    is_virtual: true,
-                    is_voided: false,
-                }));
+                const checkInIso = rdStayData?.check_in_at || previewData.check_in_at || null;
+                const checkInMs = checkInIso ? (pmsParseDate(checkInIso)?.getTime() || null) : null;
+                let cumulativeHourlyHrs = 0;
+                const virtualTxs = virtualSource.map((b, idx) => {
+                    const isRoomType = ['ROOM_CHARGE', 'HOURLY_CHARGE', 'EARLY_CHECKIN_FEE', 'LATE_CHECKOUT_FEE'].includes(b.type);
+                    let chargedAt = null;
+                    if (b.type === 'HOURLY_CHARGE' && checkInMs) {
+                        const hrs = parseInt(b.hours) || 0;
+                        cumulativeHourlyHrs += hrs;
+                        // Timestamp = thời điểm BẮT ĐẦU của giờ cuối cùng được tính trong dòng này
+                        const offsetHrs = Math.max(0, cumulativeHourlyHrs - 1);
+                        chargedAt = new Date(checkInMs + offsetHrs * 3600 * 1000).toISOString();
+                    } else if (isRoomType) {
+                        chargedAt = b.start_iso || checkInIso || new Date().toISOString();
+                    } else {
+                        chargedAt = b.created_at || checkInIso || new Date().toISOString();
+                    }
+                    return {
+                        id: 'virtual-' + (b.type || 'charge') + '-' + idx,
+                        category: isRoomType ? 'ROOM' : 'SURCHARGE',
+                        transaction_type: b.type,
+                        description: b.description || (isRoomType ? 'Tiền phòng' : 'Phí phát sinh'),
+                        amount: parseFloat(b.amount) || 0,
+                        quantity: b.hours || b.days || 1,
+                        created_at: chargedAt,
+                        created_by_name: 'Tạm tính',
+                        is_virtual: true,
+                        is_voided: false,
+                    };
+                });
                 
                 // Thêm virtual transactions vào rdCurrentFolio để ledger hiển thị
                 if (rdCurrentFolio) {
@@ -2261,6 +2333,45 @@ function rdFormatDateTime(dt) {
     const weekdays = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
     const weekday = weekdays[dt.getDay()];
     return `${DD} - ${MM} - ${YYYY} | ${HH}:${mm} | ${weekday}`;
+}
+
+function rdNormalizeDateTimeLocal(value) {
+    if (!value) return '';
+    if (value instanceof Date) return pmsDateToDatetimeLocalVN(value);
+    const raw = String(value).trim().replace(' ', 'T');
+    const localMatch = raw.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2})?$/);
+    if (localMatch) return `${localMatch[1]}T${localMatch[2]}`;
+    const parsed = pmsParseDate(raw);
+    return parsed && !Number.isNaN(parsed.getTime()) ? pmsDateToDatetimeLocalVN(parsed) : '';
+}
+
+function rdNowDateTimeLocalVN() {
+    return pmsDateToDatetimeLocalVN(new Date());
+}
+
+function rdBuildDateTimeLocalVN(date, time) {
+    if (!date || !time) return '';
+    return `${date}T${String(time).slice(0, 5)}`;
+}
+
+function rdDateTimeLocalVNToDate(value) {
+    const local = rdNormalizeDateTimeLocal(value);
+    if (!local) return null;
+    const normalized = local.length === 16 ? `${local}:00` : local;
+    const dt = new Date(`${normalized}+07:00`);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function rdFormatDateTimeLocalVN(value) {
+    const local = rdNormalizeDateTimeLocal(value);
+    if (!local) return '---';
+    const [datePart, timePart] = local.split('T');
+    const [yyyy, mm, dd] = datePart.split('-');
+    const weekdayDate = rdDateTimeLocalVNToDate(`${datePart}T00:00`);
+    const weekday = weekdayDate
+        ? new Intl.DateTimeFormat('vi-VN', { timeZone: PMS_VN_TZ, weekday: 'long' }).format(weekdayDate)
+        : '';
+    return `${dd} - ${mm} - ${yyyy} | ${timePart} | ${weekday}`;
 }
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROOM INFO CARD — pricing breakdown display
@@ -2867,16 +2978,15 @@ function pmsRdOpenExtension() {
     }
     const elDate = document.getElementById('rd-sm-ext-date');
     const elTime = document.getElementById('rd-sm-ext-time');
-    if (elDate) {
-        const coString = document.getElementById('rd-co-est')?.value || new Date().toISOString().substring(0, 16);
+    if (elDate && elTime) {
+        const coString = rdNormalizeDateTimeLocal(document.getElementById('rd-co-est')?.value) || rdNowDateTimeLocalVN();
         elDate.value = coString.split('T')[0];
         elTime.value = "12:00"; // Default to 12:00 for user convenience
 
         // Show current checkout time as reference
-        const currentCO = new Date(coString);
         const elCurrent = document.getElementById('rd-sm-ext-current');
         if (elCurrent) {
-            elCurrent.textContent = rdFormatDateTime(currentCO);
+            elCurrent.textContent = rdFormatDateTimeLocalVN(coString);
         }
     }
     rdUpdateExtPreview();
@@ -2890,48 +3000,46 @@ function rdUpdateExtPreview() {
         preview.textContent = '---';
         return;
     }
-    const dt = new Date(`${dateVal}T${timeVal}`);
-    preview.textContent = rdFormatDateTime(dt);
+    preview.textContent = rdFormatDateTimeLocalVN(rdBuildDateTimeLocalVN(dateVal, timeVal));
 }
 function rdQuickExt(hours) {
     const elDate = document.getElementById('rd-sm-ext-date');
     const elTime = document.getElementById('rd-sm-ext-time');
     if (!elDate.value || !elTime.value) return;
 
-    // Create a proper Date object from current inputs
-    const dt = new Date(`${elDate.value}T${elTime.value}`);
-    // Add hours - JS Date object handles rollover (day/month/year) automatically
-    dt.setHours(dt.getHours() + hours);
+    const dt = rdDateTimeLocalVNToDate(rdBuildDateTimeLocalVN(elDate.value, elTime.value));
+    if (!dt) return;
+    dt.setTime(dt.getTime() + (hours * 60 * 60 * 1000));
 
-    // Update inputs
-    // Use local time for ISO format extraction safely
-    const pad = (n) => n.toString().padStart(2, '0');
-    const y = dt.getFullYear();
-    const m = pad(dt.getMonth() + 1);
-    const d = pad(dt.getDate());
-    const hh = pad(dt.getHours());
-    const mm = pad(dt.getMinutes());
-
-    elDate.value = `${y}-${m}-${d}`;
-    elTime.value = `${hh}:${mm}`;
+    const nextLocal = rdNormalizeDateTimeLocal(dt);
+    elDate.value = nextLocal.slice(0, 10);
+    elTime.value = nextLocal.slice(11, 16);
     rdUpdateExtPreview();
 }
 async function pmsRdSaveExtension() {
     const date = document.getElementById('rd-sm-ext-date').value;
     const time = document.getElementById('rd-sm-ext-time').value;
-    if (!date) return pmsToast('Vui lòng chọn thời gian', false);
+    if (!date || !time) return pmsToast('Vui lòng chọn thời gian', false);
 
-    const newCo = `${date}T${time}:00`;
+    const newCo = rdBuildDateTimeLocalVN(date, time);
     const coInp = document.getElementById('rd-co-est');
+    const previousCo = coInp?.value || '';
     if (coInp) {
-        coInp.value = newCo.substring(0, 16);
+        coInp.value = newCo;
         coInp.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    document.getElementById('rd-sub-modal-extension').style.display = 'none';
-
     // Auto-save to backend
-    await pmsRdUpdateStay();
+    const saved = await pmsRdUpdateStay();
+    if (!saved) {
+        if (coInp) {
+            coInp.value = previousCo;
+            coInp.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        return;
+    }
+
+    document.getElementById('rd-sub-modal-extension').style.display = 'none';
 }
 const pmsSurchargeData = {
     'DAMAGE': [
@@ -3792,6 +3900,8 @@ const RD_TL_ICONS = {
     BLACKLISTED: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
     MERGED: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/></svg>`,
     BOOKING_MODIFIED: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+    INVOICE_SPLIT_CREATED: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>`,
+    INVOICE_SPLIT_PRINTED: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
 };
 
 // ─── CSS class map per activity type ───
@@ -3820,6 +3930,8 @@ const RD_TL_CLASS = {
     PROFILE_UPDATED: 'rd-tl-system',
     BLACKLISTED: 'rd-tl-system',
     MERGED: 'rd-tl-system',
+    INVOICE_SPLIT_CREATED: 'rd-tl-payment',
+    INVOICE_SPLIT_PRINTED: 'rd-tl-payment',
 };
 
 // ─── Format time HH:MM (VN wall clock) ───
@@ -4010,7 +4122,7 @@ function rdTlNormalizeActivities(activities) {
     const allowedGroups = new Set(['stay', 'system']);
     const seen = new Set();
     return (activities || [])
-        .filter(a => allowedGroups.has(a.activity_group) || ['CHECK_IN', 'CHECK_OUT', 'ROOM_CHANGE', 'EXTEND_STAY', 'GUEST_ADDED', 'PROFILE_UPDATED', 'BLACKLISTED'].includes(a.activity_type))
+        .filter(a => allowedGroups.has(a.activity_group) || ['CHECK_IN', 'CHECK_OUT', 'ROOM_CHANGE', 'EXTEND_STAY', 'GUEST_ADDED', 'PROFILE_UPDATED', 'BLACKLISTED', 'INVOICE_SPLIT_CREATED', 'INVOICE_SPLIT_PRINTED'].includes(a.activity_type))
         .map(a => ({ ...a, activity_group: a.activity_group === 'system' ? 'system' : 'stay' }))
         .sort((a, b) => pmsParseDate(a.created_at) - pmsParseDate(b.created_at))
         .filter(a => {

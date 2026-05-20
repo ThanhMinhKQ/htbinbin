@@ -1580,13 +1580,16 @@
             function notifyOtaBooking(payload, delta) {
                 refreshBadge();
                 updateTitle(parseInt(localStorage.getItem(globalStorageKey) || '0', 10));
+                if (isOtaPage) return;
                 playGlobalSound();
                 showGlobalToast(otaNotifyMessage(payload, delta), true);
             }
 
             function notifyOtaCancellation(payload) {
-                playGlobalSound();
-                showGlobalToast(otaCancelNotifyMessage(payload), true);
+                if (!isOtaPage) {
+                    playGlobalSound();
+                    showGlobalToast(otaCancelNotifyMessage(payload), true);
+                }
                 window.dispatchEvent(new CustomEvent('ota:cancellation', { detail: payload || {} }));
             }
 

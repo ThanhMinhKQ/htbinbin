@@ -609,6 +609,33 @@
                 </div>
             </div>
 
+            <!-- Invoice Recipient Info (conditional) -->
+            {% if invoice_info and invoice_info.tax_code %}
+            <div class="guest-info-box" style="margin-top: 0; border-top: none; padding-top: 0;">
+                <div class="guest-info-title">Thông tin xuất hóa đơn / Invoice Details</div>
+                <div class="guest-grid">
+                    <div class="info-row">
+                        <span class="info-label">Đơn vị / Company</span>
+                        <span class="info-val">{{ invoice_info.company_name or '—' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Mã số thuế / Tax Code</span>
+                        <span class="info-val">{{ invoice_info.tax_code }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Liên hệ / Contact</span>
+                        <span class="info-val">{{ invoice_info.contact or '—' }}</span>
+                    </div>
+                    {% if invoice_info.company_address %}
+                    <div class="info-row" style="grid-column: 1 / -1;">
+                        <span class="info-label">Địa chỉ / Address</span>
+                        <span class="info-val" style="white-space: normal;">{{ invoice_info.company_address }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Transactions Table -->
             <div class="table-title">Chi tiết các khoản / Transaction Details</div>
             <table class="main-table">

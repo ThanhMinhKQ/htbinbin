@@ -1409,17 +1409,17 @@ async function rdPayV2Submit() {
 
 <!-- Folio Create Modal -->
 <div id="rd-sub-modal-folio-create" class="rd-sub-modal-overlay">
-  <div class="rd-sub-modal" style="max-width: 780px; border-radius: 20px;">
+  <div class="rd-sub-modal" style="max-width: 720px; border-radius: 18px;">
     <div class="rd-sm-header">
       <div class="rd-sm-title">Tách Hóa Đơn Mới</div>
       <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
     </div>
     <style>
       .rd-split-grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
-      .rd-split-tx-list { display:flex; flex-direction:column; gap:8px; max-height:220px; overflow:auto; padding-right:4px; }
+      .rd-split-tx-list { display:flex; flex-direction:column; gap:6px; max-height:160px; overflow:auto; padding-right:4px; }
       .rd-split-tx-row {
-        display:grid; grid-template-columns: 22px 1fr auto; gap:10px; align-items:center;
-        padding:10px 12px; border:1px solid var(--rd-bg-secondary); border-radius:12px; background:#fff;
+        display:grid; grid-template-columns: 22px 1fr auto; gap:8px; align-items:center;
+        padding:8px 10px; border:1px solid var(--rd-bg-secondary); border-radius:10px; background:#fff;
         cursor:pointer; transition: all .18s ease;
       }
       .rd-split-tx-row:hover { border-color: var(--rd-accent-soft); background: var(--rd-bg-primary); }
@@ -1430,7 +1430,7 @@ async function rdPayV2Submit() {
       .rd-split-summary { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:12px; background:var(--rd-bg-primary); color:var(--rd-accent-bold); font-size:12px; font-weight:850; }
       @media (max-width: 760px) { .rd-split-grid { grid-template-columns:1fr; } }
     </style>
-    <div class="rd-sm-body" style="flex-direction: column; gap: 16px; padding: 24px;">
+    <div class="rd-sm-body" style="flex-direction: column; gap: 12px; padding: 18px 20px;">
       <div class="rd-split-grid">
         <div class="rd-sm-input-grp" style="margin-bottom:0;">
           <label class="rd-sm-label">Khách / người nhận hóa đơn</label>
@@ -1453,6 +1453,18 @@ async function rdPayV2Submit() {
         <label class="rd-sm-label">Liên hệ xuất hóa đơn</label>
         <input type="text" class="rd-sm-input" id="rd-folio-create-invoice-contact" placeholder="Email, SĐT hoặc người liên hệ">
       </div>
+      <div class="rd-sm-input-grp" style="margin-bottom:0;">
+        <label class="rd-sm-label">Địa chỉ xuất hóa đơn</label>
+        <input type="text" class="rd-sm-input" id="rd-folio-create-invoice-address" placeholder="Địa chỉ công ty hoặc cá nhân">
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 220px; gap:12px; align-items:end;">
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Số tiền hoá đơn tách</label>
+          <input type="text" class="rd-sm-input" id="rd-split-amount" inputmode="numeric" oninput="pmsFormatMoneyInput(this); rdPayValidateSplitAmount()" placeholder="0">
+        </div>
+        <div id="rd-split-quota" class="rd-split-summary" style="min-height:44px; justify-content:center; text-align:center; font-size:11px;">Tổng folio: 0 ₫ · Đã tách: 0 ₫</div>
+      </div>
+      <div id="rd-split-warning" style="display:none; padding:10px 12px; border-radius:10px; background:#fef2f2; border:1px solid #fecaca; color:#dc2626; font-size:12px; font-weight:700;"></div>
       <div style="display:flex; flex-direction:column; gap:10px;">
         <div class="rd-split-summary">
           <span>Dòng phí chuyển sang hóa đơn mới: <b id="rd-folio-create-selected-count">0</b></span>
@@ -1462,8 +1474,8 @@ async function rdPayV2Submit() {
       </div>
       <div style="display:flex; justify-content:flex-end; gap:12px; margin-top: 8px;">
         <button class="v-btn outline" onclick="document.getElementById('rd-sub-modal-folio-create').style.display='none'" style="flex:1; height:48px; border-radius:12px;">Huỷ</button>
-        <button class="v-btn primary" onclick="rdPaySubmitAddFolio()" style="flex:2; height:48px; border-radius:12px; font-weight:700;">
-          Xác nhận tách
+        <button class="v-btn primary" id="rd-split-submit-btn" onclick="rdPaySubmitSplitInvoice()" style="flex:2; height:48px; border-radius:12px; font-weight:700;">
+          Tạo hoá đơn tách
         </button>
       </div>
     </div>
@@ -1471,6 +1483,45 @@ async function rdPayV2Submit() {
 </div>
 
 <!-- Folio Merge Modal -->
+
+<!-- Invoice Print Confirmation Modal -->
+<div id="rd-sub-modal-invoice-print" class="rd-sub-modal-overlay">
+  <div class="rd-sub-modal" style="max-width: 520px; border-radius: 20px;">
+    <div class="rd-sm-header">
+      <div class="rd-sm-title">Xác nhận thông tin xuất hóa đơn</div>
+      <div class="rd-sm-close" onclick="this.closest('.rd-sub-modal-overlay').style.display='none'">&times;</div>
+    </div>
+    <div class="rd-sm-body" style="flex-direction: column; gap: 14px; padding: 24px;">
+      <div class="rd-sm-input-grp" style="margin-bottom:0; display:none;">
+        <label class="rd-sm-label">Chọn khách xuất hóa đơn</label>
+        <select class="rd-sm-input" id="rd-invoice-print-guest" onchange="rdInvoicePrintGuestChange(this)" style="height:44px;"></select>
+      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Đơn vị / Tên công ty</label>
+          <input type="text" class="rd-sm-input" id="rd-invoice-print-company" placeholder="Tên công ty">
+        </div>
+        <div class="rd-sm-input-grp" style="margin-bottom:0;">
+          <label class="rd-sm-label">Mã số thuế</label>
+          <input type="text" class="rd-sm-input" id="rd-invoice-print-tax-code" placeholder="MST">
+        </div>
+        <div class="rd-sm-input-grp" style="margin-bottom:0; grid-column: span 2;">
+          <label class="rd-sm-label">Địa chỉ công ty</label>
+          <input type="text" class="rd-sm-input" id="rd-invoice-print-address" placeholder="Địa chỉ">
+        </div>
+        <div class="rd-sm-input-grp" style="margin-bottom:0; grid-column: span 2;">
+          <label class="rd-sm-label">Liên hệ xuất hóa đơn</label>
+          <input type="text" class="rd-sm-input" id="rd-invoice-print-contact" placeholder="Email, SĐT">
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button class="v-btn outline" onclick="rdInvoicePrintSkip()" style="flex:1; height:44px; border-radius:12px;">In không có HĐ</button>
+        <button class="v-btn primary" onclick="rdInvoicePrintConfirm()" style="flex:1.5; height:44px; border-radius:12px; font-weight:700;">Xác nhận & In</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="rd-sub-modal-folio-merge" class="rd-sub-modal-overlay">
   <div class="rd-sub-modal" style="max-width: 450px; border-radius: 20px;">
     <div class="rd-sm-header" style="background:#f1f5f9;">

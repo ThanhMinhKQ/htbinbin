@@ -27,6 +27,7 @@ from ...db.models import (
     HotelStay,
     HotelStayStatus,
     HotelGuest,
+    Booking,
     RefundRecord,
     FolioTransaction,
     FolioTransactionType as FTT,
@@ -34,7 +35,7 @@ from ...db.models import (
 )
 from ...db.session import get_db
 from ...services.pricing_service import calculate_room_price, calculate_full_charge, detect_pricing_mode_from_breakdown, MODE_TO_STAY_TYPE, money
-from ...services.room_inventory_service import InventoryService
+from ...services.room_inventory_service import InventoryService, iter_stay_dates, _stay_occupies_date
 from .pms_helpers import (
     _require_login, _is_admin, _active_branch, _now_vn,
     _get_occupied_rooms_for_dates, _room_to_dict, VN_TZ
@@ -937,6 +938,41 @@ def api_update_stay(
             logger.error(f"[UPDATE_STAY] check_out_at parse error: {e}, value={check_out_at}")
             raise HTTPException(status_code=400, detail=f"Check-out datetime không hợp lệ: {check_out_at}")
 
+    if stay.check_out_at and stay.check_out_at <= stay.check_in_at:
+        raise HTTPException(status_code=400, detail="Giờ trả phòng phải sau giờ nhận phòng")
+
+    if (check_in_at or check_out_at) and stay.room_id and stay.check_out_at:
+        search_start = stay.check_in_at.date()
+        search_end = max(stay.check_out_at.date() + timedelta(days=1), search_start + timedelta(days=1))
+        assigned_bookings = db.query(Booking).filter(
+            Booking.branch_id == stay.branch_id,
+            Booking.assigned_room_id == stay.room_id,
+            Booking.reservation_status == "CONFIRMED",
+            Booking.check_out > search_start,
+            Booking.check_in < search_end,
+            or_(Booking.stay_id.is_(None), Booking.stay_id != stay.id),
+        ).order_by(Booking.check_in, Booking.id).all()
+
+        for booking in assigned_bookings:
+            conflict_days = [
+                target_date
+                for target_date in iter_stay_dates(booking.check_in, booking.check_out)
+                if _stay_occupies_date(stay.check_in_at, stay.check_out_at, target_date)
+            ]
+            if not conflict_days:
+                continue
+            room_number = stay.room.room_number if stay.room else str(stay.room_id)
+            booking_code = booking.external_id or f"#{booking.id}"
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"Không thể gia hạn phòng {room_number} vì đã có booking {booking_code} "
+                    f"({booking.guest_name}) được gán phòng này từ "
+                    f"{booking.check_in.strftime('%d/%m/%Y')} đến {booking.check_out.strftime('%d/%m/%Y')}. "
+                    "Vui lòng đổi phòng cho booking đó hoặc chuyển khách đang ở sang phòng khác trước khi gia hạn."
+                ),
+            )
+
     if stay_type:
         stay.stay_type = stay_type
         # Cập nhật description của CHECK_IN activity cho đúng tiếng Việt
@@ -1233,6 +1269,8 @@ def api_add_guest_to_stay(
     new_ward: str = Form(""),
     tax_code: str = Form(""),
     invoice_contact: str = Form(""),
+    company_name: str = Form(""),
+    company_address: str = Form(""),
     db: Session = Depends(get_db),
 ):
     """Thêm khách vào lưu trú"""
@@ -1365,12 +1403,24 @@ def api_add_guest_to_stay(
         old_ward=old_ward_v,
         tax_code=tax_code or None,
         invoice_contact=invoice_contact or None,
+        company_name=company_name or None,
+        company_address=company_address or None,
         is_primary=False,
         check_in_at=_now_vn(),
         created_by=user.get("id"),
     )
     db.add(guest)
     db.flush()
+
+    # Sync invoice info lên Guest master
+    if tax_code and guest.guest_id:
+        guest_master = db.query(Guest).filter(Guest.id == guest.guest_id).first()
+        if guest_master:
+            guest_master.tax_code = tax_code
+            guest_master.invoice_contact = invoice_contact or None
+            guest_master.company_name = company_name or None
+            guest_master.company_address = company_address or None
+
     log_guest_added_to_stay(db, stay, guest, actor_id=user.get("id"))
     db.commit()
 
@@ -1543,9 +1593,10 @@ def api_check_active_cccd(
     
     # First check with exact match
     query = (
-        db.query(HotelGuest.cccd, HotelRoom.room_number, HotelStay.status, HotelGuest.check_out_at)
+        db.query(HotelGuest.cccd, HotelRoom.room_number, HotelStay.status, HotelGuest.check_out_at, Branch.name.label("branch_name"))
         .join(HotelStay, HotelGuest.stay_id == HotelStay.id)
         .join(HotelRoom, HotelStay.room_id == HotelRoom.id)
+        .join(Branch, HotelRoom.branch_id == Branch.id)
         .filter(
             HotelGuest.cccd == cccd_stripped,
             HotelStay.status == HotelStayStatus.ACTIVE,
@@ -1554,21 +1605,23 @@ def api_check_active_cccd(
     )
     if exclude_stay_id:
         query = query.filter(HotelStay.id != exclude_stay_id)
-        
+
     active_guest = query.first()
     logger.info(f"[check-active-cccd] Exact match result: {active_guest}")
     if active_guest:
         return JSONResponse({
             "is_active": True,
             "room_number": active_guest.room_number,
-            "cccd": active_guest.cccd
+            "cccd": active_guest.cccd,
+            "branch_name": active_guest.branch_name
         })
-    
+
     # Also check with LIKE for partial match
     query_like = (
-        db.query(HotelGuest.cccd, HotelRoom.room_number, HotelStay.status, HotelGuest.check_out_at)
+        db.query(HotelGuest.cccd, HotelRoom.room_number, HotelStay.status, HotelGuest.check_out_at, Branch.name.label("branch_name"))
         .join(HotelStay, HotelGuest.stay_id == HotelStay.id)
         .join(HotelRoom, HotelStay.room_id == HotelRoom.id)
+        .join(Branch, HotelRoom.branch_id == Branch.id)
         .filter(
             HotelGuest.cccd.ilike(f"%{cccd_stripped}%"),
             HotelStay.status == HotelStayStatus.ACTIVE,
@@ -1577,16 +1630,17 @@ def api_check_active_cccd(
     )
     if exclude_stay_id:
         query_like = query_like.filter(HotelStay.id != exclude_stay_id)
-    
+
     active_guest_like = query_like.first()
     logger.info(f"[check-active-cccd] LIKE match result: {active_guest_like}")
     if active_guest_like:
         return JSONResponse({
             "is_active": True,
             "room_number": active_guest_like.room_number,
-            "cccd": active_guest_like.cccd
+            "cccd": active_guest_like.cccd,
+            "branch_name": active_guest_like.branch_name
         })
-        
+
     return JSONResponse({"is_active": False})
 
 # ─────────────────────────── API: Get/Update/Delete Guest by ID ───────────────────────────
@@ -1638,6 +1692,8 @@ async def api_update_guest(
     nationality: Optional[str] = Form(None),
     tax_code: Optional[str] = Form(None),
     invoice_contact: Optional[str] = Form(None),
+    company_name: Optional[str] = Form(None),
+    company_address: Optional[str] = Form(None),
     check_out_at: Optional[str] = Form(None),
     vehicle: Optional[str] = Form(None),
     db: Session = Depends(get_db),

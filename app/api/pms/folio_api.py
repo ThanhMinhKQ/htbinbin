@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, joinedload
 from ...db.models import (
     DebtRecord, Folio, FolioStatus,
     FolioTransaction, FolioTransactionType, FolioTransactionCategory,
-    HotelRoom, HotelStay, HotelGuest,
+    Guest, HotelRoom, HotelStay, HotelGuest, InvoiceSplit,
     Payment, PaymentMethod, RefundRecord, User,
 )
 from ...db.session import get_db
@@ -107,23 +107,67 @@ def _session_user_id(db: Session, user: dict) -> Optional[int]:
     return None
 
 
-# ─────────────────────────── Fix Cache ───────────────────────────
+# ─────────────────────── Invoice Metadata Resolution ─────────────────────────
 
-@router.post("/fix-cache")
-def fix_folio_cache(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-    """
-    Recalculate cache cho tất cả folios (fix dữ liệu cũ).
-    """
-    _require_login(request)
-    result = recalculate_all_folios_cache(db)
-    db.commit()
-    return JSONResponse({
-        "message": f"Đã fix {result['fixed_count']} folios",
-        "details": result,
-    })
+def _parse_folio_notes_invoice(notes: str) -> dict:
+    """Parse pipe-delimited invoice info from folio notes (split bill flow)."""
+    result = {"company_name": "", "tax_code": "", "company_address": "", "contact": ""}
+    if not notes or "|" not in notes:
+        return result
+    parts = [p.strip() for p in notes.split("|")]
+    for part in parts:
+        if part.startswith("Đơn vị/NNT:"):
+            result["company_name"] = part.replace("Đơn vị/NNT:", "").strip()
+        elif part.startswith("MST:"):
+            result["tax_code"] = part.replace("MST:", "").strip()
+        elif part.startswith("Liên hệ:"):
+            result["contact"] = part.replace("Liên hệ:", "").strip()
+    return result
+
+
+def _resolve_invoice_metadata(folio, stay, primary_guest, guest_master=None) -> dict:
+    """Resolve invoice metadata: Folio structured → Folio notes (legacy) → Stay → HotelGuest → Guest master."""
+    result = {"company_name": "", "tax_code": "", "company_address": "", "contact": ""}
+
+    # Priority 1a: Folio structured columns (new split-bill flow)
+    if folio and getattr(folio, "invoice_tax_code", None):
+        result["tax_code"] = folio.invoice_tax_code or ""
+        result["contact"] = getattr(folio, "invoice_contact", "") or ""
+        result["company_name"] = getattr(folio, "invoice_name", "") or ""
+        result["company_address"] = getattr(folio, "invoice_address", "") or ""
+        return result
+
+    # Priority 1b: Folio notes legacy (pipe-delimited, backward compat)
+    if folio and folio.notes:
+        parsed = _parse_folio_notes_invoice(folio.notes)
+        if parsed.get("tax_code"):
+            return parsed
+
+    # Priority 2: Stay-level fields
+    if stay and getattr(stay, "tax_code", None):
+        result["tax_code"] = stay.tax_code or ""
+        result["contact"] = getattr(stay, "tax_contact", "") or ""
+        result["company_name"] = getattr(stay, "company_name", "") or ""
+        result["company_address"] = getattr(stay, "company_address", "") or ""
+        return result
+
+    # Priority 3: HotelGuest (per-stay)
+    if primary_guest and getattr(primary_guest, "tax_code", None):
+        result["tax_code"] = primary_guest.tax_code or ""
+        result["contact"] = getattr(primary_guest, "invoice_contact", "") or ""
+        result["company_name"] = getattr(primary_guest, "company_name", "") or ""
+        result["company_address"] = getattr(primary_guest, "company_address", "") or ""
+        return result
+
+    # Priority 4: Guest master (CRM)
+    if guest_master and getattr(guest_master, "tax_code", None):
+        result["tax_code"] = guest_master.tax_code or ""
+        result["contact"] = getattr(guest_master, "invoice_contact", "") or ""
+        result["company_name"] = getattr(guest_master, "company_name", "") or ""
+        result["company_address"] = getattr(guest_master, "company_address", "") or ""
+
+    return result
+
 
 # ─────────────────────────── Folio CRUD ──────────────────────────
 
@@ -170,6 +214,10 @@ def get_folio_by_stay(
 def print_folio(
     request: Request,
     folio_id: int,
+    invoice_company: Optional[str] = Query(default=None),
+    invoice_tax_code: Optional[str] = Query(default=None),
+    invoice_address: Optional[str] = Query(default=None),
+    invoice_contact: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """Render HTML Hóa đơn để In/PDF"""
@@ -268,6 +316,38 @@ def print_folio(
         primary_guest = db.query(HotelGuest).filter(HotelGuest.stay_id == stay.id).first()
     guest_name = primary_guest.full_name if primary_guest else "Khách Vãng Lai"
 
+    # Load Guest master for fallback chain
+    guest_master = None
+    if primary_guest and primary_guest.guest_id:
+        guest_master = db.query(Guest).filter(Guest.id == primary_guest.guest_id).first()
+
+    # Resolve invoice metadata (fallback chain: folio notes → stay → hotel_guest → guest master)
+    invoice_info = _resolve_invoice_metadata(folio, stay, primary_guest, guest_master)
+    if invoice_company:
+        invoice_info["company_name"] = invoice_company
+    if invoice_tax_code:
+        invoice_info["tax_code"] = invoice_tax_code
+    if invoice_address:
+        invoice_info["company_address"] = invoice_address
+    if invoice_contact:
+        invoice_info["contact"] = invoice_contact
+
+    # Sync invoice info ngược lên Guest master (khi user xác nhận từ modal)
+    if invoice_tax_code and primary_guest and primary_guest.guest_id:
+        try:
+            guest_master = db.query(Guest).filter(Guest.id == primary_guest.guest_id).first()
+            if guest_master:
+                guest_master.tax_code = invoice_tax_code
+                if invoice_contact:
+                    guest_master.invoice_contact = invoice_contact
+                if invoice_company:
+                    guest_master.company_name = invoice_company
+                if invoice_address:
+                    guest_master.company_address = invoice_address
+                db.commit()
+        except Exception:
+            db.rollback()
+
     # Session lưu key "name" (xem app/api/users.py). Fallback các key khác để tránh hiển thị "Hệ thống".
     current_user_name = (
         user.get("name")
@@ -295,14 +375,55 @@ def print_folio(
             "current_time": _now_vn().strftime("%d/%m/%Y %H:%M"),
             "current_user_name": current_user_name,
             "is_live_preview": is_live_preview,
+            "invoice_info": invoice_info,
         }
     )
+
+@router.get("/{folio_id}/invoice-info")
+def get_invoice_info(
+    request: Request,
+    folio_id: int,
+    db: Session = Depends(get_db),
+):
+    """Return resolved invoice metadata + all guests with invoice info for selection."""
+    _require_login(request)
+    folio = _get_folio_or_404(db, folio_id)
+    stay = db.query(HotelStay).filter(HotelStay.id == folio.stay_id).first()
+    primary_guest = None
+    all_guests = []
+    if stay:
+        all_guests = db.query(HotelGuest).filter(HotelGuest.stay_id == stay.id).all()
+        primary_guest = next((g for g in all_guests if g.is_primary), None)
+        if not primary_guest and all_guests:
+            primary_guest = all_guests[0]
+    guest_master = None
+    if primary_guest and primary_guest.guest_id:
+        guest_master = db.query(Guest).filter(Guest.id == primary_guest.guest_id).first()
+    selected = _resolve_invoice_metadata(folio, stay, primary_guest, guest_master)
+
+    guests_with_invoice = [
+        {
+            "id": g.id,
+            "full_name": g.full_name,
+            "tax_code": g.tax_code or "",
+            "invoice_contact": g.invoice_contact or "",
+            "company_name": g.company_name or "",
+            "company_address": g.company_address or "",
+        }
+        for g in all_guests if g.tax_code
+    ]
+
+    return JSONResponse({"selected": selected, "guests": guests_with_invoice})
 
 @router.post("/stay/{stay_id}/create")
 def create_new_folio(
     request: Request,
     stay_id: int,
     notes: Optional[str] = Query(default=None),
+    invoice_name: Optional[str] = Query(default=None),
+    invoice_tax_code: Optional[str] = Query(default=None),
+    invoice_contact: Optional[str] = Query(default=None),
+    invoice_address: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """Mở một Folio phụ cho stay"""
@@ -310,10 +431,16 @@ def create_new_folio(
     stay = db.query(HotelStay).filter(HotelStay.id == stay_id).first()
     if not stay:
         raise HTTPException(status_code=404, detail="Stay không tìm thấy")
-        
-    new_folio = create_folio(db=db, stay=stay, notes=notes)
+
+    new_folio = create_folio(
+        db=db, stay=stay, notes=notes,
+        invoice_name=invoice_name,
+        invoice_tax_code=invoice_tax_code,
+        invoice_contact=invoice_contact,
+        invoice_address=invoice_address,
+    )
     db.commit()
-    
+
     return JSONResponse({
         "message": "Đã mở Folio mới",
         "folio": _folio_to_dict(new_folio)
@@ -387,6 +514,10 @@ def _folio_to_dict(folio: Folio, include_transactions: bool = False) -> dict:
         "balance": float(folio.balance or 0),
         "currency": folio.currency,
         "notes": folio.notes,
+        "invoice_name": folio.invoice_name,
+        "invoice_tax_code": folio.invoice_tax_code,
+        "invoice_contact": folio.invoice_contact,
+        "invoice_address": folio.invoice_address,
         "opened_at": folio.opened_at.isoformat() if folio.opened_at else None,
         "closed_at": folio.closed_at.isoformat() if folio.closed_at else None,
         "created_by": folio.created_by,
@@ -1487,3 +1618,253 @@ def fix_folio_cache(
         "message": f"Đã fix {result['fixed_count']} folios",
         "details": result,
     })
+
+
+# ─────────────────────────── Invoice Splits ───────────────────────────
+
+class InvoiceSplitPayload(BaseModel):
+    hotel_guest_id: Optional[int] = None
+    split_amount: Decimal
+    line_items: List[dict] = []
+    invoice_name: Optional[str] = None
+    invoice_tax_code: Optional[str] = None
+    invoice_contact: Optional[str] = None
+    invoice_address: Optional[str] = None
+    notes: Optional[str] = None
+
+
+def _split_to_dict(split: InvoiceSplit) -> dict:
+    return {
+        "id": split.id,
+        "folio_id": split.folio_id,
+        "stay_id": split.stay_id,
+        "hotel_guest_id": split.hotel_guest_id,
+        "split_amount": float(split.split_amount),
+        "line_items": split.line_items or [],
+        "invoice_name": split.invoice_name,
+        "invoice_tax_code": split.invoice_tax_code,
+        "invoice_contact": split.invoice_contact,
+        "invoice_address": split.invoice_address,
+        "notes": split.notes,
+        "printed_at": split.printed_at.isoformat() if split.printed_at else None,
+        "printed_by": split.printed_by,
+        "created_at": split.created_at.isoformat() if split.created_at else None,
+        "created_by": split.created_by,
+    }
+
+
+@router.get("/{folio_id}/splits")
+def list_invoice_splits(
+    folio_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _require_login(request)
+    folio = _get_folio_or_404(db, folio_id)
+
+    splits = (
+        db.query(InvoiceSplit)
+        .filter(InvoiceSplit.folio_id == folio_id)
+        .order_by(InvoiceSplit.created_at)
+        .all()
+    )
+
+    net_charge = float((folio.total_charge or 0) - (folio.total_discount or 0))
+    total_split = sum(float(s.split_amount) for s in splits)
+
+    return JSONResponse({
+        "splits": [_split_to_dict(s) for s in splits],
+        "summary": {
+            "net_charge": net_charge,
+            "total_split": total_split,
+            "remaining": net_charge - total_split,
+        },
+    })
+
+
+@router.post("/{folio_id}/splits")
+def create_invoice_split(
+    folio_id: int,
+    payload: InvoiceSplitPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    from .guest_activity import log_activity, ActivityGroup
+
+    user = _require_login(request)
+    folio = _get_folio_or_404(db, folio_id)
+
+    if not folio.stay_id:
+        raise HTTPException(status_code=400, detail="Folio chưa gắn stay")
+
+    if payload.split_amount <= 0:
+        raise HTTPException(status_code=400, detail="Số tiền phải > 0")
+
+    net_charge = float((folio.total_charge or 0) - (folio.total_discount or 0))
+    existing_total = (
+        db.query(InvoiceSplit)
+        .filter(InvoiceSplit.folio_id == folio_id)
+        .with_entities(InvoiceSplit.split_amount)
+        .all()
+    )
+    total_split = sum(float(r[0]) for r in existing_total)
+
+    if total_split + float(payload.split_amount) > net_charge:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tổng hoá đơn tách ({total_split + float(payload.split_amount):,.0f}) vượt tổng phí ({net_charge:,.0f})",
+        )
+
+    split = InvoiceSplit(
+        folio_id=folio_id,
+        stay_id=folio.stay_id,
+        hotel_guest_id=payload.hotel_guest_id,
+        split_amount=payload.split_amount,
+        line_items=payload.line_items,
+        invoice_name=payload.invoice_name,
+        invoice_tax_code=payload.invoice_tax_code,
+        invoice_contact=payload.invoice_contact,
+        invoice_address=payload.invoice_address,
+        notes=payload.notes,
+        created_by=user.id,
+    )
+    db.add(split)
+    db.flush()
+
+    stay = db.query(HotelStay).filter(HotelStay.id == folio.stay_id).first()
+    guest_id = None
+    if payload.hotel_guest_id:
+        hg = db.query(HotelGuest).filter(HotelGuest.id == payload.hotel_guest_id).first()
+        if hg:
+            guest_id = hg.guest_id
+    if not guest_id and stay:
+        primary = db.query(HotelGuest).filter(
+            HotelGuest.stay_id == stay.id, HotelGuest.is_primary == True
+        ).first()
+        if primary:
+            guest_id = primary.guest_id
+
+    if guest_id:
+        log_activity(
+            db,
+            guest_id=guest_id,
+            activity_type="INVOICE_SPLIT_CREATED",
+            activity_group=ActivityGroup.PAYMENT,
+            title="Tách hoá đơn",
+            description=f"Tách {float(payload.split_amount):,.0f}₫ từ {folio.folio_code}",
+            stay_id=folio.stay_id,
+            amount=float(payload.split_amount),
+            actor_type="staff",
+            actor_id=user.id,
+            extra_data={
+                "split_id": split.id,
+                "folio_id": folio_id,
+                "invoice_name": payload.invoice_name,
+                "invoice_tax_code": payload.invoice_tax_code,
+            },
+        )
+
+    db.commit()
+
+    return JSONResponse({
+        "split": _split_to_dict(split),
+        "message": "Đã tạo hoá đơn tách",
+    })
+
+
+@router.get("/{folio_id}/splits/{split_id}/print")
+def print_invoice_split(
+    folio_id: int,
+    split_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    from .guest_activity import log_activity, ActivityGroup
+
+    user = _require_login(request)
+    folio = _get_folio_or_404(db, folio_id)
+
+    split = (
+        db.query(InvoiceSplit)
+        .filter(InvoiceSplit.id == split_id, InvoiceSplit.folio_id == folio_id)
+        .first()
+    )
+    if not split:
+        raise HTTPException(status_code=404, detail="Invoice split không tìm thấy")
+
+    if not split.printed_at:
+        split.printed_at = _now_vn()
+        split.printed_by = user.id
+
+    guest_name = None
+    guest_id = None
+    if split.hotel_guest_id:
+        hg = db.query(HotelGuest).filter(HotelGuest.id == split.hotel_guest_id).first()
+        if hg:
+            guest = db.query(Guest).filter(Guest.id == hg.guest_id).first()
+            if guest:
+                guest_name = guest.full_name
+                guest_id = guest.id
+
+    if guest_id:
+        log_activity(
+            db,
+            guest_id=guest_id,
+            activity_type="INVOICE_SPLIT_PRINTED",
+            activity_group=ActivityGroup.PAYMENT,
+            title="In hoá đơn tách",
+            description=f"In hoá đơn {float(split.split_amount):,.0f}₫ từ {folio.folio_code}",
+            stay_id=folio.stay_id,
+            amount=float(split.split_amount),
+            actor_type="staff",
+            actor_id=user.id,
+            extra_data={
+                "split_id": split.id,
+                "folio_id": folio_id,
+                "invoice_name": split.invoice_name,
+            },
+        )
+
+    db.commit()
+
+    stay = db.query(HotelStay).filter(HotelStay.id == folio.stay_id).first()
+    room = db.query(HotelRoom).filter(HotelRoom.id == stay.room_id).first() if stay else None
+
+    return templates.TemplateResponse(
+        "pms/invoice_split_print.html",
+        {
+            "request": request,
+            "split": split,
+            "folio": folio,
+            "stay": stay,
+            "room": room,
+            "guest_name": guest_name,
+        },
+    )
+
+
+@router.delete("/{folio_id}/splits/{split_id}")
+def delete_invoice_split(
+    folio_id: int,
+    split_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    user = _require_login(request)
+    _get_folio_or_404(db, folio_id)
+
+    split = (
+        db.query(InvoiceSplit)
+        .filter(InvoiceSplit.id == split_id, InvoiceSplit.folio_id == folio_id)
+        .first()
+    )
+    if not split:
+        raise HTTPException(status_code=404, detail="Invoice split không tìm thấy")
+
+    if split.printed_at:
+        raise HTTPException(status_code=400, detail="Không thể xoá hoá đơn đã in")
+
+    db.delete(split)
+    db.commit()
+
+    return JSONResponse({"message": "Đã xoá hoá đơn tách"})

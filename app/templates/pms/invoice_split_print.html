@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoá đơn tách - {{ folio.folio_code }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&display=swap&subset=vietnamese" rel="stylesheet">
+    <style>
+        @page {
+            size: A4;
+            margin: 8mm 10mm;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: #eef2f6;
+            color: #000;
+            font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+            line-height: 1.4;
+            font-size: 11px;
+        }
+
+        .no-print {
+            text-align: center;
+            padding: 15px;
+            background: #fff;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ccc;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn {
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            background: #fff;
+            border-radius: 4px;
+        }
+
+        .btn.primary {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        .btn + .btn {
+            margin-left: 8px;
+        }
+
+        .sheet {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 10mm 10mm;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.06;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .watermark img {
+            width: 400px;
+            height: auto;
+        }
+
+        .content-layer {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header-container {
+            margin-bottom: 14px;
+        }
+
+        .brand-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            position: relative;
+        }
+
+        .brand-top-row::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 72%;
+            height: 1px;
+            transform: translateX(-50%);
+            background: #cfd6df;
+        }
+
+        .brand-main {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+        }
+
+        .brand-logo-wrap {
+            flex-shrink: 0;
+        }
+
+        .logo-img {
+            width: 82px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .brand-info-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .brand-title {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: .6px;
+            color: #b71c1c;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .slogan {
+            margin: 1px 0 6px 0;
+            font-size: 11px;
+            font-weight: bold;
+            color: #555;
+            font-style: italic;
+            white-space: nowrap;
+        }
+
+        .brand-address-box {
+            text-align: left;
+        }
+
+        .brand-address-box p {
+            margin: 0 0 2px 0;
+            font-size: 10px;
+            color: #222;
+            white-space: nowrap;
+        }
+
+        .brand-address-box p strong {
+            display: inline-block;
+            width: 50px;
+            color: #000;
+            font-weight: bold;
+        }
+
+        .brand-qr-wrap {
+            flex-shrink: 0;
+            text-align: center;
+            margin-left: 6px;
+        }
+
+        .header-qr {
+            width: 88px;
+            height: 88px;
+        }
+
+        .doc-title-block {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .doc-title {
+            margin: 0 0 5px 0;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #000;
+            letter-spacing: 1px;
+        }
+
+        .folio-meta {
+            font-size: 10px;
+            color: #555;
+        }
+
+        .guest-info-box {
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 12px;
+        }
+
+        .guest-info-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #334155;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+        }
+
+        .guest-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 20px;
+        }
+
+        .info-row {
+            display: flex;
+            gap: 6px;
+            align-items: baseline;
+        }
+
+        .info-label {
+            font-size: 10px;
+            color: #64748b;
+            min-width: 110px;
+            flex-shrink: 0;
+        }
+
+        .info-val {
+            font-size: 11px;
+            font-weight: 600;
+            color: #000;
+        }
+
+        .table-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #334155;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+            margin-bottom: 6px;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+            margin-bottom: 14px;
+        }
+
+        .main-table thead th {
+            background: #f1f5f9;
+            padding: 6px 8px;
+            font-weight: bold;
+            border-bottom: 1.5px solid #cbd5e1;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .3px;
+        }
+
+        .main-table tbody td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            vertical-align: top;
+        }
+
+        .main-table tfoot td {
+            padding: 5px 8px;
+            font-weight: bold;
+        }
+
+        .right {
+            text-align: right;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .money {
+            font-family: "Courier New", monospace;
+            font-weight: bold;
+        }
+
+        .table-total-row td {
+            border-top: 2px solid #000;
+            font-size: 12px;
+            padding-top: 8px;
+        }
+
+        .split-note {
+            font-size: 10px;
+            color: #64748b;
+            font-style: italic;
+            margin-top: 8px;
+            padding: 6px 10px;
+            background: #f8fafc;
+            border-radius: 4px;
+            border-left: 3px solid #94a3b8;
+        }
+
+        .signature-block {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 10px;
+        }
+
+        .signature-box {
+            text-align: center;
+            width: 45%;
+        }
+
+        .signature-box strong {
+            display: block;
+            margin-bottom: 50px;
+            font-size: 11px;
+        }
+
+        .page-footer {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        @media print {
+            body {
+                background: #fff;
+            }
+
+            .sheet {
+                box-shadow: none;
+                padding: 0;
+                max-width: none;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="no-print">
+        <button class="btn primary" onclick="window.print()">In Hoá Đơn (Ctrl + P)</button>
+        <button class="btn" onclick="window.print()">Xuất PDF</button>
+        <button class="btn" onclick="window.close()">Đóng</button>
+    </div>
+
+    <main class="sheet">
+        <div class="watermark">
+            <img src="/static/logo.png" alt="watermark">
+        </div>
+
+        <div class="content-layer">
+            <header class="header-container">
+                <div class="brand-top-row">
+                    <div class="brand-main">
+                        <div class="brand-logo-wrap">
+                            <img src="/static/logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                        </div>
+                        <div class="brand-info-wrap">
+                            {% set branch_name = (stay.branch.name or 'BIN BIN HOTEL')|string %}
+                            {% set branch_upper = branch_name|upper %}
+                            {% if branch_upper.startswith('CHI NHÁNH B') %}
+                            <h1 class="brand-title">BIN BIN HOTEL {{ branch_upper.replace('CHI NHÁNH B', '').strip() }}</h1>
+                            {% else %}
+                            <h1 class="brand-title">{{ branch_name }}</h1>
+                            {% endif %}
+                            <p class="slogan">"Your Second Home"</p>
+                            <div class="brand-address-box">
+                                <p><strong>Địa chỉ:</strong> {{ stay.branch.address or '—' }}</p>
+                                <p><strong>Hotline:</strong> {{ stay.branch.phone or '—' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="brand-qr-wrap">
+                        <img src="/static/qrzalooa.jpg" alt="Zalo QR" class="header-qr"
+                            onerror="this.style.display='none'">
+                    </div>
+                </div>
+
+                <div class="doc-title-block">
+                    <h2 class="doc-title">HOÁ ĐƠN TÁCH / SPLIT INVOICE</h2>
+                    <div class="folio-meta">
+                        Từ hoá đơn / From Invoice: <strong>{{ folio.folio_code }}</strong>
+                        &nbsp;|&nbsp;
+                        Phòng / Room: <strong>{{ room.room_number if room else '—' }}</strong>
+                        &nbsp;|&nbsp;
+                        Ngày in / Date: <strong>{{ split.printed_at.strftime('%d/%m/%Y %H:%M') if split.printed_at else '—' }}</strong>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Invoice Recipient Info -->
+            {% if split.invoice_tax_code or split.invoice_name %}
+            <div class="guest-info-box">
+                <div class="guest-info-title">Thông tin xuất hoá đơn / Invoice Details</div>
+                <div class="guest-grid">
+                    {% if split.invoice_name %}
+                    <div class="info-row">
+                        <span class="info-label">Đơn vị / Company</span>
+                        <span class="info-val">{{ split.invoice_name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if split.invoice_tax_code %}
+                    <div class="info-row">
+                        <span class="info-label">Mã số thuế / Tax Code</span>
+                        <span class="info-val">{{ split.invoice_tax_code }}</span>
+                    </div>
+                    {% endif %}
+                    {% if split.invoice_contact %}
+                    <div class="info-row">
+                        <span class="info-label">Liên hệ / Contact</span>
+                        <span class="info-val">{{ split.invoice_contact }}</span>
+                    </div>
+                    {% endif %}
+                    {% if guest_name %}
+                    <div class="info-row">
+                        <span class="info-label">Khách / Guest</span>
+                        <span class="info-val">{{ guest_name }}</span>
+                    </div>
+                    {% endif %}
+                    {% if split.invoice_address %}
+                    <div class="info-row" style="grid-column: 1 / -1;">
+                        <span class="info-label">Địa chỉ / Address</span>
+                        <span class="info-val" style="white-space: normal;">{{ split.invoice_address }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <!-- No invoice info, show guest name -->
+            <div class="guest-info-box">
+                <div class="guest-info-title">Thông tin khách / Guest Info</div>
+                <div class="guest-grid">
+                    <div class="info-row">
+                        <span class="info-label">Khách / Guest</span>
+                        <span class="info-val">{{ guest_name or '—' }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Phòng / Room</span>
+                        <span class="info-val">{{ room.room_number if room else '—' }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Line Items Table -->
+            {% if split.line_items %}
+            <div class="table-title">Chi tiết các khoản / Line Items</div>
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">Nội dung / Description</th>
+                        <th class="right">Thành tiền / Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in split.line_items %}
+                    <tr>
+                        <td>{{ item.description or '—' }}</td>
+                        <td class="right money">{{ '{:,.0f}'.format(item.amount|float).replace(',', '.') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-total-row">
+                        <td class="right">Tổng hoá đơn tách / Split Total</td>
+                        <td class="right money">{{ '{:,.0f}'.format(split.split_amount|float).replace(',', '.') }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            {% else %}
+            <!-- No line items, just show total -->
+            <div class="table-title">Số tiền hoá đơn / Invoice Amount</div>
+            <table class="main-table">
+                <tfoot>
+                    <tr class="table-total-row">
+                        <td class="right">Tổng hoá đơn tách / Split Total</td>
+                        <td class="right money">{{ '{:,.0f}'.format(split.split_amount|float).replace(',', '.') }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            {% endif %}
+
+            <div class="split-note">
+                Hoá đơn tách từ {{ folio.folio_code }}{% if split.notes %} — {{ split.notes }}{% endif %}
+            </div>
+
+            <!-- Signatures -->
+            <div class="signature-block">
+                <div class="signature-box">
+                    <strong>Khách hàng / Guest</strong>
+                    <p style="font-size: 11px;">(Ký, ghi rõ họ tên / Sign &amp; Print Name)</p>
+                </div>
+                <div class="signature-box">
+                    <strong>Người lập phiếu / Prepared by</strong>
+                </div>
+            </div>
+
+            <div class="page-footer">
+                <p>Cảm ơn quý khách đã tin tưởng và lựa chọn dịch vụ của chúng tôi.</p>
+                <p>Thank you for choosing our services.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        window.addEventListener('afterprint', () => window.close());
+    </script>
+</body>
+
+</html>

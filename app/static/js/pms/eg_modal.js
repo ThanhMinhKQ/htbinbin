@@ -277,6 +277,16 @@ async function egFillGuestData(g) {
     const notesEl = document.getElementById('eg-notes');
     if (notesEl) notesEl.value = g.notes || '';
 
+    // Invoice fields
+    const taxCodeEl = document.getElementById('eg-tax-code');
+    if (taxCodeEl) taxCodeEl.value = g.tax_code || '';
+    const companyNameEl = document.getElementById('eg-company-name');
+    if (companyNameEl) companyNameEl.value = g.company_name || '';
+    const companyAddrEl = document.getElementById('eg-company-address');
+    if (companyAddrEl) companyAddrEl.value = g.company_address || '';
+    const invoiceContactEl = document.getElementById('eg-invoice-contact');
+    if (invoiceContactEl) invoiceContactEl.value = g.invoice_contact || '';
+
     // Toggle address section based on ID type
     if (idTypeEl) egToggleIdFields(idTypeEl);
 
@@ -381,7 +391,8 @@ function egClearForm() {
     ['eg-name','eg-cccd','eg-id-expire','eg-birth',
      'eg-phone','eg-notes','eg-address','eg-nationality',
      'eg-province','eg-ward','eg-district',
-     'eg-new-province','eg-new-ward'].forEach(id => {
+     'eg-new-province','eg-new-ward',
+     'eg-tax-code','eg-company-name','eg-company-address','eg-invoice-contact'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             el.value = '';
@@ -715,6 +726,12 @@ async function egSaveGuest() {
         fd.append('phone', document.getElementById('eg-phone')?.value?.trim() || '');
         fd.append('id_expire', document.getElementById('eg-id-expire')?.value?.trim() || '');
         fd.append('notes', document.getElementById('eg-notes')?.value?.trim() || '');
+
+        // Invoice fields
+        fd.append('tax_code', document.getElementById('eg-tax-code')?.value?.trim() || '');
+        fd.append('company_name', document.getElementById('eg-company-name')?.value?.trim() || '');
+        fd.append('company_address', document.getElementById('eg-company-address')?.value?.trim() || '');
+        fd.append('invoice_contact', document.getElementById('eg-invoice-contact')?.value?.trim() || '');
 
         // Address fields (only if not locked)
         if (isAddressLocked) {

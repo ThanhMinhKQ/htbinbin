@@ -33,6 +33,11 @@ function guestDetail() {
     // Co-guests tab
     coGuests: [], coGuestsLoading: false,
 
+    // Invoice tab
+    invoiceInfo: { tax_code: '', invoice_contact: '', company_name: '', company_address: '' },
+    invoiceSplits: [], invoiceLoading: false, invoiceEditing: false, invoiceSaving: false,
+    invoiceEdit: { tax_code: '', invoice_contact: '', company_name: '', company_address: '' },
+
     // Tier journey
     tierJourney: [],
 
@@ -144,6 +149,40 @@ function guestDetail() {
       finally { this.coGuestsLoading = false; }
     },
 
+    async loadInvoice() {
+      if (this.invoiceLoading) return;
+      this.invoiceLoading = true;
+      try {
+        const res = await fetch('/api/pms/crm/guests/' + guestId + '/invoice', { credentials: 'same-origin' });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        this.invoiceInfo = data.invoice_info || {};
+        this.invoiceSplits = data.invoice_splits || [];
+      } catch (e) { console.error(e); }
+      finally { this.invoiceLoading = false; }
+    },
+
+    async saveInvoiceInfo() {
+      this.invoiceSaving = true;
+      try {
+        const res = await fetch('/api/pms/crm/guests/' + guestId + '/invoice', {
+          method: 'PATCH',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.invoiceEdit),
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        this.invoiceInfo = data.invoice_info || this.invoiceInfo;
+        this.invoiceEditing = false;
+      } catch (e) {
+        console.error(e);
+        alert('Không lưu được thông tin hoá đơn');
+      } finally {
+        this.invoiceSaving = false;
+      }
+    },
+
     async toggleBlacklist() {
       if (!this.guest) return;
       const next = !this.guest.is_blacklisted;
@@ -241,6 +280,7 @@ function guestDetail() {
       if (pref.type === 'stay_type') {
         const map = {
           HOUR: 'Phòng giờ', HOURLY: 'Phòng giờ', FORCE_HOURLY: 'Phòng giờ',
+          DAY: 'Phòng ngày', DAILY: 'Phòng ngày', DAY_USE: 'Phòng ngày', FORCE_DAILY: 'Phòng ngày',
           NIGHT: 'Qua đêm', OVERNIGHT: 'Qua đêm', FORCE_OVERNIGHT: 'Qua đêm',
           AUTO: 'Tự động',
         };
@@ -250,9 +290,11 @@ function guestDetail() {
         const map = {
           AUTO: 'Tự động',
           FORCE_HOURLY: 'Theo giờ',
+          FORCE_DAILY: 'Theo ngày',
           FORCE_OVERNIGHT: 'Theo đêm',
           OTA_MANUAL: 'OTA thủ công',
           HOURLY: 'Theo giờ', HOURLY_CHARGE: 'Theo giờ',
+          DAY: 'Theo ngày', DAILY: 'Theo ngày', DAY_USE: 'Theo ngày',
           OVERNIGHT: 'Theo đêm', NIGHT: 'Theo đêm',
         };
         return map[pref.value.toUpperCase()] || pref.value;
@@ -263,6 +305,7 @@ function guestDetail() {
       if (!val) return '-';
       const map = {
         HOUR: 'Phòng giờ', HOURLY: 'Phòng giờ', FORCE_HOURLY: 'Phòng giờ',
+        DAY: 'Phòng ngày', DAILY: 'Phòng ngày', DAY_USE: 'Phòng ngày', FORCE_DAILY: 'Phòng ngày',
         NIGHT: 'Qua đêm', OVERNIGHT: 'Qua đêm', FORCE_OVERNIGHT: 'Qua đêm',
         AUTO: 'Tự động',
       };
@@ -273,6 +316,7 @@ function guestDetail() {
       const map = {
         AUTO: 'Tự động',
         FORCE_HOURLY: 'Theo giờ', HOURLY: 'Theo giờ', HOURLY_CHARGE: 'Theo giờ',
+        FORCE_DAILY: 'Theo ngày', DAY: 'Theo ngày', DAILY: 'Theo ngày', DAY_USE: 'Theo ngày',
         FORCE_OVERNIGHT: 'Theo đêm', OVERNIGHT: 'Theo đêm', NIGHT: 'Theo đêm',
         OTA_MANUAL: 'OTA thủ công',
       };

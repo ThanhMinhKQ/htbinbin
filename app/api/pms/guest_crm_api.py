@@ -24,7 +24,7 @@ from ...db.models import (
     GuestPaymentSummary, GuestActivity, HotelStay, HotelGuest,
     HotelRoom, HotelRoomType, Folio, FolioTransaction, Payment, Branch, MemberTier,
     GuestIdentity, GuestPreference, User,
-    HotelStayStatus,
+    HotelStayStatus, InvoiceSplit,
 )
 from ...db.session import get_db
 from ...services.guest_crm_service import (
@@ -87,6 +87,17 @@ class GuestCreatePayload(BaseModel):
     notes: Optional[str] = None
     is_blacklisted: bool = False
     blacklist_reason: Optional[str] = None
+    tax_code: Optional[str] = None
+    invoice_contact: Optional[str] = None
+    company_name: Optional[str] = None
+    company_address: Optional[str] = None
+
+
+class GuestInvoicePayload(BaseModel):
+    tax_code: Optional[str] = None
+    invoice_contact: Optional[str] = None
+    company_name: Optional[str] = None
+    company_address: Optional[str] = None
 
 
 class CrmMembershipTierPayload(BaseModel):
@@ -371,6 +382,16 @@ def _apply_guest_core_fields(db: Session, guest: Guest, payload: GuestCreatePayl
         raw_address = payload.default_address if payload.default_address is not None else _compose_guest_address(payload)
         guest.default_address = _clean_guest_text(raw_address)
 
+    # Invoice fields
+    if is_create or "tax_code" in fields:
+        guest.tax_code = _clean_guest_text(payload.tax_code, 50)
+    if is_create or "invoice_contact" in fields:
+        guest.invoice_contact = _clean_guest_text(payload.invoice_contact, 255)
+    if is_create or "company_name" in fields:
+        guest.company_name = _clean_guest_text(payload.company_name, 255)
+    if is_create or "company_address" in fields:
+        guest.company_address = _clean_guest_text(payload.company_address)
+
     guest.updated_by = user_id
     if guest.id is None:
         db.flush()
@@ -629,11 +650,13 @@ def api_search_guests(
     for activity, actor_name, branch_name in blacklist_activity_rows:
         if activity.guest_id in blacklist_info_map:
             continue
+        extra_data = activity.extra_data if isinstance(activity.extra_data, dict) else {}
         blacklist_info_map[activity.guest_id] = {
             "reason": activity.description,
             "actor_name": actor_name,
             "branch_name": branch_name,
             "created_at": activity.created_at.isoformat() if activity.created_at else None,
+            "form": extra_data.get("form") if isinstance(extra_data.get("form"), dict) else None,
         }
 
     # Batch load last stays from denormalized summary, no HotelStay/HotelRoom join.
@@ -826,6 +849,69 @@ def api_create_crm_guest(
         raise HTTPException(status_code=409, detail="Thông tin định danh khách đã tồn tại")
 
 
+@router.patch("/api/pms/crm/guests/{guest_id}", tags=["PMS - CRM"])
+def api_update_crm_guest(
+    request: Request,
+    guest_id: int,
+    payload: GuestCreatePayload,
+    db: Session = Depends(get_db),
+):
+    """Cập nhật hồ sơ CRM thủ công cho khách chưa có bản ghi lưu trú."""
+    user = _require_login(request)
+    branch_id = _active_branch_id(request, db)
+
+    guest = db.query(Guest).filter(Guest.id == guest_id, Guest.deleted_at.is_(None)).first()
+    if not guest:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách")
+
+    previous_blacklist = bool(guest.is_blacklisted)
+    try:
+        _apply_guest_core_fields(db, guest, payload, user.get("id"), is_create=False)
+        if "is_blacklisted" in payload.model_fields_set:
+            _set_guest_blacklist_state(guest, bool(payload.is_blacklisted))
+
+        update_form = payload.model_dump(mode="json", exclude_none=True)
+        log_activity(
+            db=db,
+            guest_id=guest.id,
+            activity_type=ActivityType.PROFILE_UPDATED,
+            activity_group=ActivityGroup.SYSTEM,
+            title="Cập nhật hồ sơ CRM",
+            description="Cập nhật thông tin khách từ danh sách đen",
+            branch_id=branch_id,
+            actor_type=ActorType.USER,
+            actor_id=user.get("id"),
+            source=Source.PMS,
+            extra_data={"manual": True, "form": update_form},
+        )
+
+        if payload.is_blacklisted and (payload.blacklist_reason or not previous_blacklist):
+            log_activity(
+                db=db,
+                guest_id=guest.id,
+                activity_type=ActivityType.BLACKLISTED,
+                activity_group=ActivityGroup.SYSTEM,
+                title="Cập nhật danh sách đen",
+                description=payload.blacklist_reason or "Khách được giữ trong danh sách đen",
+                branch_id=branch_id,
+                actor_type=ActorType.USER,
+                actor_id=user.get("id"),
+                source=Source.PMS,
+                extra_data={"is_blacklisted": True, "reason": payload.blacklist_reason, "manual": True, "form": update_form},
+            )
+
+        db.commit()
+        _clear_crm_caches()
+        db.refresh(guest)
+        return JSONResponse({"guest": _guest_management_payload(db, guest)})
+    except HTTPException:
+        db.rollback()
+        raise
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Thông tin định danh khách đã tồn tại")
+
+
 @router.delete("/api/pms/crm/guests/{guest_id}", tags=["PMS - CRM"])
 def api_delete_crm_guest(
     request: Request,
@@ -960,6 +1046,31 @@ def api_get_guest_profile(
         "unpaid_debt_amount": float(debt_total),
         "warnings": warnings,
     }
+
+    blacklist_info = None
+    if guest.is_blacklisted:
+        blacklist_row = db.query(
+            GuestActivity,
+            User.name.label("actor_name"),
+            Branch.name.label("branch_name"),
+        ).outerjoin(
+            User, User.id == GuestActivity.actor_id
+        ).outerjoin(
+            Branch, Branch.id == GuestActivity.branch_id
+        ).filter(
+            GuestActivity.guest_id == guest_id,
+            GuestActivity.activity_type == "BLACKLISTED",
+        ).order_by(GuestActivity.created_at.desc()).first()
+        if blacklist_row:
+            activity, actor_name, branch_name = blacklist_row
+            extra_data = activity.extra_data if isinstance(activity.extra_data, dict) else {}
+            blacklist_info = {
+                "reason": activity.description,
+                "actor_name": actor_name,
+                "branch_name": branch_name,
+                "created_at": activity.created_at.isoformat() if activity.created_at else None,
+                "form": extra_data.get("form") if isinstance(extra_data.get("form"), dict) else None,
+            }
 
     avg_per_stay = float(total_spent) / total_stays if total_stays > 0 else 0
 
@@ -1166,6 +1277,7 @@ def api_get_guest_profile(
             "has_unpaid_debt": risk_flags["has_unpaid_debt"],
             "unpaid_debt_amount": risk_flags["unpaid_debt_amount"],
             "risk_flags": risk_flags,
+            "blacklist_info": blacklist_info,
             "tags": guest.tags or [],
         },
         "stats": {
@@ -2275,6 +2387,114 @@ def api_crm_rebuild_memberships(
             status_code=500,
             content={"detail": f"Lỗi tính toán: {str(e)}\n{traceback.format_exc()}"}
         )
+
+# ====================================================================
+# GUEST INVOICE INFO & HISTORY
+# ====================================================================
+
+@router.get("/api/pms/crm/guests/{guest_id}/invoice", tags=["PMS - CRM"])
+def api_get_guest_invoice(
+    request: Request,
+    guest_id: int,
+    db: Session = Depends(get_db),
+):
+    """Lấy thông tin xuất hoá đơn và lịch sử hoá đơn tách của khách."""
+    _require_login(request)
+
+    guest = db.query(Guest).filter(Guest.id == guest_id, Guest.deleted_at.is_(None)).first()
+    if not guest:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách")
+
+    # Invoice info stored on Guest master
+    invoice_info = {
+        "tax_code": guest.tax_code or "",
+        "invoice_contact": guest.invoice_contact or "",
+        "company_name": guest.company_name or "",
+        "company_address": guest.company_address or "",
+    }
+
+    # Invoice splits: find via HotelGuest records linked to this guest
+    hotel_guest_ids = [
+        hg.id for hg in db.query(HotelGuest.id).filter(HotelGuest.guest_id == guest_id).all()
+    ]
+
+    splits = []
+    if hotel_guest_ids:
+        split_rows = (
+            db.query(InvoiceSplit, HotelRoom.room_number, Branch.name.label("branch_name"), User.name.label("printed_by_name"))
+            .join(HotelStay, HotelStay.id == InvoiceSplit.stay_id)
+            .outerjoin(HotelRoom, HotelRoom.id == HotelStay.room_id)
+            .outerjoin(Branch, Branch.id == HotelStay.branch_id)
+            .outerjoin(User, User.id == InvoiceSplit.printed_by)
+            .filter(InvoiceSplit.hotel_guest_id.in_(hotel_guest_ids))
+            .order_by(InvoiceSplit.created_at.desc())
+            .limit(100)
+            .all()
+        )
+        for row, room_number, branch_name, printed_by_name in split_rows:
+            splits.append({
+                "id": row.id,
+                "folio_id": row.folio_id,
+                "stay_id": row.stay_id,
+                "room_number": room_number,
+                "branch_name": branch_name,
+                "split_amount": float(row.split_amount) if row.split_amount else 0,
+                "invoice_name": row.invoice_name or "",
+                "invoice_tax_code": row.invoice_tax_code or "",
+                "invoice_contact": row.invoice_contact or "",
+                "invoice_address": row.invoice_address or "",
+                "notes": row.notes or "",
+                "printed_at": row.printed_at.isoformat() if row.printed_at else None,
+                "printed_by_name": printed_by_name or "",
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            })
+
+    return JSONResponse({
+        "guest_id": guest_id,
+        "invoice_info": invoice_info,
+        "invoice_splits": splits,
+        "total_splits": len(splits),
+    })
+
+
+@router.patch("/api/pms/crm/guests/{guest_id}/invoice", tags=["PMS - CRM"])
+def api_update_guest_invoice(
+    request: Request,
+    guest_id: int,
+    payload: GuestInvoicePayload,
+    db: Session = Depends(get_db),
+):
+    """Cập nhật thông tin xuất hoá đơn trên hồ sơ khách."""
+    user = _require_login(request)
+
+    guest = db.query(Guest).filter(Guest.id == guest_id, Guest.deleted_at.is_(None)).first()
+    if not guest:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách")
+
+    fields = payload.model_fields_set
+    if "tax_code" in fields:
+        guest.tax_code = _clean_guest_text(payload.tax_code, 50)
+    if "invoice_contact" in fields:
+        guest.invoice_contact = _clean_guest_text(payload.invoice_contact, 255)
+    if "company_name" in fields:
+        guest.company_name = _clean_guest_text(payload.company_name, 255)
+    if "company_address" in fields:
+        guest.company_address = _clean_guest_text(payload.company_address)
+
+    guest.updated_by = user.get("id")
+    db.commit()
+    _clear_crm_caches()
+
+    return JSONResponse({
+        "guest_id": guest_id,
+        "invoice_info": {
+            "tax_code": guest.tax_code or "",
+            "invoice_contact": guest.invoice_contact or "",
+            "company_name": guest.company_name or "",
+            "company_address": guest.company_address or "",
+        },
+    })
+
 
 # ====================================================================
 # HELPER FUNCTIONS

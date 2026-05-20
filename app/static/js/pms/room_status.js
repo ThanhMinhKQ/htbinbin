@@ -17,6 +17,7 @@ const RoomStatus = {
         blockBusy: false,
         waitlistGroups: {},
         waitlistContext: null,
+        externalRefreshTimer: null,
     },
 
     init() {
@@ -48,6 +49,20 @@ const RoomStatus = {
             }
         });
         window.addEventListener('ota:cancellation', () => this.refresh(true));
+        window.addEventListener('pms:inventory-invalidated', () => this.refreshFromExternalChange());
+        window.addEventListener('pms:stay-updated', () => this.refreshFromExternalChange());
+        window.addEventListener('storage', (event) => {
+            if (event.key === 'pms:inventory-invalidated') this.refreshFromExternalChange();
+        });
+    },
+
+    refreshFromExternalChange() {
+        if (document.hidden) return;
+        if (this.state.externalRefreshTimer) window.clearTimeout(this.state.externalRefreshTimer);
+        this.state.externalRefreshTimer = window.setTimeout(() => {
+            this.state.externalRefreshTimer = null;
+            this.refresh(true);
+        }, 250);
     },
 
     startPolling() {

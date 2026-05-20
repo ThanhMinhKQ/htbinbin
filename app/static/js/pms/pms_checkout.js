@@ -76,7 +76,7 @@ function pmsRdRenderFolioTabs() {
         return `<div class="rd-folio-tab ${i === rdActiveFolioIndex ? 'active' : ''}" onclick="rdPaySelectFolio(${i})">${pmsEscapeHtml(f.notes || ('Hóa đơn ' + (i+1)))}<span class="badge">${pmsMoney(folioBill)}</span></div>`;
     }).join('');
     
-    let actionsHtml = `<div class="rd-folio-actions"><button class="rd-folio-btn primary" onclick="rdPayOpenAddFolio()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Tách Bill</button>${rdCurrentFolios.length > 1 ? '<button class="rd-folio-btn" onclick="rdPayOpenMergeFolio()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>Gộp Bill</button>' : ''}</div>`;
+    let actionsHtml = `<div class="rd-folio-actions"><button class="rd-folio-btn primary" onclick="rdPayOpenAddFolio()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Tách Hoá Đơn</button>${rdCurrentFolios.length > 1 ? '<button class="rd-folio-btn" onclick="rdPayOpenMergeFolio()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>Gộp Bill</button>' : ''}</div>`;
     
     c.innerHTML = `<div class="rd-folio-tab-group">${tabsHtml}</div>${actionsHtml}`;
 }
@@ -84,7 +84,9 @@ function pmsRdRenderFolioTabs() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Add/Merge Folio
 // ─────────────────────────────────────────────────────────────────────────────
-function rdPayOpenAddFolio() {
+let _rdSplitSummary = { net_charge: 0, total_split: 0, remaining: 0 };
+
+async function rdPayOpenAddFolio() {
     const modal = document.getElementById('rd-sub-modal-folio-create');
     if (!modal) return;
     const guests = (typeof rdGuestList !== 'undefined' ? rdGuestList : []) || [];
@@ -97,16 +99,29 @@ function rdPayOpenAddFolio() {
         guestSel.value = primary?.id ? String(primary.id) : '';
     }
 
-    const nameInput = document.getElementById('rd-folio-create-name');
-    if (nameInput) nameInput.value = '';
-    ['rd-folio-create-invoice-name', 'rd-folio-create-tax-code', 'rd-folio-create-invoice-contact'].forEach(id => {
+    ['rd-folio-create-invoice-name', 'rd-folio-create-tax-code', 'rd-folio-create-invoice-contact', 'rd-folio-create-invoice-address'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+    const amountInput = document.getElementById('rd-split-amount');
+    if (amountInput) amountInput.value = '';
+
+    _rdSplitSummary = { net_charge: 0, total_split: 0, remaining: 0 };
     rdPaySyncSplitBillGuest();
     rdPayRenderSplitBillTxList();
+    rdPayValidateSplitAmount();
     modal.style.display = 'flex';
-    setTimeout(() => document.getElementById('rd-folio-create-name')?.focus(), 100);
+
+    if (rdCurrentFolio?.id) {
+        try {
+            const resp = await pmsApi(`/api/pms/folio/${rdCurrentFolio.id}/splits`);
+            _rdSplitSummary = resp?.summary || { net_charge: 0, total_split: 0, remaining: 0 };
+            rdPayValidateSplitAmount();
+        } catch(e) {
+            _rdSplitSummary = { net_charge: 0, total_split: 0, remaining: 0 };
+            rdPayValidateSplitAmount();
+        }
+    }
 }
 
 function rdPaySplitBillGuestById(id) {
@@ -121,11 +136,13 @@ function rdPaySyncSplitBillGuest() {
     const invoiceName = document.getElementById('rd-folio-create-invoice-name');
     const taxInput = document.getElementById('rd-folio-create-tax-code');
     const contactInput = document.getElementById('rd-folio-create-invoice-contact');
+    const addressInput = document.getElementById('rd-folio-create-invoice-address');
     if (guest) {
         if (nameInput && !nameInput.value.trim()) nameInput.value = `Hóa đơn - ${guest.full_name || 'Khách'}`;
-        if (invoiceName && !invoiceName.value.trim()) invoiceName.value = guest.invoice_contact || guest.full_name || '';
-        if (taxInput && !taxInput.value.trim()) taxInput.value = guest.tax_code || '';
-        if (contactInput && !contactInput.value.trim()) contactInput.value = guest.invoice_contact || guest.phone || '';
+        if (invoiceName) invoiceName.value = guest.company_name || '';
+        if (taxInput) taxInput.value = guest.tax_code || '';
+        if (contactInput) contactInput.value = guest.invoice_contact || guest.phone || '';
+        if (addressInput) addressInput.value = guest.company_address || '';
     }
 }
 
@@ -172,43 +189,156 @@ function rdPayUpdateSplitSelectionTotal() {
     const totalEl = document.getElementById('rd-folio-create-transfer-total');
     if (countEl) countEl.textContent = String(selected.length);
     if (totalEl) totalEl.textContent = pmsMoney(total);
+    // Auto-fill amount input with selected total
+    const amountInput = document.getElementById('rd-split-amount');
+    if (amountInput && total > 0) amountInput.value = Math.round(total).toLocaleString('vi-VN');
+    rdPayValidateSplitAmount();
 }
 
-async function rdPaySubmitAddFolio() {
-    const note = document.getElementById('rd-folio-create-name')?.value?.trim() || '';
-    if (!note) return pmsToast('Vui lòng nhập tên hóa đơn', false);
+function rdPayParseSplitAmount() {
+    const raw = (document.getElementById('rd-split-amount')?.value || '').replace(/[^\d]/g, '');
+    return parseInt(raw) || 0;
+}
+
+function rdPayValidateSplitAmount() {
+    const amount = rdPayParseSplitAmount();
+    const quotaEl = document.getElementById('rd-split-quota');
+    const warnEl = document.getElementById('rd-split-warning');
+    const remaining = _rdSplitSummary.remaining || 0;
+    const netCharge = _rdSplitSummary.net_charge || 0;
+    const totalSplit = _rdSplitSummary.total_split || 0;
+
+    if (quotaEl) {
+        quotaEl.innerHTML = `Tổng folio: <b>${pmsMoney(netCharge)}</b> · Đã tách: <b>${pmsMoney(totalSplit)}</b> · Còn lại: <b>${pmsMoney(remaining)}</b>`;
+    }
+    if (warnEl) {
+        if (amount > 0 && amount > remaining) {
+            warnEl.style.display = 'block';
+            warnEl.textContent = `Vượt ${pmsMoney(amount - remaining)} so với số tiền còn lại cho phép tách!`;
+        } else {
+            warnEl.style.display = 'none';
+        }
+    }
+}
+
+async function rdPaySubmitSplitInvoice() {
+    const splitAmount = rdPayParseSplitAmount();
+    if (!splitAmount || splitAmount <= 0) return pmsToast('Vui lòng nhập số tiền hoá đơn tách', false);
+
+    const remaining = _rdSplitSummary.remaining || 0;
+    if (splitAmount > remaining) return pmsToast('Số tiền vượt quá mức cho phép tách', false);
+
     const guestSel = document.getElementById('rd-folio-create-guest');
-    const guest = rdPaySplitBillGuestById(guestSel?.value);
     const invoiceName = document.getElementById('rd-folio-create-invoice-name')?.value?.trim() || '';
     const taxCode = document.getElementById('rd-folio-create-tax-code')?.value?.trim() || '';
     const invoiceContact = document.getElementById('rd-folio-create-invoice-contact')?.value?.trim() || '';
-    const selectedTxIds = Array.from(document.querySelectorAll('.rd-folio-create-tx:checked')).map(el => el.value).filter(Boolean);
-    const noteParts = [note];
-    if (guest?.full_name) noteParts.push(`Khách: ${guest.full_name}`);
-    if (invoiceName) noteParts.push(`Đơn vị/NNT: ${invoiceName}`);
-    if (taxCode) noteParts.push(`MST: ${taxCode}`);
-    if (invoiceContact) noteParts.push(`Liên hệ: ${invoiceContact}`);
-    const finalNote = noteParts.join(' | ');
-    const btn = document.querySelector('#rd-sub-modal-folio-create button[onclick="rdPaySubmitAddFolio()"]');
+    const invoiceAddress = document.getElementById('rd-folio-create-invoice-address')?.value?.trim() || '';
+
+    const selectedTxs = Array.from(document.querySelectorAll('.rd-folio-create-tx:checked'));
+    const lineItems = selectedTxs.map(el => {
+        const txId = parseInt(el.value) || null;
+        const tx = (rdCurrentFolio?.transactions || []).find(t => String(t.id) === String(txId));
+        return {
+            tx_id: txId,
+            description: tx?.description || '',
+            amount: rdPayNum(el.dataset.amount),
+        };
+    });
+
+    const payload = {
+        hotel_guest_id: guestSel?.value ? parseInt(guestSel.value) : null,
+        split_amount: splitAmount,
+        line_items: lineItems,
+        invoice_name: invoiceName || null,
+        invoice_tax_code: taxCode || null,
+        invoice_contact: invoiceContact || null,
+        invoice_address: invoiceAddress || null,
+    };
+
+    const btn = document.getElementById('rd-split-submit-btn');
     const oldHtml = btn?.innerHTML;
-    if (btn) { btn.disabled = true; btn.innerHTML = 'Đang tách...'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = 'Đang tạo...'; }
     try {
-        const resp = await pmsApi(`/api/pms/folio/stay/${rdStayData.id}/create?notes=${encodeURIComponent(finalNote)}`, { method: 'POST' });
-        const newFolio = resp?.folio;
-        if (newFolio?.id && selectedTxIds.length > 0 && rdCurrentFolio?.id) {
-            await pmsApi(`/api/pms/folio/${rdCurrentFolio.id}/transfer?target_folio_id=${newFolio.id}&tx_ids=${encodeURIComponent(selectedTxIds.join(','))}`, { method: 'POST' });
-        }
-        pmsToast(selectedTxIds.length ? 'Đã tách hóa đơn và chuyển dòng phí' : 'Đã mở hóa đơn phụ thành công', true);
+        await pmsApi(`/api/pms/folio/${rdCurrentFolio.id}/splits`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        pmsToast('Đã tạo hoá đơn tách thành công', true);
         document.getElementById('rd-sub-modal-folio-create').style.display = 'none';
-        await fetchFolio(rdStayData.id);
-        if (newFolio?.id) {
-            const idx = rdCurrentFolios.findIndex(f => String(f.id) === String(newFolio.id));
-            if (idx >= 0) rdPaySelectFolio(idx);
-        }
-    } catch(e) { pmsToast('Lỗi tách bill: ' + e.message, false); }
+        rdPayLoadSplits();
+    } catch(e) { pmsToast('Lỗi tạo hoá đơn tách: ' + e.message, false); }
     finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = oldHtml || 'Xác nhận tách'; }
+        if (btn) { btn.disabled = false; btn.innerHTML = oldHtml || 'Tạo hoá đơn tách'; }
     }
+}
+
+async function rdPayLoadSplits() {
+    const container = document.getElementById('rd-splits-list');
+    if (!container || !rdCurrentFolio?.id) return;
+
+    try {
+        const resp = await pmsApi(`/api/pms/folio/${rdCurrentFolio.id}/splits`);
+        const splits = resp?.splits || [];
+        _rdSplitSummary = resp?.summary || { net_charge: 0, total_split: 0, remaining: 0 };
+
+        if (!splits.length) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+
+        container.style.display = 'block';
+        container.innerHTML = `
+            <div style="font-size:12px; font-weight:800; color:var(--rd-accent-bold); margin-bottom:8px; text-transform:uppercase; letter-spacing:.3px;">
+                Hoá đơn đã tách (${splits.length})
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                ${splits.map(s => {
+                    const printed = !!s.printed_at;
+                    const guests = (typeof rdGuestList !== 'undefined' ? rdGuestList : []) || [];
+                    const hg = guests.find(g => String(g.id) === String(s.hotel_guest_id));
+                    const guestLabel = s.invoice_name || hg?.full_name || 'Khách';
+                    return `<div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--rd-bg-secondary); border-radius:12px; background:#fff;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:12px; font-weight:700; color:var(--rd-accent-bold); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pmsEscapeHtml(guestLabel)}</div>
+                            <div style="font-size:10px; color:#64748b; margin-top:2px;">
+                                ${s.invoice_tax_code ? 'MST: ' + pmsEscapeHtml(s.invoice_tax_code) + ' · ' : ''}${printed ? '<span style="color:#16a34a;">Đã in</span>' : '<span style="color:#f59e0b;">Chưa in</span>'}
+                            </div>
+                        </div>
+                        <div style="font-size:13px; font-weight:800; font-family:ui-monospace,'Courier New',monospace; color:var(--rd-accent-bold); white-space:nowrap;">${pmsMoney(s.split_amount)}</div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="v-btn outline" onclick="rdPayPrintSplit(${s.id})" style="padding:6px 12px; border-radius:8px; font-size:11px;">In</button>
+                            ${!printed ? `<button class="v-btn outline" onclick="rdPayDeleteSplit(${s.id})" style="padding:6px 12px; border-radius:8px; font-size:11px; color:#dc2626; border-color:#fecaca;">Xoá</button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div style="font-size:11px; color:#64748b; margin-top:6px; padding:4px 0;">
+                Đã tách: <b style="color:var(--rd-accent-bold);">${pmsMoney(_rdSplitSummary.total_split)}</b> / ${pmsMoney(_rdSplitSummary.net_charge)}
+                · Còn lại: <b style="color:var(--rd-accent-bold);">${pmsMoney(_rdSplitSummary.remaining)}</b>
+            </div>
+        `;
+    } catch(e) {
+        container.innerHTML = '';
+        container.style.display = 'none';
+    }
+}
+
+function rdPayPrintSplit(splitId) {
+    if (!rdCurrentFolio?.id) return;
+    window.open(`/api/pms/folio/${rdCurrentFolio.id}/splits/${splitId}/print`, '_blank');
+    setTimeout(() => rdPayLoadSplits(), 1500);
+}
+
+async function rdPayDeleteSplit(splitId) {
+    if (!rdCurrentFolio?.id) return;
+    if (!confirm('Xoá hoá đơn tách này?')) return;
+    try {
+        await pmsApi(`/api/pms/folio/${rdCurrentFolio.id}/splits/${splitId}`, { method: 'DELETE' });
+        pmsToast('Đã xoá hoá đơn tách', true);
+        rdPayLoadSplits();
+    } catch(e) { pmsToast('Lỗi: ' + e.message, false); }
 }
 
 function rdPayOpenMergeFolio() {
@@ -269,10 +399,89 @@ function rdPaySelectFolio(index) {
     }
     if (typeof pmsRdRenderFolioTabs === 'function') pmsRdRenderFolioTabs();
     if (typeof pmsRdRenderFolio === 'function') pmsRdRenderFolio();
+    if (typeof rdPayLoadSplits === 'function') rdPayLoadSplits();
 }
 
-function rdPayPrintFolio() {
+let _rdInvoiceGuests = [];
+
+async function rdPayPrintFolio() {
     if (!rdCurrentFolio) return;
+    try {
+        const resp = await fetch(`/api/pms/folio/${rdCurrentFolio.id}/invoice-info`);
+        if (!resp.ok) throw new Error(resp.status);
+        const data = await resp.json();
+        const info = data.selected || {};
+        _rdInvoiceGuests = data.guests || [];
+
+        // If folio already has structured invoice info (from split bill), print directly
+        if (rdCurrentFolio.invoice_tax_code) {
+            window.open(`/api/pms/folio/${rdCurrentFolio.id}/print`, '_blank', 'width=850,height=900,scrollbars=yes');
+            return;
+        }
+
+        // Render guest dropdown
+        const selectEl = document.getElementById('rd-invoice-print-guest');
+        if (selectEl) {
+            let opts = '';
+            if (_rdInvoiceGuests.length > 1) {
+                _rdInvoiceGuests.forEach((g, i) => {
+                    opts += `<option value="${i}">${g.full_name} — ${g.company_name || g.tax_code}</option>`;
+                });
+                opts += '<option value="manual">Nhập thủ công</option>';
+                selectEl.innerHTML = opts;
+                selectEl.closest('.rd-sm-input-grp').style.display = '';
+                // Pre-fill from first guest in list
+                const firstGuest = _rdInvoiceGuests[0];
+                document.getElementById('rd-invoice-print-company').value = firstGuest.company_name || '';
+                document.getElementById('rd-invoice-print-tax-code').value = firstGuest.tax_code || '';
+                document.getElementById('rd-invoice-print-address').value = firstGuest.company_address || '';
+                document.getElementById('rd-invoice-print-contact').value = firstGuest.invoice_contact || '';
+            } else {
+                selectEl.closest('.rd-sm-input-grp').style.display = 'none';
+                document.getElementById('rd-invoice-print-company').value = info.company_name || '';
+                document.getElementById('rd-invoice-print-tax-code').value = info.tax_code || '';
+                document.getElementById('rd-invoice-print-address').value = info.company_address || '';
+                document.getElementById('rd-invoice-print-contact').value = info.contact || '';
+            }
+        } else {
+            document.getElementById('rd-invoice-print-company').value = info.company_name || '';
+            document.getElementById('rd-invoice-print-tax-code').value = info.tax_code || '';
+            document.getElementById('rd-invoice-print-address').value = info.company_address || '';
+            document.getElementById('rd-invoice-print-contact').value = info.contact || '';
+        }
+
+        document.getElementById('rd-sub-modal-invoice-print').style.display = 'flex';
+    } catch (e) {
+        window.open(`/api/pms/folio/${rdCurrentFolio.id}/print`, '_blank', 'width=850,height=900,scrollbars=yes');
+    }
+}
+
+function rdInvoicePrintGuestChange(selectEl) {
+    const val = selectEl.value;
+    if (val === 'manual') return;
+    const g = _rdInvoiceGuests[parseInt(val)];
+    if (!g) return;
+    document.getElementById('rd-invoice-print-company').value = g.company_name || '';
+    document.getElementById('rd-invoice-print-tax-code').value = g.tax_code || '';
+    document.getElementById('rd-invoice-print-address').value = g.company_address || '';
+    document.getElementById('rd-invoice-print-contact').value = g.invoice_contact || '';
+}
+
+function rdInvoicePrintConfirm() {
+    if (!rdCurrentFolio) return;
+    const params = new URLSearchParams({
+        invoice_company: document.getElementById('rd-invoice-print-company').value.trim(),
+        invoice_tax_code: document.getElementById('rd-invoice-print-tax-code').value.trim(),
+        invoice_address: document.getElementById('rd-invoice-print-address').value.trim(),
+        invoice_contact: document.getElementById('rd-invoice-print-contact').value.trim(),
+    });
+    document.getElementById('rd-sub-modal-invoice-print').style.display = 'none';
+    window.open(`/api/pms/folio/${rdCurrentFolio.id}/print?${params.toString()}`, '_blank', 'width=850,height=900,scrollbars=yes');
+}
+
+function rdInvoicePrintSkip() {
+    if (!rdCurrentFolio) return;
+    document.getElementById('rd-sub-modal-invoice-print').style.display = 'none';
     window.open(`/api/pms/folio/${rdCurrentFolio.id}/print`, '_blank', 'width=850,height=900,scrollbars=yes');
 }
 
@@ -908,3 +1117,8 @@ window.rdPayApproveRefund = rdPayApproveRefund;
 window.rdPayFetchBalance = rdPayFetchBalance;
 window.rdPaySyncSplitBillGuest = rdPaySyncSplitBillGuest;
 window.rdPayUpdateSplitSelectionTotal = rdPayUpdateSplitSelectionTotal;
+window.rdPayValidateSplitAmount = rdPayValidateSplitAmount;
+window.rdPaySubmitSplitInvoice = rdPaySubmitSplitInvoice;
+window.rdPayLoadSplits = rdPayLoadSplits;
+window.rdPayPrintSplit = rdPayPrintSplit;
+window.rdPayDeleteSplit = rdPayDeleteSplit;

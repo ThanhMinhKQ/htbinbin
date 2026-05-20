@@ -1,0 +1,136 @@
+{# CRM Guest Detail - Tab Invoice #}
+
+<!-- ── TAB: Invoice ── -->
+<div class="gd-panel gd-panel-enter" x-show="activeTab === 'invoice'" x-cloak>
+  <template x-if="invoiceLoading">
+    <div class="gd-loading">
+      <div class="gd-spinner"></div> Đang tải...
+    </div>
+  </template>
+  <template x-if="!invoiceLoading">
+    <div>
+
+      <!-- Invoice info card -->
+      <div class="gd-card" style="margin-bottom:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <div style="font-size:13px; font-weight:700; color:var(--crm-text);">Thông tin xuất hoá đơn</div>
+          <button class="gd-btn-sm" x-show="!invoiceEditing" @click="invoiceEdit = Object.assign({}, invoiceInfo); invoiceEditing=true">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Sửa
+          </button>
+        </div>
+
+        <!-- View mode -->
+        <template x-if="!invoiceEditing">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+            <div>
+              <div style="font-size:11px; color:var(--crm-muted); margin-bottom:3px;">Mã số thuế</div>
+              <div style="font-size:13px; font-weight:600;" x-text="invoiceInfo.tax_code || '—'"></div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--crm-muted); margin-bottom:3px;">Email / Liên hệ nhận HĐ</div>
+              <div style="font-size:13px; font-weight:600;" x-text="invoiceInfo.invoice_contact || '—'"></div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--crm-muted); margin-bottom:3px;">Tên công ty / Đơn vị</div>
+              <div style="font-size:13px; font-weight:600;" x-text="invoiceInfo.company_name || '—'"></div>
+            </div>
+            <div>
+              <div style="font-size:11px; color:var(--crm-muted); margin-bottom:3px;">Địa chỉ công ty</div>
+              <div style="font-size:13px; font-weight:600;" x-text="invoiceInfo.company_address || '—'"></div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Edit mode -->
+        <template x-if="invoiceEditing">
+          <div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+              <div>
+                <label style="font-size:11px; color:var(--crm-muted); display:block; margin-bottom:4px;">Mã số thuế</label>
+                <input class="gd-input" type="text" x-model="invoiceEdit.tax_code" placeholder="VD: 0123456789">
+              </div>
+              <div>
+                <label style="font-size:11px; color:var(--crm-muted); display:block; margin-bottom:4px;">Email / Liên hệ nhận HĐ</label>
+                <input class="gd-input" type="text" x-model="invoiceEdit.invoice_contact" placeholder="Email hoặc SĐT">
+              </div>
+              <div>
+                <label style="font-size:11px; color:var(--crm-muted); display:block; margin-bottom:4px;">Tên công ty / Đơn vị</label>
+                <input class="gd-input" type="text" x-model="invoiceEdit.company_name" placeholder="Tên công ty">
+              </div>
+              <div>
+                <label style="font-size:11px; color:var(--crm-muted); display:block; margin-bottom:4px;">Địa chỉ công ty</label>
+                <input class="gd-input" type="text" x-model="invoiceEdit.company_address" placeholder="Địa chỉ xuất hoá đơn">
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+              <button class="gd-btn-sm gd-btn-outline" @click="invoiceEditing=false">Huỷ</button>
+              <button class="gd-btn-sm gd-btn-primary" @click="saveInvoiceInfo()" :disabled="invoiceSaving">
+                <template x-if="invoiceSaving">
+                  <span>Đang lưu...</span>
+                </template>
+                <template x-if="!invoiceSaving">
+                  <span>Lưu</span>
+                </template>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Invoice splits history -->
+      <div style="font-size:13px; font-weight:700; color:var(--crm-text); margin-bottom:10px;">
+        Lịch sử hoá đơn đã xuất
+        <span style="font-size:11px; font-weight:500; color:var(--crm-muted); margin-left:6px;" x-text="'(' + invoiceSplits.length + ' hoá đơn)'"></span>
+      </div>
+
+      <template x-if="invoiceSplits.length > 0">
+        <div class="gd-card" style="padding:0; overflow:hidden;">
+          <table class="gd-table">
+            <thead>
+              <tr>
+                <th>Phòng</th>
+                <th>Chi nhánh</th>
+                <th>Tên / Đơn vị</th>
+                <th>MST</th>
+                <th style="text-align:right">Số tiền</th>
+                <th>In lúc</th>
+                <th>Người in</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="s in invoiceSplits" :key="s.id">
+                <tr>
+                  <td x-text="s.room_number || '—'"></td>
+                  <td x-text="s.branch_name || '—'"></td>
+                  <td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" x-text="s.invoice_name || '—'"></td>
+                  <td x-text="s.invoice_tax_code || '—'"></td>
+                  <td style="text-align:right" class="gd-money" x-text="fmtMoney(s.split_amount)"></td>
+                  <td style="font-size:11px;" x-text="s.printed_at ? fmtDateTime(s.printed_at) : '—'"></td>
+                  <td style="font-size:11px;" x-text="s.printed_by_name || '—'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </template>
+
+      <template x-if="invoiceSplits.length === 0">
+        <div class="gd-card">
+          <div class="gd-empty">
+            <div class="gd-empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </div>
+            <div class="gd-empty-text">Chưa có hoá đơn nào được xuất</div>
+          </div>
+        </div>
+      </template>
+
+    </div>
+  </template>
+</div>
