@@ -368,12 +368,7 @@ async function egFillGuestData(g) {
 
     if (addrEl) addrEl.value = g.address || '';
 
-    // 4b. Show state badge for trusted data (PMS_ADDR progressive normalization)
-    if (typeof PMS_ADDR !== 'undefined' && PMS_ADDR._updateStateBadge) {
-        PMS_ADDR._updateStateBadge('RAW', 'Địa chỉ từ dữ liệu cũ - sẽ được chuẩn hóa', 'blue');
-    }
-
-    // 4c. Reset trusted flag after fill (allow validation for subsequent edits)
+    // Reset trusted flag after fill (allow validation for subsequent edits)
     setTimeout(() => {
         if (typeof PMS_ADDR !== 'undefined' && PMS_ADDR.reset) {
             PMS_ADDR.reset();
