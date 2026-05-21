@@ -881,6 +881,8 @@ Object.assign(BookingHub, {
         // Update Dashboard V2 Progress Bar
         const progressBar = document.getElementById('bk-dashboard-progress-bar');
         if (progressBar) progressBar.style.width = `${depositPct}%`;
+        const dashboardBadge = document.getElementById('bk-dashboard-badge');
+        if (dashboardBadge) dashboardBadge.textContent = `${depositPct}% ĐÃ THANH TOÁN`;
         document.getElementById('bk-payment-dashboard-v2')?.classList.toggle('ota-mode', isOta);
 
         const rows = cart.map((item) => {
@@ -928,7 +930,6 @@ Object.assign(BookingHub, {
                     <span>Chi tiết phiếu thu</span>
                     <strong>${totalQty} phòng • sức chứa ${totalGuests} khách</strong>
                 </div>
-                <div class="bk-receipt-badge">${depositPct}% đã thanh toán</div>
             </div>
             ${overCapacity ? '<div class="bk-over-capacity-note">Có hạng phòng đã hết tồn. Booking sẽ ở trạng thái chờ xác nhận cho tới khi đủ tồn.</div>' : ''}
             <div class="bk-receipt-room-list">${rows}</div>
@@ -984,8 +985,11 @@ Object.assign(BookingHub, {
         const submitBtn = document.getElementById('bk-create-submit');
         if (backBtn) backBtn.style.display = step > 1 ? 'inline-flex' : 'none';
         if (nextBtn) nextBtn.style.display = step < 3 ? 'inline-flex' : 'none';
+        if (nextBtn) nextBtn.textContent = step === 1 ? 'Nhập khách →' : 'Thanh toán →';
         if (submitBtn) submitBtn.style.display = step === 3 ? 'inline-flex' : 'none';
-        if (step === 2) {
+        if (step === 1) {
+            this.loadWizardAvailability();
+        } else if (step === 2) {
             this.prefillGuestFromSource();
             this.onBookingIdTypeChange();
             this.switchBookingAddressMode(this.getBookingAddressMode(), true);
@@ -999,6 +1003,22 @@ Object.assign(BookingHub, {
         const wizard = document.querySelector('.bk-wizard-v4');
         if (wizard) {
             wizard.classList.toggle('bk-wiz-summary-active', step === 1);
+        }
+    },
+
+    goToStep(step) {
+        const target = Math.max(1, Math.min(3, Number(step || 1)));
+        const current = Number(this.state.wizardStep || 1);
+        if (target <= current) {
+            this.setWizardStep(target);
+            return;
+        }
+        let guard = 0;
+        while (Number(this.state.wizardStep || 1) < target && guard < 3) {
+            const before = Number(this.state.wizardStep || 1);
+            this.wizardNext();
+            if (Number(this.state.wizardStep || 1) === before) break;
+            guard += 1;
         }
     },
 

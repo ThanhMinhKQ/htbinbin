@@ -78,59 +78,6 @@
         </template>
       </div>
 
-      <!-- Invoice splits history -->
-      <div style="font-size:13px; font-weight:700; color:var(--crm-text); margin-bottom:10px;">
-        Lịch sử hoá đơn đã xuất
-        <span style="font-size:11px; font-weight:500; color:var(--crm-muted); margin-left:6px;" x-text="'(' + invoiceSplits.length + ' hoá đơn)'"></span>
-      </div>
-
-      <template x-if="invoiceSplits.length > 0">
-        <div class="gd-card" style="padding:0; overflow:hidden;">
-          <table class="gd-table">
-            <thead>
-              <tr>
-                <th>Phòng</th>
-                <th>Chi nhánh</th>
-                <th>Tên / Đơn vị</th>
-                <th>MST</th>
-                <th style="text-align:right">Số tiền</th>
-                <th>In lúc</th>
-                <th>Người in</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="s in invoiceSplits" :key="s.id">
-                <tr>
-                  <td x-text="s.room_number || '—'"></td>
-                  <td x-text="s.branch_name || '—'"></td>
-                  <td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" x-text="s.invoice_name || '—'"></td>
-                  <td x-text="s.invoice_tax_code || '—'"></td>
-                  <td style="text-align:right" class="gd-money" x-text="fmtMoney(s.split_amount)"></td>
-                  <td style="font-size:11px;" x-text="s.printed_at ? fmtDateTime(s.printed_at) : '—'"></td>
-                  <td style="font-size:11px;" x-text="s.printed_by_name || '—'"></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-      </template>
-
-      <template x-if="invoiceSplits.length === 0">
-        <div class="gd-card">
-          <div class="gd-empty">
-            <div class="gd-empty-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-            </div>
-            <div class="gd-empty-text">Chưa có hoá đơn nào được xuất</div>
-          </div>
-        </div>
-      </template>
-
     </div>
   </template>
 </div>

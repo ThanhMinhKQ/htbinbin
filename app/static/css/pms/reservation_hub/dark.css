@@ -793,3 +793,346 @@ html.dark #pms-booking-page .bk-table tbody tr:hover .bk-guest-info span,
 :is(html.dark, body.dark, .dark-mode, .dark) .bk-method-section-v5 > label {
   color: var(--bk-muted) !important;
 }
+
+/* Create reservation modal dark mode refresh */
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal {
+  background: rgba(2, 6, 23, 0.72) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-dialog {
+  background: #0f172a !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.56) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-dialog-head,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-dialog-foot {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-dialog-head h2 {
+  color: #f8fafc !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-dialog-head p,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-close {
+  color: #94a3b8 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-close {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-close:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(248, 113, 113, 0.44) !important;
+  color: #fca5a5 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-dialog-body,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-wizard-v4,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-wiz-workspace {
+  background: #0b1120 !important;
+  color: #e5e7eb !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-wiz-nav {
+  background: #0b1120 !important;
+  border-right: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-wiz-nav::before {
+  background: rgba(148, 163, 184, 0.12) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item {
+  color: #94a3b8 !important;
+  border: 1px solid transparent !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item:hover:not(.active) {
+  background: rgba(148, 163, 184, 0.05) !important;
+  color: #e2e8f0 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.active {
+  background: rgba(20, 184, 166, 0.08) !important;
+  color: #f8fafc !important;
+  border-color: rgba(20, 184, 166, 0.25) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.active::before {
+  content: "" !important;
+  position: absolute !important;
+  left: -4px !important;
+  top: 14px !important;
+  bottom: 14px !important;
+  width: 4px !important;
+  background: #14b8a6 !important;
+  border-radius: 99px !important;
+  box-shadow: 0 0 10px #14b8a6 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.done {
+  color: #99f6e4 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item span {
+  color: #94a3b8 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.active span,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.done span {
+  color: #f8fafc !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item small {
+  color: #64748b !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.active small,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.done small {
+  color: #2dd4bf !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-icon {
+  background: #0f172a !important;
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  color: #64748b !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.active .bk-nav-icon {
+  background: #14b8a6 !important;
+  border-color: #2dd4bf !important;
+  color: #042f2e !important;
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.15), 0 4px 12px rgba(20, 184, 166, 0.3) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-nav-item.done .bk-nav-icon {
+  background: rgba(20, 184, 166, 0.18) !important;
+  border-color: rgba(45, 212, 191, 0.36) !important;
+  color: #5eead4 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-config-toolbar,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-guest-toolbar-v5,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-form-section-v5,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-wiz-summary,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-summary-cart,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-summary-total,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-box,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-pay-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-payment-receipt-v2 {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #e5e7eb !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-form-section-v5,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-pay-card {
+  background: #0f172a !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-step-divider,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-section-title-v5,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-pay-card-head {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-section-title-v5,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-pay-card-head h3,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-cart-header-v4,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-total-row strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-card strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-room-info strong,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-room-price,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-trust-details h4 {
+  color: #f8fafc !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-config-field label,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-field label,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-summary-label,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-content label,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-total-row span,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-meta,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-room-info span,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-receipt-title span,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-receipt-footer,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-trust-details p {
+  color: #94a3b8 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-input,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-select,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-textarea,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-content input {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-input::placeholder,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-textarea::placeholder,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-content input::placeholder {
+  color: #64748b !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-input:focus,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-select:focus,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-textarea:focus,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-box:focus-within {
+  border-color: #2dd4bf !important;
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.16) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-icon {
+  background: rgba(45, 212, 191, 0.12) !important;
+  color: #5eead4 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-date-icon.co {
+  background: rgba(248, 113, 113, 0.12) !important;
+  color: #fca5a5 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-status-segment,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .allocation-card .bk-deposit-mode-cards {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-seg-btn,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .allocation-card .bk-deposit-mode-card {
+  background: transparent !important;
+  color: #94a3b8 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-seg-btn.active,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .allocation-card .bk-deposit-mode-card.active {
+  background: #14b8a6 !important;
+  color: #042f2e !important;
+  box-shadow: 0 8px 18px rgba(20, 184, 166, 0.2) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-cart-item-v4,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-receipt-room-card,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-deposit-split-line,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-ota-price-compare > div {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #e5e7eb !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-card:hover:not(.sold-out),
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-pay-card:hover,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-receipt-room-card:hover {
+  background: #111827 !important;
+  border-color: rgba(45, 212, 191, 0.34) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-card.selected {
+  background: rgba(20, 184, 166, 0.12) !important;
+  border-color: rgba(45, 212, 191, 0.58) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-card.sold-out {
+  background: rgba(248, 113, 113, 0.1) !important;
+  border-color: rgba(248, 113, 113, 0.3) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-card.low-inventory {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border-color: rgba(251, 191, 36, 0.32) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-avail-progress,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-receipt-progress-mini,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-money-input-wrapper {
+  background: #020617 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-money-symbol,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-trust-icon-box {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #94a3b8 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-money-input-wrapper:focus-within {
+  background: #0b1220 !important;
+  border-color: #2dd4bf !important;
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.14) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-money-input-wrapper:focus-within .bk-money-symbol {
+  background: rgba(20, 184, 166, 0.14) !important;
+  border-right-color: #2dd4bf !important;
+  color: #5eead4 !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-method-card-v2 {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #e5e7eb !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-method-card-v2:hover {
+  background: #111827 !important;
+  border-color: rgba(45, 212, 191, 0.34) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-method-card-v2.active {
+  background: rgba(20, 184, 166, 0.12) !important;
+  border-color: rgba(45, 212, 191, 0.54) !important;
+  box-shadow: 0 16px 30px rgba(20, 184, 166, 0.14) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-method-card-v2 .bk-method-name,
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-method-card-v2.active .bk-method-name {
+  color: #f8fafc !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-payment-dashboard-v2 {
+  background: linear-gradient(135deg, #0f172a 0%, #042f2e 100%) !important;
+  border-color: rgba(45, 212, 191, 0.24) !important;
+  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.36) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-cash-flow-path {
+  background: rgba(15, 23, 42, 0.54) !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal #bk-step-3 .bk-pay-trust-banner {
+  background: rgba(15, 23, 42, 0.48) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-btn:not(.primary) {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  color: #e5e7eb !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-btn:not(.primary):hover {
+  background: #111827 !important;
+  border-color: rgba(45, 212, 191, 0.36) !important;
+  color: #f8fafc !important;
+}
+
+:is(html.dark, body.dark, .dark-mode, .dark) #bk-create-modal .bk-btn.primary {
+  background: #14b8a6 !important;
+  border-color: #2dd4bf !important;
+  color: #042f2e !important;
+  box-shadow: 0 12px 24px rgba(20, 184, 166, 0.2) !important;
+}

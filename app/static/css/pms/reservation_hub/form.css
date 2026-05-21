@@ -192,60 +192,179 @@
   }
 
   /* --- Navigation Sidebar (Left) --- */
+  /* --- Navigation Sidebar (Left) --- */
   .bk-wiz-nav {
-    width: 90px;
-    background: var(--bk-surface-soft);
-    border-right: 1px solid var(--bk-line);
-    display: flex;
-    flex-direction: column;
-    padding: 24px 0;
-    gap: 20px;
+    width: 190px !important;
+    background: var(--bk-surface-soft) !important;
+    border-right: 1px solid var(--bk-line) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 32px 14px !important;
+    gap: 20px !important;
+    position: relative !important;
+  }
+
+  .bk-wiz-nav::before {
+    content: "";
+    position: absolute;
+    top: 56px;
+    bottom: 56px;
+    left: 43px !important; /* Perfect center alignment behind the 34px icon inside the padded item */
+    width: 2px;
+    border-radius: 999px;
+    background: var(--bk-line) !important;
+    z-index: 0;
   }
 
   .bk-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-    opacity: 0.5;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    cursor: pointer !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    opacity: 1 !important;
+    position: relative !important;
+    z-index: 1 !important;
+    border: 1px solid transparent !important;
+  }
+
+  .bk-nav-item:hover:not(.active) {
+    background: rgba(0, 0, 0, 0.02) !important;
+  }
+
+  .bk-nav-item:hover:not(.active) .bk-nav-copy {
+    transform: translateX(3px) !important;
   }
 
   .bk-nav-item.active {
-    opacity: 1;
+    background: var(--bk-surface) !important;
+    border-color: var(--bk-line) !important;
+    box-shadow: var(--bk-shadow-sm) !important;
+  }
+
+  .bk-nav-item.active .bk-nav-copy {
+    transform: translateX(4px) !important;
+  }
+
+  /* Left-edge laser indicator for active step */
+  .bk-nav-item.active::before {
+    content: "" !important;
+    position: absolute !important;
+    left: -4px !important;
+    top: 14px !important;
+    bottom: 14px !important;
+    width: 4px !important;
+    background: var(--bk-primary) !important;
+    border-radius: 99px !important;
+    box-shadow: 0 0 10px var(--bk-primary) !important;
   }
 
   .bk-nav-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 12px;
-    background: var(--bk-surface);
-    border: 2px solid var(--bk-line);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    font-weight: 900;
-    color: var(--bk-muted);
-    transition: all 0.2s;
+    width: 34px !important;
+    height: 34px !important;
+    flex: 0 0 34px !important;
+    border-radius: 50% !important; /* Premium circular design */
+    background: var(--bk-surface) !important;
+    border: 2px solid var(--bk-line) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 13px !important;
+    font-weight: 900 !important;
+    color: var(--bk-muted) !important;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
+    z-index: 2 !important;
+    box-sizing: border-box !important;
   }
 
+  /* Active step badge with glowing ring pulse */
   .bk-nav-item.active .bk-nav-icon {
-    background: var(--bk-primary);
-    border-color: var(--bk-primary);
-    color: #fff;
-    box-shadow: 0 4px 12px var(--bk-primary-soft);
+    background: var(--bk-primary) !important;
+    border-color: var(--bk-primary) !important;
+    color: #fff !important;
+    box-shadow: 0 0 0 4px var(--bk-primary-soft), 0 4px 12px var(--bk-primary-soft) !important;
+    animation: active-pulse-ring 1.8s infinite !important;
+  }
+
+  .bk-nav-item.done .bk-nav-icon {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    border-color: #10b981 !important;
+    color: #fff !important;
+    font-size: 0 !important;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2) !important;
+  }
+
+  .bk-nav-item.done .bk-nav-icon::before {
+    content: "✓" !important;
+    font-size: 14px !important;
+    font-weight: 950 !important;
+    line-height: 1 !important;
+  }
+
+  .bk-nav-copy {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    gap: 2px !important;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) !important;
   }
 
   .bk-nav-item span {
-    font-size: 10px;
-    font-weight: 850;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: var(--bk-ink);
-    text-align: center;
-    padding: 0 4px;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    color: var(--bk-muted) !important;
+    text-align: left !important;
+    padding: 0 !important;
+    line-height: 1.1 !important;
+    transition: all 0.3s !important;
+    white-space: nowrap !important;
+  }
+
+  .bk-nav-item.active span,
+  .bk-nav-item.done span {
+    color: var(--bk-ink) !important;
+    font-weight: 950 !important;
+  }
+
+  .bk-nav-item small {
+    display: block !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    color: var(--bk-muted) !important;
+    margin-top: 1px !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    transition: all 0.3s !important;
+    white-space: nowrap !important;
+  }
+
+  .bk-nav-item.active small {
+    color: var(--bk-primary) !important;
+    font-weight: 750 !important;
+  }
+
+  .bk-nav-item.done small {
+    color: #10b981 !important;
+    font-weight: 750 !important;
+  }
+
+  @keyframes active-pulse-ring {
+    0% {
+      box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 6px rgba(26, 115, 232, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(26, 115, 232, 0);
+    }
   }
 
   /* --- Workspace (Center) --- */
@@ -2128,7 +2247,7 @@
   max-height: 780px;
 }
 
-.bk-wiz-nav { flex: 0 0 100px; }
+.bk-wiz-nav { flex: 0 0 190px !important; }
 
 .bk-wiz-workspace {
   flex: 1 1 auto;

@@ -35,7 +35,7 @@ function guestDetail() {
 
     // Invoice tab
     invoiceInfo: { tax_code: '', invoice_contact: '', company_name: '', company_address: '' },
-    invoiceSplits: [], invoiceLoading: false, invoiceEditing: false, invoiceSaving: false,
+    invoiceLoading: false, invoiceEditing: false, invoiceSaving: false,
     invoiceEdit: { tax_code: '', invoice_contact: '', company_name: '', company_address: '' },
 
     // Tier journey
@@ -157,7 +157,6 @@ function guestDetail() {
         if (!res.ok) throw new Error();
         const data = await res.json();
         this.invoiceInfo = data.invoice_info || {};
-        this.invoiceSplits = data.invoice_splits || [];
       } catch (e) { console.error(e); }
       finally { this.invoiceLoading = false; }
     },

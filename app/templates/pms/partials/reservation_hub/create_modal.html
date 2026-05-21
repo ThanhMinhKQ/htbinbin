@@ -13,15 +13,24 @@
         <aside class="bk-wiz-nav">
           <div class="bk-nav-item active" id="bk-wiz-step-1" onclick="BookingHub.goToStep(1)">
             <div class="bk-nav-icon">1</div>
-            <span>Chọn phòng</span>
+            <div class="bk-nav-copy">
+              <span>Chọn phòng</span>
+              <small>Ngày &amp; hạng</small>
+            </div>
           </div>
           <div class="bk-nav-item" id="bk-wiz-step-2" onclick="BookingHub.goToStep(2)">
             <div class="bk-nav-icon">2</div>
-            <span>Khách hàng</span>
+            <div class="bk-nav-copy">
+              <span>Khách hàng</span>
+              <small>Thông tin</small>
+            </div>
           </div>
           <div class="bk-nav-item" id="bk-wiz-step-3" onclick="BookingHub.goToStep(3)">
             <div class="bk-nav-icon">3</div>
-            <span>Thanh toán</span>
+            <div class="bk-nav-copy">
+              <span>Thanh toán</span>
+              <small>Cọc &amp; tổng</small>
+            </div>
           </div>
         </aside>
 
@@ -226,87 +235,165 @@
 
           <!-- ═══ STEP 3: Thanh toán ═══ -->
           <div class="bk-step-panel" id="bk-step-3">
-            <div class="bk-payment-layout-v5">
-              <!-- Dashboard: Compact flow -->
-              <div class="bk-payment-dashboard-v5" id="bk-payment-dashboard-v2">
-                <div class="bk-dash-row">
-                  <div class="bk-dash-cell">
-                    <small id="bk-main-total-label">Tổng dự kiến</small>
-                    <strong id="bk-total-v2">—</strong>
-                  </div>
-                  <div class="bk-dash-arrow">→</div>
-                  <div class="bk-dash-cell highlight">
-                    <small>Đã cọc</small>
-                    <strong id="bk-flow-deposit">—</strong>
-                  </div>
-                  <div class="bk-dash-arrow">→</div>
-                  <div class="bk-dash-cell">
-                    <small>Còn lại</small>
-                    <strong id="bk-flow-balance">—</strong>
-                  </div>
-                </div>
-                <div class="bk-dash-progress">
-                  <div id="bk-dashboard-progress-bar" style="width: 0%"></div>
-                </div>
-              </div>
+            <div class="bk-payment-layout">
 
-              <!-- Content: single-column compact -->
-              <div class="bk-payment-body-v5">
-                <!-- Room summary -->
-                <div class="bk-payment-room-summary" id="bk-payment-room-summary">
-                  <div class="bk-payment-empty">Đang tính toán dữ liệu...</div>
-                </div>
+              <!-- LEFT COLUMN: Financial Inputs & Methods -->
+              <div class="bk-payment-inputs-column">
 
-                <!-- Financial inputs -->
-                <div class="bk-pay-inputs">
-                  <div class="bk-field-row">
-                    <div class="bk-field col-6">
-                      <label>Xác nhận tổng tiền</label>
-                      <input class="bk-input bk-money-lg" id="bk-form-total" type="text" value="0" oninput="BookingHub.onMoneyInput(this)">
-                      <span id="bk-flow-total" style="display:none;"></span>
+                <!-- Financial Inputs Card -->
+                <div class="bk-pay-card">
+                  <div class="bk-pay-card-head">
+                    <div class="bk-icon-badge type-money">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"></path><path d="M19 7h-6a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"></path><circle cx="16" cy="12" r="1"></circle></svg>
                     </div>
-                    <div class="bk-field col-6">
-                      <label>Tiền đặt cọc</label>
-                      <input class="bk-input bk-money-lg highlight-money" id="bk-form-deposit" type="text" value="0" oninput="BookingHub.onMoneyInput(this); BookingHub.onDepositInput(this)">
+                    <h3>Thông tin thanh toán</h3>
+                  </div>
+                  <div class="bk-pay-card-body">
+                    <div class="bk-field-row">
+                      <div class="bk-field col-6">
+                        <label id="bk-form-total-label">Xác nhận tổng tiền</label>
+                        <div class="bk-money-input-wrapper">
+                          <span class="bk-money-symbol">₫</span>
+                          <input class="bk-input bk-money-lg" id="bk-form-total" type="text" value="0" oninput="BookingHub.onMoneyInput(this)">
+                        </div>
+                        <span id="bk-flow-total" style="display:none;"></span>
+                        <div class="bk-field-hint" id="bk-form-total-hint">Tổng tiền tự động tính từ PricingEngine.</div>
+                      </div>
+
+                      <div class="bk-field col-6" id="bk-form-deposit-wrap">
+                        <label id="bk-form-deposit-label">Tiền đặt cọc</label>
+                        <div class="bk-money-input-wrapper deposit-input-wrap">
+                          <span class="bk-money-symbol">₫</span>
+                          <input class="bk-input bk-money-lg highlight-money" id="bk-form-deposit" type="text" value="0" oninput="BookingHub.onMoneyInput(this); BookingHub.onDepositInput(this)">
+                        </div>
+                        <div class="bk-field-hint" id="bk-form-payment-hint">Khoản khách trả trước cho booking.</div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <!-- Allocation Panel -->
                 <div id="bk-deposit-allocation-panel" hidden>
-                  <div class="bk-allocation-v5">
-                    <div class="bk-alloc-head">
-                      <strong>Phân bổ cọc nhóm</strong>
+                  <div class="bk-pay-card allocation-card">
+                    <div class="bk-pay-card-head">
+                      <div class="bk-icon-badge type-split">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h8a4 4 0 0 1 4 4v4"></path><path d="m12 17 3 3 3-3"></path><path d="M3 12h8a4 4 0 0 0 4-4V4"></path><path d="m12 7 3-3 3 3"></path></svg>
+                      </div>
+                      <h3>Phân bổ cọc nhóm</h3>
                       <div class="bk-deposit-mode-cards">
                         <button class="bk-deposit-mode-card active" type="button" data-mode="split" onclick="BookingHub.setDepositAllocationMode('split')">Theo phòng</button>
                         <button class="bk-deposit-mode-card" type="button" data-mode="single" onclick="BookingHub.setDepositAllocationMode('single')">Dồn cọc</button>
                       </div>
                     </div>
-                    <!-- Target room selector for "Dồn cọc" mode -->
-                    <select class="bk-select" id="bk-deposit-target-room" hidden onchange="BookingHub.setDepositTargetRoom(this.value)"></select>
-                    <!-- Split lines for "Theo phòng" mode -->
-                    <div id="bk-deposit-split-lines" hidden></div>
+                    <div class="bk-pay-card-body">
+                      <!-- Target room selector for "Dồn cọc" mode -->
+                      <div class="bk-deposit-target-wrap">
+                        <select class="bk-select" id="bk-deposit-target-room" hidden onchange="BookingHub.setDepositTargetRoom(this.value)"></select>
+                      </div>
+                      <!-- Split lines for "Theo phòng" mode -->
+                      <div id="bk-deposit-split-lines" class="bk-deposit-split-lines" hidden></div>
+                    </div>
                   </div>
                 </div>
 
-                <!-- Payment Method -->
-                <div class="bk-method-section-v5">
-                  <label>Phương thức thanh toán</label>
-                  <div class="bk-method-grid-v5">
-                    <button class="bk-method-card-v2 active" type="button" data-method="Chi nhánh" onclick="BookingHub.selectBookingPaymentMethod('Chi nhánh')">💵 Tiền mặt</button>
-                    <button class="bk-method-card-v2" type="button" data-method="Chuyển khoản" onclick="BookingHub.selectBookingPaymentMethod('Chuyển khoản')">🏦 Chuyển khoản</button>
-                    <button class="bk-method-card-v2" type="button" data-method="Quẹt thẻ" onclick="BookingHub.selectBookingPaymentMethod('Quẹt thẻ')">💳 Quẹt thẻ</button>
-                    <button class="bk-method-card-v2" type="button" data-method="Công ty" onclick="BookingHub.selectBookingPaymentMethod('Công ty')">🏢 Công ty</button>
+                <!-- Payment Method Section -->
+                <div class="bk-pay-card method-card">
+                  <div class="bk-pay-card-head">
+                    <div class="bk-icon-badge type-method">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
+                    </div>
+                    <h3>Hình thức cọc thanh toán</h3>
                   </div>
-                  <select style="display:none;" id="bk-form-payment-method">
-                    <option value="Chi nhánh">Tiền mặt</option>
-                    <option value="Chuyển khoản">Chuyển khoản</option>
-                    <option value="Quẹt thẻ">Quẹt thẻ</option>
-                    <option value="Công ty">Công nợ</option>
-                  </select>
+                  <div class="bk-pay-card-body">
+                    <div class="bk-method-grid-v5">
+                      <button class="bk-method-card-v2 active" type="button" data-method="Chi nhánh" onclick="BookingHub.selectBookingPaymentMethod('Chi nhánh')">
+                        <span class="bk-method-icon-wrap bg-cash">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"></rect><circle cx="12" cy="12" r="2"></circle><path d="M6 12h.01M18 12h.01"></path></svg>
+                        </span>
+                        <span class="bk-method-name">Tiền mặt</span>
+                      </button>
+                      <button class="bk-method-card-v2" type="button" data-method="Chuyển khoản" onclick="BookingHub.selectBookingPaymentMethod('Chuyển khoản')">
+                        <span class="bk-method-icon-wrap bg-bank">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22h18"></path><path d="M6 18v-7"></path><path d="M10 18v-7"></path><path d="M14 18v-7"></path><path d="M18 18v-7"></path><path d="M3 11h18L12 3z"></path></svg>
+                        </span>
+                        <span class="bk-method-name">Chuyển khoản</span>
+                      </button>
+                      <button class="bk-method-card-v2" type="button" data-method="Quẹt thẻ" onclick="BookingHub.selectBookingPaymentMethod('Quẹt thẻ')">
+                        <span class="bk-method-icon-wrap bg-card">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line><path d="M6 15h2"></path></svg>
+                        </span>
+                        <span class="bk-method-name">Quẹt thẻ</span>
+                      </button>
+                      <button class="bk-method-card-v2" type="button" data-method="Công ty" onclick="BookingHub.selectBookingPaymentMethod('Công ty')">
+                        <span class="bk-method-icon-wrap bg-corp">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"></path><path d="M6 12H4a2 2 0 0 0-2 2v8"></path><path d="M18 12h2a2 2 0 0 1 2 2v8"></path><path d="M10 6h4"></path><path d="M10 10h4"></path><path d="M10 14h4"></path><path d="M10 18h4"></path></svg>
+                        </span>
+                        <span class="bk-method-name">CK Công ty</span>
+                      </button>
+                    </div>
+                    <select style="display:none;" id="bk-form-payment-method">
+                      <option value="Chi nhánh">Tiền mặt</option>
+                      <option value="Chuyển khoản">Chuyển khoản</option>
+                      <option value="Quẹt thẻ">Quẹt thẻ</option>
+                      <option value="Công ty">Chuyển khoản Công ty</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Premium Trust & Security Banner -->
+                <div class="bk-pay-trust-banner">
+                  <div class="bk-trust-icon-box">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                  </div>
+                  <div class="bk-trust-details">
+                    <h4>Bảo mật &amp; Hỗ trợ thanh toán 24/7</h4>
+                    <p>Mọi giao dịch được xử lý an toàn theo chuẩn bảo mật mã hóa SSL. Đối soát tài chính thời gian thực và hỗ trợ xử lý sự cố tức thì qua hotline lễ tân.</p>
+                  </div>
                 </div>
 
               </div>
+
+              <!-- RIGHT COLUMN: Premium Receipt Summary -->
+              <div class="bk-payment-summary-column">
+
+                <!-- Dashboard V2 Box -->
+                <div class="bk-payment-dashboard-v2" id="bk-payment-dashboard-v2">
+                  <div class="bk-dashboard-content">
+                    <div class="bk-main-total-row">
+                      <div class="bk-dash-cell-v2">
+                        <small id="bk-main-total-label" class="bk-main-total-label">Tổng dự kiến</small>
+                        <strong id="bk-total-v2" class="bk-main-total-value">—</strong>
+                      </div>
+                    </div>
+
+                    <div class="bk-cash-flow-path">
+                      <div class="bk-flow-node">
+                        <label>Đã cọc</label>
+                        <strong id="bk-flow-deposit">—</strong>
+                      </div>
+                      <div class="bk-flow-arrow">→</div>
+                      <div class="bk-flow-node">
+                        <label>Còn lại</label>
+                        <strong id="bk-flow-balance">—</strong>
+                      </div>
+                    </div>
+
+                    <div class="bk-dashboard-progress-wrap">
+                      <div class="bk-receipt-progress-mini">
+                        <div id="bk-dashboard-progress-bar" style="width: 0%"></div>
+                        <span class="bk-progress-text" id="bk-dashboard-badge">0% ĐÃ THANH TOÁN</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Receipt Detail Box (contains dynamically rendered room rows and OTA comparison) -->
+                <div class="bk-payment-receipt-v2" id="bk-payment-room-summary">
+                  <div class="bk-payment-empty">Đang tính toán dữ liệu...</div>
+                </div>
+
+              </div>
+
             </div>
           </div>
 

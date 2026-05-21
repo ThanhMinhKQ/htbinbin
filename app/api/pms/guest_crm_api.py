@@ -24,7 +24,7 @@ from ...db.models import (
     GuestPaymentSummary, GuestActivity, HotelStay, HotelGuest,
     HotelRoom, HotelRoomType, Folio, FolioTransaction, Payment, Branch, MemberTier,
     GuestIdentity, GuestPreference, User,
-    HotelStayStatus, InvoiceSplit,
+    HotelStayStatus,
 )
 from ...db.session import get_db
 from ...services.guest_crm_service import (
@@ -2398,7 +2398,7 @@ def api_get_guest_invoice(
     guest_id: int,
     db: Session = Depends(get_db),
 ):
-    """Lấy thông tin xuất hoá đơn và lịch sử hoá đơn tách của khách."""
+    """Lấy thông tin xuất hoá đơn của khách."""
     _require_login(request)
 
     guest = db.query(Guest).filter(Guest.id == guest_id, Guest.deleted_at.is_(None)).first()
@@ -2413,47 +2413,9 @@ def api_get_guest_invoice(
         "company_address": guest.company_address or "",
     }
 
-    # Invoice splits: find via HotelGuest records linked to this guest
-    hotel_guest_ids = [
-        hg.id for hg in db.query(HotelGuest.id).filter(HotelGuest.guest_id == guest_id).all()
-    ]
-
-    splits = []
-    if hotel_guest_ids:
-        split_rows = (
-            db.query(InvoiceSplit, HotelRoom.room_number, Branch.name.label("branch_name"), User.name.label("printed_by_name"))
-            .join(HotelStay, HotelStay.id == InvoiceSplit.stay_id)
-            .outerjoin(HotelRoom, HotelRoom.id == HotelStay.room_id)
-            .outerjoin(Branch, Branch.id == HotelStay.branch_id)
-            .outerjoin(User, User.id == InvoiceSplit.printed_by)
-            .filter(InvoiceSplit.hotel_guest_id.in_(hotel_guest_ids))
-            .order_by(InvoiceSplit.created_at.desc())
-            .limit(100)
-            .all()
-        )
-        for row, room_number, branch_name, printed_by_name in split_rows:
-            splits.append({
-                "id": row.id,
-                "folio_id": row.folio_id,
-                "stay_id": row.stay_id,
-                "room_number": room_number,
-                "branch_name": branch_name,
-                "split_amount": float(row.split_amount) if row.split_amount else 0,
-                "invoice_name": row.invoice_name or "",
-                "invoice_tax_code": row.invoice_tax_code or "",
-                "invoice_contact": row.invoice_contact or "",
-                "invoice_address": row.invoice_address or "",
-                "notes": row.notes or "",
-                "printed_at": row.printed_at.isoformat() if row.printed_at else None,
-                "printed_by_name": printed_by_name or "",
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-            })
-
     return JSONResponse({
         "guest_id": guest_id,
         "invoice_info": invoice_info,
-        "invoice_splits": splits,
-        "total_splits": len(splits),
     })
 
 

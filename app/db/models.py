@@ -1217,34 +1217,6 @@ class Folio(Base):
         self.total_paid   = payments
         self.balance      = charges - payments
 
-
-class InvoiceSplit(Base):
-    """Hoá đơn con tách từ folio gốc — chỉ để in, không ảnh hưởng ledger."""
-    __tablename__ = "invoice_splits"
-
-    id              = Column(BIGINT, primary_key=True)
-    folio_id        = Column(BIGINT, ForeignKey("folios.id", ondelete="CASCADE"), nullable=False, index=True)
-    stay_id         = Column(BIGINT, ForeignKey("hotel_stays.id", ondelete="CASCADE"), nullable=False, index=True)
-    hotel_guest_id  = Column(BIGINT, ForeignKey("hotel_guests.id", ondelete="SET NULL"), nullable=True)
-    split_amount    = Column(NUMERIC(15, 2), nullable=False)
-    line_items      = Column(JSONB, server_default='[]', nullable=False)
-    invoice_name    = Column(String(255), nullable=True)
-    invoice_tax_code = Column(String(50), nullable=True)
-    invoice_contact = Column(String(255), nullable=True)
-    invoice_address = Column(Text, nullable=True)
-    notes           = Column(Text, nullable=True)
-    printed_at      = Column(DateTime(timezone=True), nullable=True)
-    printed_by      = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    created_at      = Column(DateTime(timezone=True), server_default=func.now())
-    created_by      = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-
-    folio       = relationship("Folio")
-    stay        = relationship("HotelStay")
-    guest       = relationship("HotelGuest")
-    creator     = relationship("User", foreign_keys=[created_by])
-    printer     = relationship("User", foreign_keys=[printed_by])
-
-
 class FolioTransactionType(str, enum.Enum):
     # Charge (+)
     ROOM_CHARGE       = "ROOM_CHARGE"        # Tiền phòng
