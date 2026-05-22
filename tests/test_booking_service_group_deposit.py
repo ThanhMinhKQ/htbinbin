@@ -38,6 +38,18 @@ class InventoryStub:
         return None
 
 
+class RecordingInventoryStub:
+    def __init__(self):
+        self.releases = []
+        self.reserves = []
+
+    def release_booking(self, *args, **kwargs):
+        self.releases.append(args)
+
+    def reserve_booking(self, *args, **kwargs):
+        self.reserves.append(args)
+
+
 class BookingServiceGroupDepositTest(unittest.TestCase):
     def test_group_reservation_uses_single_room_deposit_allocation(self):
         room_type = SimpleNamespace(id=11, branch_id=1, name="Deluxe")
@@ -176,6 +188,65 @@ class BookingServiceGroupDepositTest(unittest.TestCase):
         self.assertEqual(float(bookings[0].total_price), 450_000)
         self.assertEqual(float(bookings[0].deposit_amount), 100_000)
         self.assertTrue(bookings[0].raw_data["manual_total_override"])
+
+    def test_update_confirmed_reservation_keeps_reserved_room_type_in_sync(self):
+        booking = SimpleNamespace(
+            id=206,
+            branch_id=15,
+            reservation_status="CONFIRMED",
+            status=None,
+            raw_data={
+                "room_type_id": 57,
+                "reservation_inventory_reserved": True,
+                "reservation_reserved_room_type_id": 56,
+                "reservation_reserved_check_in": "2026-05-23",
+                "reservation_reserved_check_out": "2026-05-24",
+                "reservation_reserved_qty": 1,
+            },
+            room_type="Deluxe",
+            assigned_room_id=None,
+            assigned_room=None,
+            check_in=date(2026, 5, 23),
+            check_out=date(2026, 5, 24),
+            guest_name="Nguyen Van A",
+            guest_phone=None,
+            booking_type="DIRECT",
+            booking_source="Direct",
+            external_id="B17-001",
+            num_guests=1,
+            num_adults=1,
+            num_children=0,
+            total_price=900_000,
+            deposit_amount=0,
+            payment_method=None,
+            special_requests=None,
+            internal_notes=None,
+            estimated_arrival=None,
+            guest_id=123,
+            confirmed_at=object(),
+            updated_by=None,
+            updated_at=None,
+        )
+        room_type = SimpleNamespace(id=57, branch_id=15, name="Deluxe Flexible")
+        db = DbStub([[booking], [room_type]])
+        service = BookingService(db)
+        inventory = RecordingInventoryStub()
+        service.inventory = inventory
+        service._log_booking_activity = lambda *args, **kwargs: None
+        service._post_booking_deposit_once = lambda *args, **kwargs: None
+
+        service.update_reservation(206, {
+            "room_type_id": 57,
+            "reservation_status": "CONFIRMED",
+            "check_in": "2026-05-23",
+            "check_out": "2026-05-24",
+            "raw_data": {"reservation_reserved_room_type_id": 56},
+        }, user_id=9)
+
+        self.assertEqual(booking.raw_data["room_type_id"], 57)
+        self.assertEqual(booking.raw_data["reservation_reserved_room_type_id"], 57)
+        self.assertEqual(inventory.releases[0][2], 56)
+        self.assertEqual(inventory.reserves[0][2], 57)
 
     def test_multi_room_group_reservation_distributes_manual_total_by_reference(self):
         deluxe = SimpleNamespace(id=11, branch_id=1, name="Deluxe")

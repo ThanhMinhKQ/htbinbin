@@ -1046,6 +1046,9 @@ class BookingService:
             if reason:
                 booking.assigned_room_id = None
 
+        booking.guest_id = None
+        raw.pop("selected_crm_guest_id", None)
+
         booking.raw_data = raw
         if new_status == "CONFIRMED":
             if not room_type_id:
@@ -1056,10 +1059,6 @@ class BookingService:
                 booking.confirmed_at = self._now()
         else:
             self._mark_unreserved(booking)
-
-        booking.guest_id = None
-        raw.pop("selected_crm_guest_id", None)
-        booking.raw_data = raw
 
         booking.updated_by = user_id
         booking.updated_at = self._now()
