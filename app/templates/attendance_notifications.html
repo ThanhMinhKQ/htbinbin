@@ -1,0 +1,1768 @@
+{% extends "base.html" %}
+{% set active_page = "shift-notifications" %}
+{% block title %}Thông báo ca{% endblock %}
+{% block page_title %}Thông báo ca{% endblock %}
+
+{% block content %}
+<div class="p-4 sm:p-6 lg:p-8" x-data="shiftNotificationAdmin({ canManage: {{ can_manage_shift_notifications|tojson }} })" x-init="init()">
+  <style>
+    [x-cloak] { display: none !important; }
+    .sn-panel {
+      background: #fff;
+      border: 1px solid rgb(226 232 240);
+      border-radius: 1.25rem;
+      box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+    }
+    .dark .sn-panel {
+      background: rgba(30, 41, 59, 0.5);
+      border-color: rgb(30 41 59);
+    }
+    .sn-control {
+      width: 100%;
+      border-radius: 0.75rem;
+      border: 1px solid rgb(203 213 225);
+      background: #fff;
+      padding: 0.625rem 1rem;
+      color: rgb(15 23 42);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      transition: all .2s;
+      outline: none;
+      font-size: 0.875rem;
+    }
+    .sn-control:focus {
+      border-color: rgb(59 130 246);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+    .dark .sn-control {
+      border-color: rgb(71 85 105);
+      background: rgb(51 65 85);
+      color: #fff;
+    }
+    .sn-stat {
+      background: rgba(248, 250, 252, 0.88);
+      border: 1px solid rgba(226, 232, 240, 0.9);
+      border-radius: 1rem;
+      padding: 1.25rem;
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+      min-height: 104px;
+      min-width: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .sn-stat:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+      border-color: rgb(203 213 225);
+    }
+    .dark .sn-stat {
+      background: rgba(15, 23, 42, 0.58);
+      border-color: rgb(51 65 85);
+    }
+    .sn-overview-logo {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      width: 14rem;
+      height: 14rem;
+      color: rgb(37 99 235);
+      opacity: 0.05;
+      transform: translateY(-50%) rotate(-15deg);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .dark .sn-overview-logo {
+      color: rgb(96 165 250);
+      opacity: 0.04;
+    }
+    .sn-stat-mark {
+      position: absolute;
+      right: -0.9rem;
+      bottom: -1.1rem;
+      width: 4.75rem;
+      height: 4.75rem;
+      opacity: 0.08;
+      transform: rotate(-18deg);
+      pointer-events: none;
+    }
+    .sn-overview-row {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 1rem;
+      overflow: visible;
+    }
+    @media (max-width: 1100px) {
+      .sn-overview-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .sn-overview-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sn-stat { min-height: 86px; padding: 0.85rem; }
+    }
+    .sn-checkbox {
+      width: 1.125rem;
+      height: 1.125rem;
+      border-radius: 0.375rem;
+      border-color: rgb(203 213 225);
+      color: rgb(37 99 235);
+      transition: all 0.2s;
+    }
+    .sn-checkbox:focus {
+      --tw-ring-color: rgba(59, 130, 246, 0.5);
+    }
+    .dark .sn-checkbox {
+      border-color: rgb(71 85 105);
+      background-color: rgb(30 41 59);
+    }
+    .sn-line-clamp {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .sn-skeleton {
+      background: linear-gradient(90deg, rgba(148,163,184,.18), rgba(148,163,184,.32), rgba(148,163,184,.18));
+      background-size: 200% 100%;
+      animation: snPulse 1.2s ease-in-out infinite;
+      border-radius: 0.5rem;
+    }
+    @keyframes snPulse {
+      from { background-position: 200% 0; }
+      to { background-position: -200% 0; }
+    }
+    .sn-attachment-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgb(226 232 240);
+      background-color: rgb(248 250 252);
+      padding: 0.375rem 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: rgb(37 99 235);
+      text-decoration: none;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+    .sn-attachment-badge:hover {
+      background-color: rgb(241 245 249);
+      border-color: rgb(203 213 225);
+    }
+    .dark .sn-attachment-badge {
+      border-color: rgb(51 65 85);
+      background-color: rgb(15, 23, 42);
+      color: rgb(96 165 250);
+    }
+    .dark .sn-attachment-badge:hover {
+      background-color: rgb(30, 41, 59);
+      border-color: rgb(71, 85, 105);
+    }
+    @keyframes sn-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .sn-upload-spinner {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.375rem;
+      background: rgba(37, 99, 235, 0.08);
+      color: rgb(37, 99, 235);
+      font-size: 0.875rem;
+      animation: sn-pulse 1.5s infinite ease-in-out;
+    }
+    .sn-editor-select {
+      display: inline-flex;
+      height: 2rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgb(226 232 240);
+      background-color: #fff;
+      padding: 0 0.5rem;
+      font-size: 0.75rem;
+      color: rgb(51 65 85);
+      outline: none;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .dark .sn-editor-select {
+      border-color: rgb(71 85 105);
+      background-color: rgb(15 23 42);
+      color: rgb(203 213 225);
+    }
+    .sn-editor-shell {
+      display: flex;
+      min-height: 0;
+      height: clamp(240px, 40dvh, 420px);
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid rgb(203 213 225);
+      border-radius: 0.875rem;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .sn-editor-shell:focus-within {
+      border-color: rgb(59 130 246);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+    }
+    .dark .sn-editor-shell {
+      border-color: rgb(71 85 105);
+      background: rgb(15 23 42);
+    }
+    .sn-editor-toolbar {
+      display: flex;
+      flex: 0 0 auto;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      border-bottom: 1px solid rgb(226 232 240);
+      background: rgb(248 250 252);
+      padding: 0.5rem;
+    }
+    .dark .sn-editor-toolbar {
+      border-color: rgb(51 65 85);
+      background: rgb(30 41 59);
+    }
+    .sn-editor-btn {
+      display: inline-flex;
+      min-width: 2rem;
+      height: 2rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.5rem;
+      padding: 0 0.55rem;
+      color: rgb(51 65 85);
+      font-size: 0.8rem;
+      font-weight: 800;
+      transition: background .15s, color .15s;
+    }
+    .sn-editor-btn:hover {
+      background: #fff;
+      color: rgb(37 99 235);
+    }
+    .dark .sn-editor-btn {
+      color: rgb(203 213 225);
+    }
+    .dark .sn-editor-btn:hover {
+      background: rgb(51 65 85);
+      color: #fff;
+    }
+    .sn-editor-area {
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      padding: 1rem;
+      color: rgb(15 23 42);
+      line-height: 1.65;
+      outline: none;
+      word-break: break-word;
+    }
+    @media (max-width: 1023px) {
+      .sn-editor-shell { height: min(300px, 38vh); }
+    }
+    @media (max-width: 640px) {
+      .sn-editor-shell { height: 260px; }
+    }
+    .dark .sn-editor-area {
+      color: rgb(241 245 249);
+    }
+    .sn-editor-area:empty::before {
+      content: attr(data-placeholder);
+      color: rgb(148 163 184);
+    }
+    .sn-rich-content {
+      line-height: 1.65;
+      word-break: break-word;
+    }
+    .sn-rich-content p { margin: 0 0 0.65rem; }
+    .sn-rich-content ul, .sn-rich-content ol { 
+      margin: 0.5rem 0 0.75rem 0.25rem; 
+      padding-left: 1.5rem;
+    }
+    .sn-rich-content ul { list-style-type: disc; }
+    .sn-rich-content ol { list-style-type: decimal; }
+    .sn-rich-content li { 
+      margin-bottom: 0.25rem;
+      display: list-item;
+    }
+    .sn-rich-content blockquote {
+      margin: 0.75rem 0;
+      border-left: 3px solid rgb(59 130 246);
+      padding-left: 0.75rem;
+      color: rgb(71 85 105);
+    }
+    .dark .sn-rich-content blockquote { color: rgb(203 213 225); }
+    .sn-rich-content a { color: rgb(37 99 235); text-decoration: underline; }
+    .sn-rich-content img {
+      display: block;
+      max-width: 100%;
+      max-height: 360px;
+      margin: 0.75rem 0;
+      border-radius: 0.75rem;
+      border: 1px solid rgb(226 232 240);
+    }
+    .sn-rich-preview {
+      max-height: 2.75rem;
+      overflow: hidden;
+    }
+    .sn-modal-overlay {
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 2147482500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100dvh;
+      max-height: 100dvh;
+      overflow: hidden;
+      padding: 12px;
+      background: rgba(15, 23, 42, 0.42);
+      backdrop-filter: blur(8px);
+    }
+    .sn-modal-shell {
+      display: flex;
+      width: min(1080px, calc(100vw - 24px));
+      height: min(800px, calc(100dvh - 24px));
+      max-height: calc(100dvh - 24px);
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 1.25rem;
+      background: #fff;
+      box-shadow: 0 28px 80px -24px rgba(15, 23, 42, 0.55), 0 0 0 1px rgba(15, 23, 42, 0.05);
+    }
+    .dark .sn-detail-shell,
+    .dark .sn-modal-shell {
+      background: rgb(30 41 59);
+      box-shadow: 0 28px 80px -24px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+    .sn-detail-shell {
+      display: flex;
+      width: min(880px, calc(100vw - 24px));
+      max-height: calc(100dvh - 24px);
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      border-radius: 1.25rem;
+      background: #fff;
+      box-shadow: 0 28px 80px -24px rgba(15, 23, 42, 0.55), 0 0 0 1px rgba(15, 23, 42, 0.05);
+    }
+    .sn-modal-head,
+    .sn-modal-foot {
+      flex: 0 0 auto;
+    }
+    .sn-modal-form {
+      display: flex;
+      min-height: 0;
+      flex: 1 1 auto;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sn-modal-body {
+      display: grid;
+      min-height: 0;
+      flex: 1 1 auto;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      overflow: hidden;
+    }
+    .sn-modal-main,
+    .sn-modal-side {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .sn-modal-main {
+      border-right: 1px solid rgb(226 232 240);
+    }
+    .dark .sn-modal-main {
+      border-color: rgb(51 65 85);
+    }
+    @media (max-width: 1023px) {
+      .sn-modal-shell {
+        height: min(820px, calc(100dvh - 24px));
+      }
+      .sn-modal-body {
+        display: block;
+        overflow-y: auto;
+      }
+      .sn-modal-main,
+      .sn-modal-side {
+        overflow: visible;
+      }
+      .sn-modal-main {
+        border-right: 0;
+        border-bottom: 1px solid rgb(226 232 240);
+      }
+      .dark .sn-modal-main {
+        border-color: rgb(51 65 85);
+      }
+      .sn-editor-shell { height: clamp(220px, 34dvh, 300px); }
+    }
+    @media (max-width: 640px) {
+      .sn-modal-overlay {
+        padding: 8px;
+      }
+      .sn-modal-shell {
+        width: calc(100vw - 16px);
+        height: calc(100dvh - 16px);
+        max-height: calc(100dvh - 16px);
+        border-radius: 0.875rem;
+      }
+      .sn-detail-shell {
+        width: calc(100vw - 16px);
+        max-height: calc(100dvh - 16px);
+        border-radius: 0.875rem;
+      }
+      .sn-editor-shell { height: 240px; }
+    }
+  </style>
+
+
+      <div id="dashboardSection" class="mb-6">
+        <div class="sn-panel relative overflow-hidden p-5">
+      <svg class="sn-overview-logo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="2 2">
+        <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/>
+        <path d="M9 17a3 3 0 0 0 6 0"/>
+        <path d="M12 3V2"/>
+      </svg>
+          <div class="relative z-10 mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <h2 class="text-lg font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+              Tổng quan thông báo
+            </h2>
+          </div>
+          <div class="sn-overview-row relative z-10">
+            <!-- Card 1: Tổng cộng -->
+            <button type="button" @click="setStatusFilter('')" class="sn-stat text-left group bg-gradient-to-br from-white to-blue-50/50 hover:to-blue-100/50 dark:from-slate-800/80 dark:to-blue-900/20">
+              <svg class="sn-stat-mark text-blue-600 dark:text-blue-400 group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <div class="mt-1 text-sm font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Tổng cộng</div>
+                  <div class="mt-1 text-3xl font-black text-slate-800 tracking-tight dark:text-white" x-text="formatNumber(stats.total)">0</div>
+                </div>
+                <div class="rounded-xl bg-blue-100 p-2.5 text-blue-600 shadow-sm transition-transform group-hover:scale-110 group-hover:-rotate-3 dark:bg-blue-500/20 dark:text-blue-400">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+                </div>
+              </div>
+            </button>
+
+            <!-- Card 2: Đang hoạt động -->
+            <button type="button" @click="setStatusFilter('active')" class="sn-stat text-left group bg-gradient-to-br from-white to-emerald-50/50 hover:to-emerald-100/50 dark:from-slate-800/80 dark:to-emerald-900/20">
+              <svg class="sn-stat-mark text-emerald-600 dark:text-emerald-400 group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <div class="mt-1 text-sm font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Đang hoạt động</div>
+                  <div class="mt-1 text-3xl font-black text-slate-800 tracking-tight dark:text-white" x-text="formatNumber(stats.active)">0</div>
+                </div>
+                <div class="rounded-xl bg-emerald-100 p-2.5 text-emerald-600 shadow-sm transition-transform group-hover:scale-110 group-hover:-rotate-3 dark:bg-emerald-500/20 dark:text-emerald-400">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+              </div>
+            </button>
+
+            <!-- Card 3: Hết hiệu lực -->
+            <button type="button" @click="setStatusFilter('expired')" class="sn-stat text-left group bg-gradient-to-br from-white to-red-50/50 hover:to-red-100/50 dark:from-slate-800/80 dark:to-red-900/20">
+              <svg class="sn-stat-mark text-red-600 dark:text-red-400 group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M15 14l-6 6M9 14l6 6"/></svg>
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <div class="mt-1 text-sm font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400 transition-colors">Hết hiệu lực</div>
+                  <div class="mt-1 text-3xl font-black text-slate-800 tracking-tight dark:text-white" x-text="formatNumber(stats.expired)">0</div>
+                </div>
+                <div class="rounded-xl bg-red-100 p-2.5 text-red-600 shadow-sm transition-transform group-hover:scale-110 group-hover:-rotate-3 dark:bg-red-500/20 dark:text-red-400">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M15 14l-6 6M9 14l6 6"/></svg>
+                </div>
+              </div>
+            </button>
+
+            <!-- Card 4: Hôm nay -->
+            <button type="button" @click="setStatusFilter('today')" class="sn-stat text-left group bg-gradient-to-br from-white to-amber-50/50 hover:to-amber-100/50 dark:from-slate-800/80 dark:to-amber-900/20">
+              <svg class="sn-stat-mark text-amber-500 dark:text-amber-400 group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <div class="mt-1 text-sm font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">Hôm nay</div>
+                  <div class="mt-1 text-3xl font-black text-slate-800 tracking-tight dark:text-white" x-text="formatNumber(stats.today)">0</div>
+                </div>
+                <div class="rounded-xl bg-amber-100 p-2.5 text-amber-600 shadow-sm transition-transform group-hover:scale-110 group-hover:-rotate-3 dark:bg-amber-500/20 dark:text-amber-400">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+              </div>
+            </button>
+
+            <!-- Card 5: Lượt xác nhận -->
+            <div class="sn-stat text-left group cursor-default bg-gradient-to-br from-white to-violet-50/50 hover:to-violet-100/50 dark:from-slate-800/80 dark:to-violet-900/20">
+              <svg class="sn-stat-mark text-violet-600 dark:text-violet-400 group-hover:scale-110 group-hover:-translate-y-1 transition-transform duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+              <div class="flex items-start justify-between relative z-10">
+                <div>
+                  <div class="mt-1 text-sm font-bold text-slate-500 uppercase tracking-wider dark:text-slate-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">Lượt xác nhận</div>
+                  <div class="mt-1 text-3xl font-black text-slate-800 tracking-tight dark:text-white" x-text="formatNumber(stats.acknowledged)">0</div>
+                </div>
+                <div class="rounded-xl bg-violet-100 p-2.5 text-violet-600 shadow-sm transition-transform group-hover:scale-110 group-hover:-rotate-3 dark:bg-violet-500/20 dark:text-violet-400">
+                  <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <div class="sn-panel mb-6">
+    <div class="p-4">
+      <form class="space-y-4" @submit.prevent="applyFilters()">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 {% if can_manage_shift_notifications %}lg:grid-cols-5{% else %}lg:grid-cols-4{% endif %}">
+          {% if can_manage_shift_notifications %}
+          <div>
+            <select class="sn-control" x-model="filters.branch_id" @change="applyFilters()">
+              <option value="">Tất cả chi nhánh</option>
+              {% for branch in branches %}
+              <option value="{{ branch.id }}">{{ branch.branch_code }} - {{ branch.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div>
+            <select class="sn-control" x-model="filters.status" @change="applyFilters()">
+              <option value="">Tất cả trạng thái</option>
+              <option value="active">Đang hoạt động</option>
+              <option value="scheduled">Đã lập lịch</option>
+              <option value="expired">Hết hiệu lực</option>
+              <option value="inactive">Đang tắt</option>
+              <option value="today">Thông báo hôm nay</option>
+            </select>
+          </div>
+          <div>
+            <select class="sn-control" x-model="filters.priority" @change="applyFilters()">
+              <option value="">Tất cả mức độ</option>
+              <option value="urgent">Khẩn cấp</option>
+              <option value="high">Quan trọng</option>
+              <option value="normal">Bình thường</option>
+              <option value="low">Thông tin</option>
+            </select>
+          </div>
+          <div>
+            <select class="sn-control" x-model="filters.shift" @change="applyFilters()">
+              <option value="">Tất cả ca</option>
+              <option value="CS">Ca sáng</option>
+              <option value="CT">Ca tối</option>
+            </select>
+          </div>
+          <div>
+            <select class="sn-control" x-model="filters.role" @change="applyFilters()">
+              <option value="">Tất cả vai trò</option>
+              <template x-for="role in roles" :key="role.value">
+                <option :value="role.value" x-text="role.label"></option>
+              </template>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(320px,1fr)_auto] lg:items-center">
+          <div class="relative">
+            <input class="sn-control pr-10" x-model="filters.q" placeholder="Tìm tiêu đề, nội dung..." @keydown.enter.prevent="applyFilters()">
+            <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-blue-600 dark:hover:bg-slate-700">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            </button>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <button type="submit" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-blue-700">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 4h18M7 12h10M10 20h4"/></svg>
+              Áp dụng
+            </button>
+            <button type="button" @click="resetFilters()" class="inline-flex items-center gap-2 rounded-lg bg-slate-200 px-5 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-300 dark:bg-slate-600 dark:text-slate-100 dark:hover:bg-slate-500">
+              Xóa bộ lọc
+            </button>
+            {% if can_manage_shift_notifications %}
+            <button type="button" @click="openCreate()" class="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-green-500 to-blue-500 px-5 py-2 text-sm font-semibold text-white shadow-md transition hover:from-blue-600 hover:to-green-600">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+              Thêm mới
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+      <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm dark:bg-slate-800 dark:border-slate-700">
+        <div class="flex flex-wrap items-center gap-3">
+          {% if can_manage_shift_notifications %}
+          <button type="button" x-show="selectedIds.length" x-cloak @click="bulkDelete()" class="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 0 0-.9.6L7.4 4H4a1 1 0 1 0 0 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a1 1 0 1 0 0-2h-3.4l-.7-1.4A1 1 0 0 0 11 2H9ZM7 8a1 1 0 0 1 2 0v6a1 1 0 1 1-2 0V8Zm5-1a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0V8a1 1 0 0 0-1-1Z" clip-rule="evenodd"/></svg>
+            Xóa <span x-text="selectedIds.length"></span> mục
+          </button>
+          {% endif %}
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">Hiển thị</span>
+            <select x-model.number="perPage" @change="changePerPage()" class="sn-control py-1.5 pl-3 pr-8 text-sm w-20 flex-none bg-slate-50 border-slate-200 hover:border-blue-400 dark:bg-slate-900/50 dark:border-slate-700 dark:hover:border-blue-500 transition-colors">
+              <option :value="10">10</option>
+              <option :value="50">50</option>
+              <option :value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <div class="text-sm text-slate-500 dark:text-slate-400 font-medium bg-slate-50 dark:bg-slate-900/50 px-3.5 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700/50 hidden sm:block whitespace-nowrap">
+            Đang xem <span class="font-bold text-slate-800 dark:text-slate-200" x-text="items.length"></span> / <span x-text="formatNumber(total)"></span> bản ghi
+          </div>
+
+          <div class="flex flex-wrap justify-center gap-1 text-sm text-slate-700 dark:text-slate-300" x-show="totalPages > 1">
+            <button type="button" @click="goPage(1)" :disabled="page <= 1" class="rounded-lg border border-slate-200 px-2.5 py-1.5 transition hover:bg-slate-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-slate-700 dark:border-slate-700 dark:hover:bg-slate-700 dark:disabled:hover:text-slate-300">«</button>
+            <button type="button" @click="goPage(page - 1)" :disabled="page <= 1" class="rounded-lg border border-slate-200 px-2.5 py-1.5 transition hover:bg-slate-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-slate-700 dark:border-slate-700 dark:hover:bg-slate-700 dark:disabled:hover:text-slate-300">‹</button>
+            <template x-for="pageNo in paginationPages()" :key="pageNo">
+              <button type="button" @click="goPage(pageNo)" class="rounded-lg border px-3 py-1.5 transition font-medium" :class="pageNo === page ? 'bg-blue-600 text-white border-blue-600 shadow-sm hover:bg-blue-700' : 'border-slate-200 hover:bg-slate-50 hover:text-blue-600 dark:border-slate-700 dark:hover:bg-slate-700'" x-text="pageNo"></button>
+            </template>
+            <button type="button" @click="goPage(page + 1)" :disabled="page >= totalPages" class="rounded-lg border border-slate-200 px-2.5 py-1.5 transition hover:bg-slate-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-slate-700 dark:border-slate-700 dark:hover:bg-slate-700 dark:disabled:hover:text-slate-300">›</button>
+            <button type="button" @click="goPage(totalPages)" :disabled="page >= totalPages" class="rounded-lg border border-slate-200 px-2.5 py-1.5 transition hover:bg-slate-50 hover:text-blue-600 disabled:opacity-40 disabled:hover:text-slate-700 dark:border-slate-700 dark:hover:bg-slate-700 dark:disabled:hover:text-slate-300">»</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 sm:hidden text-center text-sm text-slate-500 dark:text-slate-400 font-medium bg-slate-50 dark:bg-slate-900/50 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-700/50">
+        Đang xem <span class="font-bold text-slate-800 dark:text-slate-200" x-text="items.length"></span> / <span x-text="formatNumber(total)"></span> bản ghi
+      </div>
+
+  <div x-show="loading" class="hidden w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md dark:border-slate-800 dark:bg-slate-900/70 lg:block">
+    <div class="overflow-auto">
+      <table class="w-full border-collapse text-left text-sm">
+        <thead class="border-b border-slate-200 bg-gradient-to-b from-slate-100 to-slate-50 text-xs uppercase dark:border-slate-700 dark:from-slate-800 dark:to-slate-700">
+          <tr>
+            {% if can_manage_shift_notifications %}
+            <th class="w-12 px-4 py-3"><div class="sn-skeleton mx-auto h-4 w-4"></div></th>
+            {% endif %}
+            <th class="px-4 py-3"><div class="sn-skeleton h-4 w-28"></div></th>
+            <th class="px-4 py-3"><div class="sn-skeleton h-4 w-20"></div></th>
+            <th class="px-4 py-3"><div class="sn-skeleton h-4 w-24"></div></th>
+            <th class="px-4 py-3"><div class="sn-skeleton h-4 w-24"></div></th>
+            <th class="px-4 py-3"><div class="sn-skeleton h-4 w-20"></div></th>
+            <th class="px-4 py-3"><div class="sn-skeleton h-4 w-20"></div></th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="idx in [1,2,3,4,5,6]" :key="idx">
+            <tr class="border-b border-slate-100 dark:border-slate-800">
+              {% if can_manage_shift_notifications %}
+              <td class="px-4 py-4"><div class="sn-skeleton h-4 w-4"></div></td>
+              {% endif %}
+              <td class="px-4 py-4"><div class="sn-skeleton h-4 w-64"></div><div class="sn-skeleton mt-2 h-3 w-80"></div></td>
+              <td class="px-4 py-4"><div class="sn-skeleton h-7 w-24 rounded-full"></div></td>
+              <td class="px-4 py-4"><div class="sn-skeleton h-4 w-32"></div></td>
+              <td class="px-4 py-4"><div class="sn-skeleton h-4 w-36"></div></td>
+              <td class="px-4 py-4"><div class="sn-skeleton h-7 w-12"></div></td>
+              <td class="px-4 py-4"><div class="sn-skeleton h-7 w-24"></div></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div x-show="!loading" class="hidden w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900/70 dark:shadow-none lg:block">
+    <div class="max-h-[65vh] overflow-y-auto overflow-x-hidden">
+      <table class="w-full table-fixed border-collapse text-left text-sm">
+        <colgroup>
+          {% if can_manage_shift_notifications %}
+          <col style="width: 3%;">
+          <col style="width: 34%;">
+          <col span="6" style="width: 10.5%;">
+          {% else %}
+          <col style="width: 37%;">
+          <col span="5" style="width: 12.6%;">
+          {% endif %}
+        </colgroup>
+        <thead class="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/90 backdrop-blur-sm text-xs uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300">
+          <tr>
+            {% if can_manage_shift_notifications %}
+            <th class="px-2 py-4 text-center">
+              <input class="sn-checkbox" type="checkbox" :checked="items.length && items.every(item => selectedIds.includes(item.id))" @change="toggleAll($event.target.checked)">
+            </th>
+            {% endif %}
+            <th class="px-4 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Thông báo</th>
+            <th class="px-2 py-4 text-center font-bold tracking-wider text-slate-500 dark:text-slate-400">Trạng thái</th>
+            <th class="px-2 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Mức độ</th>
+            <th class="px-2 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Đối tượng</th>
+            <th class="px-2 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Hiệu lực</th>
+            <th class="px-2 py-4 text-center font-bold tracking-wider text-slate-500 dark:text-slate-400">Xác nhận</th>
+            {% if can_manage_shift_notifications %}
+            <th class="px-2 py-4 text-center font-bold tracking-wider text-slate-500 dark:text-slate-400">Thao tác</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
+          <template x-for="item in items" :key="item.id">
+            <tr @click="openDetail(item)" class="group cursor-pointer bg-white transition-all hover:bg-blue-50/40 relative z-0 hover:z-10 dark:bg-slate-900 dark:hover:bg-slate-800/50">
+              {% if can_manage_shift_notifications %}
+              <td class="px-2 py-4 text-center align-middle" @click.stop>
+                <input class="sn-checkbox" type="checkbox" :checked="selectedIds.includes(item.id)" @change="toggleItem(item.id, $event.target.checked)">
+              </td>
+              {% endif %}
+              <td class="min-w-0 px-4 py-4 align-middle">
+                <div class="min-w-0 max-w-full">
+                  <div class="truncate text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors dark:text-white dark:group-hover:text-blue-400" :title="item.title" x-text="item.title"></div>
+                  <p class="mt-1 sn-line-clamp text-sm leading-relaxed text-slate-500 group-hover:text-slate-600 dark:text-slate-400 dark:group-hover:text-slate-300" :title="plainText(item.body)" x-text="plainText(item.body)"></p>
+                  <div class="mt-2 flex min-w-0 items-center gap-2 text-xs font-medium text-slate-400">
+                    <span class="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <span x-text="`${item.min_read_seconds || 5}s bắt buộc`"></span>
+                    </span>
+                    <span>·</span>
+                    <span class="truncate" x-text="formatDate(item.created_at)"></span>
+                  </div>
+                </div>
+              </td>
+              <td class="px-2 py-4 text-center align-middle">
+                <span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold shadow-sm" :class="statusClass(item.status)" :title="statusLabel(item.status)" x-text="statusLabel(item.status)"></span>
+              </td>
+              <td class="px-2 py-4 align-middle">
+                <span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold shadow-sm" :class="priorityClass(item.priority)" :title="priorityLabel(item.priority)" x-text="priorityLabel(item.priority)"></span>
+              </td>
+              <td class="px-2 py-4 align-middle text-[11px] text-slate-600 dark:text-slate-300">
+                <div class="whitespace-nowrap font-semibold text-slate-800 dark:text-slate-200" :title="shiftLabel(item.schedule_shift)" x-text="shiftLabel(item.schedule_shift)"></div>
+                <div class="mt-1 whitespace-nowrap text-slate-500" :title="audienceLabel(item)" x-text="audienceLabel(item)"></div>
+              </td>
+              <td class="px-2 py-4 align-middle text-[11px] text-slate-600 dark:text-slate-300">
+                <div class="whitespace-nowrap font-medium text-slate-800 dark:text-slate-200" :title="formatDate(item.starts_at) || 'Không giới hạn'" x-text="formatDate(item.starts_at) || 'Không giới hạn'"></div>
+                <div class="mt-1 whitespace-nowrap text-slate-500" :title="`đến ${formatDate(item.ends_at) || 'Không giới hạn'}`">đến <span class="font-medium" x-text="formatDate(item.ends_at) || 'Không giới hạn'"></span></div>
+              </td>
+              <td class="px-2 py-4 text-center align-middle">
+                <span class="text-sm font-bold text-slate-800 dark:text-slate-100" x-text="formatNumber(item.read_count || 0)"></span>
+              </td>
+              {% if can_manage_shift_notifications %}
+              <td class="px-2 py-4 text-center align-middle" @click.stop>
+                <div class="inline-flex max-w-full items-center justify-center gap-1.5">
+                  <button type="button" @click="openEdit(item)" class="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-blue-600 hover:shadow-sm ring-1 ring-transparent hover:ring-slate-200 dark:hover:bg-slate-800 dark:hover:text-blue-400 dark:hover:ring-slate-700" title="Sửa">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                  </button>
+                  <button type="button" @click="deleteItem(item)" class="rounded-lg p-2 text-slate-400 transition hover:bg-white hover:text-red-600 hover:shadow-sm ring-1 ring-transparent hover:ring-slate-200 dark:hover:bg-slate-800 dark:hover:text-red-400 dark:hover:ring-slate-700" title="Xóa">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                  </button>
+                </div>
+              </td>
+              {% endif %}
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+    <div x-show="!items.length" class="border-t border-slate-200 p-16 text-center dark:border-slate-700">
+      <div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+      </div>
+      <div class="mt-4 text-base font-bold text-slate-700 dark:text-slate-200">Không có thông báo phù hợp</div>
+      <p class="mt-1 text-sm text-slate-500">{% if can_manage_shift_notifications %}Thử thay đổi bộ lọc hoặc tạo thông báo mới.{% else %}Thử thay đổi bộ lọc để xem các thông báo phù hợp.{% endif %}</p>
+      <button type="button" @click="resetFilters()" class="mt-4 text-sm font-bold text-blue-600 transition-colors hover:text-blue-700">Xóa bộ lọc</button>
+    </div>
+  </div>
+
+  <div x-show="!loading" class="block space-y-4 lg:hidden">
+    <template x-for="item in items" :key="item.id">
+      <article @click="openDetail(item)" class="cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex min-w-0 items-start gap-3">
+            {% if can_manage_shift_notifications %}
+            <input class="sn-checkbox mt-1" type="checkbox" :checked="selectedIds.includes(item.id)" @change="toggleItem(item.id, $event.target.checked)" @click.stop>
+            {% endif %}
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-1">
+                <h3 class="truncate text-base font-bold text-slate-900 dark:text-white" x-text="item.title"></h3>
+                <span class="rounded-full px-2.5 py-0.5 text-xs font-bold" :class="statusClass(item.status)" x-text="statusLabel(item.status)"></span>
+              </div>
+              <p class="sn-line-clamp mt-1.5 text-sm leading-relaxed text-slate-500 dark:text-slate-400" x-text="plainText(item.body)"></p>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-4 text-xs font-medium text-slate-500 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+          <div>
+            <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Mức độ</div>
+            <span class="inline-flex rounded-full px-2.5 py-1 font-semibold" :class="priorityClass(item.priority)" x-text="priorityLabel(item.priority)"></span>
+          </div>
+          <div>
+            <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Xác nhận</div>
+            <div class="font-bold text-slate-800 dark:text-slate-100 text-sm" x-text="formatNumber(item.read_count || 0)"></div>
+          </div>
+          <div class="col-span-2 sm:col-span-1">
+            <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Đối tượng</div>
+            <div class="sn-line-clamp text-slate-700 dark:text-slate-200" x-text="audienceLabel(item)"></div>
+          </div>
+          <div class="col-span-2 sm:col-span-1">
+            <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Hiệu lực</div>
+            <div class="whitespace-normal break-words text-slate-700 dark:text-slate-200" x-text="formatDate(item.starts_at) || 'Không giới hạn'"></div>
+          </div>
+        </div>
+        {% if can_manage_shift_notifications %}
+        <div class="mt-4 flex justify-end gap-2" @click.stop>
+          <button type="button" @click="openEdit(item)" class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400" title="Sửa">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button type="button" @click="deleteItem(item)" class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-500 shadow-sm transition hover:border-red-300 hover:bg-red-50 hover:text-red-600 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-red-800 dark:hover:bg-red-900/20 dark:hover:text-red-400" title="Xóa">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+        </div>
+        {% endif %}
+      </article>
+    </template>
+    <div x-show="!items.length" class="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div class="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-900/50">
+        <svg class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+      </div>
+      <div class="text-base font-bold text-slate-700 dark:text-slate-200">Không có thông báo phù hợp</div>
+      <p class="mt-1 text-sm text-slate-500">{% if can_manage_shift_notifications %}Thử thay đổi bộ lọc hoặc tạo thông báo mới.{% else %}Thử thay đổi bộ lọc để xem các thông báo phù hợp.{% endif %}</p>
+    </div>
+  </div>
+
+  <template x-teleport="body">
+  <div x-cloak x-show="detailOpen" class="sn-modal-overlay" @keydown.escape.window="closeDetail()">
+      <div class="sn-detail-shell shadow-2xl ring-1 ring-slate-900/5 dark:ring-white/10" @click.outside="closeDetail()">
+      <div class="flex items-start justify-between gap-4 border-b border-slate-200 p-5 bg-white dark:border-slate-700 dark:bg-slate-800">
+        <div class="min-w-0">
+          <div class="flex items-center gap-3">
+            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+              <svg class="h-5 w-5 text-blue-600 dark:text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+            </div>
+            <h2 class="break-words text-xl font-bold text-slate-900 dark:text-white" x-text="detailItem?.title || 'Chi tiết thông báo'"></h2>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center gap-2 pl-[52px]">
+            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="detailItem ? statusClass(detailItem.status) : ''" x-text="detailItem ? statusLabel(detailItem.status) : ''"></span>
+            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="detailItem ? priorityClass(detailItem.priority) : ''" x-text="detailItem ? priorityLabel(detailItem.priority) : ''"></span>
+          </div>
+        </div>
+        <button type="button" @click="closeDetail()" class="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-700">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="min-h-0 flex-1 overflow-y-auto p-5 bg-slate-50/50 dark:bg-slate-900/20" x-show="detailItem">
+        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+          <div class="mb-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+            <span class="flex items-center gap-2">
+              <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              Nội dung chi tiết
+            </span>
+          </div>
+          <div class="sn-rich-content text-sm text-slate-800 dark:text-slate-100" x-html="richBody(detailItem?.body)"></div>
+        </div>
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <svg class="h-4 w-4 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Hiệu lực
+            </div>
+            <div class="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-100" x-text="formatDate(detailItem?.starts_at) || 'Không giới hạn'"></div>
+            <div class="mt-1.5 text-xs text-slate-500 flex items-center gap-1">
+              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              <span x-text="formatDate(detailItem?.ends_at) || 'Không giới hạn'"></span>
+            </div>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <svg class="h-4 w-4 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Cấu hình đọc
+            </div>
+            <div class="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-100" x-text="`${detailItem?.min_read_seconds || 5}s bắt buộc`"></div>
+            <div class="mt-1.5 text-xs text-slate-500 flex items-center gap-1">
+              <span class="inline-flex h-5 items-center justify-center rounded-full bg-violet-100 px-2 font-bold text-violet-700 dark:bg-violet-900/50 dark:text-violet-300" x-text="formatNumber(detailItem?.read_count || 0)"></span> đã xác nhận
+            </div>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <svg class="h-4 w-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              Ca và vai trò
+            </div>
+            <div class="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-100" x-text="shiftLabel(detailItem?.schedule_shift)"></div>
+            <div class="mt-1.5 text-xs text-slate-500 leading-relaxed" x-text="roleAudienceLabel(detailItem)"></div>
+          </div>
+          <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
+            <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <svg class="h-4 w-4 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Chi nhánh
+            </div>
+            <div class="mt-3 text-sm font-semibold text-slate-800 dark:text-slate-100 leading-relaxed" x-text="branchAudienceLabel(detailItem)"></div>
+            <div class="mt-1.5 text-xs text-slate-400">Tạo lúc <span x-text="formatDate(detailItem?.created_at)"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-col-reverse gap-3 border-t border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:justify-end">
+        <button type="button" @click="closeDetail()" class="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Đóng</button>
+        {% if can_manage_shift_notifications %}
+        <button type="button" @click="openEditFromDetail()" class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-700">Sửa thông báo</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  </template>
+
+  <template x-teleport="body">
+  <div x-cloak x-show="modalOpen" class="sn-modal-overlay" @keydown.escape.window="closeModal()">
+    <div class="sn-modal-shell" @click.outside="closeModal()">
+      <div class="sn-modal-head flex items-center justify-between border-b border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+        <div class="flex min-w-0 items-center gap-3">
+          <div class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+            <svg class="h-5 w-5 text-blue-600 dark:text-blue-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+          </div>
+          <div class="min-w-0">
+            <h2 class="truncate text-xl font-bold text-slate-900 dark:text-white" x-text="form.id ? 'Sửa thông báo ca' : 'Thêm thông báo ca'"></h2>
+            <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Thiết lập nội dung, lịch hiệu lực và nhóm nhân viên cần xác nhận.</p>
+          </div>
+        </div>
+        <button type="button" @click="closeModal()" class="rounded-full p-2 text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-700">
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18 18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="shiftNotificationForm" class="sn-modal-form bg-white dark:bg-slate-800" @submit.prevent="submitForm">
+        <div class="sn-modal-body">
+          <div class="sn-modal-main space-y-5 p-5">
+            <div>
+              <label class="mb-1.5 block text-sm font-bold text-slate-700 dark:text-slate-200">Tiêu đề</label>
+              <input x-model.trim="form.title" required class="sn-control focus:ring-2 focus:ring-blue-500/20" placeholder="VD: Bàn giao ca tối, Nội quy mới...">
+            </div>
+            <div>
+              <label class="mb-1.5 flex items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                Nội dung thông báo
+                <span class="text-xs font-normal text-slate-400">(Có thể định dạng, chèn link/ảnh/file)</span>
+              </label>
+              <div class="sn-editor-shell">
+                <!-- Hidden inputs for file uploads -->
+                <input type="file" x-ref="imageFileInput" accept="image/*" class="hidden" @change="handleFileChange($event, true)">
+                <input type="file" x-ref="docFileInput" class="hidden" @change="handleFileChange($event, false)">
+                
+                <div class="sn-editor-toolbar flex items-center justify-between" @mousedown="saveSelection($event)">
+                  <div class="flex flex-wrap gap-2 items-center">
+                    <!-- Text Formatting Group -->
+                    <div class="flex items-center gap-0.5">
+                      <button type="button" class="sn-editor-btn" title="In đậm (Ctrl+B)" @click="editorCommand('bold')">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="In nghiêng (Ctrl+I)" @click="editorCommand('italic')">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Gạch chân (Ctrl+U)" @click="editorCommand('underline')">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Gạch ngang" @click="editorCommand('strikeThrough')">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zm-1 8h16v-2H4v2z"/></svg>
+                      </button>
+                    </div>
+                    
+                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
+
+                    <!-- Paragraph styling select -->
+                    <select class="sn-editor-select min-w-[110px]" @change="editorBlock($event.target.value); $event.target.value = ''" title="Chọn định dạng khối chữ (Tiêu đề, Đoạn văn...)">
+                      <option value="" selected disabled>Định dạng</option>
+                      <option value="p">Đoạn văn (P)</option>
+                      <option value="h1">Tiêu đề lớn (H1)</option>
+                      <option value="h2">Tiêu đề vừa (H2)</option>
+                      <option value="h3">Tiêu đề nhỏ (H3)</option>
+                      <option value="blockquote">Trích dẫn</option>
+                    </select>
+
+                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
+
+                    <!-- Color Pickers Group -->
+                    <div class="flex items-center gap-1">
+                      <span class="relative inline-flex items-center">
+                        <button type="button" class="sn-editor-btn relative" title="Đổi màu chữ" @click="$refs.textColorInput.click()">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 5v12m0 0H5m4 0h4M3 17h18"></path></svg>
+                          <span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-[3px] rounded-full bg-red-500"></span>
+                        </button>
+                        <input type="color" x-ref="textColorInput" class="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none" @input="editorCommand('foreColor', $event.target.value)">
+                      </span>
+                      <span class="relative inline-flex items-center">
+                        <button type="button" class="sn-editor-btn relative" title="Đổi màu nền chữ (Highlight)" @click="$refs.bgColorInput.click()">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-3"></path></svg>
+                          <span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-[3px] rounded-full bg-yellow-300"></span>
+                        </button>
+                        <input type="color" x-ref="bgColorInput" class="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none" @input="editorCommand('hiliteColor', $event.target.value)">
+                      </span>
+                    </div>
+
+                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
+
+                    <!-- Lists Group -->
+                    <div class="flex items-center gap-0.5">
+                      <button type="button" class="sn-editor-btn" title="Tạo danh sách chấm tròn" @click="editorCommand('insertUnorderedList')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="1.5" fill="currentColor"/><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="5" cy="18" r="1.5" fill="currentColor"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6h11M9 12h11M9 18h11"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Tạo danh sách đánh số" @click="editorCommand('insertOrderedList')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h1m-1 2h2m-2 4h2m-2 2h1m1-3H4v3m10-9h7M9 12h12m-12 6h12"/></svg>
+                      </button>
+                    </div>
+
+                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
+
+                    <!-- Alignment Group -->
+                    <div class="flex items-center gap-0.5 hidden sm:flex">
+                      <button type="button" class="sn-editor-btn" title="Canh lề trái" @click="editorCommand('justifyLeft')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h16"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Canh lề giữa" @click="editorCommand('justifyCenter')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M4 18h16"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Canh lề phải" @click="editorCommand('justifyRight')">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M10 12h10M4 18h16"/></svg>
+                      </button>
+                    </div>
+                    
+                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5 hidden sm:block"></span>
+
+                    <!-- Insert Links and Media Group -->
+                    <div class="flex items-center gap-0.5">
+                      <button type="button" class="sn-editor-btn" title="Chèn một liên kết (đường dẫn)" @click="insertLink()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Tải ảnh lên từ máy tính của bạn" @click="$refs.imageFileInput.click()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Chèn ảnh thông qua một đường link URL" @click="insertImage()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Tải file đính kèm lên (Word, PDF, Excel...)" @click="$refs.docFileInput.click()">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      </button>
+                      <button type="button" class="sn-editor-btn" title="Chèn link đến một file tài liệu bên ngoài" @click="insertAttachment()">
+                        <svg class="w-4 h-4" fill="none" stroke-dasharray="1 1" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="flex items-center">
+                    <button type="button" class="sn-editor-btn text-slate-400 hover:text-red-500" title="Xóa toàn bộ định dạng của đoạn văn bản đã chọn" @click="editorCommand('removeFormat')">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7h-8M9 5v4m0 0H5m4 0h4m-4 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div x-ref="editor" 
+                     class="sn-editor-area sn-rich-content" 
+                     contenteditable="true" 
+                     data-placeholder="Soạn nội dung thông báo, có thể định dạng, chèn link, ảnh hoặc file đính kèm..." 
+                     @input="syncEditor()" 
+                     @blur="deferSyncEditor()"
+                     @dragover.prevent
+                     @drop.prevent="handleDrop($event)"
+                     @paste="handlePaste($event)">
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-slate-500">Mẹo: Kéo thả file/ảnh trực tiếp vào khung soạn thảo hoặc dùng phím tắt Ctrl+V/Cmd+V để dán.</p>
+            </div>
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 rounded-xl border border-slate-100 bg-slate-50/50 p-5 dark:border-slate-700/50 dark:bg-slate-900/20">
+              <div>
+                <label class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">Bắt đầu hiệu lực</label>
+                <input x-model="form.starts_at" type="datetime-local" class="sn-control">
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">Kết thúc hiệu lực</label>
+                <input x-model="form.ends_at" type="datetime-local" class="sn-control">
+              </div>
+            </div>
+          </div>
+
+          <div class="sn-modal-side space-y-6 border-l border-slate-200 bg-slate-50/70 p-6 dark:border-slate-700 dark:bg-slate-900/30">
+            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-1">
+              <div>
+                <label class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">Mức độ ưu tiên</label>
+                <select x-model="form.priority" class="sn-control">
+                  <option value="normal">Bình thường</option>
+                  <option value="high">Quan trọng (Nổi bật)</option>
+                  <option value="urgent">Khẩn cấp (Màu đỏ)</option>
+                  <option value="low">Thông tin (Ít nổi bật)</option>
+                </select>
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">Bắt buộc đọc (giây)</label>
+                <input x-model.number="form.min_read_seconds" type="number" min="1" max="120" class="sn-control">
+              </div>
+              <div>
+                <label class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200">Ca áp dụng</label>
+                <select x-model="form.schedule_shift" class="sn-control">
+                  <option value="">Tất cả các ca</option>
+                  <option value="CS">Chỉ Ca sáng</option>
+                  <option value="CT">Chỉ Ca tối</option>
+                </select>
+              </div>
+              <label class="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 shadow-sm transition hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600 cursor-pointer">
+                <input type="checkbox" x-model="form.is_active" class="sn-checkbox h-5 w-5 rounded text-blue-600 focus:ring-blue-500">
+                <span class="min-w-0">
+                  <span class="block text-sm font-bold text-slate-800 dark:text-white">Kích hoạt thông báo</span>
+                  <span class="block truncate text-xs text-slate-500 dark:text-slate-400 mt-0.5">Bỏ chọn để lưu dưới dạng nháp.</span>
+                </span>
+              </label>
+            </div>
+
+            <div class="space-y-5">
+              <div class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 flex flex-col h-[200px]">
+                <div class="border-b border-slate-100 p-3.5 dark:border-slate-700/50 flex-none">
+                  <label class="block text-sm font-bold text-slate-700 dark:text-slate-200">Giới hạn vai trò nhận</label>
+                  <p class="text-xs text-slate-500 mt-1">Bỏ chọn tất cả để gửi cho mọi người</p>
+                </div>
+                <div class="grid grid-cols-2 gap-2 overflow-y-auto p-3.5 flex-1 content-start">
+                  <template x-for="role in roles" :key="role.value">
+                    <label class="flex min-w-0 items-center gap-2 rounded-lg p-2 transition hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer text-sm text-slate-700 dark:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600">
+                      <input type="checkbox" :value="role.value" x-model="form.audience_roles" class="sn-checkbox flex-none rounded text-blue-600 focus:ring-blue-500">
+                      <span class="truncate font-medium whitespace-nowrap" x-text="role.label"></span>
+                    </label>
+                  </template>
+                </div>
+              </div>
+
+              <div class="rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800 flex flex-col h-[220px]">
+                <div class="border-b border-slate-100 p-3.5 dark:border-slate-700/50 flex-none">
+                  <label class="block text-sm font-bold text-slate-700 dark:text-slate-200">Giới hạn chi nhánh</label>
+                  <p class="text-xs text-slate-500 mt-1">Bỏ chọn tất cả để gửi toàn hệ thống</p>
+                </div>
+                <div class="space-y-1.5 overflow-y-auto p-3.5 flex-1 content-start">
+                  {% for branch in branches %}
+                  <label class="flex min-w-0 items-center gap-2 rounded-lg p-2 transition hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer text-sm text-slate-700 dark:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600">
+                    <input type="checkbox" value="{{ branch.id }}" x-model.number="form.branch_ids" class="sn-checkbox flex-none rounded text-blue-600 focus:ring-blue-500">
+                    <span class="truncate font-medium whitespace-nowrap"><span class="text-slate-400 font-normal w-7 inline-block">{{ branch.branch_code }}</span> {{ branch.name }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </form>
+
+      <div class="sn-modal-foot flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/50 p-5 dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:justify-end">
+        <button type="button" @click="closeModal()" class="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Hủy</button>
+        <button type="submit" form="shiftNotificationForm" :disabled="saving" class="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 hover:shadow-blue-500/30 active:bg-blue-800 disabled:opacity-50" x-text="saving ? 'Đang lưu...' : (form.id ? 'Cập nhật' : 'Thêm thông báo')"></button>
+      </div>
+    </div>
+  </div>
+  </template>
+</div>
+
+<div id="sn-branch-data" style="display: none;">
+  {% for branch in branches %}
+  <span data-id="{{ branch.id }}" data-name="{{ branch.branch_code }} - {{ branch.name }}"></span>
+  {% endfor %}
+</div>
+
+<script>
+function shiftNotificationAdmin(options = {}) {
+  const canManage = !!options.canManage;
+  const emptyForm = () => ({
+    id: null,
+    title: '',
+    body: '',
+    priority: 'normal',
+    is_active: true,
+    starts_at: '',
+    ends_at: '',
+    schedule_shift: '',
+    min_read_seconds: 5,
+    audience_roles: [],
+    branch_ids: []
+  });
+
+  return {
+    canManage,
+    items: [],
+    stats: { total: 0, active: 0, expired: 0, today: 0, acknowledged: 0 },
+    filters: { q: '', status: '', priority: '', shift: '', role: '', branch_id: '' },
+    selectedIds: [],
+    page: 1,
+    perPage: 10,
+    total: 0,
+    totalPages: 1,
+    loading: false,
+    saving: false,
+    deleting: false,
+    modalOpen: false,
+    detailOpen: false,
+    detailItem: null,
+    form: emptyForm(),
+    get branchMap() {
+      const map = {};
+      document.querySelectorAll('#sn-branch-data span').forEach(el => {
+        map[el.dataset.id] = el.dataset.name;
+      });
+      return map;
+    },
+    roles: [
+      { value: 'letan', label: 'Lễ tân' },
+      { value: 'buongphong', label: 'Buồng phòng' },
+      { value: 'ktv', label: 'Kỹ thuật' },
+      { value: 'quanly', label: 'Quản lý' },
+      { value: 'manager', label: 'Manager' },
+      { value: 'admin', label: 'Admin' },
+      { value: 'boss', label: 'Boss' }
+    ],
+    async init() {
+      await this.load();
+    },
+    buildParams() {
+      const params = new URLSearchParams({ page: this.page, per_page: this.perPage });
+      Object.entries(this.filters).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) params.set(key, value);
+      });
+      return params;
+    },
+    async load() {
+      this.loading = true;
+      try {
+        const res = await fetch(`/attendance/api/shift-notifications?${this.buildParams().toString()}`, { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('Không thể tải danh sách thông báo');
+        const data = await res.json();
+        this.items = data.items || [];
+        this.stats = { ...this.stats, ...(data.stats || {}) };
+        this.page = data.page || 1;
+        this.perPage = data.per_page || this.perPage;
+        this.total = data.total || 0;
+        this.totalPages = data.total_pages || 1;
+        const currentIds = new Set(this.items.map(item => item.id));
+        this.selectedIds = this.selectedIds.filter(id => currentIds.has(id));
+      } catch (err) {
+        alert(err.message || 'Không thể tải danh sách thông báo');
+      } finally {
+        this.loading = false;
+      }
+    },
+    applyFilters() {
+      this.page = 1;
+      this.load();
+    },
+    resetFilters() {
+      this.filters = { q: '', status: '', priority: '', shift: '', role: '', branch_id: '' };
+      this.page = 1;
+      this.selectedIds = [];
+      this.load();
+    },
+    setStatusFilter(value) {
+      this.filters.status = value;
+      this.page = 1;
+      this.load();
+    },
+    changePerPage() {
+      this.page = 1;
+      this.load();
+    },
+    goPage(pageNo) {
+      if (pageNo < 1 || pageNo > this.totalPages || pageNo === this.page) return;
+      this.page = pageNo;
+      this.load();
+    },
+    paginationPages() {
+      const pages = [];
+      const start = Math.max(1, this.page - 2);
+      const end = Math.min(this.totalPages, this.page + 2);
+      for (let i = start; i <= end; i += 1) pages.push(i);
+      return pages;
+    },
+    openCreate() {
+      if (!this.canManage) return;
+      this.form = emptyForm();
+      this.modalOpen = true;
+      this.refreshEditor();
+    },
+    openEdit(item) {
+      if (!this.canManage) return;
+      this.form = {
+        ...item,
+        starts_at: this.toLocalInput(item.starts_at),
+        ends_at: this.toLocalInput(item.ends_at),
+        schedule_shift: item.schedule_shift || '',
+        audience_roles: [...(item.audience_roles || [])],
+        branch_ids: [...(item.branch_ids || [])].map(Number).filter(Boolean)
+      };
+      this.detailOpen = false;
+      this.modalOpen = true;
+      this.refreshEditor();
+    },
+    openDetail(item) {
+      this.detailItem = item;
+      this.detailOpen = true;
+    },
+    closeDetail() {
+      this.detailOpen = false;
+      this.detailItem = null;
+    },
+    openEditFromDetail() {
+      if (!this.canManage || !this.detailItem) return;
+      this.openEdit(this.detailItem);
+    },
+    closeModal() {
+      if (this.saving) return;
+      this.modalOpen = false;
+    },
+    refreshEditor() {
+      setTimeout(() => {
+        if (this.$refs && this.$refs.editor) {
+          this.$refs.editor.innerHTML = this.richBody(this.form.body || '');
+        }
+      }, 0);
+    },
+    syncEditor() {
+      if (this.$refs && this.$refs.editor) {
+        this.form.body = this.$refs.editor.innerHTML || '';
+      }
+    },
+    deferSyncEditor() {
+      // Defer sync on blur — if focus moves to toolbar buttons, we don't
+      // want to sanitize immediately and destroy list/block structures.
+      setTimeout(() => {
+        if (this.$refs && this.$refs.editor) {
+          this.form.body = this.$refs.editor.innerHTML || '';
+        }
+      }, 150);
+    },
+    savedRange: null,
+    saveSelection(event) {
+      // Prevent default only for buttons/selects, not color inputs
+      const tag = event.target.tagName;
+      if (tag !== 'INPUT') event.preventDefault();
+      // Save current selection range so we can restore it before execCommand
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const editor = this.$refs?.editor;
+        if (editor && editor.contains(range.commonAncestorContainer)) {
+          this.savedRange = range.cloneRange();
+        }
+      }
+    },
+    restoreSelection() {
+      if (!this.savedRange) return;
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(this.savedRange);
+      }
+    },
+    editorCommand(command, value = null) {
+      const editor = this.$refs?.editor;
+      if (!editor) return;
+
+      editor.focus();
+      this.restoreSelection();
+
+      // If still no range inside editor, place cursor at end
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || !editor.contains(sel.anchorNode)) {
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+
+      document.execCommand(command, false, value);
+      // Don't syncEditor() here — the editor's @input event handles it.
+      // Immediate sync after list/block commands causes sanitize to strip
+      // newly created DOM before the browser finishes rendering it.
+    },
+    handleFileChange(event, isImage) {
+      if (!this.canManage) return;
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      for (let i = 0; i < files.length; i++) {
+        this.uploadAndInsert(files[i], isImage);
+      }
+      event.target.value = '';
+    },
+    handleDrop(event) {
+      if (!this.canManage) return;
+      const files = event.dataTransfer?.files;
+      if (!files || files.length === 0) return;
+      
+      if (document.caretRangeFromPoint && event.clientX && event.clientY) {
+        const range = document.caretRangeFromPoint(event.clientX, event.clientY);
+        const sel = window.getSelection();
+        if (range && sel) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const isImage = file.type.startsWith('image/');
+        this.uploadAndInsert(file, isImage);
+      }
+    },
+    handlePaste(event) {
+      if (!this.canManage) return;
+      const items = event.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            event.preventDefault();
+            const isImage = file.type.startsWith('image/');
+            this.uploadAndInsert(file, isImage);
+          }
+        }
+      }
+    },
+    formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    },
+    uploadAndInsert(file, isImage) {
+      if (!this.canManage) return;
+      if (this.$refs && this.$refs.editor) this.$refs.editor.focus();
+      
+      const tempId = 'loading-' + Math.random().toString(36).substring(2, 9);
+      const tempHtml = `<span id="${tempId}" class="sn-upload-spinner" contenteditable="false">[Đang tải ${isImage ? 'ảnh' : 'tệp'}: ${this.escapeHtml(file.name)}...]</span>`;
+      
+      this.editorCommand('insertHTML', tempHtml);
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      fetch('/attendance/api/shift-notifications/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => {
+        if (!res.ok) throw new Error('Upload failed');
+        return res.json();
+      })
+      .then(data => {
+        if (data.status === 'success') {
+          const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
+          if (tempEl) {
+            let newHtml = '';
+            if (isImage) {
+              newHtml = `<img src="${this.escapeAttr(data.url)}" alt="${this.escapeAttr(data.filename)}" class="max-w-full rounded-lg my-2 border border-slate-200 dark:border-slate-700 shadow-sm" loading="lazy">`;
+            } else {
+              const readableSize = this.formatBytes(data.size);
+              newHtml = `<a href="${this.escapeAttr(data.url)}" download="${this.escapeAttr(data.filename)}" target="_blank" rel="noopener noreferrer" class="sn-attachment-badge inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60 px-3 py-1.5 text-sm font-semibold text-blue-600 dark:text-blue-400 no-underline hover:bg-slate-100 dark:hover:bg-slate-800 my-1 mr-2" contenteditable="false"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="truncate max-w-[180px]">${this.escapeHtml(data.filename)}</span><span class="text-xs text-slate-400 font-normal">(${readableSize})</span></a>`;
+            }
+            tempEl.outerHTML = newHtml;
+            this.syncEditor();
+          }
+        } else {
+          throw new Error(data.message || 'Unknown upload error');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
+        if (tempEl) {
+          tempEl.outerHTML = `<span class="text-red-500 text-xs font-semibold" contenteditable="false">[Tải tệp lỗi: ${this.escapeHtml(file.name)}]</span>`;
+          this.syncEditor();
+        }
+      });
+    },
+    editorBlock(tag) {
+      this.editorCommand('formatBlock', tag);
+    },
+    safeUrl(value, image = false) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      if (/^\/uploads\//i.test(raw)) return raw;
+      if (/^https?:\/\//i.test(raw)) return raw;
+      if (!image && /^(mailto:|tel:)/i.test(raw)) return raw;
+      if (image && /^data:image\/(png|jpe?g|gif|webp);base64,/i.test(raw)) return raw;
+      return '';
+    },
+    insertLink() {
+      const url = this.safeUrl(prompt('Nhập URL liên kết'));
+      if (!url) return;
+      const label = prompt('Tên hiển thị', url) || url;
+      this.editorCommand('insertHTML', `<a href="${this.escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(label)}</a>`);
+    },
+    insertImage() {
+      const url = this.safeUrl(prompt('Nhập URL hình ảnh'), true);
+      if (!url) return;
+      const alt = prompt('Mô tả ảnh', '') || '';
+      this.editorCommand('insertHTML', `<p><img src="${this.escapeAttr(url)}" alt="${this.escapeAttr(alt)}" loading="lazy" referrerpolicy="no-referrer"></p>`);
+    },
+    insertAttachment() {
+      const url = this.safeUrl(prompt('Nhập URL file hoặc tài liệu'));
+      if (!url) return;
+      const label = prompt('Tên file hiển thị', 'File đính kèm') || 'File đính kèm';
+      this.editorCommand('insertHTML', `<p><a href="${this.escapeAttr(url)}" target="_blank" rel="noopener noreferrer">[File] ${this.escapeHtml(label)}</a></p>`);
+    },
+    escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    },
+    escapeAttr(value) {
+      return this.escapeHtml(value).replace(/`/g, '&#96;');
+    },
+    sanitizeRichHtml(value) {
+      const raw = String(value || '').trim();
+      if (!raw) return '';
+      const template = document.createElement('template');
+      template.innerHTML = raw;
+      const allowed = new Set(['P', 'BR', 'DIV', 'SPAN', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'A', 'IMG', 'H1', 'H2', 'H3', 'PRE', 'CODE', 'FONT', 'SVG', 'PATH']);
+      const cleanNode = (node) => {
+        [...node.childNodes].forEach(child => {
+          if (child.nodeType === Node.TEXT_NODE) return;
+          if (child.nodeType !== Node.ELEMENT_NODE) {
+            child.remove();
+            return;
+          }
+          const tag = child.tagName;
+          const originalHref = child.getAttribute('href') || '';
+          const originalSrc = child.getAttribute('src') || '';
+          const originalAlt = child.getAttribute('alt') || '';
+          const originalStyle = child.getAttribute('style') || '';
+          const originalClass = child.getAttribute('class') || '';
+          const originalDownload = child.getAttribute('download') || '';
+          
+          if (!allowed.has(tag)) {
+            if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED'].includes(tag)) {
+              child.remove();
+              return;
+            }
+            child.replaceWith(...child.childNodes);
+            return;
+          }
+          
+          const svgAttrs = {
+            viewBox: child.getAttribute('viewbox') || child.getAttribute('viewBox') || '0 0 24 24',
+            fill: child.getAttribute('fill') || 'none',
+            stroke: child.getAttribute('stroke') || 'currentColor',
+            strokeWidth: child.getAttribute('stroke-width') || child.getAttribute('strokeWidth') || '2',
+            d: child.getAttribute('d') || ''
+          };
+
+          [...child.attributes].forEach(attr => child.removeAttribute(attr.name));
+          
+          if (tag === 'A') {
+            const href = this.safeUrl(originalHref);
+            if (!href) {
+              child.replaceWith(...child.childNodes);
+              return;
+            }
+            child.setAttribute('href', href);
+            child.setAttribute('target', '_blank');
+            child.setAttribute('rel', 'noopener noreferrer');
+            if (originalClass) child.setAttribute('class', originalClass);
+            if (originalDownload) child.setAttribute('download', originalDownload);
+          }
+          else if (tag === 'IMG') {
+            const src = this.safeUrl(originalSrc, true);
+            if (!src) {
+              child.remove();
+              return;
+            }
+            child.setAttribute('src', src);
+            child.setAttribute('alt', originalAlt);
+            child.setAttribute('loading', 'lazy');
+            child.setAttribute('referrerpolicy', 'no-referrer');
+            if (originalClass) child.setAttribute('class', originalClass);
+            if (originalStyle) child.setAttribute('style', originalStyle);
+          }
+          else if (tag === 'SVG') {
+            child.setAttribute('viewBox', svgAttrs.viewBox);
+            child.setAttribute('fill', svgAttrs.fill);
+            child.setAttribute('stroke', svgAttrs.stroke);
+            child.setAttribute('stroke-width', svgAttrs.strokeWidth);
+            if (originalClass) child.setAttribute('class', originalClass);
+          }
+          else if (tag === 'PATH') {
+            if (svgAttrs.d) {
+              child.setAttribute('d', svgAttrs.d);
+            }
+          }
+          else if (['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes(tag)) {
+            const align = originalStyle.match(/text-align\s*:\s*(left|center|right|justify)/i);
+            const color = originalStyle.match(/color\s*:\s*([^;]+)/i);
+            const bg = originalStyle.match(/background-color\s*:\s*([^;]+)/i);
+            const styles = [];
+            if (align) styles.push(`text-align: ${align[1].toLowerCase()}`);
+            if (color) styles.push(`color: ${color[1].trim()}`);
+            if (bg) styles.push(`background-color: ${bg[1].trim()}`);
+            if (styles.length) child.setAttribute('style', styles.join('; '));
+            if (originalClass) child.setAttribute('class', originalClass);
+          }
+          cleanNode(child);
+        });
+      };
+      cleanNode(template.content);
+      return template.content.firstChild ? template.innerHTML.trim() : raw;
+    },
+    richBody(value) {
+      const raw = String(value || '');
+      if (!raw) return '';
+      if (!/<\/?[a-z][\s\S]*>/i.test(raw)) {
+        return this.escapeHtml(raw).replace(/\n/g, '<br>');
+      }
+      return this.sanitizeRichHtml(raw);
+    },
+    plainText(value) {
+      const box = document.createElement('div');
+      box.innerHTML = this.richBody(value);
+      return (box.textContent || '').replace(/\s+/g, ' ').trim();
+    },
+    truncateText(text, limit = 150) {
+      if (!text) return '';
+      const clean = String(text).trim();
+      if (clean.length <= limit) return clean;
+      return clean.substring(0, limit) + '...';
+    },
+    toLocalInput(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    },
+    payload() {
+      this.syncEditor();
+      const sanitizedBody = this.sanitizeRichHtml(this.form.body || '');
+      return {
+        title: this.form.title,
+        body: sanitizedBody,
+        priority: this.form.priority || 'normal',
+        is_active: !!this.form.is_active,
+        starts_at: this.form.starts_at || null,
+        ends_at: this.form.ends_at || null,
+        schedule_shift: this.form.schedule_shift || null,
+        min_read_seconds: Number(this.form.min_read_seconds || 5),
+        audience_roles: this.form.audience_roles || [],
+        branch_ids: (this.form.branch_ids || []).map(Number).filter(Boolean)
+      };
+    },
+    async submitForm() {
+      if (!this.canManage) return;
+      this.saving = true;
+      try {
+        const isEdit = !!this.form.id;
+        const url = isEdit ? `/attendance/api/shift-notifications/${this.form.id}` : '/attendance/api/shift-notifications';
+        const res = await fetch(url, {
+          method: isEdit ? 'PUT' : 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.payload())
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || 'Không thể lưu thông báo');
+        }
+        this.modalOpen = false;
+        this.form = emptyForm();
+        await this.load();
+      } catch (err) {
+        alert(err.message || 'Không thể lưu thông báo');
+      } finally {
+        this.saving = false;
+      }
+    },
+    async deleteItem(item) {
+      if (!this.canManage) return;
+      if (!confirm(`Xóa thông báo "${item.title}"?`)) return;
+      this.deleting = true;
+      try {
+        const res = await fetch(`/attendance/api/shift-notifications/${item.id}`, {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        });
+        if (!res.ok) throw new Error('Không thể xóa thông báo');
+        this.selectedIds = this.selectedIds.filter(id => id !== item.id);
+        await this.load();
+      } catch (err) {
+        alert(err.message || 'Không thể xóa thông báo');
+      } finally {
+        this.deleting = false;
+      }
+    },
+    async bulkDelete() {
+      if (!this.canManage) return;
+      if (!this.selectedIds.length) return;
+      if (!confirm(`Xóa ${this.selectedIds.length} thông báo đã chọn?`)) return;
+      this.deleting = true;
+      try {
+        const res = await fetch('/attendance/api/shift-notifications/bulk-delete', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: this.selectedIds })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || 'Không thể xóa thông báo đã chọn');
+        }
+        this.selectedIds = [];
+        await this.load();
+      } catch (err) {
+        alert(err.message || 'Không thể xóa thông báo đã chọn');
+      } finally {
+        this.deleting = false;
+      }
+    },
+    toggleItem(id, checked) {
+      if (!this.canManage) return;
+      if (checked && !this.selectedIds.includes(id)) this.selectedIds.push(id);
+      if (!checked) this.selectedIds = this.selectedIds.filter(itemId => itemId !== id);
+    },
+    toggleAll(checked) {
+      if (!this.canManage) return;
+      const currentIds = this.items.map(item => item.id);
+      if (checked) {
+        this.selectedIds = Array.from(new Set([...this.selectedIds, ...currentIds]));
+      } else {
+        this.selectedIds = this.selectedIds.filter(id => !currentIds.includes(id));
+      }
+    },
+    formatNumber(value) {
+      return Number(value || 0).toLocaleString('vi-VN');
+    },
+    formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
+    },
+    priorityLabel(value) {
+      return ({ urgent: 'Khẩn cấp', high: 'Quan trọng', normal: 'Bình thường', low: 'Thông tin' })[value] || value || 'Bình thường';
+    },
+    priorityClass(value) {
+      return {
+        urgent: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+        high: 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300',
+        normal: 'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300',
+        low: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+      }[value] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+    },
+    statusLabel(value) {
+      return ({ active: 'Đang hoạt động', scheduled: 'Đã lập lịch', expired: 'Hết hiệu lực', inactive: 'Đang tắt' })[value] || 'Không rõ';
+    },
+    statusClass(value) {
+      return {
+        active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+        scheduled: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300',
+        expired: 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300',
+        inactive: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+      }[value] || 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300';
+    },
+    statusIconClass(value) {
+      return {
+        active: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300',
+        scheduled: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300',
+        expired: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300',
+        inactive: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
+      }[value] || 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300';
+    },
+    shiftLabel(value) {
+      return ({ CS: 'Ca sáng', CT: 'Ca tối', ALL: 'Tất cả ca' })[value] || 'Tất cả ca';
+    },
+    audienceLabel(item) {
+      const roleMap = Object.fromEntries(this.roles.map(role => [role.value, role.label]));
+      const roles = (item.audience_roles || []).map(role => roleMap[role] || role).join(', ') || 'Mọi vai trò';
+      const branches = (item.branch_ids || []).length ? `${item.branch_ids.length} chi nhánh` : 'mọi chi nhánh';
+      return `${roles} · ${branches}`;
+    },
+    roleAudienceLabel(item) {
+      if (!item) return '';
+      const roleMap = Object.fromEntries(this.roles.map(role => [role.value, role.label]));
+      return (item.audience_roles || []).map(role => roleMap[role] || role).join(', ') || 'Mọi vai trò';
+    },
+    branchAudienceLabel(item) {
+      if (!item) return '';
+      const ids = (item.branch_ids || []).map(Number).filter(Boolean);
+      if (!ids.length) return 'Mọi chi nhánh';
+      return ids.map(id => this.branchMap[id] || `Chi nhánh #${id}`).join(', ');
+    }
+  };
+}
+</script>
+{% endblock %}

@@ -1234,6 +1234,31 @@
                     <span class="ml-3 nav-text">Quản lý Nhân sự</span>
                 </a>
                 {% endif %}
+
+                {% if user and user.role|lower in ['admin', 'boss', 'quanly', 'manager', 'letan'] %}
+                <a href="/attendance/notifications"
+                    class="{{ nav_link_base }} {% if active_page == 'shift-notifications' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M7 8h10M7 12h6"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M5 4h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
+                    </svg>
+                    <span class="ml-3 nav-text">Thông báo ca</span>
+                </a>
+                {% endif %}
+
+                <a href="/handbook"
+                    class="{{ nav_link_base }} {% if active_page == 'handbook' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.5a.5.5 0 0 1 0-1 .5.5 0 0 1 0 1z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span class="ml-3 nav-text">Cẩm Nang</span>
+                </a>
+
             </nav>
 
             <div class="px-2.5 py-3 mt-auto border-t border-slate-200/70 dark:border-slate-700/70">
@@ -1707,6 +1732,7 @@
     </script>
 
     {% block pms_page_modals %}{% endblock %}
+    {% include "includes/shift_notifications.html" %}
 
     {% block scripts %}
     {% endblock %}

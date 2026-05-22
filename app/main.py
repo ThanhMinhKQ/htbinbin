@@ -23,10 +23,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 # --- IMPORT MODULES ---
 from .api import (
-    users, attendance, tasks, lost_and_found, 
-    choose_function, utils, calendar, qr_checkin, 
+    users, attendance, tasks, lost_and_found,
+    choose_function, utils, calendar, qr_checkin,
     results, export, service, shift_report, inventory,
-    ota_dashboard, hr_management
+    ota_dashboard, hr_management, handbook
 )
 from .api.pms import (
     pages_router as pms_pages,
@@ -351,6 +351,9 @@ app.include_router(ota_dashboard.router, tags=["OTA Dashboard"])
 
 # HR Management (Admin only)
 app.include_router(hr_management.router, tags=["HR Management"])
+
+# Handbook (Cẩm nang lễ tân)
+app.include_router(handbook.router, tags=["Handbook"])
 
 # PMS - Property Management System
 app.include_router(pms_pages, tags=["PMS"])

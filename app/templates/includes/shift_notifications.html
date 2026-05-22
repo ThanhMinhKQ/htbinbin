@@ -1,0 +1,423 @@
+{% if user %}
+<div id="shift-notice-overlay" class="shift-notice-overlay" hidden>
+  <div class="shift-notice-backdrop"></div>
+  <section class="shift-notice-panel" role="dialog" aria-modal="true" aria-labelledby="shift-notice-title">
+    <div class="shift-notice-head">
+      <div class="min-w-0">
+        <div class="shift-notice-kicker">Thông báo ca làm việc</div>
+        <h2 id="shift-notice-title" class="truncate">Thông báo nội bộ</h2>
+      </div>
+      <span id="shift-notice-count" class="shift-notice-count">1/1</span>
+    </div>
+    <div class="shift-notice-meta">
+      <span id="shift-notice-priority" class="truncate">Bình thường</span>
+      <span id="shift-notice-shift" class="truncate">Ca hiện tại</span>
+    </div>
+    <div id="shift-notice-body" class="shift-notice-body"></div>
+    <div class="shift-notice-foot">
+      <div id="shift-notice-wait" class="shift-notice-wait truncate pr-3">Vui lòng đọc thông báo trong 5 giây</div>
+      <button id="shift-notice-read-btn" type="button" class="flex-none" disabled>Đã đọc</button>
+    </div>
+  </section>
+</div>
+
+<style>
+  .shift-notice-overlay[hidden] { display: none !important; }
+  .shift-notice-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .shift-notice-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.58);
+    backdrop-filter: blur(8px);
+  }
+  .shift-notice-panel {
+    position: relative;
+    width: min(640px, calc(100% - 32px));
+    max-height: min(780px, 92dvh);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 0 28px 80px -24px rgba(15, 23, 42, 0.7), 0 0 0 1px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+  html.dark .shift-notice-panel {
+    background: #0f172a;
+    border-color: #334155;
+    color: #f8fafc;
+  }
+  .shift-notice-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 28px 28px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    background: #f8fafc;
+  }
+  html.dark .shift-notice-head { 
+    border-color: #334155; 
+    background: #1e293b;
+  }
+  .shift-notice-kicker {
+    margin-bottom: 8px;
+    color: #3b82f6;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  html.dark .shift-notice-kicker { color: #60a5fa; }
+  .shift-notice-head h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 24px;
+    line-height: 1.3;
+    font-weight: 900;
+  }
+  html.dark .shift-notice-head h2 { color: #f8fafc; }
+  .shift-notice-count {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 900;
+    box-shadow: 0 1px 2px rgba(29, 78, 216, 0.1);
+  }
+  .shift-notice-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 20px 28px 4px;
+  }
+  .shift-notice-meta span {
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 800;
+  }
+  html.dark .shift-notice-meta span {
+    background: #334155;
+    color: #cbd5e1;
+  }
+  .shift-notice-body {
+    padding: 16px 28px 28px;
+    overflow-y: auto;
+    color: #334155;
+    font-size: 14px;
+    line-height: 1.65;
+    word-break: break-word;
+  }
+  html.dark .shift-notice-body { color: #e2e8f0; }
+  .shift-notice-body p { margin: 0 0 0.7rem; }
+  .shift-notice-body ul,
+  .shift-notice-body ol {
+    margin: 0.5rem 0 0.75rem 0.25rem;
+    padding-left: 1.5rem;
+  }
+  .shift-notice-body ul { list-style-type: disc; }
+  .shift-notice-body ol { list-style-type: decimal; }
+  .shift-notice-body li {
+    display: list-item;
+    margin-bottom: 0.25rem;
+  }
+  .shift-notice-body blockquote {
+    margin: 0.75rem 0;
+    border-left: 3px solid #2563eb;
+    padding-left: 0.8rem;
+    color: #475569;
+  }
+  html.dark .shift-notice-body blockquote { color: #cbd5e1; }
+  .shift-notice-body a { color: #2563eb; text-decoration: underline; font-weight: 700; }
+  .shift-notice-body img {
+    display: block;
+    max-width: 100%;
+    max-height: 420px;
+    margin: 0.75rem 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+  }
+  html.dark .shift-notice-body img { border-color: #334155; }
+  .shift-notice-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 28px;
+    border-top: 1px solid #f1f5f9;
+    background: #ffffff;
+  }
+  html.dark .shift-notice-foot {
+    border-color: #334155;
+    background: #0f172a;
+  }
+  .shift-notice-wait {
+    min-width: 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  html.dark .shift-notice-wait { color: #94a3b8; }
+  #shift-notice-read-btn {
+    min-width: 140px;
+    height: 46px;
+    border: 0;
+    border-radius: 12px;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 900;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+  }
+  #shift-notice-read-btn:hover:not(:disabled) {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+  }
+  #shift-notice-read-btn:disabled {
+    background: #cbd5e1;
+    color: #475569;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+  html.dark #shift-notice-read-btn:disabled {
+    background: #334155;
+    color: #94a3b8;
+  }
+</style>
+
+<script>
+(() => {
+  const overlay = document.getElementById('shift-notice-overlay');
+  if (!overlay) return;
+
+  const titleEl = document.getElementById('shift-notice-title');
+  const bodyEl = document.getElementById('shift-notice-body');
+  const countEl = document.getElementById('shift-notice-count');
+  const priorityEl = document.getElementById('shift-notice-priority');
+  const shiftEl = document.getElementById('shift-notice-shift');
+  const waitEl = document.getElementById('shift-notice-wait');
+  const readBtn = document.getElementById('shift-notice-read-btn');
+
+  let items = [];
+  let index = 0;
+  let timer = null;
+  let current = null;
+
+  const priorityLabel = {
+    urgent: 'Khẩn cấp',
+    high: 'Quan trọng',
+    normal: 'Bình thường',
+    low: 'Thông tin'
+  };
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  function safeUrl(value, image = false) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^\/uploads\//i.test(raw)) return raw;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (!image && /^(mailto:|tel:)/i.test(raw)) return raw;
+    if (image && /^data:image\/(png|jpe?g|gif|webp);base64,/i.test(raw)) return raw;
+    return '';
+  }
+
+  function sanitizeRichHtml(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const template = document.createElement('template');
+    template.innerHTML = raw;
+    const allowed = new Set(['P', 'BR', 'DIV', 'SPAN', 'STRONG', 'B', 'EM', 'I', 'U', 'S', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'A', 'IMG', 'H1', 'H2', 'H3', 'PRE', 'CODE', 'FONT', 'SVG', 'PATH']);
+    const cleanNode = (node) => {
+      [...node.childNodes].forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) return;
+        if (child.nodeType !== Node.ELEMENT_NODE) {
+          child.remove();
+          return;
+        }
+        const tag = child.tagName;
+        const originalHref = child.getAttribute('href') || '';
+        const originalSrc = child.getAttribute('src') || '';
+        const originalAlt = child.getAttribute('alt') || '';
+        const originalStyle = child.getAttribute('style') || '';
+        const originalClass = child.getAttribute('class') || '';
+        const originalDownload = child.getAttribute('download') || '';
+        
+        if (!allowed.has(tag)) {
+          if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED'].includes(tag)) {
+            child.remove();
+            return;
+          }
+          child.replaceWith(...child.childNodes);
+          return;
+        }
+        
+        const svgAttrs = {
+          viewBox: child.getAttribute('viewbox') || child.getAttribute('viewBox') || '0 0 24 24',
+          fill: child.getAttribute('fill') || 'none',
+          stroke: child.getAttribute('stroke') || 'currentColor',
+          strokeWidth: child.getAttribute('stroke-width') || child.getAttribute('strokeWidth') || '2',
+          d: child.getAttribute('d') || ''
+        };
+
+        [...child.attributes].forEach(attr => child.removeAttribute(attr.name));
+        
+        if (tag === 'A') {
+          const href = safeUrl(originalHref);
+          if (!href) {
+            child.replaceWith(...child.childNodes);
+            return;
+          }
+          child.setAttribute('href', href);
+          child.setAttribute('target', '_blank');
+          child.setAttribute('rel', 'noopener noreferrer');
+          if (originalClass) child.setAttribute('class', originalClass);
+          if (originalDownload) child.setAttribute('download', originalDownload);
+        }
+        else if (tag === 'IMG') {
+          const src = safeUrl(originalSrc, true);
+          if (!src) {
+            child.remove();
+            return;
+          }
+          child.setAttribute('src', src);
+          child.setAttribute('alt', originalAlt);
+          child.setAttribute('loading', 'lazy');
+          child.setAttribute('referrerpolicy', 'no-referrer');
+          if (originalClass) child.setAttribute('class', originalClass);
+          if (originalStyle) child.setAttribute('style', originalStyle);
+        }
+        else if (tag === 'SVG') {
+          child.setAttribute('viewBox', svgAttrs.viewBox);
+          child.setAttribute('fill', svgAttrs.fill);
+          child.setAttribute('stroke', svgAttrs.stroke);
+          child.setAttribute('stroke-width', svgAttrs.strokeWidth);
+          if (originalClass) child.setAttribute('class', originalClass);
+        }
+        else if (tag === 'PATH') {
+          if (svgAttrs.d) {
+            child.setAttribute('d', svgAttrs.d);
+          }
+        }
+        else if (['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes(tag)) {
+          const align = originalStyle.match(/text-align\s*:\s*(left|center|right|justify)/i);
+          const color = originalStyle.match(/color\s*:\s*([^;]+)/i);
+          const bg = originalStyle.match(/background-color\s*:\s*([^;]+)/i);
+          const styles = [];
+          if (align) styles.push(`text-align: ${align[1].toLowerCase()}`);
+          if (color) styles.push(`color: ${color[1].trim()}`);
+          if (bg) styles.push(`background-color: ${bg[1].trim()}`);
+          if (styles.length) child.setAttribute('style', styles.join('; '));
+          if (originalClass) child.setAttribute('class', originalClass);
+        }
+        cleanNode(child);
+      });
+    };
+    cleanNode(template.content);
+    return template.content.firstChild ? template.innerHTML.trim() : raw;
+  }
+
+  function richBody(value) {
+    const raw = String(value || '');
+    if (!raw) return '';
+    if (!/<\/?[a-z][\s\S]*>/i.test(raw)) {
+      return escapeHtml(raw).replace(/\n/g, '<br>');
+    }
+    return sanitizeRichHtml(raw);
+  }
+
+  function lock(seconds) {
+    let remaining = Math.max(1, Number(seconds || 5));
+    readBtn.disabled = true;
+    readBtn.textContent = `Đã đọc (${remaining}s)`;
+    waitEl.textContent = `Vui lòng đọc thông báo trong ${remaining} giây`;
+    clearInterval(timer);
+    timer = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        readBtn.disabled = false;
+        readBtn.textContent = 'Đã đọc';
+        waitEl.textContent = 'Bạn có thể xác nhận sau khi đã đọc xong.';
+        return;
+      }
+      readBtn.textContent = `Đã đọc (${remaining}s)`;
+      waitEl.textContent = `Vui lòng đọc thông báo trong ${remaining} giây`;
+    }, 1000);
+  }
+
+  function render() {
+    current = items[index];
+    if (!current) {
+      overlay.hidden = true;
+      document.body.style.removeProperty('overflow');
+      return;
+    }
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    titleEl.textContent = current.title || 'Thông báo nội bộ';
+    bodyEl.innerHTML = richBody(current.body || '');
+    countEl.textContent = `${index + 1}/${items.length}`;
+    priorityEl.textContent = priorityLabel[current.priority] || current.priority || 'Bình thường';
+    shiftEl.textContent = current.schedule_shift && current.schedule_shift !== 'ALL'
+      ? `Ca ${current.schedule_shift}`
+      : 'Ca hiện tại';
+    lock(current.min_read_seconds || 5);
+  }
+
+  async function acknowledge() {
+    if (!current || readBtn.disabled) return;
+    readBtn.disabled = true;
+    try {
+      await fetch(`/attendance/api/shift-notifications/${current.id}/ack`, {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+    } catch (e) {
+      readBtn.disabled = false;
+      return;
+    }
+    index += 1;
+    render();
+  }
+
+  readBtn.addEventListener('click', acknowledge);
+
+  async function loadPending() {
+    try {
+      const res = await fetch('/attendance/api/shift-notifications/pending', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      items = Array.isArray(data.items) ? data.items : [];
+      index = 0;
+      if (items.length) render();
+    } catch (e) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadPending, { once: true });
+  } else {
+    loadPending();
+  }
+})();
+</script>
+{% endif %}

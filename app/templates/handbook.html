@@ -1,0 +1,876 @@
+{% extends "base.html" %}
+{% block title %}Cẩm Nang Lễ Tân - Bin Bin Hotel{% endblock %}
+{% set active_page = active_page or 'handbook' %}
+{% block page_title %}Cẩm Nang Lễ Tân{% endblock %}
+{% block content %}
+
+<style>
+/* ── severity badges ── */
+.sev-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:11px; font-weight:700; padding:2px 8px;
+    border-radius:99px; white-space:nowrap; letter-spacing:.02em; flex-shrink:0;
+}
+.sev-urgent  { background:rgb(254 202 202); color:rgb(185 28 28); }
+.sev-serious { background:rgb(254 215 170); color:rgb(180 83 9); }
+.sev-normal  { background:rgb(219 234 254); color:rgb(29 78 216); }
+.sev-tip     { background:rgb(209 250 229); color:rgb(6 95 70); }
+.dark .sev-urgent  { background:rgb(185 28 28/.25); color:rgb(252 165 165); }
+.dark .sev-serious { background:rgb(180 83 9/.25);  color:rgb(253 186 116); }
+.dark .sev-normal  { background:rgb(29 78 216/.25); color:rgb(147 197 253); }
+.dark .sev-tip     { background:rgb(6 95 70/.25);   color:rgb(110 231 183); }
+
+/* ── category badges ── */
+.cat-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:10.5px; font-weight:700; padding:2px 8px;
+    border-radius:99px; white-space:nowrap;
+    background:rgb(241 245 249); color:rgb(71 85 105);
+}
+.dark .cat-badge { background:rgb(30 41 59); color:rgb(148 163 184); }
+
+/* ── filter pill buttons ── */
+.hb-pill {
+    padding:4px 12px; border-radius:99px; font-size:12px; font-weight:700;
+    border:2px solid transparent; cursor:pointer; transition:all .15s;
+    white-space:nowrap;
+}
+.hb-pill:hover { filter:brightness(.92); }
+.hb-pill.active { box-shadow:0 0 0 3px rgba(59,130,246,.3); }
+
+/* severity pill colours */
+.hb-pill[data-sev="all"]     { background:rgb(241 245 249); color:rgb(51 65 85);   border-color:rgb(203 213 225); }
+.hb-pill[data-sev="urgent"]  { background:rgb(254 202 202); color:rgb(185 28 28);  border-color:rgb(252 165 165); }
+.hb-pill[data-sev="serious"] { background:rgb(254 215 170); color:rgb(180 83 9);   border-color:rgb(253 186 116); }
+.hb-pill[data-sev="normal"]  { background:rgb(219 234 254); color:rgb(29 78 216);  border-color:rgb(147 197 253); }
+.hb-pill[data-sev="tip"]     { background:rgb(209 250 229); color:rgb(6 95 70);    border-color:rgb(110 231 183); }
+.dark .hb-pill[data-sev="all"]     { background:rgb(30 41 59);         color:rgb(148 163 184); border-color:rgb(51 65 85); }
+.dark .hb-pill[data-sev="urgent"]  { background:rgb(185 28 28/.2);     color:rgb(252 165 165); border-color:rgb(185 28 28/.4); }
+.dark .hb-pill[data-sev="serious"] { background:rgb(180 83 9/.2);      color:rgb(253 186 116); border-color:rgb(180 83 9/.4); }
+.dark .hb-pill[data-sev="normal"]  { background:rgb(29 78 216/.2);     color:rgb(147 197 253); border-color:rgb(29 78 216/.4); }
+.dark .hb-pill[data-sev="tip"]     { background:rgb(6 95 70/.2);       color:rgb(110 231 183); border-color:rgb(6 95 70/.4); }
+
+/* category pill colours — neutral teal */
+.hb-pill[data-cat] { background:rgb(240 253 250); color:rgb(15 118 110); border-color:rgb(153 246 228); }
+.dark .hb-pill[data-cat] { background:rgb(15 118 110/.15); color:rgb(94 234 212); border-color:rgb(15 118 110/.4); }
+
+/* count badge inside pill */
+.pill-count {
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:18px; height:18px; padding:0 4px;
+    border-radius:99px; font-size:10px; font-weight:900;
+    background:rgba(0,0,0,.1); color:inherit; margin-left:6px;
+}
+.dark .pill-count { background:rgba(255,255,255,.1); }
+
+/* ── table ── */
+.hb-table { width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+.hb-table th { border-bottom:1px solid rgb(226 232 240); padding:8px 10px; font-weight:800; color:rgb(71 85 105); text-transform:uppercase; letter-spacing:0.04em; font-size:11px; }
+.hb-table td { border-bottom:1px solid rgb(241 245 249); padding:7px 10px; vertical-align:middle; }
+.hb-table tr:last-child td { border-bottom:none; }
+.hb-table tbody tr { transition:background-color 0.15s; }
+.hb-table tbody tr:hover { background-color:rgb(248 250 252); }
+
+.dark .hb-table th { border-bottom-color:rgba(71,85,105,.7); color:rgb(203 213 225); }
+.dark .hb-table td { border-bottom-color:rgba(51,65,85,.55); }
+.dark .hb-table tbody tr:hover { background-color:rgba(30,41,59,.46); }
+.hb-table thead th { background:rgb(248 250 252); }
+.dark .hb-table thead th { background:rgba(15,23,42,.7); }
+
+.hb-situation { width:22%; color:rgb(15 23 42); font-size:13px; }
+.dark .hb-situation { color:rgb(241 245 249); }
+.hb-solution  { line-height:1.42; white-space:pre-line; color:rgb(71 85 105); text-align:left; word-break:break-word; font-size:13px;}
+.dark .hb-solution { color:rgb(203 213 225); }
+
+/* left border accent */
+.hb-table tbody tr td:first-child { position:relative; }
+.hb-table tbody tr td:first-child::before {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    border-radius:0 4px 4px 0; opacity:0.8;
+}
+tr.row-urgent  td:first-child::before { background:rgb(239 68 68); }
+tr.row-serious td:first-child::before { background:rgb(249 115 22); }
+tr.row-normal  td:first-child::before { background:rgb(59 130 246); }
+tr.row-tip     td:first-child::before { background:rgb(16 185 129); }
+
+/* ── pending wrap ── */
+.hb-pending-wrap thead th { background:rgb(254 243 199); color:rgb(180 83 9); border-color:rgb(253 230 138); }
+.dark .hb-pending-wrap thead th { background:rgba(120, 53, 15, .32); color:rgb(253 186 116); border-color:rgba(180, 83, 9, .34); }
+.hb-pending-wrap td { border-bottom-color:rgb(254 243 199); }
+.dark .hb-pending-wrap td { border-bottom-color:rgba(180, 83, 9, .18); }
+.hb-pending-wrap tbody tr:hover { background-color:rgb(254 252 232); }
+.dark .hb-pending-wrap tbody tr:hover { background-color:rgba(120, 53, 15, .22); }
+
+/* ── bookmark btn ── */
+.bm-btn { cursor:pointer; opacity:1; transition:all .2s; border:none; background:none; padding:4px; display:inline-flex; align-items:center; justify-content:center; border-radius:6px; color:rgb(203 213 225); }
+.dark .bm-btn { color:rgb(71 85 105); }
+.bm-btn:hover { background:rgb(241 245 249); color:rgb(148 163 184); transform:scale(1.1); }
+.dark .bm-btn:hover { background:rgb(30 41 59); color:rgb(100 116 139); }
+.bm-btn.saved { color:rgb(245 158 11); }
+.dark .bm-btn.saved { color:rgb(252 211 77); }
+.bm-btn.saved:hover { background:rgb(254 243 199); color:rgb(217 119 6); }
+.dark .bm-btn.saved:hover { background:rgb(120 53 15/.4); color:rgb(253 230 138); }
+
+/* action buttons */
+.act-btn { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; transition:all .2s; color:rgb(148 163 184); }
+.dark .act-btn { color:rgb(100 116 139); }
+.act-btn.edit:hover { background:rgb(239 246 255); color:rgb(37 99 235); }
+.dark .act-btn.edit:hover { background:rgb(30 58 138/.4); color:rgb(96 165 250); }
+.act-btn.del:hover { background:rgb(254 242 242); color:rgb(220 38 38); }
+.dark .act-btn.del:hover { background:rgb(127 29 29/.4); color:rgb(248 113 113); }
+.act-btn.approve:hover { background:rgb(240 253 244); color:rgb(22 163 74); }
+.dark .act-btn.approve:hover { background:rgb(20 83 45/.4); color:rgb(74 222 128); }
+
+/* ── modal ── */
+#hb-modal-overlay, #hb-edit-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+    z-index:9999; align-items:center; justify-content:center;
+}
+#hb-modal-overlay.open, #hb-edit-overlay.open { display:flex; }
+.hb-modal-box {
+    background:white; border-radius:14px; padding:28px;
+    width:94%; max-width:580px; box-shadow:0 24px 64px rgba(0,0,0,.3);
+    max-height:90vh; overflow-y:auto;
+}
+.dark .hb-modal-box { background:rgb(15 23 42); color:rgb(241 245 249); }
+.hb-modal-box textarea, .hb-modal-box input[type=text] {
+    width:100%; border:1px solid rgb(203 213 225); border-radius:8px;
+    padding:10px 12px; font-size:13px; resize:vertical;
+    background:transparent; color:inherit; outline:none; box-sizing:border-box; font-family:inherit;
+}
+.dark .hb-modal-box textarea, .dark .hb-modal-box input[type=text] { border-color:rgb(51 65 85); }
+.hb-modal-box textarea:focus, .hb-modal-box input[type=text]:focus { border-color:rgb(59 130 246); }
+.hb-modal-box select {
+    width:100%; border:1px solid rgb(203 213 225); border-radius:8px;
+    padding:9px 12px; font-size:13px; background:transparent; color:inherit;
+    outline:none; box-sizing:border-box; cursor:pointer;
+}
+.dark .hb-modal-box select { border-color:rgb(51 65 85); background:rgb(15 23 42); }
+
+/* severity radio */
+.sev-radio-group { display:flex; gap:8px; flex-wrap:wrap; }
+.sev-radio-label {
+    display:flex; align-items:center; gap:5px; cursor:pointer;
+    padding:5px 12px; border-radius:99px; border:2px solid transparent;
+    font-size:12px; font-weight:700; transition:all .15s;
+}
+.sev-radio-label input { display:none; }
+.sev-radio-label[data-sev="urgent"]  { background:rgb(254 202 202); color:rgb(185 28 28);  border-color:rgb(254 202 202); }
+.sev-radio-label[data-sev="serious"] { background:rgb(254 215 170); color:rgb(180 83 9);   border-color:rgb(254 215 170); }
+.sev-radio-label[data-sev="normal"]  { background:rgb(219 234 254); color:rgb(29 78 216);  border-color:rgb(219 234 254); }
+.sev-radio-label[data-sev="tip"]     { background:rgb(209 250 229); color:rgb(6 95 70);    border-color:rgb(209 250 229); }
+.sev-radio-label.selected { box-shadow:0 0 0 3px rgba(59,130,246,.35); border-color:rgb(59 130 246); }
+.dark .sev-radio-label[data-sev="urgent"]  { background:rgb(185 28 28/.25); color:rgb(252 165 165); }
+.dark .sev-radio-label[data-sev="serious"] { background:rgb(180 83 9/.25);  color:rgb(253 186 116); }
+.dark .sev-radio-label[data-sev="normal"]  { background:rgb(29 78 216/.25); color:rgb(147 197 253); }
+.dark .sev-radio-label[data-sev="tip"]     { background:rgb(6 95 70/.25);   color:rgb(110 231 183); }
+
+/* form field label */
+.hb-label { display:block; font-size:11px; font-weight:700; color:rgb(100 116 139); text-transform:uppercase; letter-spacing:.05em; margin-bottom:5px; }
+
+/* ── dashboard cards ── */
+.hb-dash-grid {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:1rem;
+}
+@media (min-width:768px) {
+    .hb-dash-grid { grid-template-columns:repeat(4, minmax(0, 1fr)); }
+}
+.hb-dash-card {
+    position:relative;
+    min-height:104px;
+    min-width:0;
+    overflow:hidden;
+    border:1px solid rgb(226 232 240);
+    border-radius:1rem;
+    padding:1.25rem;
+    text-align:left;
+    box-shadow:0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+    transition:transform .2s, box-shadow .2s, border-color .2s;
+}
+.hb-dash-card:hover {
+    transform:translateY(-2px);
+    box-shadow:0 10px 25px -5px rgba(15, 23, 42, 0.08);
+    border-color:rgb(203 213 225);
+}
+.dark .hb-dash-card {
+    border-color:rgba(71, 85, 105, .7);
+    background-color:rgba(15, 23, 42, .62);
+    box-shadow:0 12px 30px -18px rgba(0,0,0,.78), inset 0 1px 0 rgba(255,255,255,.05);
+}
+.hb-dash-mark {
+    position:absolute;
+    right:-0.9rem;
+    bottom:-1.1rem;
+    width:4.75rem;
+    height:4.75rem;
+    opacity:0.08;
+    transform:rotate(-18deg);
+    pointer-events:none;
+    transition:transform .3s ease, opacity .3s ease;
+}
+.hb-dash-card:hover .hb-dash-mark {
+    opacity:0.11;
+    transform:rotate(-18deg) scale(1.1) translateY(-0.25rem);
+}
+.hb-dash-inner {
+    position:relative;
+    z-index:1;
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:0.9rem;
+}
+.hb-dash-label {
+    margin-top:0.1rem;
+    color:rgb(100 116 139);
+    font-size:0.78rem;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:0;
+    transition:color .15s;
+}
+.dark .hb-dash-label { color:rgb(148 163 184); }
+.hb-dash-value {
+    margin-top:0.25rem;
+    color:rgb(30 41 59);
+    font-size:2rem;
+    line-height:1;
+    font-weight:950;
+}
+.dark .hb-dash-value { color:rgb(248 250 252); }
+.hb-dash-icon {
+    display:grid;
+    width:2.75rem;
+    height:2.75rem;
+    flex:0 0 auto;
+    place-items:center;
+    border-radius:0.85rem;
+    box-shadow:0 1px 2px rgba(15, 23, 42, 0.08);
+    transition:transform .2s;
+}
+.hb-dash-card:hover .hb-dash-icon {
+    transform:scale(1.08) rotate(-3deg);
+}
+</style>
+
+<div class="space-y-5">
+
+    <!-- Dashboard -->
+    <div class="hb-dash-grid">
+        <!-- Card 1: Tổng tình huống -->
+        <div class="hb-dash-card group cursor-default bg-gradient-to-br from-white to-blue-50/50 dark:from-slate-800/80 dark:to-blue-900/20">
+            <svg class="hb-dash-mark text-blue-600 dark:text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+            <div class="hb-dash-inner">
+                <div>
+                    <div class="hb-dash-label group-hover:text-blue-600 dark:group-hover:text-blue-400">Tổng tình huống</div>
+                    <div class="hb-dash-value" id="dash-total">0</div>
+                </div>
+                <div class="hb-dash-icon bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Cần chú ý (Urgent + Serious) -->
+        <div class="hb-dash-card group cursor-default bg-gradient-to-br from-white to-red-50/50 dark:from-slate-800/80 dark:to-red-900/20">
+            <svg class="hb-dash-mark text-red-600 dark:text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+            <div class="hb-dash-inner">
+                <div>
+                    <div class="hb-dash-label group-hover:text-red-600 dark:group-hover:text-red-400">Cần chú ý</div>
+                    <div class="hb-dash-value" id="dash-urgent">0</div>
+                </div>
+                <div class="hb-dash-icon bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Mẹo hay -->
+        <div class="hb-dash-card group cursor-default bg-gradient-to-br from-white to-emerald-50/50 dark:from-slate-800/80 dark:to-emerald-900/20">
+            <svg class="hb-dash-mark text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.45.62 2.84 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>
+            <div class="hb-dash-inner">
+                <div>
+                    <div class="hb-dash-label group-hover:text-emerald-600 dark:group-hover:text-emerald-400">Mẹo hay</div>
+                    <div class="hb-dash-value" id="dash-tips">0</div>
+                </div>
+                <div class="hb-dash-icon bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.45.62 2.84 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Đã lưu -->
+        <button type="button" class="hb-dash-card group cursor-pointer bg-gradient-to-br from-white to-amber-50/50 hover:to-amber-100/60 dark:from-slate-800/80 dark:to-amber-900/20 dark:hover:to-amber-900/30" onclick="if(!showBookmarks) window.hbToggleBookmarks();">
+            <svg class="hb-dash-mark text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            <div class="hb-dash-inner">
+                <div>
+                    <div class="hb-dash-label group-hover:text-amber-600 dark:group-hover:text-amber-500">Đã lưu</div>
+                    <div class="hb-dash-value" id="dash-bm">0</div>
+                </div>
+                <div class="hb-dash-icon bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                </div>
+            </div>
+        </button>
+    </div>
+
+    <!-- Search + filters -->
+    <div class="bg-white dark:bg-slate-900/70 rounded-2xl border border-slate-200 dark:border-slate-700/70 p-5 shadow-sm dark:shadow-black/20 space-y-4">
+        
+        <!-- Search and Action buttons row -->
+        <div class="flex flex-col md:flex-row md:items-center gap-3">
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                </div>
+                <input type="text" id="hb-search"
+                    placeholder="Gõ từ khóa để tìm Trường hợp hoặc Hướng xử lý..."
+                    oninput="window.hbRender()"
+                    class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700/70 bg-slate-50 dark:bg-slate-950/50 text-sm font-medium text-slate-800 dark:text-slate-100 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:focus:ring-blue-500/20 transition-all">
+            </div>
+            
+            <div class="flex items-center gap-3 md:flex-none">
+                <button onclick="hbResetFilters()" title="Làm mới bộ lọc"
+                    class="flex items-center justify-center p-3 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700/70 rounded-xl bg-white dark:bg-slate-900/70 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-blue-600 dark:hover:text-blue-400 transition-all shadow-sm">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                </button>
+                <button id="btn-show-bookmarks" onclick="window.hbToggleBookmarks()"
+                    class="flex items-center gap-2 px-4 py-3 text-sm font-bold border border-slate-200 dark:border-slate-700/70 rounded-xl bg-white dark:bg-slate-900/70 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all shadow-sm">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                    Đã lưu 
+                    <span id="bm-count-badge" class="ml-1.5 hidden text-[11px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-black shadow-sm ring-2 ring-white dark:ring-slate-800 leading-none"></span>
+                </button>
+                <button onclick="window.hbOpenModal()"
+                    class="flex items-center gap-2 px-4 py-3 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-sm shadow-blue-500/20 hover:shadow-blue-500/40">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                    Thêm Mới
+                </button>
+            </div>
+        </div>
+
+        <!-- filters container -->
+        <div class="flex flex-col xl:flex-row xl:items-center gap-4 pt-2">
+            <!-- severity filter -->
+            <div class="flex items-center gap-2 flex-wrap flex-1">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1"><svg class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Mức độ:</span>
+                <button class="hb-pill active" data-sev="all"     onclick="hbSetSev('all')">Tất cả <span class="pill-count" id="cnt-sev-all"></span></button>
+                <button class="hb-pill"        data-sev="urgent"  onclick="hbSetSev('urgent')">Khẩn cấp <span class="pill-count" id="cnt-sev-urgent"></span></button>
+                <button class="hb-pill"        data-sev="serious" onclick="hbSetSev('serious')">Nghiêm trọng <span class="pill-count" id="cnt-sev-serious"></span></button>
+                <button class="hb-pill"        data-sev="normal"  onclick="hbSetSev('normal')">Thông thường <span class="pill-count" id="cnt-sev-normal"></span></button>
+                <button class="hb-pill"        data-sev="tip"     onclick="hbSetSev('tip')">Mẹo hay <span class="pill-count" id="cnt-sev-tip"></span></button>
+            </div>
+
+            <div class="hidden xl:block w-px h-8 bg-slate-200 dark:bg-slate-700/50"></div>
+
+            <!-- category filter -->
+            <div class="flex items-center gap-2 flex-wrap flex-1 xl:justify-end">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider mr-1"><svg class="w-4 h-4 inline -mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg> Danh mục:</span>
+                <button class="hb-pill active" data-cat="all"        onclick="hbSetCat('all')">Tất cả</button>
+                <button class="hb-pill"        data-cat="checkin"    onclick="hbSetCat('checkin')">Check-in/out</button>
+                <button class="hb-pill"        data-cat="ota"        onclick="hbSetCat('ota')">OTA</button>
+                <button class="hb-pill"        data-cat="security"   onclick="hbSetCat('security')">An ninh</button>
+                <button class="hb-pill"        data-cat="technical"  onclick="hbSetCat('technical')">Kỹ thuật</button>
+                <button class="hb-pill"        data-cat="regulation" onclick="hbSetCat('regulation')">Nội quy</button>
+                <button class="hb-pill"        data-cat="surcharge"  onclick="hbSetCat('surcharge')">Phụ thu</button>
+                <button class="hb-pill"        data-cat="general"    onclick="hbSetCat('general')">Khác</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved table -->
+    <div class="bg-white dark:bg-slate-900/70 rounded-2xl border border-slate-200 dark:border-slate-700/70 overflow-hidden shadow-sm dark:shadow-black/20">
+        <div class="overflow-x-auto">
+            <table class="hb-table">
+                <thead>
+                    <tr>
+                        <th class="hb-situation text-left">Trường hợp</th>
+                        <th style="width:110px; text-align:center;">Phân loại</th>
+                        <th class="text-left">Hướng xử lý</th>
+                        <th style="width:130px; text-align:center;">Người chia sẻ</th>
+                        <th style="width:60px; text-align:center;"><svg class="w-4 h-4 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></th>
+                        {% if is_admin %}<th style="width:110px; text-align:center;">Thao tác</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody id="hb-tbody-approved"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pending -->
+    <div id="hb-pending-section" style="display:none;" class="mt-6">
+        <h3 class="text-sm font-black text-amber-600 dark:text-amber-500 mb-3 flex items-center gap-2 uppercase tracking-wide">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Đang Chờ Duyệt
+            <span class="text-[10px] bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 px-2 py-0.5 rounded-md font-bold tracking-normal normal-case">
+                Chỉ Admin và Người đăng thấy
+            </span>
+        </h3>
+        <div class="hb-pending-wrap bg-white dark:bg-slate-900/70 rounded-2xl border dark:border-amber-900/30 shadow-sm dark:shadow-black/20 overflow-hidden overflow-x-auto">
+            <table class="hb-table">
+                <thead>
+                    <tr>
+                        <th class="hb-situation text-left">Trường hợp</th>
+                        <th style="width:110px;  text-align:center;">Phân loại</th>
+                        <th class="text-left">Hướng xử lý</th>
+                        <th style="width:130px; text-align:center;">Người đăng</th>
+                        <th style="width:110px; text-align:center;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="hb-tbody-pending"></tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── ADD modal ── -->
+<div id="hb-modal-overlay">
+    <div class="hb-modal-box">
+        <h3 class="text-xl font-black mb-6 text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <svg class="w-6 h-6 text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Thêm Tình Huống Mới
+        </h3>
+        <form id="hb-form" onsubmit="window.hbSubmit(event)">
+
+            <div class="mb-4">
+                <label class="hb-label">Mức độ</label>
+                <div class="sev-radio-group" id="sev-radio-group">
+                    <label class="sev-radio-label" data-sev="urgent"><input type="radio" name="severity" value="urgent"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Khẩn cấp</label>
+                    <label class="sev-radio-label" data-sev="serious"><input type="radio" name="severity" value="serious"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> Nghiêm trọng</label>
+                    <label class="sev-radio-label selected" data-sev="normal"><input type="radio" name="severity" value="normal" checked> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Thông thường</label>
+                    <label class="sev-radio-label" data-sev="tip"><input type="radio" name="severity" value="tip"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.45.62 2.84 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg> Mẹo hay</label>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="hb-label">Danh mục</label>
+                <select name="category">
+                    <option value="general">Khác / Chung</option>
+                    <option value="checkin">Check-in / Check-out</option>
+                    <option value="ota">OTA</option>
+                    <option value="security">An ninh</option>
+                    <option value="technical">Kỹ thuật / Bảo trì</option>
+                    <option value="regulation">Nội quy</option>
+                    <option value="surcharge">Phụ thu</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="hb-label">Trường hợp / Tình huống <span class="text-red-500">*</span></label>
+                <textarea name="situation" rows="3" required placeholder="Mô tả tình huống cần xử lý..."></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="hb-label">Hướng xử lý / Giải pháp <span class="text-red-500">*</span></label>
+                <textarea name="solution" rows="5" required placeholder="Mô tả cách xử lý, các bước cần làm..."></textarea>
+            </div>
+
+            <div class="mb-5">
+                <label class="hb-label">Nguồn / Người chia sẻ <span class="text-slate-400 dark:text-slate-500 font-normal normal-case">(tuỳ chọn)</span></label>
+                <input type="text" name="shared_by" placeholder="Ví dụ: Ms. Mai, Ban quản lý, Kinh nghiệm thực tế...">
+            </div>
+
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="hbCloseModal()"
+                    class="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">Hủy</button>
+                <button type="submit" id="hb-submit-btn"
+                    class="px-5 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── EDIT modal (admin only) ── -->
+<div id="hb-edit-overlay">
+    <div class="hb-modal-box">
+        <h3 class="text-base font-black mb-5 text-slate-800 dark:text-slate-100">✏️ Chỉnh Sửa Tình Huống</h3>
+        <form id="hb-edit-form" onsubmit="window.hbSubmitEdit(event)">
+            <input type="hidden" id="hb-edit-id">
+
+            <div class="mb-4">
+                <label class="hb-label">Mức độ</label>
+                <div class="sev-radio-group" id="edit-sev-radio-group">
+                    <label class="sev-radio-label" data-sev="urgent"><input type="radio" name="severity" value="urgent"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Khẩn cấp</label>
+                    <label class="sev-radio-label" data-sev="serious"><input type="radio" name="severity" value="serious"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg> Nghiêm trọng</label>
+                    <label class="sev-radio-label" data-sev="normal"><input type="radio" name="severity" value="normal"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Thông thường</label>
+                    <label class="sev-radio-label" data-sev="tip"><input type="radio" name="severity" value="tip"> <svg class="w-3.5 h-3.5 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.45.62 2.84 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg> Mẹo hay</label>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="hb-label">Danh mục</label>
+                <select name="category" id="hb-edit-cat">
+                    <option value="general">Khác / Chung</option>
+                    <option value="checkin">Check-in / Check-out</option>
+                    <option value="ota">OTA</option>
+                    <option value="security">An ninh</option>
+                    <option value="technical">Kỹ thuật / Bảo trì</option>
+                    <option value="regulation">Nội quy</option>
+                    <option value="surcharge">Phụ thu</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="hb-label">Trường hợp <span class="text-red-500">*</span></label>
+                <textarea name="situation" id="hb-edit-situation" rows="3" required></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="hb-label">Hướng xử lý <span class="text-red-500">*</span></label>
+                <textarea name="solution" id="hb-edit-solution" rows="5" required></textarea>
+            </div>
+
+            <div class="mb-5">
+                <label class="hb-label">Người chia sẻ</label>
+                <input type="text" name="shared_by" id="hb-edit-shared-by">
+            </div>
+
+            <div class="flex gap-3 justify-end">
+                <button type="button" onclick="hbCloseEdit()"
+                    class="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">Hủy</button>
+                <button type="submit" id="hb-edit-btn"
+                    class="px-5 py-2 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">Lưu thay đổi</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+
+    const SEV_ORDER = { urgent:0, serious:1, normal:2, tip:3 };
+    const SEV_META  = {
+        urgent:  { icon:'<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>', label:'Khẩn cấp',     cls:'sev-urgent'  },
+        serious: { icon:'<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>', label:'Nghiêm trọng', cls:'sev-serious' },
+        normal:  { icon:'<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>', label:'Thông thường',  cls:'sev-normal'  },
+        tip:     { icon:'<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1.45.62 2.84 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>', label:'Mẹo hay',       cls:'sev-tip'     },
+    };
+    const CAT_META = {
+        general:    { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>', label:'Khác'           },
+        checkin:    { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>', label:'Check-in/out'   },
+        ota:        { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', label:'OTA'            },
+        security:   { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>', label:'An ninh'        },
+        technical:  { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>', label:'Kỹ thuật'       },
+        regulation: { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>', label:'Nội quy'        },
+        surcharge:  { icon:'<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>', label:'Phụ thu'        },
+    };
+
+    let approvedData = [];
+    let pendingData  = [];
+    let activeSev    = 'all';
+    let activeCat    = 'all';
+    let showBookmarks = false;
+
+    // bookmarks stored in localStorage
+    function bmKey() { return 'hb_bookmarks'; }
+    function getBM() {
+        try { return new Set(JSON.parse(localStorage.getItem(bmKey()) || '[]')); }
+        catch { return new Set(); }
+    }
+    function saveBM(set) { localStorage.setItem(bmKey(), JSON.stringify([...set])); }
+    function toggleBM(id) {
+        const s = getBM();
+        s.has(id) ? s.delete(id) : s.add(id);
+        saveBM(s);
+        refreshBMBadge();
+        window.hbRender();
+    }
+    function refreshBMBadge() {
+        const cnt = getBM().size;
+        const badge = document.getElementById('bm-count-badge');
+        badge.textContent = cnt;
+        badge.classList.toggle('hidden', cnt === 0);
+        
+        const dashBm = document.getElementById('dash-bm');
+        if(dashBm) dashBm.textContent = cnt;
+    }
+
+    // ── data load ──
+    async function loadEntries() {
+        const res = await fetch('/api/handbook/entries');
+        if (!res.ok) return;
+        const data = await res.json();
+        approvedData = (data.approved || []).sort((a,b) =>
+            (SEV_ORDER[a.severity]??2) - (SEV_ORDER[b.severity]??2)
+        );
+        pendingData = data.pending || [];
+        updateCounts();
+        refreshBMBadge();
+        window.hbRender();
+    }
+
+    function updateCounts() {
+        const sevs = ['urgent','serious','normal','tip'];
+        document.getElementById('cnt-sev-all').textContent = approvedData.length;
+        
+        let urgentCount = 0;
+        let seriousCount = 0;
+        let tipCount = 0;
+
+        sevs.forEach(s => {
+            const el = document.getElementById('cnt-sev-' + s);
+            const count = approvedData.filter(e => e.severity === s).length;
+            if (el) el.textContent = count;
+            
+            if(s === 'urgent') urgentCount = count;
+            if(s === 'serious') seriousCount = count;
+            if(s === 'tip') tipCount = count;
+        });
+
+        // Update dashboard counters
+        const dashTotal = document.getElementById('dash-total');
+        if(dashTotal) dashTotal.textContent = approvedData.length;
+        
+        const dashUrgent = document.getElementById('dash-urgent');
+        if(dashUrgent) dashUrgent.textContent = urgentCount + seriousCount;
+        
+        const dashTips = document.getElementById('dash-tips');
+        if(dashTips) dashTips.textContent = tipCount;
+    }
+
+    // ── filters ──
+    window.hbSetSev = function(sev) {
+        activeSev = sev;
+        document.querySelectorAll('.hb-pill[data-sev]').forEach(b =>
+            b.classList.toggle('active', b.dataset.sev === sev)
+        );
+        window.hbRender();
+    };
+    window.hbSetCat = function(cat) {
+        activeCat = cat;
+        document.querySelectorAll('.hb-pill[data-cat]').forEach(b =>
+            b.classList.toggle('active', b.dataset.cat === cat)
+        );
+        window.hbRender();
+    };
+    window.hbResetFilters = function() {
+        document.getElementById('hb-search').value = '';
+        activeSev = 'all';
+        activeCat = 'all';
+        showBookmarks = false;
+        
+        // Reset pills
+        document.querySelectorAll('.hb-pill').forEach(b => {
+            b.classList.remove('active');
+            if(b.dataset.sev === 'all' || b.dataset.cat === 'all') {
+                b.classList.add('active');
+            }
+        });
+        
+        // Reset bookmark button visual
+        const btn = document.getElementById('btn-show-bookmarks');
+        btn.classList.remove('bg-amber-50', 'dark:bg-amber-900/20', 'border-amber-300');
+        
+        window.hbRender();
+    };
+    window.hbToggleBookmarks = function() {
+        showBookmarks = !showBookmarks;
+        const btn = document.getElementById('btn-show-bookmarks');
+        btn.classList.toggle('bg-amber-50', showBookmarks);
+        btn.classList.toggle('dark:bg-amber-900/20', showBookmarks);
+        btn.classList.toggle('border-amber-300', showBookmarks);
+        window.hbRender();
+    };
+
+    // ── render ──
+    window.hbRender = function() {
+        const q    = (document.getElementById('hb-search').value || '').toLowerCase();
+        const bms  = getBM();
+        const tbody    = document.getElementById('hb-tbody-approved');
+        const colspan  = IS_ADMIN ? 6 : 5;
+
+        const filtered = approvedData.filter(e => {
+            if (showBookmarks && !bms.has(e.id)) return false;
+            if (activeSev !== 'all' && e.severity !== activeSev) return false;
+            if (activeCat !== 'all' && e.category !== activeCat) return false;
+            if (q && !e.situation.toLowerCase().includes(q) && !e.solution.toLowerCase().includes(q)) return false;
+            return true;
+        });
+
+        tbody.innerHTML = filtered.length === 0
+            ? `<tr><td colspan="${colspan}" class="text-center text-slate-400 py-10">Chưa có tình huống nào.</td></tr>`
+            : filtered.map(e => {
+            const sm = SEV_META[e.severity] || SEV_META.normal;
+            const cm = CAT_META[e.category] || CAT_META.general;
+            const isBm = bms.has(e.id);
+            const sharer = e.shared_by
+                ? `<div class="text-center text-xs text-slate-500 dark:text-slate-400 font-semibold">${esc(e.shared_by)}</div>`
+                : `<div class="text-center text-xs text-slate-300 dark:text-slate-600">—</div>`;
+            return `<tr class="row-${e.severity||'normal'} group">
+                <td class="hb-situation">
+                    <div class="text-slate-800 dark:text-slate-100 font-bold leading-snug">${esc(e.situation)}</div>
+                </td>
+                <td style="text-align:center; vertical-align:middle;">
+                    <div class="flex flex-col gap-1.5 items-center justify-center">
+                        <span class="sev-badge ${sm.cls}">${sm.icon} ${sm.label}</span>
+                        <span class="cat-badge">${cm.icon} ${cm.label}</span>
+                    </div>
+                </td>
+                <td class="hb-solution">
+                    <div class="bg-slate-50/80 dark:bg-slate-950/35 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 leading-snug">
+                        ${esc(e.solution)}
+                    </div>
+                </td>
+                <td style="vertical-align: middle;">${sharer}</td>
+                <td style="vertical-align: middle; text-align:center;">
+                    <button class="bm-btn ${isBm?'saved':''}" title="${isBm?'Bỏ lưu':'Lưu lại'}"
+                        onclick="toggleBM(${e.id})">
+                        <svg class="w-5 h-5 ${isBm ? 'fill-current' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+                    </button>
+                </td>
+                ${IS_ADMIN ? `<td style="vertical-align: middle; text-align:center;">
+                    <div class="flex gap-2 justify-center">
+                        <button onclick="hbOpenEdit(${e.id})" title="Sửa"
+                            class="act-btn edit">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                        </button>
+                        <button onclick="hbDelete(${e.id})" title="Xóa"
+                            class="act-btn del">
+                            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                        </button>
+                    </div>
+                </td>` : ''}
+            </tr>`;
+        }).join('');
+
+        // pending
+        const pendingSection = document.getElementById('hb-pending-section');
+        const pendingTbody   = document.getElementById('hb-tbody-pending');
+        if (pendingData.length > 0) {
+            pendingSection.style.display = '';
+            pendingTbody.innerHTML = pendingData.map(e => {
+                const sm = SEV_META[e.severity] || SEV_META.normal;
+                const cm = CAT_META[e.category] || CAT_META.general;
+                return `<tr>
+                    <td class="hb-situation"><div class="text-slate-800 dark:text-slate-100 font-bold leading-snug">${esc(e.situation)}</div></td>
+                    <td style="text-align:center; vertical-align:middle;">
+                        <div class="flex flex-col gap-1.5 items-center">
+                            <span class="sev-badge ${sm.cls}">${sm.icon} ${sm.label}</span>
+                            <span class="cat-badge">${cm.icon} ${cm.label}</span>
+                        </div>
+                    </td>
+                    <td class="hb-solution"><div class="bg-slate-50/80 dark:bg-slate-950/35 px-3 py-2 rounded-lg border border-slate-100 dark:border-slate-800/80 text-slate-700 dark:text-slate-300 leading-snug">${esc(e.solution)}</div></td>
+                    <td style="text-align:center; vertical-align:middle; font-size:12px; color:rgb(100 116 139);">
+                        <div class="font-bold text-slate-700 dark:text-slate-300">${esc(e.creator_name||'')}</div>
+                        ${e.shared_by ? `<div class="text-xs opacity-70 mt-0.5">nguồn: ${esc(e.shared_by)}</div>` : ''}
+                    </td>
+                    <td style="text-align:center; vertical-align:middle;">
+                        <div class="flex gap-2 justify-center flex-wrap">
+                            ${IS_ADMIN ? `<button onclick="hbApprove(${e.id})" title="Duyệt"
+                                class="act-btn approve">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                            </button>` : ''}
+                            <button onclick="hbDelete(${e.id})" title="Xóa"
+                                class="act-btn del">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        } else {
+            pendingSection.style.display = 'none';
+        }
+    };
+
+    // expose toggleBM globally for onclick
+    window.toggleBM = toggleBM;
+
+    // ── ADD modal ──
+    window.hbOpenModal = function() {
+        document.getElementById('hb-form').reset();
+        document.querySelectorAll('#sev-radio-group .sev-radio-label').forEach(l =>
+            l.classList.toggle('selected', l.dataset.sev === 'normal')
+        );
+        document.getElementById('hb-modal-overlay').classList.add('open');
+    };
+    window.hbCloseModal = function() {
+        document.getElementById('hb-modal-overlay').classList.remove('open');
+    };
+    window.hbSubmit = async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('hb-submit-btn');
+        btn.disabled = true; btn.textContent = 'Đang lưu...';
+        try {
+            const fd = new FormData(document.getElementById('hb-form'));
+            const res = await fetch('/api/handbook/entries', { method:'POST', body:fd });
+            if ((await res.json()).ok) { window.hbCloseModal(); await loadEntries(); }
+        } finally { btn.disabled = false; btn.textContent = 'Lưu'; }
+    };
+
+    // severity radio visual — shared handler
+    function wireSevRadio(groupId) {
+        document.getElementById(groupId).addEventListener('change', function(e) {
+            this.querySelectorAll('.sev-radio-label').forEach(l =>
+                l.classList.toggle('selected', l.querySelector('input') === e.target)
+            );
+        });
+    }
+    wireSevRadio('sev-radio-group');
+    wireSevRadio('edit-sev-radio-group');
+
+    // ── EDIT modal ──
+    window.hbOpenEdit = function(id) {
+        const entry = approvedData.find(e => e.id === id);
+        if (!entry) return;
+        document.getElementById('hb-edit-id').value       = id;
+        document.getElementById('hb-edit-situation').value = entry.situation;
+        document.getElementById('hb-edit-solution').value  = entry.solution;
+        document.getElementById('hb-edit-shared-by').value = entry.shared_by || '';
+        document.getElementById('hb-edit-cat').value       = entry.category || 'general';
+        // severity radio
+        const grp = document.getElementById('edit-sev-radio-group');
+        grp.querySelectorAll('input[type=radio]').forEach(r => {
+            r.checked = r.value === entry.severity;
+        });
+        grp.querySelectorAll('.sev-radio-label').forEach(l =>
+            l.classList.toggle('selected', l.dataset.sev === entry.severity)
+        );
+        document.getElementById('hb-edit-overlay').classList.add('open');
+    };
+    window.hbCloseEdit = function() {
+        document.getElementById('hb-edit-overlay').classList.remove('open');
+    };
+    window.hbSubmitEdit = async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('hb-edit-btn');
+        btn.disabled = true; btn.textContent = 'Đang lưu...';
+        const id = document.getElementById('hb-edit-id').value;
+        try {
+            const fd = new FormData(document.getElementById('hb-edit-form'));
+            const res = await fetch(`/api/handbook/entries/${id}`, { method:'PUT', body:fd });
+            if ((await res.json()).ok) { window.hbCloseEdit(); await loadEntries(); }
+        } finally { btn.disabled = false; btn.textContent = 'Lưu thay đổi'; }
+    };
+
+    // ── approve / delete ──
+    window.hbApprove = async function(id) {
+        const res = await fetch(`/api/handbook/entries/${id}/approve`, { method:'POST' });
+        if ((await res.json()).ok) await loadEntries();
+    };
+    window.hbDelete = async function(id) {
+        if (!confirm('Xóa tình huống này?')) return;
+        const res = await fetch(`/api/handbook/entries/${id}`, { method:'DELETE' });
+        if ((await res.json()).ok) await loadEntries();
+    };
+
+    // close on overlay click
+    ['hb-modal-overlay','hb-edit-overlay'].forEach(id => {
+        document.getElementById(id).addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('open');
+        });
+    });
+
+    function esc(str) {
+        return String(str||'')
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    loadEntries();
+})();
+</script>
+
+{% endblock %}

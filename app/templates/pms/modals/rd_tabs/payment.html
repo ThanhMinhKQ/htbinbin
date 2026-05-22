@@ -48,94 +48,112 @@ style="flex:1; overflow:hidden; display:none; background:#EBF4F6; flex-direction
     .chk-tl-amt.positive { color: #088395; } /* Cần thu thêm */
     .chk-tl-amt.negative { color: #38a169; } /* Đã thu / Giảm giá */
 
-    /* Modern Segmented Folio Tabs */
-    .rd-folio-tabs {
+    .rd-pay-room-header {
+      background: #fff;
+      border: 1px solid #c8dcdc;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 24px;
-      padding-bottom: 0;
-      border-bottom: none;
-      gap: 12px;
+      gap: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01);
+      min-height: 78px;
     }
-    .rd-folio-tab-group {
-      display: flex;
-      background: #c8dcdc;
-      padding: 4px;
-      border-radius: 12px;
-      gap: 4px;
-      overflow-x: auto;
-    }
-    .rd-folio-tab {
-      padding: 8px 16px;
-      font-weight: 600;
-      font-size: 13px;
-      color: #4a5568;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-      white-space: nowrap;
+    .rd-pay-room-main {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
+      min-width: 0;
     }
-    .rd-folio-tab:hover {
-      color: #2d3748;
-    }
-    .rd-folio-tab.active {
-      background: #fff;
+    .rd-pay-room-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 10px;
+      background: rgba(8,131,149,0.12);
       color: #088395;
-      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
-    }
-    .rd-folio-tab .badge {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 2px 6px;
-      background: rgba(0,0,0,0.05);
-      border-radius: 4px;
-      opacity: 0.8;
-    }
-    .rd-folio-tab.active .badge {
-      background: rgba(8,131,149,0.1);
-      color: #088395;
-    }
-
-    .rd-folio-actions {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    .rd-folio-btn {
-      height: 36px;
-      padding: 0 12px;
+    .rd-pay-room-kicker {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #4a5568;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .rd-pay-room-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      min-width: 0;
+    }
+    .rd-pay-room-number {
+      font-size: 28px;
+      line-height: 1;
+      font-weight: 900;
+      color: #088395;
+      white-space: nowrap;
+    }
+    .rd-pay-room-type {
+      font-size: 13px;
+      font-weight: 700;
+      color: #2d3748;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .rd-pay-room-meta {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, auto));
+      gap: 10px;
+      align-items: stretch;
+      flex: 1;
+      max-width: 720px;
+    }
+    .rd-pay-room-meta-item {
+      border-left: 1px solid #c8dcdc;
+      padding-left: 12px;
+      min-width: 0;
+    }
+    .rd-pay-room-meta-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 800;
+      color: #718096;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 4px;
+    }
+    .rd-pay-room-meta-value {
+      display: block;
       font-size: 12px;
       font-weight: 700;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-      border: 1px solid #c8dcdc;
-      background: #fff;
-      color: #4a5568;
-      transition: all 0.2s;
-    }
-    .rd-folio-btn:hover {
-      background: #EBF4F6;
-      border-color: #c8dcdc;
       color: #2d3748;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-    .rd-folio-btn.primary {
-      background: #c8dcdc;
-      color: #2d3748;
-      border-color: #7ab2b2;
-    }
-    .rd-folio-btn.primary:hover {
-      background: #7ab2b2;
-      border-color: #7ab2b2;
+    @media (max-width: 1180px) {
+      .rd-pay-room-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .rd-pay-room-meta {
+        width: 100%;
+        max-width: none;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .rd-pay-room-meta-item {
+        border-left: none;
+        padding-left: 0;
+      }
     }
 
-    
     /* Premium Dashboard Overhaul */
     .chk-dash-grid {
       display: grid; 
@@ -326,6 +344,12 @@ style="flex:1; overflow:hidden; display:none; background:#EBF4F6; flex-direction
 
     /* --- DARK MODE --- */
     html.dark #rd-tab-payment { background: #1e293b !important; }
+    html.dark .rd-pay-room-header { background: #0f172a; border-color: #334155; box-shadow: none; }
+    html.dark .rd-pay-room-icon { background: rgba(59,130,246,0.15); color: #60a5fa; }
+    html.dark .rd-pay-room-kicker, html.dark .rd-pay-room-meta-label { color: #94a3b8; }
+    html.dark .rd-pay-room-number { color: #60a5fa; }
+    html.dark .rd-pay-room-type, html.dark .rd-pay-room-meta-value { color: #f1f5f9; }
+    html.dark .rd-pay-room-meta-item { border-color: #334155; }
     
     html.dark .chk-dash-card-v3 { background: #0f172a; border-color: #334155; box-shadow: none; }
     html.dark .chk-dash-card-v3 .lbl { color: #94a3b8; }
@@ -335,13 +359,6 @@ style="flex:1; overflow:hidden; display:none; background:#EBF4F6; flex-direction
     html.dark .chk-dash-card-v3.dash-balance { background: #09637e; border: none; }
     html.dark .chk-dash-card-v3.dash-balance .lbl { color: #cbd5e1; }
     html.dark .chk-dash-card-v3.dash-balance .val { color: #fff; }
-    
-    html.dark .rd-folio-tab-group { background: #0f172a; }
-    html.dark .rd-folio-tab { color: #94a3b8; }
-    html.dark .rd-folio-tab:hover { color: #f1f5f9; }
-    html.dark .rd-folio-tab.active { background: #1e293b; color: #38bdf8; }
-    html.dark .rd-folio-btn { background: #0f172a; border-color: #334155; color: #f1f5f9; }
-    html.dark .rd-folio-btn:hover { background: #1e293b; }
     
     html.dark .chk-ledger-container { background: #0f172a; border-color: #334155; }
     html.dark .chk-ledger-header { background: #1e293b; border-color: #334155; color: #38bdf8; }
@@ -408,8 +425,42 @@ style="flex:1; overflow:hidden; display:none; background:#EBF4F6; flex-direction
     html.dark .rd-pay-closed-note { background:#0f172a; border-color:#334155; color:#cbd5e1; }
   </style>
 
-  <div class="rd-folio-tabs" id="rd-folio-tabs-container">
-     <!-- Rendered via JS -->
+  <div class="rd-pay-room-header" id="rd-pay-room-header">
+    <div class="rd-pay-room-main">
+      <div class="rd-pay-room-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M3 7V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2"/>
+          <path d="M3 21v-8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v8"/>
+          <path d="M3 17h18"/>
+          <path d="M7 11V7h10v4"/>
+        </svg>
+      </div>
+      <div style="min-width:0;">
+        <div class="rd-pay-room-kicker">Thanh toán phòng</div>
+        <div class="rd-pay-room-title">
+          <span class="rd-pay-room-number rd-room-num-pay" id="rd-pay-room-number">—</span>
+          <span class="rd-pay-room-type" id="rd-pay-room-type">Đang tải...</span>
+        </div>
+      </div>
+    </div>
+    <div class="rd-pay-room-meta">
+      <div class="rd-pay-room-meta-item">
+        <span class="rd-pay-room-meta-label">Khách chính</span>
+        <span class="rd-pay-room-meta-value" id="rd-pay-room-guest">—</span>
+      </div>
+      <div class="rd-pay-room-meta-item">
+        <span class="rd-pay-room-meta-label">Hình thức</span>
+        <span class="rd-pay-room-meta-value" id="rd-pay-room-stay-type">—</span>
+      </div>
+      <div class="rd-pay-room-meta-item">
+        <span class="rd-pay-room-meta-label">Nhận phòng</span>
+        <span class="rd-pay-room-meta-value" id="rd-pay-room-checkin">—</span>
+      </div>
+      <div class="rd-pay-room-meta-item">
+        <span class="rd-pay-room-meta-label">Trả dự kiến</span>
+        <span class="rd-pay-room-meta-value" id="rd-pay-room-checkout">—</span>
+      </div>
+    </div>
   </div>
 
   <div style="display:flex; gap:16px; margin-bottom:20px; align-items: stretch;">

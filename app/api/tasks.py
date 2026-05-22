@@ -186,6 +186,17 @@ def home(
     active_filters = {k: v for k, v in query_params.items() if v}
     pagination_query_string = urlencode(active_filters)
 
+    if request.query_params.get("json") == "1":
+        return JSONResponse({
+            "tasks": tasks,
+            "total_tasks": total_tasks,
+            "total_pages": total_pages,
+            "page": page,
+            "per_page": per_page,
+            "thong_ke": thong_ke,
+            "query_string": pagination_query_string
+        })
+
     # Render template
     response = templates.TemplateResponse(
         "tasks.html",

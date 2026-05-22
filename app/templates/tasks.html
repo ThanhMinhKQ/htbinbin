@@ -178,23 +178,16 @@
         <div class="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-4">
           <h2 class="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-100 text-center">Tổng quan</h2>
           <div class="grid grid-cols-2 gap-4">
-            {% set status_map = {
-              "Tổng công việc": "",
-              "Hoàn thành": "Hoàn thành",
-              "Đang chờ": "Đang chờ",
-              "Quá hạn": "Quá hạn"
-            } %}
             {% for label, color, value in [
               ("Tổng công việc", "text-blue-500", thong_ke.tong_cong_viec),
               ("Hoàn thành", "text-green-500", thong_ke.hoan_thanh),
               ("Đang chờ", "text-yellow-500", thong_ke.dang_cho),
               ("Quá hạn", "text-red-500", thong_ke.qua_han)
             ] %}
-              {% set status = status_map[label] %}
-              <a href="/tasks?trang_thai={{ status | urlencode }}"
-                class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col justify-center items-center shadow-sm hover:shadow-md transition-all duration-300 ease-out hover:scale-[1.03]">
-                <div class="text-2xl font-bold {{ color }}" data-countup="{{ value }}">0</div> <div class="text-sm text-gray-600 dark:text-gray-300 mt-2">{{ label }}</div>
-              </a>
+              <div class="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 flex flex-col justify-center items-center shadow-sm">
+                <div class="text-2xl font-bold {{ color }}" data-countup="{{ value }}">0</div>
+                <div class="text-sm text-gray-600 dark:text-gray-300 mt-2">{{ label }}</div>
+              </div>
             {% endfor %}
           </div>
         </div>
@@ -232,7 +225,7 @@
                 <!-- 1. Chi nhánh -->
                 {% if user.role != 'letan' %}
                 <div>
-                    <select name="chi_nhanh" onchange="this.form.submit()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <select name="chi_nhanh" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         <option value="">Tất cả chi nhánh</option>
                         {% for cn in branches %}{% if cn|lower not in ['admin', 'boss'] %}<option value="{{ cn }}" {% if chi_nhanh == cn %}selected{% endif %}>{{ cn }}</option>{% endif %}{% endfor %}
                     </select>
@@ -243,7 +236,7 @@
 
                 <!-- 2. Trạng thái -->
                 <div>
-                    <select name="trang_thai" onchange="this.form.submit()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <select name="trang_thai" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         <option value="">Tất cả trạng thái</option>
                         <option value="Đang chờ" {% if trang_thai == 'Đang chờ' %}selected{% endif %}>Đang chờ</option>
                         <option value="Hoàn thành" {% if trang_thai == 'Hoàn thành' %}selected{% endif %}>Hoàn thành</option>
@@ -256,7 +249,7 @@
 
                 <!-- 3. Bộ phận -->
                 <div>
-                    <select name="bo_phan" onchange="this.form.submit()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <select name="bo_phan" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         <option value="">Tất cả bộ phận</option>
                         {% for bp in departments %}<option value="{{ bp }}" {% if bo_phan == bp %}selected{% endif %}>{{ bp }}</option>{% endfor %}
                     </select>
@@ -803,11 +796,14 @@
       const USER_ROLE = "{{ user.role }}";
       const USER_NAME = "{{ user.name }}";
       const USER_CHI_NHANH = "{{ user_chi_nhanh }}";
-      
-      document.querySelectorAll('.swipe-item').forEach(item => {
-          let startX = 0;
-          let currentX = 0;
-          let isDragging = false;
+
+      // Gắn swipe event cho tất cả .swipe-item hiện có - gọi lại được sau AJAX
+      function attachSwipeListeners() {
+        document.querySelectorAll('.swipe-item').forEach(item => {
+          if (item._swipeInit) return; // Tránh gắn lại lần 2
+          item._swipeInit = true;
+
+          let startX = 0, currentX = 0, isDragging = false;
           const statusSpan = item.querySelector('span');
 
           item.addEventListener('touchstart', (e) => {
@@ -821,10 +817,10 @@
               currentX = e.touches[0].clientX - startX;
               const currentStatus = statusSpan.textContent.trim();
               if (USER_ROLE === 'ktv') {
-                  if (currentStatus === 'Hoàn thành' || currentStatus === 'Đã xoá') { currentX = 0; } 
+                  if (currentStatus === 'Hoàn thành' || currentStatus === 'Đã xoá') { currentX = 0; }
                   else { if (currentX > 0) { currentX = 0; } }
               }
-              if (USER_ROLE !== 'ktv' && !(USER_ROLE === 'letan' && item.dataset.task && JSON.parse(item.dataset.task).chi_nhanh === USER_BRANCH)) { // Letan can delete their own branch tasks
+              if (USER_ROLE !== 'ktv' && !(USER_ROLE === 'letan' && item.dataset.task && JSON.parse(item.dataset.task).chi_nhanh === USER_CHI_NHANH)) {
                   if (currentStatus === 'Hoàn thành' && currentX < 0) { currentX = 0; }
                   if (currentStatus === 'Đã xoá' && currentX < 0) { currentX = 0; }
               }
@@ -832,8 +828,8 @@
                   item.style.transform = `translateX(${currentX}px)`;
                   const swipePercent = Math.min(Math.abs(currentX) / 120, 1);
                   item.style.backgroundColor = currentX < 0
-                      ? `rgba(34,197,94,${swipePercent})`  // Green
-                      : `rgba(239,68,68,${swipePercent})`; // Red
+                      ? `rgba(34,197,94,${swipePercent})`
+                      : `rgba(239,68,68,${swipePercent})`;
               }
           });
 
@@ -842,17 +838,15 @@
               const taskId = item.getAttribute('data-task-id');
               const currentStatus = statusSpan.textContent.trim();
 
-              // Vuốt Trái -> Hoàn thành
               if (currentX < -120) {
                   if (USER_ROLE === 'ktv') {
-                      if ((currentStatus === 'Đang chờ' || currentStatus === 'Quá hạn' || currentStatus === 'Đã xoá') && confirm('Bạn có chắc chắn muốn đánh dấu hoàn thành công việc này?')) { // KTV can complete deleted tasks
+                      if ((currentStatus === 'Đang chờ' || currentStatus === 'Quá hạn' || currentStatus === 'Đã xoá') && confirm('Bạn có chắc chắn muốn đánh dấu hoàn thành công việc này?')) {
                           const res = await fetch(`/complete/${taskId}?json=1`, {
                               method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                               body: `nguoi_thuc_hien={{ user }}`
                           });
                           const result = await res.json();
                           if (result.success) {
-                              // Cập nhật lại data-task để modal chi tiết hiển thị đúng
                               const taskData = JSON.parse(item.dataset.task);
                               taskData.trang_thai = 'Hoàn thành';
                               item.dataset.task = JSON.stringify(taskData);
@@ -861,7 +855,7 @@
                           }
                       }
                   } else {
-                      if ((currentStatus !== 'Hoàn thành' && currentStatus !== 'Đã xoá') && confirm('Bạn có chắc chắn muốn đánh dấu hoàn thành công việc này?')) { // Other roles cannot complete deleted tasks
+                      if ((currentStatus !== 'Hoàn thành' && currentStatus !== 'Đã xoá') && confirm('Bạn có chắc chắn muốn đánh dấu hoàn thành công việc này?')) {
                           const res = await fetch(`/complete/${taskId}?json=1`, {
                               method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                               body: `nguoi_thuc_hien={{ user }}`
@@ -877,8 +871,7 @@
                       }
                   }
               }
-              // Vuốt Phải -> Xoá
-              else if (currentX > 120 && (USER_ROLE !== 'ktv' || (USER_ROLE === 'letan' && item.dataset.task && JSON.parse(item.dataset.task).chi_nhanh === USER_BRANCH))) { // Letan can delete their own branch tasks
+              else if (currentX > 120 && (USER_ROLE !== 'ktv' || (USER_ROLE === 'letan' && item.dataset.task && JSON.parse(item.dataset.task).chi_nhanh === USER_CHI_NHANH))) {
                   if (currentStatus === 'Đã xoá') {
                       item.style.transform = 'translateX(100%)';
                       setTimeout(() => item.remove(), 300);
@@ -893,7 +886,6 @@
                       }
                   }
               }
-              // Reset
               item.style.transform = 'translateX(0px)';
               item.style.backgroundColor = '';
               isDragging = false;
@@ -901,22 +893,15 @@
           });
 
           item.addEventListener('click', (e) => {
-            // 1. Nếu click trúng vào checkbox thì bỏ qua (để chọn xóa hàng loạt)
-            if (e.target.closest('input.row-checkbox')) {
-                return;
-            }
-
+            if (e.target.closest('input.row-checkbox')) return;
             e.stopPropagation();
-            
-            // 2. Lấy dữ liệu task từ attribute data-task
-            // Lưu ý: data-task được cập nhật liên tục khi vuốt nên dữ liệu luôn mới
             const taskData = JSON.parse(item.dataset.task);
-
-            // 3. Gọi hàm hiển thị chi tiết (Thay vì mở form sửa)
-            // Hàm này sẽ áp dụng logic ẩn/hiện nút Xóa/Sửa mà chúng ta đã làm ở bước trước
             showTaskDetail(taskData);
+          });
         });
-      });
+      }
+
+      attachSwipeListeners();
     </script>
     
     <script> <!-- General Modal and Table Interaction -->
@@ -1719,6 +1704,12 @@
                                 const newRowElement = createTaskRow(result.task);
                                 taskRow.replaceWith(newRowElement);
                             }
+                            const taskCard = document.querySelector(`.swipe-item[data-task-id="${taskId}"]`);
+                            if (taskCard) {
+                                const newCard = createMobileCard(result.task);
+                                taskCard.replaceWith(newCard);
+                                attachSwipeListeners();
+                            }
                             closeModal('editModal');
                             showToast('update');
                         } else {
@@ -1736,44 +1727,200 @@
     </script>
 
     <script>
-      function showTasksPendingState() {
+      // --- AJAX FETCH TASKS: tải lại bảng / pagination mà không reload trang ---
+      let _currentFetchController = null;
+
+      async function fetchTasks(params) {
+        if (_currentFetchController) _currentFetchController.abort();
+        _currentFetchController = new AbortController();
+
         const skeleton = document.getElementById('tasks-loading-skeleton');
         const content = document.getElementById('tasks-results-content');
         const filterForm = document.getElementById('filterForm');
         if (skeleton) skeleton.classList.remove('hidden');
         if (content) content.classList.add('hidden');
-        if (filterForm) {
-          filterForm.querySelectorAll('button, input, select').forEach((el) => {
-            if (el.type !== 'hidden') el.disabled = true;
-          });
+        if (filterForm) filterForm.querySelectorAll('button, input, select').forEach(el => { if (el.type !== 'hidden') el.disabled = true; });
+
+        try {
+          const qs = new URLSearchParams(params).toString();
+          const response = await fetch(`/tasks?json=1&${qs}`, { signal: _currentFetchController.signal });
+          if (!response.ok) throw new Error('Lỗi server');
+          const data = await response.json();
+
+          renderTasksTable(data);
+          renderMobileCards(data.tasks);
+          renderPagination(data.page, data.total_pages, params);
+          updateTaskCount(data.tasks.length, data.total_tasks);
+
+          // Cập nhật URL không reload trang
+          const cleanQs = qs ? `?${qs}` : '';
+          history.pushState({}, '', `/tasks${cleanQs}`);
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            console.error('fetchTasks error:', err);
+          }
+        } finally {
+          if (skeleton) skeleton.classList.add('hidden');
+          if (content) content.classList.remove('hidden');
+          if (filterForm) filterForm.querySelectorAll('button, input, select').forEach(el => { if (el.type !== 'hidden') el.disabled = false; });
         }
+      }
+
+      function renderTasksTable(data) {
+        const tbody = document.querySelector('table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (data.tasks.length === 0) {
+          const colCount = tbody.closest('table').querySelector('thead tr').children.length;
+          tbody.innerHTML = `<tr><td colspan="${colCount}" class="text-center py-12 text-slate-500 dark:text-slate-400">Không có công việc nào.</td></tr>`;
+          return;
+        }
+        data.tasks.forEach(t => tbody.appendChild(createTaskRow(t)));
+      }
+
+      function renderMobileCards(tasks) {
+        const container = document.querySelector('.block.lg\\:hidden .space-y-4');
+        if (!container) return;
+        container.innerHTML = '';
+        if (tasks.length === 0) {
+          container.innerHTML = '<div class="text-center py-16 text-slate-500 dark:text-slate-400">Không có công việc nào.</div>';
+          return;
+        }
+        tasks.forEach(t => container.appendChild(createMobileCard(t)));
+        attachSwipeListeners();
+      }
+
+      function createMobileCard(t) {
+        const statusClass = t.trang_thai === 'Hoàn thành' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' :
+                            t.trang_thai === 'Quá hạn' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300' :
+                            t.trang_thai === 'Đang chờ' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' :
+                            'bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-400';
+        const div = document.createElement('div');
+        div.className = 'relative overflow-hidden rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 swipe-item';
+        div.dataset.taskId = t.id;
+        div.dataset.task = JSON.stringify(t);
+        if (t.trang_thai === 'Đã xoá') { div.style.opacity = '0.6'; div.style.filter = 'grayscale(50%)'; }
+        div.innerHTML = `<div class="p-4 flex flex-col gap-2">
+          <div class="flex justify-between items-center">
+            <div class="text-base font-semibold text-gray-800 dark:text-gray-100">${t.phong}</div>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${statusClass}">${t.trang_thai}</span>
+          </div>
+          <div class="text-sm text-gray-600 dark:text-gray-300">${t.mo_ta}</div>
+          ${t.ghi_chu ? `<div class="text-xs text-gray-400 italic">Ghi chú: ${t.ghi_chu}</div>` : ''}
+          ${t.department ? `<div class="text-xs text-gray-500 dark:text-gray-400">Bộ phận: <span class="font-medium">${t.department}</span></div>` : ''}
+          <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+            <span class="font-mono text-left">${t.id_task}</span>
+          </div>
+        </div>`;
+        div.addEventListener('click', (e) => {
+          if (e.target.closest('input.row-checkbox')) return;
+          e.stopPropagation();
+          showTaskDetail(JSON.parse(div.dataset.task));
+        });
+        return div;
+      }
+
+      function renderPagination(page, totalPages, params) {
+        const paginationContainer = document.querySelector('.pagination');
+        if (!paginationContainer) return;
+        if (totalPages <= 1) { paginationContainer.innerHTML = ''; return; }
+
+        const makeParams = (p) => {
+          const ps = { ...params, page: p };
+          return Object.entries(ps).filter(([,v]) => v).map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+        };
+        const makeLink = (p, label) => `<a href="#" data-page="${p}" class="px-3 py-1 border rounded-full hover:bg-blue-100 dark:hover:bg-gray-700 transition">${label}</a>`;
+        const makeActive = (p) => `<span class="px-3 py-1 rounded-full bg-blue-600 text-white font-semibold shadow">${p}</span>`;
+
+        let html = '';
+        if (page > 1) { html += makeLink(1, '«'); html += makeLink(page - 1, '‹'); }
+        for (let p = 1; p <= totalPages; p++) {
+          if (p === page) { html += makeActive(p); }
+          else if (p >= page - 2 && p <= page + 2) { html += makeLink(p, p); }
+          else if (p === 1 || p === totalPages) { html += `<span class="px-2 text-gray-400">...</span>`; }
+        }
+        if (page < totalPages) { html += makeLink(page + 1, '›'); html += makeLink(totalPages, '»'); }
+        paginationContainer.innerHTML = html;
+
+        paginationContainer.querySelectorAll('a[data-page]').forEach(link => {
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            fetchTasks({ ...params, page: link.dataset.page });
+          });
+        });
+      }
+
+      function updateTaskCount(shown, total) {
+        const countEl = document.querySelector('.text-sm.text-gray-500.font-medium');
+        if (countEl && total > 0) countEl.textContent = `Hiển thị ${shown} / ${total} công việc.`;
+        else if (countEl) countEl.textContent = '';
+      }
+
+      function getCurrentFilterParams() {
+        const form = document.getElementById('filterForm');
+        if (!form) return {};
+        const fd = new FormData(form);
+        const params = {};
+        fd.forEach((v, k) => { if (v) params[k] = v; });
+        // Lấy per_page từ select
+        const perPage = document.getElementById('per-page-select')?.value;
+        if (perPage) params.per_page = perPage;
+        return params;
       }
 
       document.addEventListener('DOMContentLoaded', function() {
           const filterForm = document.getElementById('filterForm');
           if (filterForm) {
-              filterForm.addEventListener('submit', showTasksPendingState);
-          }
-          document.querySelectorAll('.pagination a').forEach((link) => {
-              link.addEventListener('click', showTasksPendingState);
-          });
-      });
-    </script>
+              filterForm.addEventListener('submit', function(e) {
+                  e.preventDefault();
+                  fetchTasks({ ...getCurrentFilterParams(), page: 1 });
+              });
 
-    <script>
-      // --- SCRIPT MỚI: XỬ LÝ DROPDOWN CHỌN SỐ LƯỢNG HIỂN THỊ ---
-      document.addEventListener('DOMContentLoaded', function() {
+              // Các select tự động submit khi thay đổi
+              filterForm.querySelectorAll('select[onchange]').forEach(sel => {
+                sel.removeAttribute('onchange');
+                sel.addEventListener('change', () => {
+                  fetchTasks({ ...getCurrentFilterParams(), page: 1 });
+                });
+              });
+
+              // Datepicker tự động fetch sau khi chọn ngày
+              const dateInput = filterForm.querySelector('input[name="han_hoan_thanh"]');
+              if (dateInput) {
+                dateInput.addEventListener('change', () => {
+                  fetchTasks({ ...getCurrentFilterParams(), page: 1 });
+                });
+              }
+          }
+
           const perPageSelect = document.getElementById('per-page-select');
           if (perPageSelect) {
               perPageSelect.addEventListener('change', function() {
-                  showTasksPendingState();
-                  const newPerPage = this.value;
-                  const currentUrl = new URL(window.location.href);
-                  currentUrl.searchParams.set('per_page', newPerPage);
-                  currentUrl.searchParams.set('page', '1'); // Reset về trang 1 khi thay đổi số lượng
-                  window.location.href = currentUrl.toString();
+                  fetchTasks({ ...getCurrentFilterParams(), page: 1, per_page: this.value });
               });
           }
+
+          // Nút xóa bộ lọc
+          const clearLink = document.querySelector('a[href="/tasks"]');
+          if (clearLink) {
+            clearLink.addEventListener('click', (e) => {
+              e.preventDefault();
+              const form = document.getElementById('filterForm');
+              if (form) form.reset();
+              fetchTasks({});
+            });
+          }
+
+          // Pagination hiện có (server-rendered)
+          document.querySelectorAll('.pagination a').forEach(link => {
+            link.addEventListener('click', (e) => {
+              e.preventDefault();
+              const url = new URL(link.href);
+              const params = {};
+              url.searchParams.forEach((v, k) => { if (v) params[k] = v; });
+              fetchTasks(params);
+            });
+          });
       });
     </script>
     <script> <!-- Shift Change Logout -->

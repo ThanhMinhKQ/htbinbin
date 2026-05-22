@@ -6,28 +6,32 @@
             <p class="inv-kpi-label">Tổng yêu cầu</p>
             <p class="inv-kpi-value" x-text="totalRecords || 0"></p>
             <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
         </div>
         <div class="inv-kpi-card" data-accent="slate">
             <p class="inv-kpi-label">Đang hiển thị</p>
             <p class="inv-kpi-value" x-text="historyList.length || 0"></p>
             <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M4 6h16M4 10h16M4 14h10M4 18h10" />
             </svg>
         </div>
         <div class="inv-kpi-card" data-accent="yellow">
             <p class="inv-kpi-label">Chờ duyệt</p>
             <p class="inv-kpi-value" x-text="historyList.filter(t => t.status === 'PENDING').length"></p>
             <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
         </div>
         <div class="inv-kpi-card" data-accent="teal">
             <p class="inv-kpi-label">Đã nhận hàng</p>
             <p class="inv-kpi-value" x-text="historyList.filter(t => t.status === 'COMPLETED').length"></p>
             <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
         </div>
     </div>
@@ -35,21 +39,18 @@
     <div class="inventory-request-toolbar inv-toolbar">
         <div class="inv-status-strip mb-3">
             <button type="button" @click="filters.status = ''; fetchHistory(1)"
-                :class="{ 'is-active': filters.status === '' }"
-                class="inv-status-chip">Tất cả</button>
+                :class="{ 'is-active': filters.status === '' }" class="inv-status-chip">Tất cả</button>
             <button type="button" @click="filters.status = 'PENDING'; fetchHistory(1)"
-                :class="{ 'is-active': filters.status === 'PENDING' }"
-                class="inv-status-chip">Chờ duyệt</button>
+                :class="{ 'is-active': filters.status === 'PENDING' }" class="inv-status-chip">Chờ duyệt</button>
             <button type="button" @click="filters.status = 'SHIPPING'; fetchHistory(1)"
-                :class="{ 'is-active': filters.status === 'SHIPPING' }"
-                class="inv-status-chip">Đang giao</button>
+                :class="{ 'is-active': filters.status === 'SHIPPING' }" class="inv-status-chip">Đang giao</button>
             <button type="button" @click="filters.status = 'COMPLETED'; fetchHistory(1)"
-                :class="{ 'is-active': filters.status === 'COMPLETED' }"
-                class="inv-status-chip">Đã nhận</button>
+                :class="{ 'is-active': filters.status === 'COMPLETED' }" class="inv-status-chip">Đã nhận</button>
             <div class="flex-1"></div>
             <button @click="resetDateFilter()" class="inv-btn-secondary" title="Reset về tháng hiện tại">
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 Tháng này
             </button>
@@ -64,11 +65,11 @@
         <div class="flex flex-col sm:flex-row gap-2 flex-wrap">
             <div class="relative w-full sm:w-64">
                 <input type="text" x-model="filters.search" @keydown.enter="fetchHistory(1)"
-                    class="inventory-request-input inv-field-search"
-                    placeholder="Tìm mã phiếu, ghi chú...">
+                    class="inventory-request-input inv-field-search" placeholder="Tìm mã phiếu, ghi chú...">
                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </div>
             </div>
@@ -77,9 +78,11 @@
             <input type="date" x-model="filters.date_to" @change="fetchHistory(1)"
                 class="inventory-request-input inv-field w-full sm:w-40">
             <button @click="fetchHistory(1)" class="inventory-request-secondary-btn inv-btn-secondary">Lọc</button>
-            <button @click="resetDateFilter()" class="inventory-request-reset-btn inv-btn-secondary" title="Reset về tháng hiện tại">
+            <button @click="resetDateFilter()" class="inventory-request-reset-btn inv-btn-secondary"
+                title="Reset về tháng hiện tại">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
             </button>
         </div>
@@ -105,8 +108,7 @@
             </div>
 
             <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 border-collapse">
-                <thead
-                    class="inventory-request-head inv-table-head">
+                <thead class="inventory-request-head inv-table-head">
                     <tr>
                         <th scope="col" class="w-12 px-4 py-3 text-center">
                             <input type="checkbox" id="select-all-checkbox" @click="toggleSelectAll"
@@ -140,7 +142,8 @@
                         <th scope="col" class="px-4 py-3 text-right">Thao tác</th>
                     </tr>
                 </thead>
-                <tbody class="inventory-request-body divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
+                <tbody
+                    class="inventory-request-body divide-y divide-slate-100 dark:divide-slate-700 bg-white dark:bg-slate-800">
                     <template x-for="(t, index) in historyList" :key="t.id">
                         <tr class="inventory-request-row inv-row cursor-pointer group"
                             :class="{'bg-amber-50 dark:bg-amber-900/20 is-shortage': t.has_shortage, 'bg-blue-50 dark:bg-blue-900/10 is-selected': selectedIds.includes(t.id)}"
@@ -151,7 +154,8 @@
                                     :checked="selectedIds.includes(t.id)"
                                     class="h-4 w-4 rounded border-gray-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 bg-white dark:bg-slate-700 row-checkbox cursor-pointer">
                             </td>
-                            <td class="inventory-request-code px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-medium">
+                            <td
+                                class="inventory-request-code px-4 py-3 font-mono text-slate-600 dark:text-slate-400 font-medium">
                                 <span x-text="t.code"></span>
                             </td>
                             <td class="px-4 py-3 text-center">
@@ -203,21 +207,25 @@
                                 <span class="inventory-request-strong font-medium text-slate-800 dark:text-slate-200"
                                     x-text="t.source_warehouse_name"></span>
                             </td>
-                            <td class="inventory-request-muted px-4 py-3 text-slate-500" x-text="formatDate(t.created_at)"></td>
+                            <td class="inventory-request-muted px-4 py-3 text-slate-500"
+                                x-text="formatDate(t.created_at)"></td>
                             <td class="px-4 py-3 text-center">
                                 <span class="px-2.5 py-1 rounded-full text-xs font-bold border"
                                     :class="getStatusClass(t.status)" x-text="getStatusLabel(t.status)">
                                 </span>
                             </td>
-                            <td class="inventory-request-count px-4 py-3 text-center font-bold text-slate-600" x-text="t.items.length"></td>
+                            <td class="inventory-request-count px-4 py-3 text-center font-bold text-slate-600"
+                                x-text="t.items.length"></td>
                             <td class="px-4 py-3 text-right" @click.stop>
                                 <div class="flex items-center justify-end gap-2">
                                     <button @click="openRequestDetailModal(t)"
                                         class="inv-action-chip inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800"
                                         title="Chi tiết">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                         </svg>
                                         Chi tiết
                                     </button>
@@ -225,7 +233,8 @@
                                         <button @click="openReceiptModal(t)"
                                             class="inline-flex items-center gap-1.5 rounded-full bg-green-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-green-700">
                                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M5 13l4 4L19 7" />
                                             </svg>
                                             Nhận
                                         </button>
@@ -239,7 +248,8 @@
                                         </svg>
                                     </button>
                                     <button x-show="t.status === 'PENDING'" @click="deleteRequest(t.id)"
-                                        class="inv-action-chip p-1.5 text-red-700 transition hover:border-red-300 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30" title="Xóa">
+                                        class="inv-action-chip p-1.5 text-red-700 transition hover:border-red-300 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/30"
+                                        title="Xóa">
                                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -273,7 +283,10 @@
             <div class="flex items-center gap-4">
                 <div class="inventory-request-muted text-sm text-slate-500">
                     <template x-if="totalRecords > 0">
-                        <span>Hiển thị <span class="font-bold text-slate-700 dark:text-slate-300" x-text="historyList.length"></span> / <span class="font-bold text-slate-700 dark:text-slate-300" x-text="totalRecords"></span> phiếu</span>
+                        <span>Hiển thị <span class="font-bold text-slate-700 dark:text-slate-300"
+                                x-text="historyList.length"></span> / <span
+                                class="font-bold text-slate-700 dark:text-slate-300" x-text="totalRecords"></span>
+                            phiếu</span>
                     </template>
                     <template x-if="totalRecords === 0">
                         <span>Không có yêu cầu nào.</span>

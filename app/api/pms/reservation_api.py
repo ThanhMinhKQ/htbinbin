@@ -565,43 +565,16 @@ def api_ota_status(
     db: Session = Depends(get_db),
 ):
     user = _require_login(request)
-    target_branch = None if _is_admin(user) and not branch_id else _target_branch_id(request, db, user, branch_id)
 
-    # ── TTL cache 20s để tránh hammer DB khi FE poll ────────────────────
-    # Endpoint này được poll từ base.html (120s) + dashboard (90s) cho MỌI user.
-    # Dữ liệu mới chỉ tới qua email OTA (tối đa vài phút/lần) → cache ngắn an toàn.
-    import time
-    cache_key = (target_branch, days)
-    now_ts = time.time()
-    cached = _OTA_STATUS_CACHE.get(cache_key)
-    if not fresh and cached and (now_ts - cached[0]) < _OTA_STATUS_TTL:
-        return JSONResponse(cached[1])
-
-    branch = db.query(Branch).filter(Branch.id == target_branch).first() if target_branch else None
-    try:
-        since = datetime.now(VN_TZ) - timedelta(days=days)
-        # Bỏ service.stats(): polling không cần booking_stats (FE không dùng).
-        # Bỏ ota_q: dead code (được build nhưng không execute/return).
-        # Giảm limit 200 → 80: đủ để xác định top success/cancel/failed gần nhất.
-        log_q = db.query(OTAParsingLog).outerjoin(OTAParsingLog.booking)
-        if target_branch:
-            log_q = log_q.filter(or_(
-                Booking.branch_id == target_branch,
-                OTAParsingLog.extracted_data["branch_id"].astext == str(target_branch),
-            ))
-        recent_logs = log_q.options(joinedload(OTAParsingLog.booking).joinedload(Booking.branch)).filter(
-            OTAParsingLog.received_at >= since,
-            OTAParsingLog.status.isnot(None),
-        ).order_by(OTAParsingLog.received_at.desc()).limit(80).all()
-    except OperationalError as exc:
-        db.rollback()
+    def offline_response(target_branch=None, branch_name="Tất cả chi nhánh"):
         return JSONResponse({
             "booking_stats": {},
             "branch_id": target_branch,
-            "branch_name": branch.name if branch else "Tất cả chi nhánh",
+            "branch_name": branch_name,
             "ota_total": 0,
             "ota_confirmed": 0,
             "ota_cancelled": 0,
+            "ota_updated": 0,
             "ota_pending": 0,
             "failed_emails": 0,
             "success_emails": 0,
@@ -619,9 +592,47 @@ def api_ota_status(
             "latest_success_booking": None,
             "latest_cancel_log_id": None,
             "latest_cancel_booking": None,
+            "latest_modification_log_id": None,
+            "latest_modification_booking": None,
             "database_offline": True,
             "message": "Không kết nối được cơ sở dữ liệu",
         }, status_code=200)
+
+    try:
+        target_branch = None if _is_admin(user) and not branch_id else _target_branch_id(request, db, user, branch_id)
+    except OperationalError:
+        db.rollback()
+        return offline_response()
+
+    # ── TTL cache 20s để tránh hammer DB khi FE poll ────────────────────
+    # Endpoint này được poll từ base.html (120s) + dashboard (90s) cho MỌI user.
+    # Dữ liệu mới chỉ tới qua email OTA (tối đa vài phút/lần) → cache ngắn an toàn.
+    import time
+    cache_key = (target_branch, days)
+    now_ts = time.time()
+    cached = _OTA_STATUS_CACHE.get(cache_key)
+    if not fresh and cached and (now_ts - cached[0]) < _OTA_STATUS_TTL:
+        return JSONResponse(cached[1])
+
+    try:
+        branch = db.query(Branch).filter(Branch.id == target_branch).first() if target_branch else None
+        since = datetime.now(VN_TZ) - timedelta(days=days)
+        # Bỏ service.stats(): polling không cần booking_stats (FE không dùng).
+        # Bỏ ota_q: dead code (được build nhưng không execute/return).
+        # Giảm limit 200 → 80: đủ để xác định top success/cancel/failed gần nhất.
+        log_q = db.query(OTAParsingLog).outerjoin(OTAParsingLog.booking)
+        if target_branch:
+            log_q = log_q.filter(or_(
+                Booking.branch_id == target_branch,
+                OTAParsingLog.extracted_data["branch_id"].astext == str(target_branch),
+            ))
+        recent_logs = log_q.options(joinedload(OTAParsingLog.booking).joinedload(Booking.branch)).filter(
+            OTAParsingLog.received_at >= since,
+            OTAParsingLog.status.isnot(None),
+        ).order_by(OTAParsingLog.received_at.desc()).limit(80).all()
+    except OperationalError:
+        db.rollback()
+        return offline_response(target_branch)
     relevant_logs = [log for log in recent_logs if _is_relevant_ota_log(log) and _ota_log_matches_branch(log, target_branch)]
     latest_log = relevant_logs[0] if relevant_logs else None
     success_booking_logs = [log for log in relevant_logs if _is_success_booking_log(log)]

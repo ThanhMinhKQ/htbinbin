@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy import (
     Column, String, Integer, DateTime, Text, Date, Boolean, Float, Time,
     Enum as SQLAlchemyEnum, ForeignKey, BIGINT, NUMERIC, Index, func,
-    CheckConstraint
+    CheckConstraint, UniqueConstraint
 )
 from datetime import date as date_type
 from sqlalchemy.orm import relationship
@@ -240,6 +240,50 @@ class AttendanceLog(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="attendance_logs")
+
+class ShiftNotification(Base):
+    """Thông báo bắt buộc đọc khi nhân viên vào ca."""
+    __tablename__ = "shift_notifications"
+
+    id = Column(BIGINT, primary_key=True)
+    title = Column(String(255), nullable=False)
+    body = Column(Text, nullable=False)
+    priority = Column(String(20), nullable=False, default="normal")
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    starts_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    ends_at = Column(DateTime(timezone=True), nullable=True, index=True)
+    schedule_shift = Column(String(10), nullable=True, index=True)
+    min_read_seconds = Column(Integer, nullable=False, default=5)
+    audience_roles = Column(JSONB, nullable=False, server_default="[]")
+    branch_ids = Column(JSONB, nullable=False, server_default="[]")
+    created_by_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    updated_by_id = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
+
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
+class ShiftNotificationRead(Base):
+    """Dấu vết người dùng đã đọc thông báo trong một ngày/ca làm việc."""
+    __tablename__ = "shift_notification_reads"
+
+    id = Column(BIGINT, primary_key=True)
+    notification_id = Column(BIGINT, ForeignKey("shift_notifications.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(BIGINT, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    attendance_log_id = Column(BIGINT, ForeignKey("attendance_log.id", ondelete="SET NULL"), nullable=True, index=True)
+    work_date = Column(Date, nullable=False, index=True)
+    shift = Column(String(10), nullable=False, index=True)
+    read_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    notification = relationship("ShiftNotification")
+    user = relationship("User")
+    attendance_log = relationship("AttendanceLog")
+
+    __table_args__ = (
+        UniqueConstraint("notification_id", "user_id", "work_date", "shift", name="uq_shift_notification_read_once"),
+    )
 
 class AttendanceRecord(Base):
     """Bảng công chính thức."""
@@ -2019,3 +2063,27 @@ Guest.service_usages = relationship("GuestServiceUsage", back_populates="guest",
 Guest.payment_summaries = relationship("GuestPaymentSummary", back_populates="guest", cascade="all, delete-orphan")
 Guest.loyalty_transactions = relationship("GuestLoyaltyTransaction", back_populates="guest", cascade="all, delete-orphan")
 Guest.stay_mappings = relationship("GuestStayMapping", back_populates="guest", cascade="all, delete-orphan")
+
+
+# ====================================================================
+# HANDBOOK (CẨM NANG)
+# ====================================================================
+
+class HandbookEntry(Base):
+    """Tình huống và hướng xử lý trong cẩm nang lễ tân."""
+    __tablename__ = "handbook_entries"
+
+    id            = Column(BIGINT, primary_key=True)
+    situation     = Column(Text, nullable=False)
+    solution      = Column(Text, nullable=False)
+    severity      = Column(String(20), nullable=False, default="normal", index=True)
+    # severity: 'urgent' | 'serious' | 'normal' | 'tip'
+    category      = Column(String(50), nullable=False, default="general", index=True)
+    # category: 'general' | 'checkin' | 'ota' | 'security' | 'technical' | 'regulation' | 'surcharge'
+    shared_by     = Column(String(100), nullable=True)
+    is_approved   = Column(Boolean, default=False, nullable=False, index=True)
+    created_by    = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    created_at    = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at    = Column(DateTime(timezone=True), onupdate=func.now())
+
+    creator = relationship("User", foreign_keys=[created_by])

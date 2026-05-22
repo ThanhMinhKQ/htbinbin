@@ -602,6 +602,73 @@ function rdLedgerSkeletonRows(count = 4) {
     `).join('')}</div>`;
 }
 
+function rdPaymentStayTypeLabel(stayType) {
+    const normalized = String(stayType || '').toUpperCase();
+    if (['HOURLY', 'HOUR', 'FORCE_HOURLY', 'HOURLY_CHARGE'].includes(normalized)) return 'Thuê giờ';
+    if (['DAILY', 'DAY', 'DAY_USE', 'FORCE_DAILY'].includes(normalized)) return 'Thuê ngày';
+    if (['OVERNIGHT', 'NIGHT', 'FORCE_OVERNIGHT'].includes(normalized)) return 'Qua đêm';
+    if (normalized === 'OTA_MANUAL') return 'OTA';
+    return normalized ? 'Qua đêm' : '';
+}
+
+function rdResolvePaymentPricingMode(data = {}, paymentState = null) {
+    const breakdown = paymentState?.breakdown || data?.breakdown || [];
+    const itemModes = breakdown
+        .map(item => String(item?.mode || '').toUpperCase())
+        .filter(Boolean);
+
+    if (itemModes.includes('OVERNIGHT')) return 'FORCE_OVERNIGHT';
+    if (itemModes.includes('DAILY')) return 'FORCE_DAILY';
+
+    const itemTypes = breakdown.map(item => String(item?.type || '').toUpperCase());
+    if (itemTypes.includes('ROOM_CHARGE')) return 'FORCE_DAILY';
+    if (itemModes.includes('HOURLY')) return 'FORCE_HOURLY';
+    if (itemTypes.includes('HOURLY_CHARGE')) return 'FORCE_HOURLY';
+
+    return paymentState?.pricing_mode_final
+        || data?.pricing_mode_final
+        || paymentState?.pricing_mode
+        || data?.pricing_mode
+        || paymentState?.mode
+        || data?.mode
+        || data?.pricing_mode_initial
+        || data?.stay_type
+        || '';
+}
+
+function rdFormatPaymentHeaderDate(value) {
+    if (!value) return '—';
+    if (typeof pmsFormatDateTimeVN === 'function') return pmsFormatDateTimeVN(value);
+    return String(value);
+}
+
+function rdUpdatePaymentRoomHeader(data = null, roomNum = '', paymentState = rdPaymentState) {
+    const d = data || {};
+    const guests = d.guests || [];
+    const primaryGuest = guests.find(g => g.is_primary) || guests[0] || null;
+    const pricingMode = rdResolvePaymentPricingMode(d, paymentState);
+    const headerData = {
+        room: roomNum || d.room_number || '',
+        type: d.room_type || '',
+        guest: primaryGuest?.full_name || d.guest_name || '',
+        stayType: rdPaymentStayTypeLabel(pricingMode),
+        checkIn: rdFormatPaymentHeaderDate(d.check_in_at || paymentState?.check_in_at),
+        checkOut: rdFormatPaymentHeaderDate(d.check_out_at || paymentState?.check_out_at),
+    };
+
+    const setText = (id, value, fallback = '—') => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value || fallback;
+    };
+
+    setText('rd-pay-room-number', headerData.room);
+    setText('rd-pay-room-type', headerData.type, 'Đang tải...');
+    setText('rd-pay-room-guest', headerData.guest);
+    setText('rd-pay-room-stay-type', headerData.stayType);
+    setText('rd-pay-room-checkin', headerData.checkIn);
+    setText('rd-pay-room-checkout', headerData.checkOut);
+}
+
 /**
  * Reset TẤT CẢ các phần tử UI hiển thị về trạng thái placeholder/skeleton
  * ngay lập tức khi mở phòng mới, TRƯỚC KHI gọi bất kỳ API nào.
@@ -656,6 +723,7 @@ function _rdResetVisualUI() {
     if (notesRoom) notesRoom.value = '';
 
     // ── Payment tab: Dashboard cards ──
+    rdUpdatePaymentRoomHeader();
     const dashIds = ['rd-pay-dash-room', 'rd-pay-dash-service', 'rd-pay-dash-extra', 'rd-pay-dash-paid', 'rd-pay-dash-discount', 'rd-pay-dash-balance'];
     dashIds.forEach(id => {
         const el = document.getElementById(id);
@@ -1088,6 +1156,7 @@ async function rdLoadPayment(autoOpenPayment) {
             }
         }
 
+        rdUpdatePaymentRoomHeader(rdStayData, document.getElementById('rd-room-num')?.textContent || '', rdPaymentState);
         if (!rdFolioJustRendered) {
             rdRenderPaymentIfChanged();
         }
@@ -1293,6 +1362,7 @@ async function openRoomDetail(stayId, num, targetTab = 'room') {
 
             // Vehicle
             const primaryGuest = (d.guests || []).find(g => g.is_primary) || (d.guests || [])[0];
+            rdUpdatePaymentRoomHeader(d, num);
             const elVehicle = document.getElementById('rd-vehicle');
             const elVehDisp = document.getElementById('rd-ri-vehicle');
             const elVehPill = document.getElementById('rd-ri-vehicle-pill');
@@ -2136,6 +2206,7 @@ async function fetchFolio(stayId) {
         }
 
         // ── Bước 4: Render UI ──
+        rdUpdatePaymentRoomHeader(rdStayData, rdStayData?.room_number || '', rdPaymentState);
         rdRenderPaymentIfChanged();
         rdFolioJustRendered = true;
 

@@ -1,6 +1,6 @@
 <!-- MODAL: CHI TIẾT LỊCH SỬ YÊU CẦU (REQUEST DETAIL) -->
-<div x-show="viewingRequestTicket" style="display: none;" class="fixed inset-0 z-[1100] overflow-y-auto" aria-modal="true"
-    x-cloak>
+<div x-show="viewingRequestTicket" style="display: none;" class="fixed inset-0 z-[1100] overflow-y-auto"
+    aria-modal="true" x-cloak>
     <!-- Backdrop -->
     <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" @click="closeRequestDetailModal()">
     </div>
@@ -312,26 +312,37 @@
                             <!-- Products in Category -->
                             <div class="grid grid-cols-1 gap-2">
                                 <template x-for="item in category" :key="item.id">
-                                    <div class="bg-white dark:bg-slate-800 rounded-xl px-4 py-3 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200">
+                                    <div
+                                        class="bg-white dark:bg-slate-800 rounded-xl px-4 py-3 border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-200">
                                         <div class="flex items-center gap-3">
                                             <!-- Icon -->
                                             <div class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg shrink-0">
-                                                <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                                <svg class="w-4 h-4 text-slate-500 dark:text-slate-300" fill="none"
+                                                    viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                                                 </svg>
                                             </div>
 
                                             <!-- Product Name -->
                                             <div class="flex-1 min-w-0">
-                                                <div class="font-semibold text-sm text-slate-800 dark:text-white" x-text="item.product_name"></div>
+                                                <div class="font-semibold text-sm text-slate-800 dark:text-white"
+                                                    x-text="item.product_name"></div>
                                             </div>
 
                                             <!-- Requested Quantity — prominent -->
                                             <div class="shrink-0 text-right">
-                                                <div class="text-[10px] text-slate-400 uppercase font-bold mb-0.5 tracking-wider">Yêu cầu</div>
+                                                <div
+                                                    class="text-[10px] text-slate-400 uppercase font-bold mb-0.5 tracking-wider">
+                                                    Yêu cầu</div>
                                                 <div class="flex items-baseline gap-1 justify-end">
-                                                    <span class="font-black text-xl text-slate-800 dark:text-white font-mono" x-text="item.request_quantity"></span>
-                                                    <span class="text-sm font-semibold text-slate-500 dark:text-slate-400" x-text="item.request_unit"></span>
+                                                    <span
+                                                        class="font-black text-xl text-slate-800 dark:text-white font-mono"
+                                                        x-text="item.request_quantity"></span>
+                                                    <span
+                                                        class="text-sm font-semibold text-slate-500 dark:text-slate-400"
+                                                        x-text="item.request_unit"></span>
                                                 </div>
                                             </div>
                                         </div>
@@ -378,7 +389,8 @@
                                             Nhận Hàng
                                         </button>
                                     </template>
-                                    <button x-show="normalizeTicketStatus(child.status) !== 'SHIPPING'" @click="openChildModal(child)"
+                                    <button x-show="normalizeTicketStatus(child.status) !== 'SHIPPING'"
+                                        @click="openChildModal(child)"
                                         class="text-xs font-medium text-slate-500 hover:text-slate-700 hover:underline">
                                         Chi tiết
                                     </button>
