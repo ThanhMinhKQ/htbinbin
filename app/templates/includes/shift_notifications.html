@@ -16,7 +16,15 @@
     </div>
     <div id="shift-notice-body" class="shift-notice-body sn-rich-content"></div>
     <div class="shift-notice-foot">
-      <div id="shift-notice-wait" class="shift-notice-wait">Vui lòng đọc thông báo trong 5 giây</div>
+      <div class="shift-notice-read-state">
+        <div class="shift-notice-read-row">
+          <span id="shift-notice-wait" class="shift-notice-wait">Vui lòng đọc thông báo trong 5 giây</span>
+          <span class="shift-notice-read-dot" aria-hidden="true"></span>
+        </div>
+        <div class="shift-notice-progress" aria-hidden="true">
+          <span id="shift-notice-progress-bar"></span>
+        </div>
+      </div>
       <button id="shift-notice-read-btn" type="button" disabled>Đã đọc</button>
     </div>
   </section>
@@ -25,16 +33,33 @@
 <style>
   .shift-notice-overlay[hidden] { display: none !important; }
   .shift-notice-overlay {
+    --sn-panel: #fffaf0;
+    --sn-panel-2: #ffffff;
+    --sn-ink: #1f2937;
+    --sn-muted: #6b7280;
+    --sn-line: rgba(120, 113, 108, 0.18);
+    --sn-accent: #d97706;
+    --sn-accent-2: #0f766e;
+    --sn-glow: rgba(217, 119, 6, 0.28);
     position: fixed;
     inset: 0;
     z-index: 2147483000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+    display: grid;
+    place-items: center;
+    padding: clamp(16px, 3vw, 44px);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.25s ease;
+    transition: opacity 0.28s ease;
+  }
+  html.dark .shift-notice-overlay {
+    --sn-panel: #0f172a;
+    --sn-panel-2: #172033;
+    --sn-ink: #f8fafc;
+    --sn-muted: #a8b3c7;
+    --sn-line: rgba(148, 163, 184, 0.18);
+    --sn-accent: #f59e0b;
+    --sn-accent-2: #2dd4bf;
+    --sn-glow: rgba(245, 158, 11, 0.18);
   }
   .shift-notice-overlay.is-open {
     opacity: 1;
@@ -43,150 +68,208 @@
   .shift-notice-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(12px);
+    background:
+      radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.26), transparent 30%),
+      radial-gradient(circle at 82% 12%, rgba(20, 184, 166, 0.18), transparent 28%),
+      linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(41, 37, 36, 0.58));
+    backdrop-filter: blur(18px) saturate(1.12);
+  }
+  .shift-notice-backdrop::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    opacity: 0.22;
+    background-image: linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(circle at center, black, transparent 72%);
   }
   .shift-notice-panel {
     position: relative;
-    width: min(580px, 100%);
-    max-height: min(740px, 90dvh);
+    width: min(920px, 100%);
+    max-height: min(780px, calc(100dvh - 32px));
     display: flex;
     flex-direction: column;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 20px;
-    background: #ffffff;
-    box-shadow: 0 24px 60px -16px rgba(15, 23, 42, 0.35);
-    transform: scale(0.95);
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid rgba(255, 255, 255, 0.48);
+    border-radius: clamp(22px, 2.6vw, 34px);
+    background:
+      linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.72)) padding-box,
+      linear-gradient(135deg, rgba(251, 191, 36, 0.72), rgba(20, 184, 166, 0.42), rgba(255,255,255,0.34)) border-box;
+    box-shadow: 0 36px 110px -34px rgba(15, 23, 42, 0.66), 0 0 0 1px rgba(255,255,255,0.34) inset;
+    transform: translateY(22px) scale(0.96);
+    transition: transform 0.46s cubic-bezier(0.2, 1, 0.22, 1), opacity 0.32s ease;
     overflow: hidden;
+    isolation: isolate;
+  }
+  .shift-notice-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(circle at 8% 8%, rgba(251, 191, 36, 0.22), transparent 34%),
+      radial-gradient(circle at 92% 0%, rgba(45, 212, 191, 0.16), transparent 28%),
+      linear-gradient(180deg, var(--sn-panel), var(--sn-panel-2));
+  }
+  .shift-notice-panel::after {
+    content: "";
+    position: absolute;
+    top: -18%;
+    right: -8%;
+    width: min(34vw, 280px);
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: radial-gradient(circle, var(--sn-glow), transparent 68%);
+    pointer-events: none;
   }
   html.dark .shift-notice-panel {
-    background: #1e293b;
-    border-color: #334155;
-    color: #f8fafc;
-    box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.5);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: var(--sn-ink);
+    background:
+      linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.82)) padding-box,
+      linear-gradient(135deg, rgba(245, 158, 11, 0.44), rgba(45, 212, 191, 0.28), rgba(148,163,184,0.16)) border-box;
+    box-shadow: 0 36px 120px -34px rgba(0, 0, 0, 0.86), 0 0 0 1px rgba(255,255,255,0.05) inset;
   }
   .shift-notice-overlay.is-open .shift-notice-panel {
-    transform: scale(1);
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
   .shift-notice-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    padding: 24px 24px 16px;
-    border-bottom: 1px solid #e2e8f0;
+    gap: clamp(16px, 3vw, 34px);
+    padding: clamp(26px, 4vw, 44px) clamp(24px, 4.4vw, 54px) clamp(18px, 2.8vw, 28px);
+    border-bottom: 1px solid var(--sn-line);
   }
-  html.dark .shift-notice-head { border-color: #334155; }
   .shift-notice-kicker {
-    margin-bottom: 6px;
-    color: #64748b;
-    font-size: 11px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: var(--sn-accent);
+    font-size: 12px;
     font-weight: 900;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
   }
-  html.dark .shift-notice-kicker { color: #94a3b8; }
+  .shift-notice-kicker::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--sn-accent-2);
+    box-shadow: 0 0 0 7px rgba(20, 184, 166, 0.12);
+  }
   .shift-notice-head h2 {
     margin: 0;
-    color: #0f172a;
-    font-size: 22px;
-    line-height: 1.25;
-    font-weight: 800;
+    max-width: 720px;
+    color: var(--sn-ink);
+    font-size: clamp(28px, 4.2vw, 46px);
+    line-height: 1.04;
+    font-weight: 900;
+    letter-spacing: -0.045em;
   }
-  html.dark .shift-notice-head h2 { color: #f8fafc; }
-  
-  /* Count label */
   .shift-notice-count {
     flex: 0 0 auto;
+    border: 1px solid rgba(217, 119, 6, 0.22);
     border-radius: 999px;
-    background: #e0f2fe;
-    color: #0369a1;
-    padding: 5px 12px;
-    font-size: 12px;
-    font-weight: 800;
+    background: rgba(255, 247, 237, 0.86);
+    color: #92400e;
+    padding: 9px 15px;
+    font-size: 13px;
+    font-weight: 900;
+    box-shadow: 0 12px 28px -20px rgba(146, 64, 14, 0.8);
   }
   html.dark .shift-notice-count {
-    background: rgba(3, 105, 161, 0.2);
-    color: #7dd3fc;
+    border-color: rgba(245, 158, 11, 0.28);
+    background: rgba(120, 53, 15, 0.34);
+    color: #fcd34d;
   }
-
-  /* Stepper / Timeline */
   .shift-notice-timeline {
     display: flex;
-    gap: 6px;
-    padding: 4px 24px 14px;
+    gap: 8px;
+    padding: 18px clamp(24px, 4.4vw, 54px) 0;
     width: 100%;
   }
   .shift-notice-timeline-step {
+    position: relative;
     flex: 1;
-    height: 4px;
-    background: #e2e8f0;
+    height: 8px;
+    background: rgba(120, 113, 108, 0.16);
     border-radius: 999px;
-    transition: background 0.3s ease;
+    overflow: hidden;
+    transition: transform 0.28s ease, background 0.28s ease;
   }
-  html.dark .shift-notice-timeline-step {
-    background: #334155;
-  }
-  .shift-notice-timeline-step.completed {
-    background: #10b981;
+  html.dark .shift-notice-timeline-step { background: rgba(148, 163, 184, 0.16); }
+  .shift-notice-timeline-step.completed::before,
+  .shift-notice-timeline-step.active::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #14b8a6, #f59e0b);
   }
   .shift-notice-timeline-step.active {
-    background: linear-gradient(90deg, #3b82f6, #60a5fa);
-    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-    animation: pulseActive 2s infinite ease-in-out;
+    transform: scaleY(1.28);
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1), 0 10px 22px -15px rgba(217, 119, 6, 0.9);
   }
-  @keyframes pulseActive {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+  .shift-notice-timeline-step.active::before {
+    animation: shiftNoticeStep 1.6s ease-in-out infinite;
   }
-
-  /* Metadata container */
+  @keyframes shiftNoticeStep {
+    0%, 100% { transform: translateX(-16%); filter: saturate(0.9); }
+    50% { transform: translateX(12%); filter: saturate(1.35); }
+  }
   .shift-notice-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    padding: 14px 24px 0;
+    gap: 10px;
+    padding: 18px clamp(24px, 4.4vw, 54px) 0;
   }
   .shift-notice-meta span:not(.shift-notice-priority-badge) {
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--sn-line);
     border-radius: 999px;
-    padding: 4px 10px;
-    color: #475569;
-    font-size: 11px;
-    font-weight: 800;
+    background: rgba(255,255,255,0.58);
+    padding: 8px 13px;
+    color: var(--sn-muted);
+    font-size: 12px;
+    font-weight: 900;
+    backdrop-filter: blur(10px);
   }
   html.dark .shift-notice-meta span:not(.shift-notice-priority-badge) {
-    border-color: #475569;
-    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.48);
   }
-
-  /* Priority Badges */
   .shift-notice-priority-badge {
     border: 1px solid transparent;
     border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 11px;
-    font-weight: 800;
+    padding: 8px 13px;
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: 0 10px 24px -18px currentColor;
   }
-
-  /* Body & Rich Content styling - 100% identical to attendance_notifications */
   .shift-notice-body {
-    padding: 18px 24px 24px;
+    padding: clamp(22px, 3.2vw, 34px) clamp(24px, 4.4vw, 54px) clamp(24px, 3.8vw, 42px);
     overflow-y: auto;
-    min-height: 120px;
+    min-height: clamp(220px, 34dvh, 420px);
+    scrollbar-width: thin;
+  }
+  .shift-notice-body::-webkit-scrollbar { width: 10px; }
+  .shift-notice-body::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background: rgba(120, 113, 108, 0.36) padding-box;
   }
   .sn-rich-content {
-    line-height: 1.65;
+    line-height: 1.76;
     word-break: break-word;
-    font-size: 15px;
+    font-size: clamp(16px, 1.8vw, 18px);
   }
   .shift-notice-body.sn-rich-content {
-    color: #334155;
+    color: #374151;
   }
   html.dark .shift-notice-body.sn-rich-content {
-    color: #cbd5e1;
+    color: #dbe4f0;
   }
   .sn-rich-content p { margin: 0 0 0.65rem; }
   .sn-rich-content ul, .sn-rich-content ol { margin: 0.5rem 0 0.75rem 1.25rem; }
@@ -241,58 +324,149 @@
     border-color: rgb(71, 85, 105);
   }
 
-  /* Footer Section */
   .shift-notice-foot {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    padding: 16px 24px;
-    border-top: 1px solid #e2e8f0;
-    background: #f8fafc;
+    gap: clamp(16px, 3vw, 34px);
+    padding: clamp(18px, 2.8vw, 28px) clamp(24px, 4.4vw, 54px);
+    border-top: 1px solid var(--sn-line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.44), rgba(255, 247, 237, 0.78));
   }
   html.dark .shift-notice-foot {
-    border-color: #334155;
-    background: #111827;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.28), rgba(2, 6, 23, 0.62));
+  }
+  .shift-notice-read-state {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .shift-notice-read-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
   }
   .shift-notice-wait {
     min-width: 0;
-    color: #64748b;
-    font-size: 12px;
-    font-weight: 700;
+    color: var(--sn-muted);
+    font-size: clamp(13px, 1.4vw, 15px);
+    font-weight: 800;
   }
-  html.dark .shift-notice-wait { color: #94a3b8; }
-  
+  .shift-notice-read-dot {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--sn-accent);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35);
+    animation: shiftNoticeDot 1.35s infinite;
+  }
+  .shift-notice-read-state.is-ready .shift-notice-read-dot {
+    background: var(--sn-accent-2);
+    animation: none;
+    box-shadow: 0 0 0 7px rgba(20, 184, 166, 0.12);
+  }
+  @keyframes shiftNoticeDot {
+    70% { box-shadow: 0 0 0 9px rgba(245, 158, 11, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  }
+  .shift-notice-progress {
+    position: relative;
+    height: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(120, 113, 108, 0.16);
+    border-radius: 999px;
+    background: rgba(120, 113, 108, 0.12);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.58) inset;
+  }
+  html.dark .shift-notice-progress {
+    border-color: rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.72);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+  }
+  .shift-notice-progress::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(120deg, transparent 0 30%, rgba(255,255,255,0.34) 45%, transparent 60% 100%);
+    transform: translateX(-100%);
+    animation: shiftNoticeProgressShine 1.8s linear infinite;
+  }
+  .shift-notice-read-state.is-ready .shift-notice-progress::after { display: none; }
+  #shift-notice-progress-bar {
+    display: block;
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 42%, #14b8a6 100%);
+    box-shadow: 0 9px 22px -10px rgba(20, 184, 166, 0.9);
+    transition: width 0.28s linear;
+  }
+  @keyframes shiftNoticeProgressShine {
+    to { transform: translateX(100%); }
+  }
   #shift-notice-read-btn {
-    min-width: 140px;
-    height: 44px;
+    position: relative;
+    min-width: clamp(152px, 18vw, 190px);
+    height: 54px;
     border: 0;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #0d9488, #0f766e);
+    border-radius: 18px;
+    background: linear-gradient(135deg, #0f766e, #14b8a6 58%, #f59e0b);
     color: #ffffff;
     cursor: pointer;
-    font-size: 13px;
-    font-weight: 700;
-    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
-    transition: all 0.2s ease;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    box-shadow: 0 18px 38px -20px rgba(15, 118, 110, 0.9), 0 1px 0 rgba(255,255,255,0.28) inset;
+    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+    overflow: hidden;
+  }
+  #shift-notice-read-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.32), transparent);
+    transform: translateX(-120%);
+    transition: transform 0.6s ease;
   }
   #shift-notice-read-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.35);
-    background: linear-gradient(135deg, #0f766e, #115e59);
+    transform: translateY(-2px);
+    filter: saturate(1.08);
+    box-shadow: 0 24px 46px -22px rgba(15, 118, 110, 0.95), 0 1px 0 rgba(255,255,255,0.3) inset;
   }
-  #shift-notice-read-btn:active:not(:disabled) {
-    transform: translateY(0);
-  }
+  #shift-notice-read-btn:hover:not(:disabled)::before { transform: translateX(120%); }
+  #shift-notice-read-btn:active:not(:disabled) { transform: translateY(0); }
   #shift-notice-read-btn:disabled {
-    background: #cbd5e1;
-    color: #94a3b8;
+    background: linear-gradient(135deg, #d6d3d1, #e7e5e4);
+    color: #78716c;
     box-shadow: none;
     cursor: not-allowed;
   }
   html.dark #shift-notice-read-btn:disabled {
-    background: #334155;
-    color: #64748b;
+    background: linear-gradient(135deg, #334155, #1e293b);
+    color: #94a3b8;
+  }
+  @media (max-width: 720px) {
+    .shift-notice-overlay { padding: 10px; align-items: end; }
+    .shift-notice-panel {
+      width: 100%;
+      max-height: calc(100dvh - 20px);
+      border-radius: 26px 26px 18px 18px;
+    }
+    .shift-notice-head { align-items: flex-start; }
+    .shift-notice-count { padding: 8px 12px; }
+    .shift-notice-foot { flex-direction: column; align-items: stretch; }
+    #shift-notice-read-btn { width: 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shift-notice-overlay,
+    .shift-notice-panel,
+    .shift-notice-timeline-step,
+    #shift-notice-read-btn,
+    #shift-notice-progress-bar { transition: none !important; }
+    .shift-notice-timeline-step.active::before,
+    .shift-notice-read-dot,
+    .shift-notice-progress::after { animation: none !important; }
   }
 </style>
 
@@ -308,6 +482,8 @@
   const shiftEl = document.getElementById('shift-notice-shift');
   const waitEl = document.getElementById('shift-notice-wait');
   const readBtn = document.getElementById('shift-notice-read-btn');
+  const progressBar = document.getElementById('shift-notice-progress-bar');
+  const readState = document.querySelector('.shift-notice-read-state');
 
   let items = [];
   let index = 0;
@@ -437,19 +613,31 @@
     return template.content.firstChild ? template.innerHTML.trim() : raw;
   }
 
+  function updateReadProgress(remaining, total) {
+    if (!progressBar) return;
+    const percent = Math.max(0, Math.min(100, ((total - remaining) / total) * 100));
+    progressBar.style.width = `${percent}%`;
+  }
+
   function lock(seconds) {
-    let remaining = Math.max(1, Number(seconds || 5));
+    const total = Math.max(1, Number(seconds || 5));
+    let remaining = total;
     readBtn.disabled = true;
     readBtn.textContent = `Đã đọc (${remaining}s)`;
     waitEl.textContent = `Vui lòng đọc thông báo trong ${remaining} giây`;
+    if (readState) readState.classList.remove('is-ready');
+    updateReadProgress(remaining, total);
     clearInterval(timer);
     timer = setInterval(() => {
       remaining -= 1;
+      updateReadProgress(remaining, total);
       if (remaining <= 0) {
         clearInterval(timer);
         readBtn.disabled = false;
         readBtn.textContent = 'Đã đọc';
         waitEl.textContent = 'Bạn có thể xác nhận sau khi đã đọc xong.';
+        if (readState) readState.classList.add('is-ready');
+        if (progressBar) progressBar.style.width = '100%';
         return;
       }
       readBtn.textContent = `Đã đọc (${remaining}s)`;
