@@ -3,9 +3,9 @@
   <div class="shift-notice-backdrop"></div>
   <section class="shift-notice-panel" role="dialog" aria-modal="true" aria-labelledby="shift-notice-title">
     <div class="shift-notice-head">
-      <div class="min-w-0">
+      <div class="shift-notice-title-wrap">
         <div class="shift-notice-kicker">Thông báo ca làm việc</div>
-        <h2 id="shift-notice-title" class="truncate">Thông báo nội bộ</h2>
+        <h2 id="shift-notice-title">Thông báo nội bộ</h2>
       </div>
       <span id="shift-notice-count" class="shift-notice-count">1/1</span>
     </div>
@@ -16,7 +16,7 @@
     <div id="shift-notice-queue" class="shift-notice-queue" hidden></div>
     <div id="shift-notice-body" class="shift-notice-body"></div>
     <div class="shift-notice-foot">
-      <div id="shift-notice-wait" class="shift-notice-wait truncate pr-3">Vui lòng đọc thông báo trong 5 giây</div>
+      <div id="shift-notice-wait" class="shift-notice-wait">Vui lòng đọc thông báo trong 5 giây</div>
       <button id="shift-notice-read-btn" type="button" class="flex-none" disabled>Đã đọc</button>
     </div>
   </section>
@@ -31,7 +31,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 22px;
   }
   .shift-notice-backdrop {
     position: absolute;
@@ -41,12 +41,13 @@
   }
   .shift-notice-panel {
     position: relative;
-    width: min(640px, calc(100% - 32px));
-    max-height: min(780px, 92dvh);
+    width: min(920px, calc(100% - 32px));
+    max-height: min(820px, 92dvh);
+    min-height: min(560px, 92dvh);
     display: flex;
     flex-direction: column;
     border: 1px solid rgba(255, 255, 255, 0.52);
-    border-radius: 24px;
+    border-radius: 22px;
     background: rgba(255, 255, 255, 0.88);
     box-shadow: 0 28px 80px -24px rgba(15, 23, 42, 0.72), 0 0 0 1px rgba(15, 23, 42, 0.05);
     backdrop-filter: blur(18px) saturate(145%);
@@ -61,17 +62,21 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 16px;
-    padding: 28px 28px 20px;
+    gap: 18px;
+    padding: 18px 28px 14px;
     border-bottom: 1px solid rgba(226, 232, 240, 0.72);
     background: linear-gradient(135deg, rgba(248, 250, 252, 0.92), rgba(239, 246, 255, 0.72));
+  }
+  .shift-notice-title-wrap {
+    min-width: 0;
+    flex: 1 1 auto;
   }
   html.dark .shift-notice-head { 
     border-color: rgba(51, 65, 85, 0.78); 
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(30, 58, 138, 0.22));
   }
   .shift-notice-kicker {
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     color: #3b82f6;
     font-size: 11px;
     font-weight: 900;
@@ -82,9 +87,10 @@
   .shift-notice-head h2 {
     margin: 0;
     color: #0f172a;
-    font-size: 24px;
-    line-height: 1.3;
+    font-size: clamp(20px, 2.2vw, 28px);
+    line-height: 1.22;
     font-weight: 900;
+    overflow-wrap: anywhere;
   }
   html.dark .shift-notice-head h2 { color: #f8fafc; }
   .shift-notice-count {
@@ -93,7 +99,7 @@
     background: #eff6ff;
     color: #1d4ed8;
     padding: 6px 14px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
     box-shadow: 0 1px 2px rgba(29, 78, 216, 0.1);
   }
@@ -101,12 +107,12 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    padding: 20px 28px 4px;
+    padding: 12px 28px 0;
   }
   .shift-notice-meta span {
     background: #f1f5f9;
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 5px 10px;
     color: #475569;
     font-size: 12px;
     font-weight: 800;
@@ -118,25 +124,40 @@
   .shift-notice-queue[hidden] { display: none !important; }
   .shift-notice-queue {
     margin: 10px 28px 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 8px;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
   .shift-notice-queue-item {
+    position: relative;
+    flex: 0 1 220px;
     min-width: 0;
-    border: 1px solid rgba(226, 232, 240, 0.86);
-    border-radius: 12px;
-    background: rgba(248, 250, 252, 0.82);
-    padding: 8px 10px;
+    border: 1px solid rgba(226, 232, 240, 0.78);
+    border-radius: 10px;
+    background: rgba(248, 250, 252, 0.62);
+    padding: 7px 9px 7px 26px;
     color: #64748b;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
+  }
+  .shift-notice-queue-item::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    transform: translateY(-50%);
   }
   .shift-notice-queue-item.is-active {
     border-color: rgba(37, 99, 235, 0.38);
-    background: rgba(219, 234, 254, 0.86);
+    background: rgba(219, 234, 254, 0.7);
     color: #1d4ed8;
   }
+  .shift-notice-queue-item.is-active::before { background: #2563eb; }
   html.dark .shift-notice-queue-item {
     border-color: rgba(51, 65, 85, 0.86);
     background: rgba(30, 41, 59, 0.72);
@@ -147,6 +168,8 @@
     background: rgba(30, 64, 175, 0.28);
     color: #bfdbfe;
   }
+  html.dark .shift-notice-queue-item::before { background: #475569; }
+  html.dark .shift-notice-queue-item.is-active::before { background: #60a5fa; }
   .shift-notice-queue-item span {
     display: block;
     overflow: hidden;
@@ -154,15 +177,27 @@
     white-space: nowrap;
   }
   .shift-notice-body {
-    padding: 16px 28px 28px;
+    flex: 1 1 auto;
+    padding: 18px 32px 28px;
     overflow-y: auto;
     color: #334155;
-    font-size: 14px;
-    line-height: 1.65;
+    font-size: 15px;
+    line-height: 1.72;
     word-break: break-word;
   }
   html.dark .shift-notice-body { color: #e2e8f0; }
   .shift-notice-body p { margin: 0 0 0.7rem; }
+  .shift-notice-body h1,
+  .shift-notice-body h2,
+  .shift-notice-body h3 {
+    margin: 0.6rem 0 0.45rem;
+    color: #0f172a;
+    line-height: 1.25;
+    font-weight: 900;
+  }
+  html.dark .shift-notice-body h1,
+  html.dark .shift-notice-body h2,
+  html.dark .shift-notice-body h3 { color: #f8fafc; }
   .shift-notice-body ul,
   .shift-notice-body ol {
     margin: 0.5rem 0 0.75rem 0.25rem;
@@ -196,8 +231,8 @@
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 12px;
-    padding: 20px 28px;
+    gap: 8px;
+    padding: 12px 28px 14px;
     border-top: 1px solid rgba(226, 232, 240, 0.72);
     background: rgba(255, 255, 255, 0.72);
   }
@@ -209,14 +244,14 @@
     flex: 1 1 100%;
     min-width: 0;
     color: #64748b;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
     text-align: center;
   }
   html.dark .shift-notice-wait { color: #94a3b8; }
   #shift-notice-read-btn {
     min-width: 140px;
-    height: 46px;
+    height: 40px;
     border: 0;
     border-radius: 12px;
     background: #2563eb;
@@ -242,6 +277,20 @@
   html.dark #shift-notice-read-btn:disabled {
     background: #334155;
     color: #94a3b8;
+  }
+  @media (max-width: 640px) {
+    .shift-notice-overlay { padding: 12px; }
+    .shift-notice-panel {
+      width: 100%;
+      min-height: min(620px, 94dvh);
+      max-height: 94dvh;
+      border-radius: 18px;
+    }
+    .shift-notice-head { padding: 16px 18px 12px; }
+    .shift-notice-meta { padding: 10px 18px 0; }
+    .shift-notice-queue { margin: 10px 18px 0; }
+    .shift-notice-body { padding: 16px 18px 22px; }
+    .shift-notice-foot { padding: 10px 18px 12px; }
   }
 </style>
 
