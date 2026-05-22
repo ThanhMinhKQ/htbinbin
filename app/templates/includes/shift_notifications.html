@@ -3,21 +3,21 @@
   <div class="shift-notice-backdrop"></div>
   <section class="shift-notice-panel" role="dialog" aria-modal="true" aria-labelledby="shift-notice-title">
     <div class="shift-notice-head">
-      <div class="shift-notice-title-wrap">
+      <div>
         <div class="shift-notice-kicker">Thông báo ca làm việc</div>
         <h2 id="shift-notice-title">Thông báo nội bộ</h2>
       </div>
       <span id="shift-notice-count" class="shift-notice-count">1/1</span>
     </div>
+    <div id="shift-notice-timeline" class="shift-notice-timeline" style="display: none;"></div>
     <div class="shift-notice-meta">
-      <span id="shift-notice-priority" class="truncate">Bình thường</span>
-      <span id="shift-notice-shift" class="truncate">Ca hiện tại</span>
+      <span id="shift-notice-priority">Bình thường</span>
+      <span id="shift-notice-shift">Ca hiện tại</span>
     </div>
-    <div id="shift-notice-queue" class="shift-notice-queue" hidden></div>
-    <div id="shift-notice-body" class="shift-notice-body"></div>
+    <div id="shift-notice-body" class="shift-notice-body sn-rich-content"></div>
     <div class="shift-notice-foot">
       <div id="shift-notice-wait" class="shift-notice-wait">Vui lòng đọc thông báo trong 5 giây</div>
-      <button id="shift-notice-read-btn" type="button" class="flex-none" disabled>Đã đọc</button>
+      <button id="shift-notice-read-btn" type="button" disabled>Đã đọc</button>
     </div>
   </section>
 </div>
@@ -31,266 +31,268 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 22px;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .shift-notice-overlay.is-open {
+    opacity: 1;
+    pointer-events: auto;
   }
   .shift-notice-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(15, 23, 42, 0.48);
-    backdrop-filter: blur(14px) saturate(135%);
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(12px);
   }
   .shift-notice-panel {
     position: relative;
-    width: min(920px, calc(100% - 32px));
-    max-height: min(820px, 92dvh);
-    min-height: min(560px, 92dvh);
+    width: min(580px, 100%);
+    max-height: min(740px, 90dvh);
     display: flex;
     flex-direction: column;
-    border: 1px solid rgba(255, 255, 255, 0.52);
-    border-radius: 22px;
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 28px 80px -24px rgba(15, 23, 42, 0.72), 0 0 0 1px rgba(15, 23, 42, 0.05);
-    backdrop-filter: blur(18px) saturate(145%);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 24px 60px -16px rgba(15, 23, 42, 0.35);
+    transform: scale(0.95);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     overflow: hidden;
   }
   html.dark .shift-notice-panel {
-    background: rgba(15, 23, 42, 0.86);
-    border-color: rgba(148, 163, 184, 0.22);
+    background: #1e293b;
+    border-color: #334155;
     color: #f8fafc;
+    box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.5);
+  }
+  .shift-notice-overlay.is-open .shift-notice-panel {
+    transform: scale(1);
   }
   .shift-notice-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 18px;
-    padding: 18px 28px 14px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.72);
-    background: linear-gradient(135deg, rgba(248, 250, 252, 0.92), rgba(239, 246, 255, 0.72));
+    gap: 16px;
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid #e2e8f0;
   }
-  .shift-notice-title-wrap {
-    min-width: 0;
-    flex: 1 1 auto;
-  }
-  html.dark .shift-notice-head { 
-    border-color: rgba(51, 65, 85, 0.78); 
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.92), rgba(30, 58, 138, 0.22));
-  }
+  html.dark .shift-notice-head { border-color: #334155; }
   .shift-notice-kicker {
-    margin-bottom: 5px;
-    color: #3b82f6;
+    margin-bottom: 6px;
+    color: #64748b;
     font-size: 11px;
     font-weight: 900;
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
-  html.dark .shift-notice-kicker { color: #60a5fa; }
+  html.dark .shift-notice-kicker { color: #94a3b8; }
   .shift-notice-head h2 {
     margin: 0;
     color: #0f172a;
-    font-size: clamp(20px, 2.2vw, 28px);
-    line-height: 1.22;
-    font-weight: 900;
-    overflow-wrap: anywhere;
+    font-size: 22px;
+    line-height: 1.25;
+    font-weight: 800;
   }
   html.dark .shift-notice-head h2 { color: #f8fafc; }
+  
+  /* Count label */
   .shift-notice-count {
     flex: 0 0 auto;
     border-radius: 999px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    padding: 6px 14px;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 5px 12px;
     font-size: 12px;
-    font-weight: 900;
-    box-shadow: 0 1px 2px rgba(29, 78, 216, 0.1);
+    font-weight: 800;
   }
+  html.dark .shift-notice-count {
+    background: rgba(3, 105, 161, 0.2);
+    color: #7dd3fc;
+  }
+
+  /* Stepper / Timeline */
+  .shift-notice-timeline {
+    display: flex;
+    gap: 6px;
+    padding: 4px 24px 14px;
+    width: 100%;
+  }
+  .shift-notice-timeline-step {
+    flex: 1;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    transition: background 0.3s ease;
+  }
+  html.dark .shift-notice-timeline-step {
+    background: #334155;
+  }
+  .shift-notice-timeline-step.completed {
+    background: #10b981;
+  }
+  .shift-notice-timeline-step.active {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+    animation: pulseActive 2s infinite ease-in-out;
+  }
+  @keyframes pulseActive {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Metadata container */
   .shift-notice-meta {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
-    padding: 12px 28px 0;
+    padding: 14px 24px 0;
   }
-  .shift-notice-meta span {
-    background: #f1f5f9;
-    border-radius: 8px;
-    padding: 5px 10px;
+  .shift-notice-meta span:not(.shift-notice-priority-badge) {
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 4px 10px;
     color: #475569;
-    font-size: 12px;
-    font-weight: 800;
-  }
-  html.dark .shift-notice-meta span {
-    background: #334155;
-    color: #cbd5e1;
-  }
-  .shift-notice-queue[hidden] { display: none !important; }
-  .shift-notice-queue {
-    margin: 10px 28px 0;
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    scrollbar-width: thin;
-  }
-  .shift-notice-queue-item {
-    position: relative;
-    flex: 0 1 220px;
-    min-width: 0;
-    border: 1px solid rgba(226, 232, 240, 0.78);
-    border-radius: 10px;
-    background: rgba(248, 250, 252, 0.62);
-    padding: 7px 9px 7px 26px;
-    color: #64748b;
     font-size: 11px;
     font-weight: 800;
   }
-  .shift-notice-queue-item::before {
-    content: "";
-    position: absolute;
-    left: 9px;
-    top: 50%;
-    width: 8px;
-    height: 8px;
-    border-radius: 999px;
-    background: #cbd5e1;
-    transform: translateY(-50%);
-  }
-  .shift-notice-queue-item.is-active {
-    border-color: rgba(37, 99, 235, 0.38);
-    background: rgba(219, 234, 254, 0.7);
-    color: #1d4ed8;
-  }
-  .shift-notice-queue-item.is-active::before { background: #2563eb; }
-  html.dark .shift-notice-queue-item {
-    border-color: rgba(51, 65, 85, 0.86);
-    background: rgba(30, 41, 59, 0.72);
+  html.dark .shift-notice-meta span:not(.shift-notice-priority-badge) {
+    border-color: #475569;
     color: #cbd5e1;
   }
-  html.dark .shift-notice-queue-item.is-active {
-    border-color: rgba(96, 165, 250, 0.42);
-    background: rgba(30, 64, 175, 0.28);
-    color: #bfdbfe;
+
+  /* Priority Badges */
+  .shift-notice-priority-badge {
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 800;
   }
-  html.dark .shift-notice-queue-item::before { background: #475569; }
-  html.dark .shift-notice-queue-item.is-active::before { background: #60a5fa; }
-  .shift-notice-queue-item span {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+
+  /* Body & Rich Content styling - 100% identical to attendance_notifications */
   .shift-notice-body {
-    flex: 1 1 auto;
-    padding: 18px 32px 28px;
+    padding: 18px 24px 24px;
     overflow-y: auto;
-    color: #334155;
-    font-size: 15px;
-    line-height: 1.72;
+    min-height: 120px;
+  }
+  .sn-rich-content {
+    line-height: 1.65;
     word-break: break-word;
+    font-size: 15px;
   }
-  html.dark .shift-notice-body { color: #e2e8f0; }
-  .shift-notice-body p { margin: 0 0 0.7rem; }
-  .shift-notice-body h1,
-  .shift-notice-body h2,
-  .shift-notice-body h3 {
-    margin: 0.6rem 0 0.45rem;
-    color: #0f172a;
-    line-height: 1.25;
-    font-weight: 900;
+  .shift-notice-body.sn-rich-content {
+    color: #334155;
   }
-  html.dark .shift-notice-body h1,
-  html.dark .shift-notice-body h2,
-  html.dark .shift-notice-body h3 { color: #f8fafc; }
-  .shift-notice-body ul,
-  .shift-notice-body ol {
-    margin: 0.5rem 0 0.75rem 0.25rem;
-    padding-left: 1.5rem;
+  html.dark .shift-notice-body.sn-rich-content {
+    color: #cbd5e1;
   }
-  .shift-notice-body ul { list-style-type: disc; }
-  .shift-notice-body ol { list-style-type: decimal; }
-  .shift-notice-body li {
-    display: list-item;
-    margin-bottom: 0.25rem;
-  }
-  .shift-notice-body blockquote {
+  .sn-rich-content p { margin: 0 0 0.65rem; }
+  .sn-rich-content ul, .sn-rich-content ol { margin: 0.5rem 0 0.75rem 1.25rem; }
+  .sn-rich-content blockquote {
     margin: 0.75rem 0;
-    border-left: 3px solid #2563eb;
-    padding-left: 0.8rem;
-    color: #475569;
+    border-left: 3px solid rgb(59 130 246);
+    padding-left: 0.75rem;
+    color: rgb(71 85 105);
   }
-  html.dark .shift-notice-body blockquote { color: #cbd5e1; }
-  .shift-notice-body a { color: #2563eb; text-decoration: underline; font-weight: 700; }
-  .shift-notice-body img {
+  html.dark .sn-rich-content blockquote { color: rgb(203 213 225); }
+  .sn-rich-content a { color: rgb(37 99 235); text-decoration: underline; font-weight: 600; }
+  html.dark .sn-rich-content a { color: rgb(96 165 250); }
+  .sn-rich-content img {
     display: block;
     max-width: 100%;
-    max-height: 420px;
+    max-height: 360px;
     margin: 0.75rem 0;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(226 232 240);
   }
-  html.dark .shift-notice-body img { border-color: #334155; }
+  html.dark .sn-rich-content img {
+    border-color: rgb(51 65 85);
+  }
+
+  /* Attachment styling */
+  .sn-attachment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgb(226 232 240);
+    background-color: rgb(248 250 252);
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: rgb(37 99 235);
+    text-decoration: none;
+    transition: background-color 0.15s, border-color 0.15s;
+    margin: 0.25rem 0.5rem 0.25rem 0;
+  }
+  .sn-attachment-badge:hover {
+    background-color: rgb(241 245 249);
+    border-color: rgb(203 213 225);
+  }
+  html.dark .sn-attachment-badge {
+    border-color: rgb(51 65 85);
+    background-color: rgb(15, 23, 42);
+    color: rgb(96 165 250);
+  }
+  html.dark .sn-attachment-badge:hover {
+    background-color: rgb(30, 41, 59);
+    border-color: rgb(71, 85, 105);
+  }
+
+  /* Footer Section */
   .shift-notice-foot {
     display: flex;
     align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 12px 28px 14px;
-    border-top: 1px solid rgba(226, 232, 240, 0.72);
-    background: rgba(255, 255, 255, 0.72);
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 24px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
   }
   html.dark .shift-notice-foot {
-    border-color: rgba(51, 65, 85, 0.78);
-    background: rgba(15, 23, 42, 0.64);
+    border-color: #334155;
+    background: #111827;
   }
   .shift-notice-wait {
-    flex: 1 1 100%;
     min-width: 0;
     color: #64748b;
     font-size: 12px;
     font-weight: 700;
-    text-align: center;
   }
   html.dark .shift-notice-wait { color: #94a3b8; }
+  
   #shift-notice-read-btn {
     min-width: 140px;
-    height: 40px;
+    height: 44px;
     border: 0;
     border-radius: 12px;
-    background: #2563eb;
-    color: #fff;
+    background: linear-gradient(135deg, #0d9488, #0f766e);
+    color: #ffffff;
     cursor: pointer;
-    font-size: 14px;
-    font-weight: 900;
-    transition: all 0.2s;
-    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
+    transition: all 0.2s ease;
   }
   #shift-notice-read-btn:hover:not(:disabled) {
-    background: #1d4ed8;
     transform: translateY(-1px);
-    box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+    box-shadow: 0 6px 16px rgba(13, 148, 136, 0.35);
+    background: linear-gradient(135deg, #0f766e, #115e59);
+  }
+  #shift-notice-read-btn:active:not(:disabled) {
+    transform: translateY(0);
   }
   #shift-notice-read-btn:disabled {
     background: #cbd5e1;
-    color: #475569;
-    cursor: not-allowed;
+    color: #94a3b8;
     box-shadow: none;
-    transform: none;
+    cursor: not-allowed;
   }
   html.dark #shift-notice-read-btn:disabled {
     background: #334155;
-    color: #94a3b8;
-  }
-  @media (max-width: 640px) {
-    .shift-notice-overlay { padding: 12px; }
-    .shift-notice-panel {
-      width: 100%;
-      min-height: min(620px, 94dvh);
-      max-height: 94dvh;
-      border-radius: 18px;
-    }
-    .shift-notice-head { padding: 16px 18px 12px; }
-    .shift-notice-meta { padding: 10px 18px 0; }
-    .shift-notice-queue { margin: 10px 18px 0; }
-    .shift-notice-body { padding: 16px 18px 22px; }
-    .shift-notice-foot { padding: 10px 18px 12px; }
+    color: #64748b;
   }
 </style>
 
@@ -304,7 +306,6 @@
   const countEl = document.getElementById('shift-notice-count');
   const priorityEl = document.getElementById('shift-notice-priority');
   const shiftEl = document.getElementById('shift-notice-shift');
-  const queueEl = document.getElementById('shift-notice-queue');
   const waitEl = document.getElementById('shift-notice-wait');
   const readBtn = document.getElementById('shift-notice-read-btn');
 
@@ -312,13 +313,19 @@
   let index = 0;
   let timer = null;
   let current = null;
-  let loadingPending = false;
 
   const priorityLabel = {
     urgent: 'Khẩn cấp',
     high: 'Quan trọng',
     normal: 'Bình thường',
     low: 'Thông tin'
+  };
+
+  const priorityClass = {
+    urgent: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/50',
+    high: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50',
+    normal: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50',
+    low: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
   };
 
   function escapeHtml(value) {
@@ -423,78 +430,91 @@
           if (styles.length) child.setAttribute('style', styles.join('; '));
           if (originalClass) child.setAttribute('class', originalClass);
         }
-        cleanNode(child);
+          cleanNode(child);
       });
     };
     cleanNode(template.content);
     return template.content.firstChild ? template.innerHTML.trim() : raw;
   }
 
-  function richBody(value) {
-    const raw = String(value || '');
-    if (!raw) return '';
-    if (!/<\/?[a-z][\s\S]*>/i.test(raw)) {
-      return escapeHtml(raw).replace(/\n/g, '<br>');
-    }
-    return sanitizeRichHtml(raw);
-  }
-
   function lock(seconds) {
     let remaining = Math.max(1, Number(seconds || 5));
-    const hasNext = index < items.length - 1;
     readBtn.disabled = true;
     readBtn.textContent = `Đã đọc (${remaining}s)`;
-    waitEl.textContent = `Thông báo ${index + 1}/${items.length} · vui lòng đọc trong ${remaining} giây`;
+    waitEl.textContent = `Vui lòng đọc thông báo trong ${remaining} giây`;
     clearInterval(timer);
     timer = setInterval(() => {
       remaining -= 1;
       if (remaining <= 0) {
         clearInterval(timer);
         readBtn.disabled = false;
-        readBtn.textContent = hasNext ? 'Đã đọc, xem tiếp' : 'Đã đọc';
-        waitEl.textContent = hasNext
-          ? `Còn ${items.length - index - 1} thông báo cần đọc tiếp.`
-          : 'Bạn có thể xác nhận sau khi đã đọc xong.';
+        readBtn.textContent = 'Đã đọc';
+        waitEl.textContent = 'Bạn có thể xác nhận sau khi đã đọc xong.';
         return;
       }
       readBtn.textContent = `Đã đọc (${remaining}s)`;
-      waitEl.textContent = `Thông báo ${index + 1}/${items.length} · vui lòng đọc trong ${remaining} giây`;
+      waitEl.textContent = `Vui lòng đọc thông báo trong ${remaining} giây`;
     }, 1000);
   }
 
-  function renderQueue() {
-    if (!queueEl) return;
-    if (items.length <= 1) {
-      queueEl.hidden = true;
-      queueEl.innerHTML = '';
-      return;
+  function showOverlay() {
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    overlay.offsetHeight;
+    overlay.classList.add('is-open');
+  }
+
+  function hideOverlay() {
+    overlay.classList.remove('is-open');
+    setTimeout(() => {
+      if (!overlay.classList.contains('is-open')) {
+        overlay.hidden = true;
+        document.body.style.removeProperty('overflow');
+      }
+    }, 300);
+  }
+
+  function updateTimeline() {
+    const timelineEl = document.getElementById('shift-notice-timeline');
+    if (!timelineEl) return;
+    timelineEl.innerHTML = '';
+    if (items.length > 1) {
+      timelineEl.style.display = 'flex';
+      for (let i = 0; i < items.length; i++) {
+        const step = document.createElement('div');
+        step.className = 'shift-notice-timeline-step';
+        if (i < index) {
+          step.classList.add('completed');
+        } else if (i === index) {
+          step.classList.add('active');
+        }
+        timelineEl.appendChild(step);
+      }
+    } else {
+      timelineEl.style.display = 'none';
     }
-    queueEl.hidden = false;
-    queueEl.innerHTML = items.map((item, itemIndex) => `
-      <div class="shift-notice-queue-item ${itemIndex === index ? 'is-active' : ''}">
-        <span title="${escapeHtml(item.title || 'Thông báo nội bộ')}">${itemIndex + 1}. ${escapeHtml(item.title || 'Thông báo nội bộ')}</span>
-      </div>
-    `).join('');
   }
 
   function render() {
     current = items[index];
     if (!current) {
-      overlay.hidden = true;
-      document.body.style.removeProperty('overflow');
-      clearInterval(timer);
+      hideOverlay();
       return;
     }
-    overlay.hidden = false;
-    document.body.style.overflow = 'hidden';
+    showOverlay();
+    updateTimeline();
+    
     titleEl.textContent = current.title || 'Thông báo nội bộ';
-    bodyEl.innerHTML = richBody(current.body || '');
+    bodyEl.innerHTML = sanitizeRichHtml(current.body || '');
     countEl.textContent = `${index + 1}/${items.length}`;
-    priorityEl.textContent = priorityLabel[current.priority] || current.priority || 'Bình thường';
+    
+    const pClass = current.priority || 'normal';
+    priorityEl.textContent = priorityLabel[pClass] || pClass;
+    priorityEl.className = 'shift-notice-priority-badge ' + (priorityClass[pClass] || priorityClass.normal);
+    
     shiftEl.textContent = current.schedule_shift && current.schedule_shift !== 'ALL'
       ? `Ca ${current.schedule_shift}`
       : 'Ca hiện tại';
-    renderQueue();
     lock(current.min_read_seconds || 5);
   }
 
@@ -517,8 +537,6 @@
   readBtn.addEventListener('click', acknowledge);
 
   async function loadPending() {
-    if (loadingPending || current) return;
-    loadingPending = true;
     try {
       const res = await fetch('/attendance/api/shift-notifications/pending', { credentials: 'same-origin' });
       if (!res.ok) return;
@@ -526,10 +544,7 @@
       items = Array.isArray(data.items) ? data.items : [];
       index = 0;
       if (items.length) render();
-    } catch (e) {
-    } finally {
-      loadingPending = false;
-    }
+    } catch (e) {}
   }
 
   if (document.readyState === 'loading') {
@@ -537,11 +552,6 @@
   } else {
     loadPending();
   }
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) loadPending();
-  });
-  window.addEventListener('focus', loadPending);
-  setInterval(loadPending, 45000);
 })();
 </script>
 {% endif %}
