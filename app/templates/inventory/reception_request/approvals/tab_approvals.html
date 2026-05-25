@@ -76,9 +76,6 @@
                             :class="approvalFilter === 'PENDING' ? 'bg-orange-100 text-orange-700 font-bold shadow-sm' : 'text-slate-500 hover:text-slate-700'"
                             class="px-3 py-1.5 rounded-md text-sm transition-all relative">
                             Chờ duyệt
-                            <span x-show="pendingCount > 0"
-                                class="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-red-500 text-[8px] text-white font-bold animate-pulse"
-                                x-text="pendingCount"></span>
                         </button>
                         <div class="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
                         <button @click="approvalFilter = 'HISTORY'; fetchApprovals()"

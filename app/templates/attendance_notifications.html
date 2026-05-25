@@ -1125,7 +1125,7 @@
 
       <div class="sn-modal-foot flex flex-col-reverse gap-3 border-t border-slate-200 bg-slate-50/50 p-5 dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:justify-end">
         <button type="button" @click="closeModal()" class="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-center text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600">Hủy</button>
-        <button type="submit" form="shiftNotificationForm" :disabled="saving" class="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 hover:shadow-blue-500/30 active:bg-blue-800 disabled:opacity-50" x-text="saving ? 'Đang lưu...' : (form.id ? 'Cập nhật' : 'Thêm thông báo')"></button>
+        <button type="submit" form="shiftNotificationForm" :disabled="saving || uploadingCount > 0" class="rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 hover:shadow-blue-500/30 active:bg-blue-800 disabled:opacity-50" x-text="saving ? 'Đang lưu...' : (uploadingCount > 0 ? 'Đang tải file...' : (form.id ? 'Cập nhật' : 'Thêm thông báo'))"></button>
       </div>
     </div>
   </div>
@@ -1168,6 +1168,7 @@ function shiftNotificationAdmin(options = {}) {
     loading: false,
     saving: false,
     deleting: false,
+    uploadingCount: 0,
     modalOpen: false,
     detailOpen: false,
     detailItem: null,
@@ -1213,7 +1214,11 @@ function shiftNotificationAdmin(options = {}) {
         const currentIds = new Set(this.items.map(item => item.id));
         this.selectedIds = this.selectedIds.filter(id => currentIds.has(id));
       } catch (err) {
-        alert(err.message || 'Không thể tải danh sách thông báo');
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast(err.message || 'Không thể tải danh sách thông báo', false);
+        } else {
+          alert(err.message || 'Không thể tải danh sách thông báo');
+        }
       } finally {
         this.loading = false;
       }
@@ -1405,25 +1410,70 @@ function shiftNotificationAdmin(options = {}) {
     },
     uploadAndInsert(file, isImage) {
       if (!this.canManage) return;
+
+      // Client-side validations
+      const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+      const ALLOWED_TYPES = [
+        'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+        'application/pdf', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ];
+
+      if (file.size > MAX_SIZE) {
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast({
+            title: 'File quá lớn',
+            message: `Kích thước tệp tối đa là 10MB (tệp của bạn: ${this.formatBytes(file.size)}).`,
+            type: 'err'
+          });
+        } else {
+          alert(`Dung lượng file vượt quá giới hạn 10MB (của bạn: ${this.formatBytes(file.size)}).`);
+        }
+        return;
+      }
+
+      if (file.type && !ALLOWED_TYPES.includes(file.type)) {
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast({
+            title: 'Định dạng không hỗ trợ',
+            message: 'Chỉ chấp nhận các loại file ảnh (PNG, JPG, GIF, WebP), PDF, Word, Excel.',
+            type: 'err'
+          });
+        } else {
+          alert('Định dạng file không được hỗ trợ.');
+        }
+        return;
+      }
+
       if (this.$refs && this.$refs.editor) this.$refs.editor.focus();
-      
+
       const tempId = 'loading-' + Math.random().toString(36).substring(2, 9);
       const tempHtml = `<span id="${tempId}" class="sn-upload-spinner" contenteditable="false">[Đang tải ${isImage ? 'ảnh' : 'tệp'}: ${this.escapeHtml(file.name)}...]</span>`;
-      
+
       this.editorCommand('insertHTML', tempHtml);
-      
+      this.uploadingCount += 1;
+
       const formData = new FormData();
       formData.append('file', file);
-      
+
       fetch('/attendance/api/shift-notifications/upload', {
         method: 'POST',
         body: formData
       })
       .then(res => {
-        if (!res.ok) throw new Error('Upload failed');
+        if (!res.ok) {
+          return res.json().then(data => {
+            throw new Error(data.detail || 'Upload failed');
+          }).catch(() => {
+            throw new Error('Upload failed');
+          });
+        }
         return res.json();
       })
       .then(data => {
+        this.uploadingCount = Math.max(0, this.uploadingCount - 1);
         if (data.status === 'success') {
           const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
           if (tempEl) {
@@ -1442,7 +1492,15 @@ function shiftNotificationAdmin(options = {}) {
         }
       })
       .catch(err => {
+        this.uploadingCount = Math.max(0, this.uploadingCount - 1);
         console.error(err);
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast({
+            title: 'Lỗi tải tệp',
+            message: `Không thể tải tệp "${file.name}": ${err.message}`,
+            type: 'err'
+          });
+        }
         const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
         if (tempEl) {
           tempEl.outerHTML = `<span class="text-red-500 text-xs font-semibold" contenteditable="false">[Tải tệp lỗi: ${this.escapeHtml(file.name)}]</span>`;
@@ -1642,7 +1700,11 @@ function shiftNotificationAdmin(options = {}) {
         this.form = emptyForm();
         await this.load();
       } catch (err) {
-        alert(err.message || 'Không thể lưu thông báo');
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast(err.message || 'Không thể lưu thông báo', false);
+        } else {
+          alert(err.message || 'Không thể lưu thông báo');
+        }
       } finally {
         this.saving = false;
       }
@@ -1660,7 +1722,11 @@ function shiftNotificationAdmin(options = {}) {
         this.selectedIds = this.selectedIds.filter(id => id !== item.id);
         await this.load();
       } catch (err) {
-        alert(err.message || 'Không thể xóa thông báo');
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast(err.message || 'Không thể xóa thông báo', false);
+        } else {
+          alert(err.message || 'Không thể xóa thông báo');
+        }
       } finally {
         this.deleting = false;
       }
@@ -1684,7 +1750,11 @@ function shiftNotificationAdmin(options = {}) {
         this.selectedIds = [];
         await this.load();
       } catch (err) {
-        alert(err.message || 'Không thể xóa thông báo đã chọn');
+        if (typeof window.pmsToast === 'function') {
+          window.pmsToast(err.message || 'Không thể xóa thông báo đã chọn', false);
+        } else {
+          alert(err.message || 'Không thể xóa thông báo đã chọn');
+        }
       } finally {
         this.deleting = false;
       }

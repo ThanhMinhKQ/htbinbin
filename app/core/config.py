@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     ENVIRONMENT: str = "development" # 'development' or 'production'
 
+    # Supabase Storage Configuration
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_STORAGE_BUCKET: str = "shift-notifications"
+
     # OTA Agent Config (IMAP legacy)
     IMAP_SERVER: str = "imap.gmail.com"
     IMAP_USER: Optional[str] = None

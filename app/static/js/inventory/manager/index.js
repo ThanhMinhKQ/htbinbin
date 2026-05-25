@@ -1,7 +1,7 @@
 import initialState from '../shared/state.js?v=3.1';
 import utils from './utils.js?v=3.1';
 import requests from './requests.js?v=3.1';
-import approvals from './approvals.js?v=3.3';
+import approvals from './approvals.js?v=3.5';
 import imports from './imports.js?v=3.1';
 import exports from './exports.js?v=3.1';
 import overview from './overview.js?v=3.2-shift';
@@ -24,6 +24,10 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
 
             this.$watch('currentTab', (newTab) => {
                 localStorage.setItem('manager_currentTab', newTab);
+            });
+
+            this.$watch('pendingCount', (newVal) => {
+                window.dispatchEvent(new CustomEvent('inventory:set-pending-count', { detail: newVal }));
             });
 
             try {
@@ -99,7 +103,9 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                     this.approvalsList = d.approvals.records || [];
                     this.totalApprovalRecords = d.approvals.totalRecords || 0;
                     this.totalApprovalPages = d.approvals.totalPages || 1;
-                    this.pendingCount = d.approvals.pendingCount || 0;
+                    if (this.currentTab === 'approvals') {
+                        this.pendingCount = d.approvals.pendingCount || 0;
+                    }
                 }
 
                 // Imports
@@ -138,7 +144,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                 } else if (tab === 'export') {
                     setTimeout(() => this.fetchExports(1), 100);
                 } else {
-                    // Default: requests tab — stock loads last at low priority
+                    setTimeout(() => this.fetchPendingApprovals(), 100);
                     setTimeout(() => this.fetchStockOnly(), 2000);
                 }
 

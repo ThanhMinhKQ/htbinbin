@@ -50,11 +50,8 @@ export default function(config) {
                     this.totalApprovalPages = 1;
                 }
 
-                if (this.approvalFilter === 'PENDING') {
-                    this.pendingCount = this.approvalsList.length; // Might be inaccurate if paginated, but acceptable used for badge?
-                    // Actually if paginated, pending count should ideally come from a separate "count" API or just show "99+" or distinct from list.
-                    // For now, let's keep it simple.
-                    this.pendingCount = data.totalRecords || this.approvalsList.length;
+                if (statusParam === 'PENDING' && !this.approvalFilters.search && !this.approvalFilters.requester) {
+                    this.pendingCount = this.totalApprovalRecords;
                 }
                 this.renderApprovalPagination();
             }
@@ -331,6 +328,10 @@ export default function(config) {
 
                 this.closeReceiptModal();
                 alert(data.message);
+
+                if (typeof window.updateInventoryReceptionBadge === 'function') {
+                    window.updateInventoryReceptionBadge();
+                }
 
                 // Nếu đang filter SHIPPING, chuyển về Tất cả để tránh ticket vừa nhận biến mất
                 if (this.filters && this.filters.status === 'SHIPPING') {

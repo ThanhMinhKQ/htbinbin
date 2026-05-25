@@ -1,7 +1,7 @@
 import initialState from '../../shared/state.js?v=3.1';
 import utils from './utils.js?v=3.1';
 import requests from './requests.js?v=3.0';
-import approvals from './approvals.js?v=3.3';
+import approvals from './approvals.js?v=3.5';
 import imports from './imports.js?v=3.0';
 import exports from './exports.js?v=3.0';
 import overview from './overview.js?v=3.2-shift';
@@ -25,6 +25,10 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
 
             this.$watch('currentTab', (newTab) => {
                 localStorage.setItem('reception_currentTab', newTab);
+            });
+
+            this.$watch('pendingCount', (newVal) => {
+                window.dispatchEvent(new CustomEvent('inventory:set-pending-count', { detail: newVal }));
             });
 
             try {
@@ -93,6 +97,7 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
             const dateTo = this.filterDateTo || '';
             let params = new URLSearchParams();
             if (whId) params.set('warehouse_id', whId);
+            if (this.currentBranchId) params.set('branch_id', this.currentBranchId);
             if (dateFrom) params.set('date_from', dateFrom);
             if (dateTo) params.set('date_to', dateTo);
             if (dateFrom) params.set('overview_date_from', dateFrom);
@@ -109,7 +114,9 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     this.approvalsList = d.approvals.records || [];
                     this.totalApprovalRecords = d.approvals.totalRecords || 0;
                     this.totalApprovalPages = d.approvals.totalPages || 0;
-                    this.pendingCount = d.approvals.pendingCount || 0;
+                    if (this.currentTab === 'approvals') {
+                        this.pendingCount = d.approvals.pendingCount || 0;
+                    }
                 }
                 if (d.imports) {
                     this.importsList = d.imports.records || [];

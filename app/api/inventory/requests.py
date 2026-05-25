@@ -404,7 +404,12 @@ async def get_request_tickets(
         query = query.filter(InventoryTransfer.source_warehouse_id.in_(source_warehouse_ids))
         # [IMPORTANT] Do NOT hide compensation tickets - they must appear for approval!
 
-    # Filter by date range
+    # Filter by date range (skip if explicitly filtering for unresolved/active tickets: PENDING or SHIPPING)
+    is_unresolved_filter = False
+    if status:
+        status_list = status.split(',') if ',' in status else [status]
+        is_unresolved_filter = all(s in ['PENDING', 'SHIPPING'] for s in status_list)
+
     start_time = None
     end_time = None
     try:
@@ -418,12 +423,13 @@ async def get_request_tickets(
     except ValueError:
         pass # Ignore invalid dates
 
-    if start_time and end_time:
-        query = query.filter(InventoryTransfer.created_at.between(start_time, end_time))
-    elif start_time:
-        query = query.filter(InventoryTransfer.created_at >= start_time)
-    elif end_time:
-        query = query.filter(InventoryTransfer.created_at <= end_time)
+    if not is_unresolved_filter:
+        if start_time and end_time:
+            query = query.filter(InventoryTransfer.created_at.between(start_time, end_time))
+        elif start_time:
+            query = query.filter(InventoryTransfer.created_at >= start_time)
+        elif end_time:
+            query = query.filter(InventoryTransfer.created_at <= end_time)
 
     # Search filter
     if search:
@@ -756,7 +762,12 @@ async def get_request_tickets_list(
     if source_warehouse_id:
         query = query.filter(InventoryTransfer.source_warehouse_id == source_warehouse_id)
     
-    # Filter by date range
+    # Filter by date range (skip if explicitly filtering for unresolved/active tickets: PENDING or SHIPPING)
+    is_unresolved_filter = False
+    if status:
+        status_list = status.split(',') if ',' in status else [status]
+        is_unresolved_filter = all(s in ['PENDING', 'SHIPPING'] for s in status_list)
+
     start_time = None
     end_time = None
     try:
@@ -770,12 +781,13 @@ async def get_request_tickets_list(
     except ValueError:
         pass
 
-    if start_time and end_time:
-        query = query.filter(InventoryTransfer.created_at.between(start_time, end_time))
-    elif start_time:
-        query = query.filter(InventoryTransfer.created_at >= start_time)
-    elif end_time:
-        query = query.filter(InventoryTransfer.created_at <= end_time)
+    if not is_unresolved_filter:
+        if start_time and end_time:
+            query = query.filter(InventoryTransfer.created_at.between(start_time, end_time))
+        elif start_time:
+            query = query.filter(InventoryTransfer.created_at >= start_time)
+        elif end_time:
+            query = query.filter(InventoryTransfer.created_at <= end_time)
 
     # Search filter - simplified, no joins with items/products
     if search:
@@ -821,6 +833,62 @@ async def get_request_tickets_list(
         "totalPages": total_pages,
         "currentPage": page
     }
+
+@router.get("/requests/shipping-count")
+async def get_shipping_count(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Get the count of tickets in SHIPPING status for the receptionist's current branch.
+    """
+    user_data = request.session.get("user")
+    if not user_data:
+        return {"count": 0}
+
+    user_id = user_data.get("id")
+    if not user_id:
+        return {"count": 0}
+
+    from datetime import date
+    from ...db.models import User, AttendanceRecord
+
+    current_branch_id = None
+    
+    # Get user object with main branch loaded
+    user_obj = db.query(User).options(joinedload(User.main_branch)).filter(User.id == user_id).first()
+    if not user_obj:
+        return {"count": 0}
+
+    # 1. PRIORITY: Check for Active Attendance (OT / Current Shift) for today
+    today = date.today()
+    active_attendance = db.query(AttendanceRecord).filter(
+        AttendanceRecord.user_id == user_id,
+        func.date(AttendanceRecord.attendance_datetime) == today
+    ).order_by(AttendanceRecord.attendance_datetime.desc()).first()
+
+    if active_attendance:
+        current_branch_id = active_attendance.branch_id
+
+    # 2. FALLBACK: User's Main Branch
+    if not current_branch_id and user_obj.main_branch_id:
+        current_branch_id = user_obj.main_branch_id
+
+    if not current_branch_id:
+        return {"count": 0}
+
+    # Count transfers with status SHIPPING where the destination warehouse belongs to current_branch_id
+    # We only count parent/main tickets (related_transfer_id is None) to match what is visible on the receptionist tab
+    count = db.query(InventoryTransfer).join(
+        Warehouse, InventoryTransfer.dest_warehouse_id == Warehouse.id
+    ).filter(
+        InventoryTransfer.status == TicketStatus.SHIPPING,
+        Warehouse.branch_id == current_branch_id,
+        InventoryTransfer.related_transfer_id.is_(None)
+    ).count()
+
+    return {"count": count}
+
 @router.delete("/request/{ticket_id}")
 async def delete_request_ticket(
     ticket_id: int,

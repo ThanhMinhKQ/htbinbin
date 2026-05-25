@@ -460,6 +460,19 @@ See: `docs/runbooks/`.
 
 See: `docs/decisions/`.
 
+## Recent Operational Fixes
+
+### 1. WMS Active Ticket Date Filter Bypass (May 2026)
+- **Problem**: Active pending or shipping tickets (`PENDING`, `SHIPPING`) from previous months were hidden by default because the front-end WMS page lists filter by the current month range. However, they were still counted by global sidebar notification badges, causing a permanent badge count vs list view mismatch and preventing users from ever resolving (receiving/completing) old tickets.
+- **Fix**: Skip date range queries on `requests.py` list APIs (`get_request_tickets` & `get_request_tickets_list`), `page_load.py` count APIs (`get_page_load` & `get_reception_page_load`), and `overview.py` SQL stats query when explicitly checking unresolved active statuses (`PENDING`, `SHIPPING`). Active tickets now correctly remain visible in the dashboard and lists regardless of creation date, aligning counts perfectly.
+
+### 2. Relocated & Synced Pending Approvals Badge (May 2026)
+- **Problem**: The pending approvals count badge was nested inside the inner tab "Chờ duyệt" (Pending) segment button, making it hard to notice from other main WMS tabs.
+- **Fix**: 
+  - Removed old segment badges from all variations of `tab_approvals.html` templates.
+  - Placed a pulsing, animated count badge directly on the main header navigation tab **"Duyệt yêu cầu"** (Approve requests) inside both `manager/index.html` and `reception_request.html`.
+  - Synced the count between independent Alpine.js scopes (header vs main body content) by dispatching a custom window event `inventory:set-pending-count` inside the app's `initApp()` method and `$watch` handlers in `static/js/inventory/manager/index.js` and `modules/reception_request/index.js`.
+
 # Local Claude Runtime
 
 Load only files relevant to the current task. Avoid loading unrelated architecture notes, patterns, tasks, or rule modules.
@@ -496,7 +509,7 @@ Use `.claude/tasks/` only for task state that must survive chat context. Do not 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **binbinops** (13339 symbols, 19116 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **binbinops** (13577 symbols, 19389 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

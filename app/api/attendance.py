@@ -33,6 +33,7 @@ from sqlalchemy import cast, Date, select, or_, and_, func
 from sqlalchemy.orm import joinedload
 
 from fastapi.templating import Jinja2Templates
+from app.services.storage import validate_upload, upload_to_supabase
 
 router = APIRouter()
 
@@ -617,35 +618,19 @@ def bulk_delete_shift_notifications(payload: ShiftNotificationBulkPayload, reque
     return {"status": "success", "deleted": len(items)}
 
 @router.post("/api/shift-notifications/upload", response_class=JSONResponse)
-def upload_shift_notification_file(
+async def upload_shift_notification_file(
     request: Request,
     file: UploadFile = File(...),
 ):
-    user_data = _notification_admin_required(request)
-    
-    # 1. Create upload folder if not exists
-    upload_dir = os.path.join(os.path.dirname(APP_ROOT), "uploads", "shift_notifications")
-    os.makedirs(upload_dir, exist_ok=True)
-    
-    # 2. Generate unique filename to avoid conflict
-    ext = os.path.splitext(file.filename)[1].lower()
-    # clean name
-    clean_name = re.sub(r'[^a-zA-Z0-9_\-.]', '', os.path.splitext(file.filename)[0])
-    if not clean_name:
-        clean_name = "file"
-    unique_filename = f"{clean_name}_{uuid.uuid4().hex[:8]}{ext}"
-    file_path = os.path.join(upload_dir, unique_filename)
-    
-    # 3. Write file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
-    url = f"/uploads/shift_notifications/{unique_filename}"
+    _notification_admin_required(request)
+
+    content_length = request.headers.get("content-length")
+    validate_upload(file, int(content_length) if content_length else None)
+
+    res = await upload_to_supabase(file)
     return {
         "status": "success",
-        "url": url,
-        "filename": file.filename,
-        "size": os.path.getsize(file_path)
+        **res
     }
 
 @router.get("/api/shift-notifications/pending", response_class=JSONResponse)
