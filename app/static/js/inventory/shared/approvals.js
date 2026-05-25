@@ -402,9 +402,16 @@ export default function(config) {
                 method: 'POST',
                 body: formData
             });
-            return await res.json();
+            const data = await res.json();
+            if (!res.ok) {
+                alert('Nhận hàng thành công nhưng không lưu được ảnh.\nVui lòng mở lại phiếu để thử upload lại.');
+            } else if (data.failed_files && data.failed_files.length > 0) {
+                alert(`Đã lưu ${data.images.length} ảnh. ${data.failed_files.length} ảnh lỗi không lưu được.`);
+            }
+            return data;
         } catch (error) {
-            console.error(error);
+            console.error('uploadReceiptImages error:', error);
+            alert('Nhận hàng thành công nhưng không kết nối được để lưu ảnh.');
         }
     }
 };

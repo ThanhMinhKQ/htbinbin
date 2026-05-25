@@ -395,8 +395,14 @@ export default {
                 // Upload images if any
                 if (this.importForm.images && this.importForm.images.length > 0 && data.receipt_id) {
                     const imageResult = await this.uploadImportImages(data.receipt_id);
-                    if (imageResult.success && imageResult.count > 0) {
-                        alert(data.message + `\nĐã upload ${imageResult.count} hình ảnh.`);
+                    if (imageResult && imageResult.failed_files && imageResult.failed_files.length > 0) {
+                        const saved = (imageResult.images || []).length;
+                        const failed = imageResult.failed_files.length;
+                        alert(data.message + `\nĐã upload ${saved} ảnh. ${failed} ảnh lỗi không lưu được.`);
+                    } else if (imageResult && imageResult.images && imageResult.images.length > 0) {
+                        alert(data.message + `\nĐã upload ${imageResult.images.length} hình ảnh.`);
+                    } else if (imageResult && !imageResult.images) {
+                        alert(data.message + '\nKhông lưu được ảnh. Vui lòng thử lại từ màn hình chi tiết phiếu.');
                     } else {
                         alert(data.message);
                     }
@@ -757,7 +763,7 @@ export default {
 
     async uploadImportImages(receiptId) {
         if (!this.importForm.images || this.importForm.images.length === 0) {
-            return { success: true, count: 0 };
+            return { images: [], failed_files: [] };
         }
         try {
             const formData = new FormData();
@@ -768,14 +774,10 @@ export default {
                 method: 'POST',
                 body: formData
             });
-            const data = await res.json();
-            if (res.ok) {
-                return { success: true, count: data.images?.length || 0 };
-            } else {
-                return { success: false, error: data.detail || 'Upload failed' };
-            }
+            return await res.json();
         } catch (error) {
-            return { success: false, error: error.message };
+            console.error('uploadImportImages error:', error);
+            return null;
         }
     },
     // --- IMPORT MODAL ---
