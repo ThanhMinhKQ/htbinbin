@@ -421,20 +421,51 @@ class InventoryService:
                 for target_date in iter_stay_dates(first_date, last_date):
                     blocked_by_key[(room_type_id, target_date)].add(int(room_id))
 
+        # Collect rows that need to be created
+        new_rows = []
+        for target_date in target_dates:
+            for room_type_id, room_type in room_type_by_id.items():
+                if (room_type_id, target_date) not in inventory_by_key:
+                    new_rows.append({
+                        "branch_id": branch_id,
+                        "room_type_id": room_type_id,
+                        "date": target_date,
+                        "total_rooms": total_by_type.get(room_type_id, 0),
+                        "available_rooms": total_by_type.get(room_type_id, 0),
+                        "reserved_rooms": 0,
+                        "sold_rooms": 0,
+                        "out_of_order_rooms": 0,
+                        "overbooking_limit": 0,
+                        "base_price": room_type.price_per_night or Decimal("0"),
+                    })
+
+        # Bulk insert new rows, skip any that already exist (race / concurrent insert)
+        if new_rows:
+            from sqlalchemy.dialects.postgresql import insert as pg_insert
+            stmt = pg_insert(RoomInventoryDaily).values(new_rows)
+            stmt = stmt.on_conflict_do_nothing(
+                index_elements=["branch_id", "room_type_id", "date"],
+            )
+            self.db.execute(stmt)
+            self.db.flush()
+
+            # Reload newly inserted rows into the ORM session for update below
+            extra = self.db.query(RoomInventoryDaily).filter(
+                RoomInventoryDaily.branch_id == branch_id,
+                RoomInventoryDaily.room_type_id.in_(room_type_ids),
+                RoomInventoryDaily.date >= start_date,
+                RoomInventoryDaily.date < end_date,
+            ).all()
+            for inv in extra:
+                inventory_by_key[(int(inv.room_type_id), inv.date)] = inv
+
+        # Update counts on all rows (existing + newly created)
         created_or_touched = 0
         for target_date in target_dates:
             for room_type_id, room_type in room_type_by_id.items():
                 inv = inventory_by_key.get((room_type_id, target_date))
                 if not inv:
-                    inv = RoomInventoryDaily(
-                        branch_id=branch_id,
-                        room_type_id=room_type_id,
-                        date=target_date,
-                        reserved_rooms=0,
-                        base_price=room_type.price_per_night or Decimal("0"),
-                    )
-                    self.db.add(inv)
-                    inventory_by_key[(room_type_id, target_date)] = inv
+                    continue
                 inv.total_rooms = total_by_type.get(room_type_id, 0)
                 inv.reserved_rooms = reserved_by_key.get((room_type_id, target_date), 0)
                 if refresh_counts:

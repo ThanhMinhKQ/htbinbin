@@ -1382,8 +1382,31 @@ html.dark #inventory-page .inv-warehouse-header {
   }
 
   #inventory-page .inv-kpi-grid {
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  #inventory-page .inv-kpi-card {
+    min-height: 64px !important;
+    padding: 12px 14px !important;
+    border-radius: 16px !important;
+  }
+
+  #inventory-page .inv-kpi-watermark {
+    display: none !important;
+  }
+
+  #inventory-page .inv-kpi-value {
+    font-size: 18px !important;
+  }
+
+  #inventory-page .inv-kpi-label {
+    font-size: 11px !important;
+  }
+
+  #inventory-page .inv-kpi-card .inv-metric-chip {
+    font-size: 9px !important;
+    padding: 4px 6px !important;
   }
 
   #inventory-page .inv-toolbar {
@@ -1427,9 +1450,43 @@ html.dark #inventory-page .inv-warehouse-header {
     min-width: 0 !important;
   }
 
-  #inventory-page .inv-kpi-card {
-    min-height: 78px !important;
-    padding-right: 82px !important;
+  /* Compact overview panels on mobile */
+  #inventory-page .inv-overview-panel {
+    padding: 14px !important;
+  }
+
+  /* Compact flow lanes */
+  #inventory-page .inv-flow-lanes {
+    gap: 8px !important;
+    margin-top: 14px !important;
+  }
+
+  #inventory-page .inv-flow-lane {
+    padding: 10px !important;
+  }
+
+  #inventory-page .inv-flow-lane-head strong {
+    font-size: 16px !important;
+  }
+
+  /* Smaller health gauge on mobile */
+  #inventory-page .inv-health-gauge,
+  #inventory-page .inv-health-gauge > svg {
+    height: 80px !important;
+    width: 80px !important;
+  }
+
+  #inventory-page .inv-health-card .relative.py-4 {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  #inventory-page .inv-health-card .text-3xl {
+    font-size: 22px !important;
+  }
+
+  #inventory-page .inv-health-total {
+    padding: 8px 12px !important;
   }
 
   #inventory-page .inv-segmented {
@@ -1472,6 +1529,150 @@ html.dark #inventory-page .inv-warehouse-header {
   #inventory-page [aria-modal="true"] [class*="shadow-2xl"] {
     max-height: calc(100vh - 20px) !important;
     border-radius: var(--inv-radius-md) !important;
+  }
+
+  /* Compact overview header on mobile */
+  #inventory-page .inv-overview-header {
+    padding: 12px !important;
+    gap: 10px !important;
+  }
+
+  /* Header controls flow row-wrap on mobile instead of stacked full-width */
+  #inventory-page .inv-overview-header > div:last-child {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  #inventory-page .inv-overview-header .inv-segmented {
+    width: auto !important;
+    flex: 1 1 auto !important;
+    min-width: 140px !important;
+  }
+
+  #inventory-page .inv-overview-header .inv-overview-shift-btn {
+    width: auto !important;
+    flex: 0 0 auto !important;
+  }
+
+  #inventory-page .inv-overview-header > div:last-child > div:first-child {
+    flex: 0 0 auto !important;
+    width: auto !important;
+  }
+
+  /* Stock toolbar smart layout on mobile */
+  #inventory-page .inv-stock-toolbar .flex.flex-col[class~="sm:flex-row"] {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  #inventory-page .inv-stock-toolbar .flex.flex-col[class~="sm:flex-row"] > .inv-field,
+  #inventory-page .inv-stock-toolbar .flex.flex-col[class~="sm:flex-row"] > .relative {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+
+  #inventory-page .inv-stock-toolbar .flex.flex-col[class~="sm:flex-row"] > button {
+    width: auto !important;
+    flex: none !important;
+  }
+
+  #inventory-page .inv-toolbar.inv-stock-toolbar {
+    margin-top: 28px !important;
+    padding-top: 14px !important;
+  }
+
+  /* Tighter stock card padding on mobile */
+  #inventory-page article.group {
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  #inventory-page article.group .grid.grid-cols-3 {
+    gap: 6px !important;
+    margin-bottom: 12px !important;
+  }
+
+  #inventory-page article.group .grid.grid-cols-3 > div {
+    padding: 6px 8px !important;
+    border-radius: 10px !important;
+  }
+
+  #inventory-page article.group .grid.grid-cols-3 p[class*="text-[9px]"] {
+    font-size: 8px !important;
+  }
+
+  #inventory-page article.group .grid.grid-cols-3 p[class*="text-sm"] {
+    font-size: 12px !important;
+  }
+
+  #inventory-page article.group .mt-auto.pt-4 {
+    padding-top: 10px !important;
+  }
+
+  /* Scroll hint indicator for horizontal list view on mobile */
+  #inventory-page .inv-table-scroll {
+    position: relative;
+  }
+
+  #inventory-page .inv-table-scroll::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    background: linear-gradient(to right, transparent, var(--inv-surface));
+    pointer-events: none;
+    z-index: 2;
+    opacity: 1;
+    transition: opacity 300ms;
+  }
+
+  /* Shift sales modal KPI compact rules on mobile */
+  #inventory-page [x-show="isShiftSalesModalOpen"] .grid.grid-cols-3 {
+    width: 100% !important;
+  }
+
+  #inventory-page [x-show="isShiftSalesModalOpen"] .grid.grid-cols-3 > div {
+    padding: 8px 6px !important;
+  }
+
+  #inventory-page [x-show="isShiftSalesModalOpen"] .grid.grid-cols-3 p[class*="text-sm"] {
+    font-size: 13px !important;
+  }
+
+  #inventory-page [x-show="isShiftSalesModalOpen"] .grid.grid-cols-3 p[class*="text-[9px]"] {
+    font-size: 8px !important;
+    letter-spacing: 0.02em !important;
+  }
+}
+
+/* 2-column cards layout for wider mobile screens (480px - 767px) */
+@media (min-width: 480px) and (max-width: 767px) {
+  #inventory-page .grid.grid-cols-1[class*="md:grid-cols-2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+/* Ultra-narrow mobile screen support (e.g. shift sales KPI column stack) */
+@media (max-width: 359px) {
+  #inventory-page [x-show="isShiftSalesModalOpen"] .grid.grid-cols-3 {
+    grid-template-columns: 1fr !important;
+    gap: 0 !important;
+    divide-y: 1px;
+  }
+
+  #inventory-page [x-show="isShiftSalesModalOpen"] .grid.grid-cols-3 > div {
+    border-bottom: 1px solid var(--inv-border) !important;
+    border-right: 0 !important;
+    padding: 10px 4px !important;
   }
 }
 
