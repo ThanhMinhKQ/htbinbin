@@ -1,0 +1,66 @@
+<h2>Chọn hướng tối ưu bảng chi tiết phiếu</h2>
+<p class="subtitle">Mục tiêu: cột tên vật tư rộng nhất, cột số thứ tự cực gọn, “Thực xuất” căn giữa, danh sách dài cuộn trong vùng bảng thay vì kéo cả modal.</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="border:1px solid #d6d3d1;border-radius:12px;overflow:hidden;background:white;font-size:11px;color:#334155">
+        <div style="display:grid;grid-template-columns:30px minmax(360px,1fr) 54px 76px 76px 76px 118px;background:#f1f5f9;font-weight:800;text-transform:uppercase;color:#64748b">
+          <div style="padding:8px;text-align:center">#</div><div style="padding:8px">Tên hàng hóa / Vật tư</div><div style="padding:8px;text-align:center">ĐVT</div><div style="padding:8px;text-align:center">Yêu cầu</div><div style="padding:8px;text-align:center">Thực xuất</div><div style="padding:8px;text-align:center">Thực nhận</div><div style="padding:8px">Tình trạng</div>
+        </div>
+        <div style="max-height:150px;overflow:auto">
+          <div style="display:grid;grid-template-columns:30px minmax(360px,1fr) 54px 76px 76px 76px 118px;border-top:1px solid #e2e8f0;align-items:center">
+            <div style="padding:10px;text-align:center;color:#94a3b8">1</div><div style="padding:10px;font-weight:700">Pin tiểu 3A<br><span style="font-size:10px;color:#64748b">Vật tư điện – tiêu hao</span></div><div style="text-align:center">Cặp</div><div style="text-align:center">1</div><div style="text-align:center;font-weight:800">1</div><div style="text-align:center">1</div><div><span style="background:#ecfdf5;color:#047857;border-radius:999px;padding:3px 8px;font-weight:700">Đủ hàng</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:30px minmax(360px,1fr) 54px 76px 76px 76px 118px;border-top:1px solid #e2e8f0;align-items:center">
+            <div style="padding:10px;text-align:center;color:#94a3b8">2</div><div style="padding:10px;font-weight:700">Tên vật tư rất dài cần xuống dòng nhưng vẫn còn nhiều không gian đọc</div><div style="text-align:center">Cái</div><div style="text-align:center">12</div><div style="text-align:center;font-weight:800">10</div><div style="text-align:center">8</div><div><span style="background:#fef2f2;color:#b91c1c;border-radius:999px;padding:3px 8px;font-weight:700">Thiếu 2</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. Bảng cố định thông minh</h3>
+      <p>Giữ dạng table hiện tại, chỉnh colgroup theo tỷ lệ mới và đặt vùng tbody cuộn. Ít rủi ro, đồng bộ với capture.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="border:1px solid #d6d3d1;border-radius:12px;background:#fbfaf7;padding:10px;font-size:11px;color:#334155">
+        <div style="max-height:170px;overflow:auto;display:grid;gap:8px">
+          <div style="display:grid;grid-template-columns:24px 1fr 88px;gap:10px;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:10px;align-items:center">
+            <div style="color:#94a3b8;font-family:monospace">1</div><div><strong>Pin tiểu 3A</strong><br><span style="color:#64748b">Cặp · Yêu cầu 1 · Nhận 1</span></div><div style="text-align:center"><div style="font-size:9px;text-transform:uppercase;color:#64748b">Thực xuất</div><strong>1</strong></div>
+          </div>
+          <div style="display:grid;grid-template-columns:24px 1fr 88px;gap:10px;background:white;border:1px solid #e2e8f0;border-radius:12px;padding:10px;align-items:center">
+            <div style="color:#94a3b8;font-family:monospace">2</div><div><strong>Tên vật tư rất dài cần đọc rõ</strong><br><span style="color:#64748b">Cái · Thiếu 2</span></div><div style="text-align:center"><div style="font-size:9px;text-transform:uppercase;color:#64748b">Thực xuất</div><strong>10</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. Card list theo dòng</h3>
+      <p>Dễ đọc trên mobile và tên vật tư thoáng hơn, nhưng thay đổi nhiều hơn và mất cảm giác bảng nghiệp vụ.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="border:1px solid #d6d3d1;border-radius:12px;overflow:hidden;background:white;font-size:11px;color:#334155">
+        <div style="display:grid;grid-template-columns:28px minmax(300px,1fr) 60px 210px;background:#f1f5f9;font-weight:800;text-transform:uppercase;color:#64748b">
+          <div style="padding:8px;text-align:center">#</div><div style="padding:8px">Tên hàng hóa / Vật tư</div><div style="padding:8px;text-align:center">ĐVT</div><div style="padding:8px;text-align:center">Số lượng & trạng thái</div>
+        </div>
+        <div style="max-height:150px;overflow:auto">
+          <div style="display:grid;grid-template-columns:28px minmax(300px,1fr) 60px 210px;border-top:1px solid #e2e8f0;align-items:center">
+            <div style="text-align:center;color:#94a3b8">1</div><div style="padding:10px;font-weight:700">Pin tiểu 3A</div><div style="text-align:center">Cặp</div><div style="display:flex;gap:12px;justify-content:center;align-items:center"><span>YC 1</span><strong>TX 1</strong><span>TN 1</span><span style="background:#ecfdf5;color:#047857;border-radius:999px;padding:3px 8px;font-weight:700">Đủ</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. Gom các cột số lượng</h3>
+      <p>Cho tên vật tư nhiều không gian nhất, nhưng đổi semantics bảng nhiều hơn và có thể khó scan khi đối chiếu số lượng.</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle">Khuyến nghị của tôi: A. Nó đúng yêu cầu, ít rủi ro với shared templates và vẫn giữ form bảng nghiệp vụ quen thuộc.</p>
