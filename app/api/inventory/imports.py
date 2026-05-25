@@ -11,7 +11,9 @@ from ...db.models import (
     InventoryReceipt, InventoryReceiptItem,
     TransactionTypeWMS, ImportImage
 )
-from ...core.image_optimizer import ImageOptimizer
+from ...services.inventory_storage import upload_inventory_image, delete_inventory_image
+import logging
+logger = logging.getLogger("binbin-inventory")
 
 router = APIRouter()
 
@@ -533,73 +535,61 @@ async def upload_import_images(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Upload multiple images for an import receipt.
-    Images will be optimized and thumbnails will be generated.
-    """
-    try:
-        # Verify receipt exists
-        receipt = db.query(InventoryReceipt).get(receipt_id)
-        if not receipt:
-            raise HTTPException(status_code=404, detail="Phiếu nhập không tồn tại")
-        
-        uploaded_images = []
-        
-        for file in files:
-            # Validate file type
-            if not file.content_type or not file.content_type.startswith('image/'):
-                continue  # Skip non-image files
-            
-            # Read file bytes
-            image_bytes = await file.read()
-            
-            # Validate file size (max 10MB)
-            if len(image_bytes) > 10 * 1024 * 1024:
-                raise HTTPException(status_code=400, detail=f"File {file.filename} quá lớn (max 10MB)")
-            
-            try:
-                # Save optimized image and thumbnail
-                full_path, thumb_path, width, height = ImageOptimizer.save_optimized(
-                    image_bytes,
-                    receipt_id,
-                    file.filename
-                )
-                
-                # Create database record
-                import_image = ImportImage(
-                    receipt_id=receipt_id,
-                    file_path=full_path,
-                    thumbnail_path=thumb_path,
-                    file_size=len(image_bytes),
-                    width=width,
-                    height=height,
-                    display_order=len(uploaded_images)
-                )
-                db.add(import_image)
-                uploaded_images.append({
-                    "filename": file.filename,
-                    "size": len(image_bytes),
-                    "width": width,
-                    "height": height
-                })
-                
-            except Exception as e:
-                print(f"Error processing image {file.filename}: {e}")
-                continue
-        
+    receipt = db.query(InventoryReceipt).get(receipt_id)
+    if not receipt:
+        raise HTTPException(status_code=404, detail="Phiếu nhập không tồn tại")
+
+    uploaded = []
+    failed = []
+
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            failed.append({"filename": file.filename, "error": "Không phải file ảnh"})
+            continue
+
+        image_bytes = await file.read()
+        if len(image_bytes) > 10 * 1024 * 1024:
+            failed.append({"filename": file.filename, "error": "File quá lớn (max 10MB)"})
+            continue
+
+        try:
+            full_url, thumb_url, width, height = await upload_inventory_image(
+                image_bytes=image_bytes,
+                mime=file.content_type,
+                prefix="imports",
+                entity_id=str(receipt_id),
+                original_filename=file.filename or "image",
+            )
+            import_image = ImportImage(
+                receipt_id=receipt_id,
+                file_path=full_url,
+                thumbnail_path=thumb_url,
+                file_size=len(image_bytes),
+                width=width,
+                height=height,
+                display_order=len(uploaded),
+            )
+            db.add(import_image)
+            uploaded.append({"filename": file.filename})
+        except Exception as exc:
+            logger.error(f"Failed to upload import image {file.filename}: {exc}")
+            failed.append({"filename": file.filename, "error": str(exc)})
+
+    if uploaded:
         db.commit()
-        
-        return {
-            "status": "success",
-            "message": f"Đã upload {len(uploaded_images)} hình ảnh",
-            "images": uploaded_images
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+
+    if not uploaded and failed:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Không upload được ảnh nào. Lỗi: {failed[0]['error']}"
+        )
+
+    return {
+        "status": "success",
+        "message": f"Đã upload {len(uploaded)} hình ảnh" + (f", {len(failed)} ảnh lỗi" if failed else ""),
+        "images": uploaded,
+        "failed_files": failed,
+    }
 
 @router.get("/import/{receipt_id}/images")
 async def get_import_images(
@@ -637,25 +627,11 @@ async def delete_import_image(
     image_id: int,
     db: Session = Depends(get_db)
 ):
-    """
-    Delete an import image and its files.
-    """
-    try:
-        image = db.query(ImportImage).get(image_id)
-        if not image:
-            raise HTTPException(status_code=404, detail="Hình ảnh không tồn tại")
-        
-        # Delete files from filesystem
-        ImageOptimizer.delete_image(image.file_path, image.thumbnail_path)
-        
-        # Delete database record
-        db.delete(image)
-        db.commit()
-        
-        return {"status": "success", "message": "Đã xóa hình ảnh"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+    img = db.query(ImportImage).get(image_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="Ảnh không tồn tại")
+
+    await delete_inventory_image(img.file_path or "", img.thumbnail_path or "")
+    db.delete(img)
+    db.commit()
+    return {"status": "success", "message": "Đã xoá ảnh"}
