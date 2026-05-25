@@ -76,3 +76,42 @@ assert(
     sharedSource.includes('replaceChildren(statusBadge)'),
   'shared capture must replace Alpine x-if status-cell contents with a static readable badge before html2canvas renders the clone',
 );
+
+const requestDetailSource = fs.readFileSync('app/templates/inventory/shared/requests/modal_request_detail.html', 'utf8');
+const approvalDetailSource = fs.readFileSync('app/templates/inventory/shared/approvals/modal_approval_detail.html', 'utf8');
+
+assert(
+  requestDetailSource.includes('max-h-[42vh] overflow-y-auto') &&
+    requestDetailSource.includes('min-w-[760px]'),
+  'request detail layout must have scroll constraints'
+);
+
+assert(
+  approvalDetailSource.includes('max-h-[42vh] overflow-y-auto') &&
+    approvalDetailSource.includes('min-w-[760px]'),
+  'approval detail layout must have scroll constraints'
+);
+
+assert(
+  requestDetailSource.includes('<col class="w-[30px]">') &&
+    requestDetailSource.includes('<col class="w-auto">'),
+  'request detail columns must have size overrides'
+);
+
+assert(
+  approvalDetailSource.includes('<col class="w-[30px]">') &&
+    approvalDetailSource.includes('<col class="w-auto">'),
+  'approval detail columns must have size overrides'
+);
+
+assert(
+  requestDetailSource.includes('>Thực xuất</th>') &&
+    requestDetailSource.includes('x-text="item.approved_quantity !== null ? item.approved_quantity : \'--\'"'),
+  'request detail must show approved quantity fallback'
+);
+
+assert(
+  approvalDetailSource.includes('>Thực xuất</th>') &&
+    approvalDetailSource.includes('x-text="item.approved_quantity !== null ? item.approved_quantity : \'--\'"'),
+  'approval detail must show approved quantity fallback'
+);

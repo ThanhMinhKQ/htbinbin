@@ -67,71 +67,69 @@
                         <h3 class="text-xs font-black uppercase tracking-[0.18em] text-slate-600 dark:text-slate-300">Danh sách vật tư</h3>
                         <span class="text-xs font-semibold text-slate-500" x-text="(viewingRequestTicket?.items || []).length + ' dòng'"></span>
                     </div>
-                    <div class="max-h-[42vh] overflow-y-auto">
-                        <table class="min-w-[760px] w-full table-fixed border-collapse text-left text-sm">
-                            <colgroup>
-                                <col class="w-[30px]">
-                                <col class="w-auto">
-                                <col class="w-[56px]">
-                                <col x-show="!getRequestStatusInfo().isShipping" class="w-[76px]">
-                                <col x-show="getRequestStatusInfo().isShipping || getRequestStatusInfo().isCompleted" class="w-[76px]">
-                                <col x-show="getRequestStatusInfo().isCompleted" class="w-[76px]">
-                                <col x-show="getRequestStatusInfo().isCompleted" class="w-[124px]">
-                            </colgroup>
-                            <thead class="sticky top-0 z-10">
-                                <tr class="bg-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                                    <th class="border-b border-r border-slate-200 px-1 py-2 text-center text-slate-400 dark:border-slate-800 dark:text-slate-500">#</th>
-                                    <th class="border-b border-r border-slate-200 px-4 py-2 text-left text-slate-700 dark:border-slate-800 dark:text-slate-200">Tên hàng hóa / Vật tư</th>
-                                    <th class="border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">ĐVT</th>
-                                    <th x-show="!getRequestStatusInfo().isShipping" class="border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">Yêu cầu</th>
-                                    <th x-show="getRequestStatusInfo().isShipping || getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">Thực xuất</th>
-                                    <th x-show="getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">Thực nhận</th>
-                                    <th x-show="getRequestStatusInfo().isCompleted" class="border-b border-slate-200 px-2 py-2 text-left text-slate-500 dark:border-slate-800 dark:text-slate-400">Tình trạng</th>
+                    <table class="w-full table-fixed border-collapse text-left text-sm">
+                        <colgroup>
+                            <col class="w-[34px]">
+                            <col class="min-w-[240px]">
+                            <col class="w-[62px]">
+                            <col x-show="!getRequestStatusInfo().isShipping" class="w-[88px]">
+                            <col x-show="getRequestStatusInfo().isShipping || getRequestStatusInfo().isCompleted" class="w-[88px]">
+                            <col x-show="getRequestStatusInfo().isCompleted" class="w-[88px]">
+                            <col x-show="getRequestStatusInfo().isCompleted" class="w-[126px]">
+                        </colgroup>
+                        <thead>
+                            <tr class="bg-slate-100 text-[11px] font-bold uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                <th class="border-b border-r border-slate-200 px-1.5 py-2 text-center text-slate-400 dark:border-slate-800 dark:text-slate-500">#</th>
+                                <th class="border-b border-r border-slate-200 px-4 py-2 text-left text-slate-700 dark:border-slate-800 dark:text-slate-200">Tên hàng hóa / Vật tư</th>
+                                <th class="border-b border-r border-slate-200 px-2 py-2 text-center text-slate-500 dark:border-slate-800 dark:text-slate-400">ĐVT</th>
+                                <th x-show="!getRequestStatusInfo().isShipping" class="border-b border-r border-slate-200 px-2 py-2 text-right text-slate-500 dark:border-slate-800 dark:text-slate-400">Yêu cầu</th>
+                                <th x-show="getRequestStatusInfo().isShipping || getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-2 text-right text-slate-500 dark:border-slate-800 dark:text-slate-400">Thực xuất</th>
+                                <th x-show="getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-2 text-right text-slate-500 dark:border-slate-800 dark:text-slate-400">Thực nhận</th>
+                                <th x-show="getRequestStatusInfo().isCompleted" class="border-b border-slate-200 px-2 py-2 text-left text-slate-500 dark:border-slate-800 dark:text-slate-400">Tình trạng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(item, idx) in (viewingRequestTicket?.items || [])" :key="item.id">
+                                <tr class="bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/70">
+                                    <td class="border-b border-r border-slate-200 px-1.5 py-3 text-center font-mono text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500" x-text="idx + 1"></td>
+                                    <td class="border-b border-r border-slate-200 px-4 py-3 dark:border-slate-800">
+                                        <div class="whitespace-normal break-words text-[13px] font-semibold leading-snug text-slate-950 dark:text-white" x-text="item.product_name"></div>
+                                        <div class="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400" x-text="item.category_name || 'Khác'"></div>
+                                    </td>
+                                    <td class="border-b border-r border-slate-200 px-2 py-3 text-center text-xs font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-300" x-text="item.request_unit || '---'"></td>
+                                    <td x-show="!getRequestStatusInfo().isShipping" class="border-b border-r border-slate-200 px-2 py-3 text-right font-mono text-sm font-black tabular-nums text-slate-900 dark:border-slate-800 dark:text-white" x-text="item.request_quantity"></td>
+                                    <td x-show="getRequestStatusInfo().isShipping || getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-3 text-right font-mono text-sm font-black tabular-nums text-slate-900 dark:border-slate-800 dark:text-white" x-text="item.approved_quantity !== null ? item.approved_quantity : '--'"></td>
+                                    <td x-show="getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-3 text-right font-mono text-sm font-black tabular-nums dark:border-slate-800" :class="(item.received_quantity < item.approved_quantity) ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'" x-text="item.received_quantity !== undefined ? item.received_quantity : 'Chưa nhận'"></td>
+                                    <td x-show="getRequestStatusInfo().isCompleted" class="border-b border-slate-200 px-2 py-3 text-xs font-semibold dark:border-slate-800">
+                                        <template x-if="item.received_quantity !== undefined && item.approved_quantity !== null && item.received_quantity < item.approved_quantity">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-1 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                                                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495ZM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span>Thiếu <span x-text="Math.round(item.approved_quantity - item.received_quantity)"></span></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="item.received_quantity !== undefined && item.approved_quantity !== null && item.received_quantity >= item.approved_quantity">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.236 4.45-1.674-1.674a.75.75 0 1 0-1.06 1.06l2.3 2.3a.75.75 0 0 0 1.137-.089l3.747-5.165Z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span>Đủ hàng</span>
+                                            </span>
+                                        </template>
+                                        <template x-if="item.received_quantity === undefined">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
+                                                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-12.25a.75.75 0 0 0-1.5 0V10c0 .199.079.39.22.53l2.25 2.25a.75.75 0 1 0 1.06-1.06l-2.03-2.03V5.75Z" clip-rule="evenodd" />
+                                                </svg>
+                                                <span>Chưa nhận</span>
+                                            </span>
+                                        </template>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="(item, idx) in (viewingRequestTicket?.items || [])" :key="item.id">
-                                    <tr class="bg-white hover:bg-slate-50 dark:bg-slate-950 dark:hover:bg-slate-900/70">
-                                        <td class="border-b border-r border-slate-200 px-1.5 py-3 text-center font-mono text-xs text-slate-400 dark:border-slate-800 dark:text-slate-500" x-text="idx + 1"></td>
-                                        <td class="border-b border-r border-slate-200 px-4 py-3 dark:border-slate-800">
-                                            <div class="whitespace-normal break-words text-[13px] font-semibold leading-snug text-slate-950 dark:text-white" x-text="item.product_name"></div>
-                                            <div class="mt-1 text-xs font-medium text-slate-500 dark:text-slate-400" x-text="item.category_name || 'Khác'"></div>
-                                        </td>
-                                        <td class="border-b border-r border-slate-200 px-2 py-3 text-center text-xs font-semibold text-slate-500 dark:border-slate-800 dark:text-slate-300" x-text="item.request_unit || '---'"></td>
-                                        <td x-show="!getRequestStatusInfo().isShipping" class="border-b border-r border-slate-200 px-2 py-3 text-center font-mono text-sm font-black tabular-nums text-slate-900 dark:border-slate-800 dark:text-white" x-text="item.request_quantity"></td>
-                                        <td x-show="getRequestStatusInfo().isShipping || getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-3 text-center font-mono text-sm font-black tabular-nums text-slate-900 dark:border-slate-800 dark:text-white" x-text="item.approved_quantity !== null ? item.approved_quantity : '--'"></td>
-                                        <td x-show="getRequestStatusInfo().isCompleted" class="border-b border-r border-slate-200 px-2 py-3 text-center font-mono text-sm font-black tabular-nums dark:border-slate-800" :class="(item.received_quantity < item.approved_quantity) ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'" x-text="item.received_quantity !== undefined ? item.received_quantity : 'Chưa nhận'"></td>
-                                        <td x-show="getRequestStatusInfo().isCompleted" class="border-b border-slate-200 px-2 py-3 text-xs font-semibold dark:border-slate-800">
-                                            <template x-if="item.received_quantity !== undefined && item.approved_quantity !== null && item.received_quantity < item.approved_quantity">
-                                                <span class="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-2 py-1 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
-                                                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.19-1.458-1.516-2.625L8.485 2.495ZM10 6a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 6Zm0 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" clip-rule="evenodd" />
-                                                    </svg>
-                                                    <span>Thiếu <span x-text="Math.round(item.approved_quantity - item.received_quantity)"></span></span>
-                                                </span>
-                                            </template>
-                                            <template x-if="item.received_quantity !== undefined && item.approved_quantity !== null && item.received_quantity >= item.approved_quantity">
-                                                <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.236 4.45-1.674-1.674a.75.75 0 1 0-1.06 1.06l2.3 2.3a.75.75 0 0 0 1.137-.089l3.747-5.165Z" clip-rule="evenodd" />
-                                                    </svg>
-                                                    <span>Đủ hàng</span>
-                                                </span>
-                                            </template>
-                                            <template x-if="item.received_quantity === undefined">
-                                                <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-                                                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                        <path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-12.25a.75.75 0 0 0-1.5 0V10c0 .199.079.39.22.53l2.25 2.25a.75.75 0 1 0 1.06-1.06l-2.03-2.03V5.75Z" clip-rule="evenodd" />
-                                                    </svg>
-                                                    <span>Chưa nhận</span>
-                                                </span>
-                                            </template>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
+                            </template>
+                        </tbody>
+                    </table>
                 </section>
 
                 <div x-show="viewingRequestTicket?.compensation_history && viewingRequestTicket.compensation_history.length > 0" class="mt-4 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900/60">
