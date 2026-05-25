@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""
     SUPABASE_STORAGE_BUCKET: str = "shift-notifications"
+    INVENTORY_STORAGE_BUCKET: str = "inventory"
 
     # OTA Agent Config (IMAP legacy)
     IMAP_SERVER: str = "imap.gmail.com"
