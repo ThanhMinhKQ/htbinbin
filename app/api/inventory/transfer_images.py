@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
+import logging
 
 from ...db.session import get_db
 from ...db.models import InventoryTransfer, TransferImage
-from ...core.image_optimizer import ImageOptimizer
+from ...services.inventory_storage import upload_inventory_image, delete_inventory_image
 
+logger = logging.getLogger("binbin-inventory")
 router = APIRouter()
 
 
@@ -15,55 +17,61 @@ async def upload_transfer_images(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db)
 ):
-    try:
-        ticket = db.query(InventoryTransfer).get(ticket_id)
-        if not ticket:
-            raise HTTPException(status_code=404, detail="Phiếu không tồn tại")
+    ticket = db.query(InventoryTransfer).get(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Phiếu không tồn tại")
 
-        uploaded_images = []
+    uploaded = []
+    failed = []
 
-        for file in files:
-            if not file.content_type or not file.content_type.startswith('image/'):
-                continue
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            failed.append({"filename": file.filename, "error": "Không phải file ảnh"})
+            continue
 
-            image_bytes = await file.read()
-            if len(image_bytes) > 10 * 1024 * 1024:
-                raise HTTPException(status_code=400, detail=f"File {file.filename} quá lớn (max 10MB)")
+        image_bytes = await file.read()
+        if len(image_bytes) > 10 * 1024 * 1024:
+            failed.append({"filename": file.filename, "error": "File quá lớn (max 10MB)"})
+            continue
 
-            try:
-                full_path, thumb_path, width, height = ImageOptimizer.save_optimized(
-                    image_bytes,
-                    f"TR_{ticket_id}",
-                    file.filename
-                )
+        try:
+            full_url, thumb_url, width, height = await upload_inventory_image(
+                image_bytes=image_bytes,
+                mime=file.content_type,
+                prefix="transfers",
+                entity_id=str(ticket_id),
+                original_filename=file.filename or "image",
+            )
+            transfer_image = TransferImage(
+                transfer_id=ticket_id,
+                file_path=full_url,
+                thumbnail_path=thumb_url,
+                file_size=len(image_bytes),
+                width=width,
+                height=height,
+                display_order=len(uploaded),
+            )
+            db.add(transfer_image)
+            uploaded.append({"filename": file.filename})
+        except Exception as exc:
+            logger.error(f"Failed to upload transfer image {file.filename}: {exc}")
+            failed.append({"filename": file.filename, "error": str(exc)})
 
-                transfer_image = TransferImage(
-                    transfer_id=ticket_id,
-                    file_path=full_path,
-                    thumbnail_path=thumb_path,
-                    file_size=len(image_bytes),
-                    width=width,
-                    height=height,
-                    display_order=len(uploaded_images)
-                )
-                db.add(transfer_image)
-                uploaded_images.append({"filename": file.filename})
-
-            except Exception as e:
-                print(f"Error processing image {file.filename}: {e}")
-                continue
-
+    if uploaded:
         db.commit()
-        return {
-            "status": "success",
-            "message": f"Đã upload {len(uploaded_images)} hình ảnh",
-            "images": uploaded_images
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+
+    if not uploaded and failed:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Không upload được ảnh nào. Lỗi: {failed[0]['error']}"
+        )
+
+    return {
+        "status": "success",
+        "message": f"Đã upload {len(uploaded)} hình ảnh" + (f", {len(failed)} ảnh lỗi" if failed else ""),
+        "images": uploaded,
+        "failed_files": failed,
+    }
 
 
 @router.get("/transfer/{ticket_id}/images")
@@ -80,15 +88,30 @@ async def get_transfer_images(
             "images": [
                 {
                     "id": img.id,
-                    "file_path": "/" + img.file_path if img.file_path and not img.file_path.startswith("/") else img.file_path,
-                    "thumbnail_path": "/" + img.thumbnail_path if img.thumbnail_path and not img.thumbnail_path.startswith("/") else img.thumbnail_path,
+                    "file_path": img.file_path,
+                    "thumbnail_path": img.thumbnail_path,
                     "file_size": img.file_size,
                     "width": img.width,
                     "height": img.height,
-                    "uploaded_at": img.uploaded_at.isoformat() if img.uploaded_at else ""
+                    "uploaded_at": img.uploaded_at.isoformat() if img.uploaded_at else "",
                 }
                 for img in images
             ]
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.delete("/transfer/images/{image_id}")
+async def delete_transfer_image(
+    image_id: int,
+    db: Session = Depends(get_db)
+):
+    img = db.query(TransferImage).get(image_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="Ảnh không tồn tại")
+
+    await delete_inventory_image(img.file_path or "", img.thumbnail_path or "")
+    db.delete(img)
+    db.commit()
+    return {"status": "success", "message": "Đã xoá ảnh"}
