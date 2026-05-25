@@ -311,9 +311,8 @@ async def get_request_detail(
             "images": [
                 {
                     "id": img.id,
-                    "file_path": "/" + img.file_path if img.file_path and not img.file_path.startswith("/") else img.file_path,
-                    "thumbnail_path": "/" + img.thumbnail_path if img.thumbnail_path and not img.thumbnail_path.startswith("/") else img.thumbnail_path,
-                    "thumbnail_path": "/" + img.thumbnail_path if img.thumbnail_path and not img.thumbnail_path.startswith("/") else img.thumbnail_path,
+                    "file_path": img.file_path if (not img.file_path or img.file_path.startswith(("/", "http"))) else "/" + img.file_path,
+                    "thumbnail_path": img.thumbnail_path if (not img.thumbnail_path or img.thumbnail_path.startswith(("/", "http"))) else "/" + img.thumbnail_path,
                     "file_size": img.file_size,
                     "width": img.width,
                     "height": img.height,

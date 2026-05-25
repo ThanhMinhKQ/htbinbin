@@ -252,8 +252,8 @@
                 </button>
 
                 <img x-show="viewingImage"
-                    :src="viewingImage?.preview || (viewingImage?.file_path ? (viewingImage.file_path.startsWith('/') ? viewingImage.file_path : '/' + viewingImage.file_path) : '')"
-                    class="max-w-full max-h-full object-contain select-none" @click.stop>
+                    :src="viewingImage?.preview || (viewingImage?.file_path ? (viewingImage.file_path.startsWith('http') ? viewingImage.file_path : (viewingImage.file_path.startsWith('/') ? viewingImage.file_path : '/' + viewingImage.file_path)) : '')"
+                    class="max-w-[90vw] max-h-[85vh] object-contain select-none rounded-lg" @click.stop>
             </div>
 
             <!-- Import/Export Modals (At root level of Alpine component to avoid nesting issues) -->

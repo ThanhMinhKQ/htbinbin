@@ -19,6 +19,13 @@ def _make_webp_bytes(width=100, height=100) -> bytes:
     return buf.getvalue()
 
 
+def _make_jpeg_bytes(width=100, height=100) -> bytes:
+    buf = io.BytesIO()
+    img = Image.new("RGB", (width, height), color=(128, 64, 32))
+    img.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
+
+
 class TestBuildObjectPath(unittest.TestCase):
     def test_import_path_format(self):
         from app.services.inventory_storage import _build_object_path
@@ -124,6 +131,40 @@ class TestUploadInventoryImageSupabasePath(unittest.IsolatedAsyncioTestCase):
         self.assertIn("/thumbnails/", thumb_url)
         self.assertIsInstance(w, int)
         self.assertIsInstance(h, int)
+
+    async def test_small_image_preserves_original_format_for_full_upload(self):
+        image_bytes = _make_jpeg_bytes(120, 90)
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("app.services.inventory_storage.settings") as mock_settings, \
+             patch("app.services.inventory_storage.httpx.AsyncClient", return_value=mock_client):
+            mock_settings.SUPABASE_URL = "https://abc.supabase.co"
+            mock_settings.SUPABASE_SERVICE_KEY = "service_key_xyz"
+            mock_settings.INVENTORY_STORAGE_BUCKET = "inventory"
+
+            from app.services.inventory_storage import upload_inventory_image
+            full_url, thumb_url, w, h = await upload_inventory_image(
+                image_bytes=image_bytes,
+                mime="image/jpeg",
+                prefix="imports",
+                entity_id="10",
+                original_filename="photo.jpg"
+            )
+
+        self.assertTrue(full_url.endswith(".jpg"), full_url)
+        self.assertTrue(thumb_url.endswith(".webp"), thumb_url)
+        self.assertEqual((w, h), (120, 90))
+        first_call = mock_client.post.call_args_list[0]
+        self.assertEqual(first_call.kwargs["headers"]["Content-Type"], "image/jpeg")
+        uploaded_full = first_call.kwargs["content"]
+        self.assertEqual(Image.open(io.BytesIO(uploaded_full)).format, "JPEG")
 
     async def test_raises_on_total_failure(self):
         """If Supabase fails AND local write fails, raise ValueError."""

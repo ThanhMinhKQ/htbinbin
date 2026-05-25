@@ -148,7 +148,7 @@
                         <div class="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
                             <template x-for="img in viewingRequestTicket.images" :key="img.id">
                                 <button type="button" class="aspect-square overflow-hidden rounded-md border border-slate-200 dark:border-slate-800" @click="viewingImage = img">
-                                    <img :src="(img.thumbnail_path && img.thumbnail_path.startsWith('/') ? '' : '/') + (img.thumbnail_path || img.file_path)" class="h-full w-full object-cover">
+                                    <img :src="((img.thumbnail_path || img.file_path) && (img.thumbnail_path || img.file_path).startsWith('http')) ? (img.thumbnail_path || img.file_path) : ((img.thumbnail_path && img.thumbnail_path.startsWith('/') ? '' : '/') + (img.thumbnail_path || img.file_path))" class="h-full w-full object-cover">
                                 </button>
                             </template>
                         </div>

@@ -251,6 +251,11 @@ async def get_page_load(
             (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS req_completed,
             (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_count,
             (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_amount,
+            (SELECT COALESCE(SUM(iti.received_quantity * p.cost_price),0)
+             FROM inventory_transfer_items iti
+             JOIN inventory_transfers it ON iti.transfer_id = it.id
+             JOIN products p ON iti.product_id = p.id
+             WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS incoming_val,
             (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_export} AND it.status='COMPLETED' {ov_date_it}) AS exp_count,
             (SELECT COALESCE(ABS(SUM(sm.quantity_change * p.sell_price)),0)
              FROM stock_movements sm
@@ -259,7 +264,7 @@ async def get_page_load(
              AND {ov_wh_sm} {ov_date_sm}) AS sales_amount
     """)
     stats_row = db.execute(stats_sql, ov_params).fetchone()
-    import_amount = float(stats_row.imp_amount or 0)
+    import_amount = float(stats_row.imp_amount or 0) + float(stats_row.incoming_val or 0)
     sales_amount = float(stats_row.sales_amount or 0)
 
     return {

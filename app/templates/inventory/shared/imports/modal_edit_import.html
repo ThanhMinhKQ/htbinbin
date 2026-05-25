@@ -229,7 +229,7 @@
                             <template x-for="img in editImportForm.existingImages" :key="img.id">
                                 <div x-show="!editImportForm.pendingDeletes.includes(img.id)" @click="viewImage(img)"
                                     class="relative group cursor-pointer">
-                                    <img :src="(img.thumbnail_path && img.thumbnail_path.startsWith('/') ? '' : '/') + (img.thumbnail_path || img.file_path)"
+                                    <img :src="((img.thumbnail_path || img.file_path) && (img.thumbnail_path || img.file_path).startsWith('http')) ? (img.thumbnail_path || img.file_path) : ((img.thumbnail_path && img.thumbnail_path.startsWith('/') ? '' : '/') + (img.thumbnail_path || img.file_path))"
                                         alt="Image"
                                         class="w-full h-20 object-cover rounded-lg border border-slate-200 dark:border-slate-600">
                                     <button @click.stop="deleteEditExistingImage(img.id)" type="button"

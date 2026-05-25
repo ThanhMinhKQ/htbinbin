@@ -104,6 +104,10 @@ export default {
     },
 
     async compressImage(file) {
+        if (file.size <= 500 * 1024) {
+            return null;
+        }
+
         return new Promise((resolve) => {
             const reader = new FileReader();
 

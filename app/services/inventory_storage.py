@@ -9,7 +9,7 @@ import hashlib
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import httpx
 from PIL import Image
@@ -22,6 +22,7 @@ logger = logging.getLogger("binbin-inventory-storage")
 MAX_SIZE = (1920, 1080)   # Full image max dimensions
 THUMB_SIZE = (300, 300)   # Thumbnail max dimensions
 WEBP_QUALITY = 85
+COMPRESS_THRESHOLD = 500 * 1024
 
 # Absolute base for local fallback — always resolves from this file's location
 _APP_ROOT = Path(__file__).resolve().parents[2]
@@ -69,10 +70,10 @@ def _get_dimensions(image_bytes: bytes) -> Tuple[int, int]:
     return img.size  # (width, height)
 
 
-def _unique_filename(original_filename: str, image_bytes: bytes) -> str:
+def _unique_filename(original_filename: str, image_bytes: bytes, extension: str = ".webp") -> str:
     file_hash = hashlib.md5(image_bytes).hexdigest()[:8]
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    return f"img_{timestamp}_{file_hash}.webp"
+    return f"img_{timestamp}_{file_hash}{extension}"
 
 
 def _supabase_storage_url(object_path: str) -> str:
@@ -109,6 +110,7 @@ async def _save_local(
     prefix: str,
     entity_id: str,
     filename: str,
+    thumb_filename: Optional[str] = None,
     base_dir: Path = _LOCAL_BASE,
 ) -> Tuple[str, str, int, int]:
     """
@@ -117,7 +119,7 @@ async def _save_local(
     full_url / thumb_url are relative URLs served via /uploads/inventory/...
     """
     full_obj_path = _build_object_path(prefix, entity_id, filename, is_thumb=False)
-    thumb_obj_path = _build_object_path(prefix, entity_id, filename, is_thumb=True)
+    thumb_obj_path = _build_object_path(prefix, entity_id, thumb_filename or filename, is_thumb=True)
 
     full_path = base_dir / full_obj_path
     thumb_path = base_dir / thumb_obj_path
@@ -162,18 +164,34 @@ async def upload_inventory_image(
     Raises:
         ValueError: If both Supabase and local fallback fail.
     """
-    full_bytes = _optimize_to_webp(image_bytes, max_size=MAX_SIZE)
     thumb_bytes = _optimize_to_webp(image_bytes, max_size=THUMB_SIZE)
-    w, h = _get_dimensions(full_bytes)
-    filename = _unique_filename(original_filename, image_bytes)
+
+    if len(image_bytes) <= COMPRESS_THRESHOLD:
+        full_bytes = image_bytes
+        w, h = _get_dimensions(full_bytes)
+        img = Image.open(io.BytesIO(image_bytes))
+        fmt = (img.format or "JPEG").upper()
+        ext_map = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp", "GIF": ".gif"}
+        extension = ext_map.get(fmt, ".jpg")
+        full_mime = f"image/{fmt.lower()}"
+        if full_mime == "image/jpg":
+            full_mime = "image/jpeg"
+    else:
+        full_bytes = _optimize_to_webp(image_bytes, max_size=MAX_SIZE)
+        w, h = _get_dimensions(full_bytes)
+        extension = ".webp"
+        full_mime = "image/webp"
+
+    filename = _unique_filename(original_filename, image_bytes, extension)
+    thumb_filename = _unique_filename(original_filename, thumb_bytes)
 
     full_obj_path = _build_object_path(prefix, entity_id, filename, is_thumb=False)
-    thumb_obj_path = _build_object_path(prefix, entity_id, filename, is_thumb=True)
+    thumb_obj_path = _build_object_path(prefix, entity_id, thumb_filename, is_thumb=True)
 
     # Try Supabase first
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
         try:
-            full_ok = await _upload_bytes_to_supabase(full_obj_path, full_bytes, "image/webp")
+            full_ok = await _upload_bytes_to_supabase(full_obj_path, full_bytes, full_mime)
             thumb_ok = await _upload_bytes_to_supabase(thumb_obj_path, thumb_bytes, "image/webp")
             if full_ok and thumb_ok:
                 return (
@@ -189,7 +207,7 @@ async def upload_inventory_image(
     # Local fallback
     logger.info("Saving inventory image to local filesystem")
     try:
-        return await _save_local(full_bytes, thumb_bytes, prefix, entity_id, filename)
+        return await _save_local(full_bytes, thumb_bytes, prefix, entity_id, filename, thumb_filename)
     except Exception as exc:
         raise ValueError(f"Failed to save inventory image: {exc}") from exc
 
