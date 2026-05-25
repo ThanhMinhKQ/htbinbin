@@ -358,6 +358,11 @@ class BookingService:
         if ci >= booking_end:
             return False
         if stay.check_out_at is None:
+            raw_stay_mode = getattr(stay, "pricing_mode_initial", None) or getattr(stay, "stay_type", None) or ""
+            stay_mode = str(getattr(raw_stay_mode, "value", raw_stay_mode)).upper()
+            is_hourly = stay_mode in {"HOURLY", "HOURLY_CHARGE", "HOUR", "FORCE_HOURLY"}
+            if is_hourly:
+                return ci.date() == booking.check_in
             return True
         co = stay.check_out_at.astimezone(VN_TZ) if stay.check_out_at.tzinfo else VN_TZ.localize(stay.check_out_at)
         booking_start = VN_TZ.localize(datetime.combine(booking.check_in, CHECKOUT_TIME))
