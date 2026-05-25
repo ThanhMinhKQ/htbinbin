@@ -20,7 +20,9 @@
         {% endfor %}
     </select>
 </div>
-<div x-data="{ tab: localStorage.getItem('manager_currentTab') || 'requests' }" class="max-w-full overflow-x-auto">
+<div x-data="{ tab: localStorage.getItem('manager_currentTab') || 'requests', pendingCount: 0 }"
+    @inventory:set-pending-count.window="pendingCount = $event.detail"
+    class="max-w-full overflow-x-auto">
     <div class="inv-main-tabs inline-flex min-h-11 items-center gap-1 p-1">
         <button type="button"
             @click="tab = 'requests'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'requests' }))"
@@ -31,7 +33,7 @@
             </svg>
             Yêu cầu
         </button>
-        <button type="button"
+        <button type="button" style="position: relative;"
             @click="tab = 'approvals'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'approvals' }))"
             :class="tab === 'approvals' ? 'is-active' : ''" class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -39,6 +41,9 @@
                     d="M9 12l2 2 4-4M4 6h16M4 18h16" />
             </svg>
             Duyệt yêu cầu
+            <span x-show="pendingCount > 0"
+                class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white font-black animate-pulse"
+                x-text="pendingCount"></span>
         </button>
         <button type="button"
             @click="tab = 'import'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'import' }))"
@@ -165,7 +170,7 @@
             init() {
                 // Dynamically import the module
                 // Use new INVENTORY MANAGER module
-                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=2.8-shift")
+                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=3.1-badge")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.inventoryManagerApp;

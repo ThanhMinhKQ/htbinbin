@@ -39,9 +39,6 @@
                     :class="{ 'is-active': approvalFilter === 'PENDING' }"
                     class="inv-segmented-btn">
                     Chờ duyệt
-                    <span x-show="pendingCount > 0"
-                        class="inv-count-badge"
-                        x-text="pendingCount"></span>
                 </button>
                 <button type="button" @click="approvalFilter = 'HISTORY'; fetchApprovals()"
                     :class="{ 'is-active': approvalFilter === 'HISTORY' }"

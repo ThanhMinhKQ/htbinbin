@@ -9,7 +9,9 @@
 {% endblock %}
 
 {% block app_header_actions %}
-<div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'overview' }" class="flex items-center gap-3 max-w-full overflow-x-auto">
+<div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'overview', pendingCount: 0 }"
+    @inventory:set-pending-count.window="pendingCount = $event.detail"
+    class="flex items-center gap-3 max-w-full overflow-x-auto">
     {% if user_role not in ('letan',) %}
     <div class="inv-header-warehouse-control">
         <label class="inv-header-warehouse-label">Kho</label>
@@ -40,13 +42,16 @@
             </svg>
             Yêu cầu
         </button>
-        <button type="button" @click="tab = 'approvals'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'approvals' }))"
+        <button type="button" style="position: relative;" @click="tab = 'approvals'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'approvals' }))"
             :class="tab === 'approvals' ? 'is-active' : ''"
             class="inv-main-tab">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M4 6h16M4 18h16" />
             </svg>
             Duyệt yêu cầu
+            <span x-show="pendingCount > 0"
+                class="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] text-white font-black animate-pulse"
+                x-text="pendingCount"></span>
         </button>
         <button type="button" @click="tab = 'import'; window.dispatchEvent(new CustomEvent('inventory:set-tab', { detail: 'import' }))"
             :class="tab === 'import' ? 'is-active' : ''"
@@ -157,7 +162,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.5-shift")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.8-badge")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;

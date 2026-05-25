@@ -1161,28 +1161,11 @@
                             d="M5 11v5l7 4 7-4v-5"></path>
                     </svg>
                     <span class="ml-3 nav-text">Yêu cầu Vật tư</span>
+                    <span id="inventory-reception-badge" class="ml-auto hidden min-w-5 rounded-full bg-red-500 px-1.5 py-0.5 text-center text-[10px] font-black leading-none text-white nav-text"></span>
                 </a>
                 {% endif %}
 
-                {% if user and user.role|lower != 'ktv' %}
-                <a href="{{ url_for('shift_report_page') }}"
-                    class="{{ nav_link_base }} {% if active_page == 'shift-report' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
-                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                        stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M6 7h10"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M6 12h6"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M6 17h4"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M16 6v12"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                            d="M13 9l3-3 3 3M13 15l3 3 3-3"></path>
-                    </svg>
-                    <span class="ml-3 nav-text">Giao Ca</span>
-                </a>
-                {% endif %}
+
 
 
 
@@ -1258,6 +1241,26 @@
                     </svg>
                     <span class="ml-3 nav-text">Cẩm Nang</span>
                 </a>
+
+                {% if user and user.role|lower != 'ktv' %}
+                <a href="{{ url_for('shift_report_page') }}"
+                    class="{{ nav_link_base }} {% if active_page == 'shift-report' %}{{ nav_link_active }}{% else %}{{ nav_link_inactive }}{% endif %}">
+                    <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M6 7h10"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M6 12h6"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M6 17h4"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M16 6v12"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M13 9l3-3 3 3M13 15l3 3 3-3"></path>
+                    </svg>
+                    <span class="ml-3 nav-text">Giao Ca</span>
+                </a>
+                {% endif %}
 
             </nav>
 
@@ -1709,11 +1712,65 @@
                     globalOtaTimer = null;
                 }
             }
+
+            // -- Check Yêu cầu Vật tư (receptionist role) --
+            async function updateInventoryReceptionBadge() {
+                try {
+                    const badgeEl = document.getElementById('inventory-reception-badge');
+                    if (!badgeEl) return;
+                    
+                    const gc = window.GLOBAL_USER_CONFIG || {};
+                    if (gc.userRole !== 'letan') {
+                        badgeEl.style.display = 'none';
+                        return;
+                    }
+
+                    const res = await fetch('/api/inventory/requests/shipping-count', { credentials: 'same-origin' });
+                    if (!res.ok) return;
+                    const data = await res.json();
+                    const count = data.count ?? 0;
+                    
+                    if (count > 0) {
+                        badgeEl.textContent = count > 99 ? '99+' : count;
+                        badgeEl.style.display = 'inline-block';
+                        badgeEl.classList.remove('hidden');
+                    } else {
+                        badgeEl.style.display = 'none';
+                        badgeEl.classList.add('hidden');
+                    }
+                } catch (e) {
+                    console.error("Error updating inventory reception badge:", e);
+                }
+            }
+            window.updateInventoryReceptionBadge = updateInventoryReceptionBadge;
+
+            let globalInventoryTimer = null;
+            function startGlobalInventoryPolling() {
+                const gc = window.GLOBAL_USER_CONFIG || {};
+                if (gc.userRole !== 'letan') return;
+                
+                if (globalInventoryTimer || document.hidden) return;
+                updateInventoryReceptionBadge();
+                globalInventoryTimer = setInterval(updateInventoryReceptionBadge, 60000); // Check every 60s
+            }
+            function stopGlobalInventoryPolling() {
+                if (globalInventoryTimer) {
+                    clearInterval(globalInventoryTimer);
+                    globalInventoryTimer = null;
+                }
+            }
+
             document.addEventListener('visibilitychange', () => {
-                if (document.hidden) stopGlobalOtaPolling();
-                else startGlobalOtaPolling();
+                if (document.hidden) {
+                    stopGlobalOtaPolling();
+                    stopGlobalInventoryPolling();
+                } else {
+                    startGlobalOtaPolling();
+                    startGlobalInventoryPolling();
+                }
             });
             startGlobalOtaPolling();
+            startGlobalInventoryPolling();
 
             // Lấy badge real-time khi Booking Hub ở tab khác ghi localStorage
             window.addEventListener('storage', function (e) {

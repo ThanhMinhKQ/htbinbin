@@ -46,10 +46,7 @@ async def get_page_init(
 
     if warehouse_id:
         aq = aq.filter(InventoryTransfer.source_warehouse_id == warehouse_id)
-    if start_time:
-        aq = aq.filter(InventoryTransfer.created_at >= start_time)
-    if end_time:
-        aq = aq.filter(InventoryTransfer.created_at <= end_time)
+    # Active pending approvals should not be filtered by date range so they do not get hidden on initial load
 
     total_approvals = aq.count()
     approvals = aq.order_by(desc(InventoryTransfer.created_at)).offset((page - 1) * per_page).limit(per_page).all()
@@ -115,6 +112,7 @@ async def get_page_load(
     request: Request,
     perspective: str = "manager",
     warehouse_id: int = None,
+    branch_id: int = None,
     date_from: str = None,
     date_to: str = None,
     overview_date_from: str = None,
@@ -150,15 +148,27 @@ async def get_page_load(
         joinedload(InventoryTransfer.requester),
         selectinload(InventoryTransfer.compensation_transfers)
     ).filter(InventoryTransfer.status == TicketStatus.PENDING)
-    if warehouse_id:
+    if is_reception and branch_id:
+        source_branch = db.query(Branch).get(branch_id)
+        is_admin_branch = source_branch and source_branch.branch_code.upper() in ['ADMIN', 'BOSS']
+        if is_admin_branch:
+            source_warehouses = db.query(Warehouse).filter(
+                (Warehouse.branch_id == branch_id) |
+                (Warehouse.branch_id.is_(None))
+            ).all()
+        else:
+            source_warehouses = db.query(Warehouse).filter(Warehouse.branch_id == branch_id).all()
+        source_warehouse_ids = [w.id for w in source_warehouses]
+        if source_warehouse_ids:
+            aq = aq.filter(InventoryTransfer.source_warehouse_id.in_(source_warehouse_ids))
+        else:
+            aq = aq.filter(False)
+    elif warehouse_id:
         if is_reception:
             aq = aq.filter(InventoryTransfer.dest_warehouse_id == warehouse_id)
         else:
             aq = aq.filter(InventoryTransfer.source_warehouse_id == warehouse_id)
-    if start_time:
-        aq = aq.filter(InventoryTransfer.created_at >= start_time)
-    if end_time:
-        aq = aq.filter(InventoryTransfer.created_at <= end_time)
+    # Active pending approvals should not be filtered by date range so they do not get hidden on initial load
 
     total_approvals = aq.count()
     approvals = aq.order_by(desc(InventoryTransfer.created_at)).offset((page - 1) * per_page).limit(per_page).all()
@@ -236,8 +246,8 @@ async def get_page_load(
     stats_sql = sa_text(f"""
         SELECT
             (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} {ov_date_it}) AS req_total,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING' {ov_date_it}) AS req_pending,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING' {ov_date_it}) AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING') AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING') AS req_shipping,
             (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS req_completed,
             (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_count,
             (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_amount,
@@ -299,6 +309,7 @@ async def get_reception_page_load(
         request=request,
         perspective="reception",
         warehouse_id=warehouse_id,
+        branch_id=branch_id,
         date_from=date_from,
         date_to=date_to,
         overview_date_from=overview_date_from,

@@ -236,9 +236,9 @@ async def get_dashboard_stats(
             (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
              WHERE {wh_dest_filter} {date_filter_it}) AS req_total,
             (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
-             WHERE {wh_dest_filter} AND it.status = 'PENDING' {date_filter_it}) AS req_pending,
+             WHERE {wh_dest_filter} AND it.status = 'PENDING') AS req_pending,
             (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
-             WHERE {wh_dest_filter} AND it.status = 'SHIPPING' {date_filter_it}) AS req_shipping,
+             WHERE {wh_dest_filter} AND it.status = 'SHIPPING') AS req_shipping,
             (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
              WHERE {wh_dest_filter} AND it.status = 'COMPLETED' {date_filter_it}) AS req_completed,
             -- imports

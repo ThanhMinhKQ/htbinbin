@@ -151,6 +151,591 @@ export default {
         });
     },
 
+    async captureModal(element) {
+        if (!element) return;
+
+        // 1. Show Loading Overlay immediately
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'fixed inset-0 z-[9999] pointer-events-auto bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300';
+        loadingOverlay.id = 'inventory-capture-working-overlay';
+        loadingOverlay.innerHTML = `
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-white font-bold text-lg animate-pulse">Đang xử lý hình ảnh...</p>
+            <p class="text-slate-400 text-sm mt-2">Vui lòng đợi giây lát</p>
+        `;
+        document.body.appendChild(loadingOverlay);
+
+        // Force a layout paint
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 50)));
+
+        let captureTarget = null;
+        let cleanupCaptureTarget = null;
+
+        try {
+            // Find the actual modal container more intelligently
+            let content;
+
+            // 0. Check if the element itself IS the modal container (often the case if passed directly)
+            // Look for max-w-* classes which indicate it's the main container
+            if (element.classList.contains('max-w-3xl') ||
+                element.classList.contains('max-w-4xl') ||
+                element.classList.contains('max-w-5xl') ||
+                element.classList.contains('max-w-6xl') ||
+                element.classList.contains('max-w-7xl') ||
+                element.classList.contains('max-w-full') ||
+                element.classList.contains('max-w-screen-xl')) {
+                content = element;
+            }
+
+            // 1. Look for the main modal container by size class
+            if (!content) {
+                content = element.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
+            }
+
+            // 2. If not found, try to find it by going up to the fixed container first
+            if (!content) {
+                const fixedContainer = element.closest('.fixed') || element;
+                content = fixedContainer.querySelector('.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full');
+            }
+
+            // 3. If still not found, look for bg-white/slate-50 container with flex flex-col (modal structure)
+            if (!content) {
+                const candidates = element.querySelectorAll('.bg-white, .bg-slate-50, .dark\\:bg-slate-900');
+                for (const candidate of candidates) {
+                    if (candidate.classList.contains('flex') && candidate.classList.contains('flex-col')) {
+                        content = candidate;
+                        break;
+                    }
+                }
+            }
+
+            // 4. Fallback to the element itself
+            if (!content) {
+                content = element.querySelector('.bg-white') || element;
+            }
+
+            // --- PREPARE FOR CAPTURE ---
+
+            const captureStyleId = 'inventory-shared-capture-temp-style';
+            let captureStyleEl = document.getElementById(captureStyleId);
+            if (!captureStyleEl) {
+                captureStyleEl = document.createElement('style');
+                captureStyleEl.id = captureStyleId;
+                document.head.appendChild(captureStyleEl);
+            }
+
+            const normalizeCaptureStatusCells = (root) => {
+                root.querySelectorAll('table').forEach(table => {
+                    const visibleHeaders = Array.from(table.querySelectorAll('thead th')).filter(th => window.getComputedStyle(th).display !== 'none');
+                    const statusIndex = visibleHeaders.findIndex(th => th.textContent.trim().toLowerCase().includes('tình trạng'));
+                    if (statusIndex === -1) return;
+
+                    table.querySelectorAll('tbody tr').forEach(row => {
+                        const visibleCells = Array.from(row.children).filter(cell => window.getComputedStyle(cell).display !== 'none');
+                        const cell = visibleCells[statusIndex];
+                        if (!cell) return;
+
+                        const statusText = cell.textContent.trim();
+                        if (!statusText) return;
+
+                        const sourceBadge = Array.from(cell.querySelectorAll('span.inline-flex')).find(span => span.textContent.trim() === statusText) || cell.querySelector('span.inline-flex');
+                        const statusBadge = document.createElement('span');
+                        statusBadge.textContent = statusText;
+                        statusBadge.className = sourceBadge?.className || 'inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-slate-600';
+                        statusBadge.style.display = 'inline-flex';
+                        statusBadge.style.alignItems = 'center';
+                        statusBadge.style.justifyContent = 'center';
+                        statusBadge.style.position = 'static';
+                        statusBadge.style.maxWidth = 'none';
+                        statusBadge.style.whiteSpace = 'nowrap';
+                        statusBadge.style.overflow = 'visible';
+                        statusBadge.style.textOverflow = 'clip';
+                        statusBadge.style.lineHeight = '1.4';
+
+                        cell.dataset.captureStatusCell = 'true';
+                        cell.replaceChildren(statusBadge);
+                    });
+                });
+            };
+
+            const expandCaptureScrollAreas = (root) => {
+                root.querySelectorAll('.overflow-y-auto, .overflow-auto, .max-h-\\[70vh\\], .max-h-\\[80vh\\]').forEach(area => {
+                    area.style.maxHeight = 'none';
+                    area.style.overflow = 'visible';
+                    area.style.height = 'auto';
+                    area.style.height = `${Math.max(area.scrollHeight, area.offsetHeight, area.getBoundingClientRect().height)}px`;
+                });
+            };
+
+            captureStyleEl.innerHTML = `
+                .capture-mode-active > .rounded-b-2xl,
+                .capture-mode-active .border-t:last-child,
+                .capture-mode-active footer {
+                    display: none !important;
+                    height: 0 !important;
+                    min-height: 0 !important;
+                    max-height: 0 !important;
+                    overflow: hidden !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    border: 0 !important;
+                }
+                .capture-mode-active {
+                    box-sizing: border-box !important;
+                    text-rendering: optimizeLegibility !important;
+                    -webkit-font-smoothing: antialiased !important;
+                    -moz-osx-font-smoothing: grayscale !important;
+                    font-family: inherit !important;
+                    letter-spacing: inherit !important;
+                }
+                .capture-mode-active * {
+                    box-sizing: border-box !important;
+                    font-family: inherit !important;
+                    letter-spacing: inherit !important;
+                }
+                .capture-mode-active table {
+                    width: 100% !important;
+                    table-layout: fixed !important;
+                    border-collapse: collapse !important;
+                }
+                .capture-mode-active th,
+                .capture-mode-active td {
+                    overflow: visible !important;
+                    vertical-align: top !important;
+                }
+                .capture-mode-active [data-capture-status-cell] {
+                    min-width: 132px !important;
+                    width: 132px !important;
+                    white-space: nowrap !important;
+                }
+                .capture-mode-active [data-capture-status-cell] span.inline-flex {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    position: static !important;
+                    max-width: none !important;
+                    white-space: nowrap !important;
+                    overflow: visible !important;
+                    text-overflow: clip !important;
+                    vertical-align: middle !important;
+                }
+                .capture-mode-active .truncate,
+                .capture-mode-active .overflow-hidden,
+                .capture-mode-active .text-ellipsis {
+                    white-space: normal !important;
+                    overflow: visible !important;
+                    text-overflow: clip !important;
+                    line-height: 1.5 !important;
+                    word-break: break-word !important;
+                }
+            `;
+            const createCaptureTarget = (source) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'inventory-capture-target-wrapper';
+                wrapper.style.position = 'absolute';
+                wrapper.style.left = '0';
+                wrapper.style.top = '0';
+                wrapper.style.zIndex = '9998';
+                wrapper.style.pointerEvents = 'none';
+                wrapper.style.background = '#ffffff';
+                wrapper.style.overflow = 'visible';
+                wrapper.style.width = 'max-content';
+                wrapper.style.height = 'max-content';
+
+                const clone = source.cloneNode(true);
+                clone.setAttribute('x-ignore', '');
+                clone.querySelectorAll('[x-data], [x-for], [x-if]').forEach(node => node.setAttribute('x-ignore', ''));
+                clone.classList.add('capture-mode-active');
+                clone.style.transform = 'none';
+                clone.style.transition = 'none';
+                clone.style.animation = 'none';
+                clone.style.maxHeight = 'none';
+                clone.style.height = 'auto';
+                clone.style.minHeight = 'max-content';
+                clone.style.overflow = 'visible';
+                clone.style.padding = '0';
+                clone.style.margin = '0';
+                clone.style.borderRadius = '0';
+                clone.style.boxShadow = 'none';
+
+                clone.querySelectorAll('.rounded-b-2xl, footer').forEach(footer => {
+                    footer.style.display = 'none';
+                    footer.style.height = '0';
+                    footer.style.overflow = 'hidden';
+                    footer.style.padding = '0';
+                    footer.style.margin = '0';
+                    footer.style.border = '0';
+                });
+
+                clone.querySelectorAll('button').forEach(btn => {
+                    const hasSvg = btn.querySelector('svg');
+                    const inFooter = btn.closest('.border-t, .rounded-b-2xl, footer');
+                    if (hasSvg || inFooter) btn.style.display = 'none';
+                });
+
+                clone.querySelectorAll('.truncate, .text-ellipsis').forEach(el => {
+                    el.classList.remove('truncate', 'text-ellipsis');
+                    el.style.whiteSpace = 'normal';
+                    el.style.overflow = 'visible';
+                    el.style.textOverflow = 'clip';
+                    el.style.lineHeight = '1.5';
+                    el.style.wordBreak = 'break-word';
+                });
+
+                clone.querySelectorAll('.overflow-hidden').forEach(el => {
+                    if (!el.closest('table')) {
+                        el.classList.remove('overflow-hidden');
+                        el.style.overflow = 'visible';
+                    }
+                });
+
+                normalizeCaptureStatusCells(clone);
+
+                clone.querySelectorAll('input, textarea').forEach(input => {
+                    if (input.type === 'hidden' || input.style.display === 'none') return;
+                    const value = input.value || '';
+                    const computedStyle = window.getComputedStyle(input);
+                    const replacement = document.createElement('div');
+                    replacement.textContent = value;
+                    replacement.style.fontSize = computedStyle.fontSize;
+                    replacement.style.fontWeight = computedStyle.fontWeight;
+                    replacement.style.color = computedStyle.color;
+                    replacement.style.fontFamily = computedStyle.fontFamily;
+                    replacement.style.padding = '10px 14px';
+                    replacement.style.boxSizing = 'border-box';
+                    replacement.style.minHeight = `${parseFloat(computedStyle.height || 0) + 6}px`;
+                    replacement.style.display = 'flex';
+                    replacement.style.alignItems = 'center';
+                    replacement.style.lineHeight = '1.5';
+                    replacement.style.whiteSpace = 'normal';
+                    replacement.style.border = 'none';
+                    replacement.style.background = 'transparent';
+                    replacement.style.width = '100%';
+                    replacement.style.overflow = 'visible';
+                    input.parentNode?.replaceChild(replacement, input);
+                });
+
+                wrapper.appendChild(clone);
+                document.body.appendChild(wrapper);
+                expandCaptureScrollAreas(clone);
+                return clone;
+            };
+
+            cleanupCaptureTarget = (target) => {
+                const wrapper = target?.closest('.inventory-capture-target-wrapper');
+                if (wrapper?.parentNode) wrapper.parentNode.removeChild(wrapper);
+            };
+
+            captureTarget = createCaptureTarget(content);
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+            // 1. Remove transforms to avoid blurring
+            const originalTransform = content.style.transform;
+            content.style.transform = 'none';
+            const hadTransformClass = content.classList.contains('transform');
+            if (hadTransformClass) content.classList.remove('transform');
+
+            // 2. Hide control buttons (Close/Capture/Etc) - Optimized
+            const actionButtons = [];
+
+            // Combined button query for better performance
+            const allButtons = content.querySelectorAll('button');
+            allButtons.forEach(btn => {
+                // Check if it's a header button (has SVG) or footer button (in border-t)
+                const hasSvg = btn.querySelector('svg');
+                const isVisible = btn.offsetParent !== null;
+                const inFooter = btn.closest('.border-t');
+
+                if ((hasSvg && isVisible) || inFooter) {
+                    actionButtons.push({
+                        element: btn,
+                        originalDisplay: btn.style.display
+                    });
+                    btn.style.display = 'none';
+                }
+            });
+
+            // Save and expand the modal container itself if it has max-height
+            const modalOriginalMaxHeight = content.style.maxHeight;
+            const modalOriginalHeight = content.style.height;
+            const modalOriginalOverflow = content.style.overflow;
+
+            content.style.maxHeight = 'none';
+            content.style.height = 'auto';
+            content.style.overflow = 'visible';
+
+            // Find all scrollable areas that need to be expanded
+            const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
+            const savedStyles = [];
+
+            // Save original styles and expand all scrollable areas
+            scrollableAreas.forEach((area) => {
+                savedStyles.push({
+                    element: area,
+                    maxHeight: area.style.maxHeight,
+                    overflow: area.style.overflow,
+                    height: area.style.height
+                });
+
+                // Temporarily expand to show all content
+                area.style.maxHeight = 'none';
+                area.style.overflow = 'visible';
+                area.style.height = 'auto';
+            });
+
+            // Find and expand all truncated text elements
+            const truncatedElements = content.querySelectorAll('.truncate, .overflow-hidden, .text-ellipsis');
+            const savedClasses = [];
+
+            truncatedElements.forEach((el) => {
+                const classes = {
+                    element: el,
+                    hadTruncate: el.classList.contains('truncate'),
+                    hadOverflowHidden: el.classList.contains('overflow-hidden'),
+                    hadTextEllipsis: el.classList.contains('text-ellipsis'),
+                    originalWhiteSpace: el.style.whiteSpace,
+                    originalOverflow: el.style.overflow,
+                    originalTextOverflow: el.style.textOverflow
+                };
+                savedClasses.push(classes);
+
+                // Remove truncation classes and styles
+                el.classList.remove('truncate', 'overflow-hidden', 'text-ellipsis');
+                el.style.whiteSpace = 'normal';
+                el.style.overflow = 'visible';
+                el.style.textOverflow = 'clip';
+            });
+
+            // Reduced wait time for faster capture (200ms is sufficient for most cases)
+            await new Promise(resolve => setTimeout(resolve, 200));
+
+            // Calculate dynamic scale - Balance quality and performance
+            const captureWidth = Math.ceil(Math.max(captureTarget.scrollWidth, captureTarget.offsetWidth, captureTarget.getBoundingClientRect().width));
+            const captureHeight = Math.ceil(Math.max(captureTarget.scrollHeight, captureTarget.offsetHeight, captureTarget.getBoundingClientRect().height, document.documentElement.scrollHeight));
+            const totalPixels = captureHeight * captureWidth;
+
+            // Smart scaling for optimal performance
+            let scale;
+            if (totalPixels < 5000000) { // Small modals (~2200x2200)
+                scale = 3.0; // Clear text without oversized canvas
+            } else if (totalPixels < 15000000) { // Medium modals (~3800x3800)
+                scale = 2.75; // High quality
+            } else if (totalPixels < 30000000) { // Large modals (~5400x5400)
+                scale = 2.5; // Good quality
+            } else {
+                scale = 2.0; // Performance priority for huge modals
+            }
+
+            // Remove padding and margins for full-screen capture
+            const originalPadding = content.style.padding;
+            const originalMargin = content.style.margin;
+            const originalBorderRadius = content.style.borderRadius;
+            const originalBoxShadow = content.style.boxShadow;
+
+            content.style.padding = '0';
+            content.style.margin = '0';
+            content.style.borderRadius = '0';
+            content.style.boxShadow = 'none';
+
+            // Capture the entire expanded content WITHOUT opacity change
+            // Disable transitions and animations to prevent ghosting
+            const originalTransition = content.style.transition;
+            const originalAnimation = content.style.animation;
+            content.style.transition = 'none';
+            content.style.animation = 'none';
+
+            const canvas = await html2canvas(captureTarget, {
+                scale: scale,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff',
+                windowWidth: captureWidth,
+                windowHeight: captureHeight,
+                width: captureWidth,
+                height: captureHeight,
+                scrollY: 0,
+                scrollX: 0,
+                imageTimeout: 0,
+                removeContainer: true,
+                onclone: (clonedDoc) => {
+                    // Find the cloned content using the same robust selectors
+                    const contentSelectors = '.max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-full, .max-w-screen-xl, .bg-white, .bg-slate-50, .dark\\:bg-slate-900';
+                    const clonedContent = clonedDoc.body.querySelector(contentSelectors) || clonedDoc.body.firstChild;
+
+                    if (clonedContent && clonedContent.style) {
+                        clonedContent.classList.add('capture-mode-active');
+
+                        clonedContent.querySelectorAll('.rounded-b-2xl, footer').forEach(footer => {
+                            footer.style.display = 'none';
+                            footer.style.height = '0';
+                            footer.style.overflow = 'hidden';
+                            footer.style.padding = '0';
+                            footer.style.margin = '0';
+                            footer.style.border = '0';
+                        });
+
+                        clonedContent.querySelectorAll('.truncate, .overflow-hidden, .text-ellipsis').forEach(el => {
+                            el.classList.remove('truncate', 'text-ellipsis');
+                            if (!el.closest('table')) el.classList.remove('overflow-hidden');
+                            el.style.whiteSpace = 'normal';
+                            el.style.overflow = 'visible';
+                            el.style.textOverflow = 'clip';
+                            el.style.lineHeight = '1.5';
+                            el.style.wordBreak = 'break-word';
+                        });
+
+                        normalizeCaptureStatusCells(clonedContent);
+
+                        clonedContent.style.transform = 'none';
+                        clonedContent.style.transition = 'none';
+                        clonedContent.style.animation = 'none';
+                        clonedContent.style.display = 'flex'; // Ensure flex layout is preserved
+                        clonedContent.style.maxHeight = 'none';
+                        clonedContent.style.height = 'auto';
+                        clonedContent.style.overflow = 'visible';
+
+                        // Remove all padding and margins for full-screen
+                        clonedContent.style.padding = '0';
+                        clonedContent.style.margin = '0';
+                        clonedContent.style.borderRadius = '0';
+                        clonedContent.style.boxShadow = 'none';
+
+                        // Replace all inputs and textareas with static text for clear capture
+                        const inputs = clonedContent.querySelectorAll('input, textarea');
+                        inputs.forEach(input => {
+                            // skip hidden inputs
+                            if (input.type === 'hidden' || input.style.display === 'none') return;
+
+                            const value = input.value || '';
+                            const computedStyle = window.getComputedStyle(input);
+
+                            // Ensure parent has overflow visible to prevent clipping
+                            if (input.parentNode) {
+                                input.parentNode.style.overflow = 'visible';
+                            }
+
+                            const replacement = clonedDoc.createElement('div');
+
+                            // Copy all relevant styles with enhanced clarity
+                            replacement.style.fontSize = computedStyle.fontSize;
+                            replacement.style.fontWeight = computedStyle.fontWeight;
+                            replacement.style.color = computedStyle.color;
+                            replacement.style.fontFamily = computedStyle.fontFamily;
+
+                            // Enhanced padding for better text visibility
+                            replacement.style.padding = '10px 14px';
+                            replacement.style.margin = '0';
+                            replacement.style.boxSizing = 'border-box';
+
+                            // Set minimum height with extra space for clarity
+                            const inputHeight = parseFloat(computedStyle.height);
+                            replacement.style.minHeight = `${inputHeight + 6}px`;
+                            replacement.style.height = 'auto';
+
+                            // Use Flexbox for perfect centering
+                            replacement.style.display = 'flex';
+                            replacement.style.alignItems = 'center';
+                            replacement.style.justifyContent = computedStyle.textAlign === 'center' ? 'center' :
+                                computedStyle.textAlign === 'right' ? 'flex-end' : 'flex-start';
+
+                            // Text content with optimal spacing for clarity
+                            replacement.textContent = value;
+                            replacement.style.lineHeight = '1.6'; // Increased from 1.5
+                            replacement.style.whiteSpace = 'nowrap';
+                            replacement.style.border = 'none';
+                            replacement.style.background = 'transparent';
+                            replacement.style.width = '100%';
+                            replacement.style.overflow = 'visible';
+
+                            // Anti-aliasing for crisp text
+                            replacement.style.webkitFontSmoothing = 'antialiased';
+                            replacement.style.mozOsxFontSmoothing = 'grayscale';
+
+                            // Replace the input
+                            if (input.parentNode) {
+                                input.parentNode.replaceChild(replacement, input);
+                            }
+                        });
+                    }
+                }
+            });
+
+            // --- RESTORE ORIGINAL STATE ---
+
+            if (captureStyleEl && captureStyleEl.parentNode) {
+                captureStyleEl.parentNode.removeChild(captureStyleEl);
+            }
+
+            // Restore transforms and transitions
+            content.style.transform = originalTransform;
+            content.style.transition = originalTransition;
+            content.style.animation = originalAnimation;
+            if (hadTransformClass) content.classList.add('transform');
+
+            // Restore padding, margin, and styling
+            content.style.padding = originalPadding;
+            content.style.margin = originalMargin;
+            content.style.borderRadius = originalBorderRadius;
+            content.style.boxShadow = originalBoxShadow;
+
+            // Restore buttons
+            actionButtons.forEach(btn => {
+                btn.element.style.display = btn.originalDisplay;
+            });
+
+            // Restore modal container styles
+            content.style.maxHeight = modalOriginalMaxHeight;
+            content.style.height = modalOriginalHeight;
+            content.style.overflow = modalOriginalOverflow;
+
+            // Restore all scrollable area styles
+            savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
+                element.style.maxHeight = maxHeight;
+                element.style.overflow = overflow;
+                element.style.height = height;
+            });
+
+            // Restore all truncated text classes and styles
+            savedClasses.forEach(({ element, hadTruncate, hadOverflowHidden, hadTextEllipsis, originalWhiteSpace, originalOverflow, originalTextOverflow }) => {
+                if (hadTruncate) element.classList.add('truncate');
+                if (hadOverflowHidden) element.classList.add('overflow-hidden');
+                if (hadTextEllipsis) element.classList.add('text-ellipsis');
+                element.style.whiteSpace = originalWhiteSpace;
+                element.style.overflow = originalOverflow;
+                element.style.textOverflow = originalTextOverflow;
+            });
+
+            // Copy to clipboard
+            canvas.toBlob(async (blob) => {
+                try {
+                    const item = new ClipboardItem({ 'image/png': blob });
+                    await navigator.clipboard.write([item]);
+                    alert("Đã chụp toàn bộ phiếu và lưu vào Clipboard!");
+                } catch (err) {
+                    console.error('Clipboard failed:', err);
+                    alert("Không thể lưu vào clipboard. Bạn có thể lưu ảnh thủ công bằng cách chuột phải -> Lưu.");
+                }
+            });
+        } catch (e) {
+            console.error(e);
+            alert("Lỗi khi chụp màn hình: " + e.message);
+        } finally {
+            // Remove Loading Overlay
+            if (typeof cleanupCaptureTarget === 'function' && captureTarget) {
+                cleanupCaptureTarget(captureTarget);
+            }
+
+            const overlay = document.getElementById('inventory-capture-working-overlay');
+            if (overlay) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => {
+                    if (overlay && overlay.parentNode) {
+                        overlay.parentNode.removeChild(overlay);
+                    }
+                }, 300);
+            }
+        }
+    },
+
     // View Image method commonly used
     viewImage(img) {
         this.viewingImage = img;
