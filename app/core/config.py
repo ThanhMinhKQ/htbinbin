@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     IMAP_SERVER: str = "imap.gmail.com"
     IMAP_USER: Optional[str] = None
     IMAP_PASSWORD: Optional[str] = None
-    GEMINI_API_KEY: Optional[str] = None
     GATECHEAP_API_KEY: Optional[str] = None
+    GATECHEAP_BASE_URL: str = "https://gatecheap.io.vn/v1"
     GATECHEAP_MODEL: str = "gpt-5.5"
     GATECHEAP_FALLBACK_MODEL: Optional[str] = None
     GATECHEAP_SECOND_FALLBACK_MODEL: Optional[str] = None
@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = True
         env_file = ".env"
+        extra = "ignore"
 
 # Khởi tạo một đối tượng settings duy nhất để dùng trong toàn bộ ứng dụng
 settings = Settings()

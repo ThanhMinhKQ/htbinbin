@@ -130,49 +130,28 @@
         </div>
       </div>
 
-      <!-- PHOTO PANEL — visible when in photo scan mode -->
+      <!-- PHOTO PANEL — visible when in Passport/Visa image scan mode -->
       <div class="sm-photo-panel" id="sm-photo-panel" style="display: none;">
-        <div class="sm-photo-viewport" id="sm-photo-viewport">
-          <video id="sm-photo-video" class="sm-photo-video" playsinline muted autoplay></video>
-          <canvas id="sm-photo-canvas" class="sm-photo-canvas" hidden></canvas>
-          <img id="sm-photo-preview" class="sm-photo-preview" style="display: none;" alt="Ảnh đã chụp/tải lên" />
-
-          <!-- Corner brackets -->
-          <div class="sm-photo-corner-tl"></div>
-          <div class="sm-photo-corner-tr"></div>
-          <div class="sm-photo-corner-bl"></div>
-          <div class="sm-photo-corner-br"></div>
-
-          <!-- Guide mask overlay -->
-          <div class="sm-photo-mask-overlay" id="sm-photo-mask-overlay">
-            <div class="sm-photo-guide">
-              <span id="sm-photo-guide-text">Đặt hộ chiếu / visa vào khung hình</span>
-            </div>
+        <div class="sm-photo-dropzone" id="sm-photo-dropzone" onclick="document.getElementById('sm-photo-file').click()">
+          <div class="sm-photo-placeholder" id="sm-photo-placeholder">
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span>Dán ảnh (Ctrl+V) hoặc Chọn tệp</span>
+            <small>Passport hoặc Visa email (China)</small>
           </div>
+          <img id="sm-photo-preview" class="sm-photo-preview" style="display: none;" alt="Ảnh Passport/Visa" />
+          <button type="button" class="sm-photo-remove-btn" id="sm-photo-remove" style="display: none;" onclick="event.stopPropagation(); _smClearPhotoImage()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+          <input type="file" id="sm-photo-file" accept="image/*" style="display: none;" onchange="scanModalFileSelected(event)" />
         </div>
 
         <div class="sm-photo-status" id="sm-photo-status">
           <span class="sm-photo-status-dot" id="sm-photo-status-dot"></span>
-          <span id="sm-photo-status-text">Đang chờ chụp hoặc tải ảnh…</span>
-        </div>
-
-        <div class="sm-photo-controls">
-          <button type="button" class="sm-photo-btn-capture" id="sm-photo-btn-capture" onclick="scanModalCapturePhoto()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:text-bottom;">
-              <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
-            </svg>
-            Chụp ảnh
-          </button>
-
-          <label class="sm-photo-label-upload">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:text-bottom;">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
-            Tải ảnh / Chọn tệp
-            <input type="file" id="sm-photo-file" accept="image/*" capture="environment" style="display: none;" onchange="scanModalFileSelected(event)" />
-          </label>
+          <span id="sm-photo-status-text">Đang chờ dán ảnh hoặc chọn tệp…</span>
         </div>
       </div>
 

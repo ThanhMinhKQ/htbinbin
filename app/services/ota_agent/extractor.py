@@ -51,7 +51,7 @@ class OTAExtractor:
             )
             if model and model.strip() and model.strip() != self.model
         ]
-        self.base_url = "https://gatecheap.io.vn/v1"
+        self.base_url = settings.GATECHEAP_BASE_URL
         if not self.api_key:
             logger.warning("[OTA Extractor] GATECHEAP_API_KEY is missing!")
         self.client = self.api_key is not None

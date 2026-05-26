@@ -1568,77 +1568,86 @@ html.dark .sm-tab.active {
   gap: 16px;
 }
 
-.sm-photo-viewport {
+.sm-photo-dropzone {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #090d16;
-  border-radius: 12px;
+  min-height: 220px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   overflow: hidden;
-  border: 1px solid #334155;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  transition: border-color 0.2s, background 0.2s;
 }
 
-.sm-photo-video, .sm-photo-preview {
+.sm-photo-dropzone:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+
+.sm-photo-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #64748b;
+  text-align: center;
+  padding: 24px;
+}
+
+.sm-photo-placeholder span {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sm-photo-placeholder small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.sm-photo-preview {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  max-height: 360px;
+  object-fit: contain;
+  background: #0f172a;
 }
 
-/* Guides / Target Reticle */
-.sm-photo-corner-tl, .sm-photo-corner-tr, .sm-photo-corner-bl, .sm-photo-corner-br {
+.sm-photo-remove-btn {
   position: absolute;
-  width: 24px;
-  height: 24px;
-  border: 3px solid #3b82f6;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.sm-photo-corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; border-top-left-radius: 4px; }
-.sm-photo-corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; border-top-right-radius: 4px; }
-.sm-photo-corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; border-bottom-left-radius: 4px; }
-.sm-photo-corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; border-bottom-right-radius: 4px; }
-
-/* Guide overlay with standard document bounding box mask */
-.sm-photo-mask-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 5;
-  pointer-events: none;
-}
-
-.sm-photo-guide {
-  width: calc(100% - 40px);
-  height: calc(100% - 40px);
-  border: 1px dashed rgba(255, 255, 255, 0.4);
-  border-radius: 6px;
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* Outer mask shadow */
-}
-
-.sm-photo-guide span {
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: rgba(15, 23, 42, 0.75);
   color: #ffffff;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  backdrop-filter: blur(4px);
-  text-align: center;
-  max-width: 80%;
+  border: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+html.dark .sm-photo-dropzone {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+html.dark .sm-photo-dropzone:hover {
+  background: #1e293b;
+  border-color: #60a5fa;
+}
+
+html.dark .sm-photo-placeholder {
+  color: #94a3b8;
+}
+
+html.dark .sm-photo-placeholder small {
+  color: #64748b;
 }
 
 /* Status row */
@@ -1685,70 +1694,6 @@ html.dark .sm-photo-status {
   background: #1e293b;
   border-color: #334155;
   color: #cbd5e1;
-}
-
-/* Action Controls */
-.sm-photo-controls {
-  display: flex;
-  gap: 12px;
-}
-
-.sm-photo-btn-capture, .sm-photo-label-upload {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.sm-photo-btn-capture {
-  background: #3b82f6;
-  color: #ffffff;
-  border: none;
-}
-
-.sm-photo-btn-capture:hover {
-  background: #2563eb;
-}
-
-.sm-photo-btn-capture:active {
-  transform: scale(0.98);
-}
-
-.sm-photo-label-upload {
-  background: #ffffff;
-  color: #334155;
-  border: 1px solid #d1d5db;
-  text-align: center;
-}
-
-.sm-photo-label-upload:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
-}
-
-.sm-photo-label-upload:active {
-  transform: scale(0.98);
-}
-
-/* Dark mode controls */
-.dark .sm-photo-label-upload,
-html.dark .sm-photo-label-upload {
-  background: #1e293b;
-  color: #cbd5e1;
-  border-color: #475569;
-}
-
-.dark .sm-photo-label-upload:hover,
-html.dark .sm-photo-label-upload:hover {
-  background: #334155;
-  border-color: #64748b;
 }
 
 /* Animations */

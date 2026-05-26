@@ -1159,6 +1159,38 @@ function pmsCiUpdateGuestCount() {
     if (el) el.textContent = String(pmsCiGuestList.length);
 }
 
+async function pmsCiUploadPendingDocs(guestId) {
+    if (!_pmsCiPendingDocImages || !guestId || typeof uploadGuestDocument !== 'function') {
+        console.warn('[CI UPLOAD] Skipped — pending:', !!_pmsCiPendingDocImages, 'guestId:', guestId, 'uploaderFn:', typeof uploadGuestDocument);
+        _pmsCiPendingDocImages = null;
+        return;
+    }
+    const entries = Object.entries(_pmsCiPendingDocImages).filter(([, blob]) => !!blob);
+    _pmsCiPendingDocImages = null;
+    if (!entries.length) {
+        console.warn('[CI UPLOAD] No image blobs to upload');
+        return;
+    }
+    console.log(`[CI UPLOAD] Uploading ${entries.length} doc(s) for guest ${guestId}:`, entries.map(([k]) => k));
+
+    const results = await Promise.allSettled(
+        entries.map(([docType, blob]) => uploadGuestDocument(guestId, docType, blob))
+    );
+    const failed = [];
+    results.forEach((res, idx) => {
+        if (res.status === 'rejected') {
+            const docType = entries[idx][0];
+            failed.push(docType);
+            console.warn(`[CI UPLOAD] Failed ${docType}:`, res.reason);
+        } else {
+            console.log(`[CI UPLOAD] OK ${entries[idx][0]}`);
+        }
+    });
+    if (failed.length) {
+        pmsToast(`Đã nhận phòng nhưng chưa lưu được ảnh: ${failed.join(', ')}`, false);
+    }
+}
+
 function pmsCiUpdateCapacityWarn() {
     const primary = pmsCiGetFormGuest().full_name ? 1 : 0;
     const total = pmsCiGuestList.length + primary;
@@ -1186,7 +1218,6 @@ function pmsCiScanCode() {
         ...(isPhoto ? { mode: 'photo', docType: idType } : {}),
         onImages: (images) => {
             _pmsCiPendingDocImages = images;
-            console.log('[CI] Stashed scanned images:', Object.keys(images || {}));
         }
     });
 }
@@ -1258,6 +1289,16 @@ async function pmsCiFillFromScan(parsed) {
             else expireEl.value = pmsScanDateToISO(parsed.expiry_date);
             pmsCiCheckIdExpire(expireEl);
         }
+    }
+
+    const nationalityEl = document.getElementById('ci-nationality');
+    if (nationalityEl && isPhoto && parsed.nationality) {
+        let targetNat = parsed.nationality;
+        if (typeof PMS_NATIONALITIES !== 'undefined') {
+            const matched = PMS_NATIONALITIES.find(n => n.toUpperCase().startsWith(parsed.nationality.toUpperCase()));
+            if (matched) targetNat = matched;
+        }
+        nationalityEl.value = targetNat;
     }
 
     if (!isPhoto) {
@@ -2176,16 +2217,7 @@ async function submitCI() {
 
         // Upload stashed document images
         if (_pmsCiPendingDocImages && r.guest_id) {
-            for (const [docType, blob] of Object.entries(_pmsCiPendingDocImages)) {
-                if (blob && typeof uploadGuestDocument === 'function') {
-                    try {
-                        await uploadGuestDocument(r.guest_id, docType, blob);
-                    } catch (uploadErr) {
-                        console.warn(`[CI] Failed to upload ${docType}:`, uploadErr);
-                    }
-                }
-            }
-            _pmsCiPendingDocImages = null;
+            await pmsCiUploadPendingDocs(r.guest_id);
         }
 
         const roomId = document.getElementById('ci-room-id')?.value;
@@ -2208,16 +2240,7 @@ async function submitCI() {
 
                 // Upload stashed document images on retry success
                 if (_pmsCiPendingDocImages && retry.guest_id) {
-                    for (const [docType, blob] of Object.entries(_pmsCiPendingDocImages)) {
-                        if (blob && typeof uploadGuestDocument === 'function') {
-                            try {
-                                await uploadGuestDocument(retry.guest_id, docType, blob);
-                            } catch (uploadErr) {
-                                console.warn(`[CI] Failed to upload ${docType}:`, uploadErr);
-                            }
-                        }
-                    }
-                    _pmsCiPendingDocImages = null;
+                    await pmsCiUploadPendingDocs(retry.guest_id);
                 }
 
                 const roomId = document.getElementById('ci-room-id')?.value;

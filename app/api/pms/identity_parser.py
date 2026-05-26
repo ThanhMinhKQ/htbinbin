@@ -690,9 +690,11 @@ def detect_card_type(
         return CAN_CUOC_MOI
 
     addr = address_raw.strip() if address_raw else ""
-    if addr and _has_empty_part(addr):
+    if addr:
         filtered = [p.strip() for p in addr.split(",") if p.strip()]
-        if len(filtered) == 3:
+        if _has_empty_part(addr) and len(filtered) == 3:
+            return CAN_CUOC_MOI
+        if len(filtered) == 3 and not _hints_old_admin_levels(address_raw):
             return CAN_CUOC_MOI
 
     if _hints_old_admin_levels(address_raw):
@@ -858,10 +860,19 @@ def _parse_cccd_cu(
     elif wc_has_prefix:
         swap_needed = True
     else:
-        # Không có prefix → dùng lookup
+        # Không có prefix → dùng lookup kết hợp ward + district data
         ward_is_real = _is_ward_in_province(ward_cand, province)
         district_is_real = _is_ward_in_province(district_cand, province)
-        if district_is_real and not ward_is_real:
+        dc_is_district = _is_district_in_province(district_cand, province)
+        wc_is_district = _is_district_in_province(ward_cand, province)
+
+        if dc_is_district:
+            # district_cand đúng là quận/huyện → giữ nguyên, không swap
+            swap_needed = False
+        elif wc_is_district and not dc_is_district:
+            # ward_cand thực ra là quận/huyện → swap
+            swap_needed = True
+        elif district_is_real and not ward_is_real:
             swap_needed = True
 
     if swap_needed:

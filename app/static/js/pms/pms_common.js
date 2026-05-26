@@ -33,10 +33,6 @@ const PMS_ADDR_CACHE = {
         try {
             await this._loadPromise;
             this._loaded = true;
-            console.log('[PMS] Address cache loaded:', {
-                provinces: this.newProvinces.length,
-                wards: Object.values(this.newWards).reduce((a, b) => a + b.length, 0),
-            });
             return true;
         } catch (e) {
             console.error('[PMS] Address cache load failed:', e);
@@ -2128,9 +2124,13 @@ function pmsBindScanCCCD(inputEl, onScan) {
     });
 }
 
-/** Parse dd/MM/yyyy → yyyy-MM-dd cho <input type="date"> */
+/** Parse dd/MM/yyyy hoặc yyyy-MM-dd → yyyy-MM-dd cho <input type="date"> */
 function pmsScanDateToISO(dateStr) {
     if (!dateStr) return "";
+    // Already ISO: yyyy-MM-dd
+    const iso = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) return dateStr;
+    // dd/MM/yyyy
     const m = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
     if (!m) return "";
     return `${m[3]}-${m[2]}-${m[1]}`;

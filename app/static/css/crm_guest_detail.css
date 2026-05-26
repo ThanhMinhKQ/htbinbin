@@ -3064,6 +3064,7 @@ html.dark .gd-skeleton-tabs {
   border: 1px solid rgba(48, 42, 34, 0.12);
   border-radius: 18px;
   box-shadow: 0 14px 34px rgba(48, 42, 34, 0.08);
+  flex-shrink: 0;
 }
 
 html.dark .gd-profile-shell,

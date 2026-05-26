@@ -40,9 +40,10 @@ let _smLastCameraText  = '';
 // --- PHOTO SCANNING VARIABLES ---
 let _smOpts             = {};
 let _smDocType          = 'passport';
-let _smPhotoCameraStream = null;
-let _smPhotoCameraActive = false;
 let _smCccdImages       = { front: null, back: null };
+let _smCccdPasteActive  = false;   // separate flag for cccd-photo paste
+let _smPhotoFile        = null;
+let _smPhotoPasteActive = false;
 
 /* ═══════════════════════════════════════════════════════════════════
    ARCHITECTURE: INPUT-FIRST, SINGLE-SOURCE-OF-TRUTH
@@ -99,7 +100,7 @@ function _smSanitizeRaw(raw) {
 function openScanModal(onSuccess, opts) {
     _smOnSuccess      = onSuccess || null;
     _smOpts           = opts || {};
-    _smDocType        = _smOpts.docType || 'passport';
+    _smDocType        = _smOpts.docType || '';
     _smParsed         = null;
     _smActive         = true;
     _smProcessing     = false;
@@ -161,7 +162,6 @@ function openScanModal(onSuccess, opts) {
 
 function scanModalClose() {
     _smStopCamera();
-    scanModalStopPhotoCamera();
     _smDisarmScanner();
     _clearAllTimers();
     _smActive       = false;
@@ -169,8 +169,22 @@ function scanModalClose() {
     _smParsed       = null;
     _smOnSuccess    = null;
 
+    // Cleanup photo paste listeners
+    if (_smCccdPasteActive) {
+        _smCccdPasteActive = false;
+        document.removeEventListener('paste', _smPasteHandler);
+    }
+    if (_smPhotoPasteActive) {
+        _smPhotoPasteActive = false;
+        document.removeEventListener('paste', _smPasteHandler);
+    }
+
     const modal = _smEl('scanModal');
     if (modal) {
+        // Blur any focused element inside modal before hiding to avoid aria-hidden warning
+        if (document.activeElement && modal.contains(document.activeElement)) {
+            document.activeElement.blur();
+        }
         modal.classList.remove('show');
         modal.setAttribute('aria-hidden', 'true');
     }
@@ -181,12 +195,9 @@ function scanModalBack() {
     const isPhotoTab = tabPhoto && tabPhoto.classList.contains('active');
 
     if (isPhotoTab) {
-        scanModalStopPhotoCamera();
         _smResetPhotoUi();
         _smRenderPhotoPlaceholder();
         _smSetConfirmEnabled(false);
-        _smEl('sm-info-panel').innerHTML = '';
-        scanModalStartPhotoCamera();
     } else {
         _smStopCamera();
         _smReset();
@@ -392,13 +403,8 @@ function _smInputHandler() {
    PASTE HANDLER — manual testing & some scanner modes
    ═══════════════════════════════════════════════════════════════════ */
 function _smPasteHandler(e) {
-    if (!_smActive || _smProcessing) return;
-
-    // Support image pasting for CCCD photo tab
-    const tabCccdPhoto = _smEl('sm-tab-cccd-photo');
-    const isCccdPhotoActive = tabCccdPhoto && tabCccdPhoto.classList.contains('active');
-
-    if (isCccdPhotoActive) {
+    // CCCD photo paste — independent of scanner armed state (_smActive)
+    if (_smCccdPasteActive && !_smProcessing) {
         const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
         if (items) {
             for (let i = 0; i < items.length; i++) {
@@ -418,6 +424,25 @@ function _smPasteHandler(e) {
         }
         return;
     }
+
+    if (_smPhotoPasteActive && !_smProcessing) {
+        const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+        if (items) {
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        _smSetPhotoImage(blob, 'pasted_document.jpg');
+                        return;
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    if (!_smActive || _smProcessing) return;
 
     const input = _smEl('sm-test-input');
     if (!input || document.activeElement !== input) return;
@@ -912,35 +937,52 @@ function _smSetConfirmEnabled(enabled, parsed) {
     btn.disabled = !enabled;
 
     const tabCccdPhoto = _smEl('sm-tab-cccd-photo');
+    const tabPhoto = _smEl('sm-tab-photo');
     const isCccdPhotoActive = tabCccdPhoto && tabCccdPhoto.classList.contains('active');
 
     if (isCccdPhotoActive) {
-        btn.onclick = enabled ? () => {
-            if (_smOpts && typeof _smOpts.onImages === 'function') {
-                _smOpts.onImages({
-                    cccd_front: _smCccdImages.front,
-                    cccd_back: _smCccdImages.back
-                });
-            }
-            if (_smOnSuccess) _smOnSuccess(null);
-            scanModalClose();
-        } : null;
+        if (!parsed || !parsed.is_valid) {
+            btn.textContent = 'Nhận diện ảnh CCCD';
+            btn.disabled = !_smCccdImages.front;
+            btn.onclick = _smCccdImages.front ? () => _smSubmitCccdPhoto() : null;
+        } else {
+            btn.textContent = 'Xác nhận & điền form';
+            btn.onclick = () => {
+                if (_smOpts && typeof _smOpts.onImages === 'function') {
+                    _smOpts.onImages({
+                        cccd_front: _smCccdImages.front,
+                        cccd_back: _smCccdImages.back
+                    });
+                }
+                if (_smOnSuccess) _smOnSuccess(parsed);
+                scanModalClose();
+            };
+        }
+    } else if (tabPhoto && tabPhoto.classList.contains('active')) {
+        if (!parsed || !parsed.is_valid) {
+            btn.textContent = 'Nhận diện ảnh Passport/Visa';
+            btn.disabled = !_smPhotoFile;
+            btn.onclick = _smPhotoFile ? () => _smSubmitPhoto(_smPhotoFile.blob, _smPhotoFile.filename) : null;
+        } else {
+            btn.textContent = 'Xác nhận & điền form';
+            btn.onclick = () => {
+                if (_smOnSuccess) _smOnSuccess(parsed);
+                if (_smOpts && typeof _smOpts.onImages === 'function' && _smPhotoFile) {
+                    const imgs = {};
+                    imgs[_smDocType] = _smPhotoFile.blob;
+                    console.log('[SCAN] Stashing photo for upload:', _smDocType, 'size:', _smPhotoFile.blob.size);
+                    _smOpts.onImages(imgs);
+                } else {
+                    console.warn('[SCAN] No onImages handler or photo file', { hasHandler: !!(_smOpts && _smOpts.onImages), hasFile: !!_smPhotoFile });
+                }
+                scanModalClose();
+            };
+        }
     } else {
+        btn.textContent = 'Xác nhận & điền form';
         btn.onclick = enabled && parsed
             ? () => {
                 if (_smOnSuccess) _smOnSuccess(parsed);
-                if (_smOpts && typeof _smOpts.onImages === 'function') {
-                    const canvas = _smEl('sm-photo-canvas');
-                    if (canvas && _smDocType) {
-                        canvas.toBlob((blob) => {
-                            if (blob) {
-                                const imgs = {};
-                                imgs[_smDocType] = blob;
-                                _smOpts.onImages(imgs);
-                            }
-                        }, 'image/jpeg', 0.95);
-                    }
-                }
                 scanModalClose();
             }
             : null;
@@ -1152,10 +1194,7 @@ window.scanModalTestInput   = scanModalTestInput;
 window.scanModalStartCamera = scanModalStartCamera;
 window.scanModalStopCamera  = scanModalStopCamera;
 window.scanModalSwitchTab   = scanModalSwitchTab;
-window.scanModalCapturePhoto = scanModalCapturePhoto;
 window.scanModalFileSelected = scanModalFileSelected;
-window.scanModalStartPhotoCamera = scanModalStartPhotoCamera;
-window.scanModalStopPhotoCamera  = scanModalStopPhotoCamera;
 
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -1163,20 +1202,18 @@ window.scanModalStopPhotoCamera  = scanModalStopPhotoCamera;
    ═══════════════════════════════════════════════════════════════════ */
 
 function _smResetPhotoUi() {
-    _smPhotoCameraActive = false;
-    const video = _smEl('sm-photo-video');
+    _smPhotoFile = null;
     const preview = _smEl('sm-photo-preview');
     const fileInput = _smEl('sm-photo-file');
-    const captureBtn = _smEl('sm-photo-btn-capture');
-    const mask = _smEl('sm-photo-mask-overlay');
+    const placeholder = _smEl('sm-photo-placeholder');
+    const removeBtn = _smEl('sm-photo-remove');
 
-    if (video) { video.srcObject = null; video.style.display = 'block'; }
     if (preview) { preview.src = ''; preview.style.display = 'none'; }
     if (fileInput) fileInput.value = '';
-    if (captureBtn) captureBtn.style.display = 'none';
-    if (mask) mask.style.display = 'flex';
+    if (placeholder) placeholder.style.display = 'flex';
+    if (removeBtn) removeBtn.style.display = 'none';
 
-    _smUpdatePhotoStatus('Đang chờ chụp hoặc tải ảnh…', '');
+    _smUpdatePhotoStatus('Đang chờ dán ảnh hoặc chọn tệp…', '');
 }
 
 function _smUpdatePhotoStatus(text, state) {
@@ -1184,7 +1221,7 @@ function _smUpdatePhotoStatus(text, state) {
     const statusText = _smEl('sm-photo-status-text');
     if (!statusBox || !statusText) return;
 
-    statusText.textContent = text || 'Đang chờ chụp hoặc tải ảnh…';
+    statusText.textContent = text || 'Đang chờ dán ảnh hoặc chọn tệp…';
     statusBox.classList.remove('processing', 'success', 'error');
     if (state) statusBox.classList.add(state);
 }
@@ -1205,26 +1242,59 @@ function scanModalSwitchTab(tab) {
     if (panelCccdPhoto) panelCccdPhoto.style.display = 'none';
     if (panelPhoto) panelPhoto.style.display = 'none';
 
+    // Scanner input row only visible on QR tab
+    const testRow = document.querySelector('.sm-test-row');
+    if (testRow) testRow.style.display = 'none';
+
     _smStopCamera();
-    scanModalStopPhotoCamera();
     _smDisarmScanner();
+    if (_smCccdPasteActive) {
+        _smCccdPasteActive = false;
+        document.removeEventListener('paste', _smPasteHandler);
+    }
+
+    if (_smPhotoPasteActive) {
+        _smPhotoPasteActive = false;
+        document.removeEventListener('paste', _smPasteHandler);
+    }
 
     if (tab === 'photo') {
         if (tabPhoto) tabPhoto.classList.add('active');
         if (panelPhoto) panelPhoto.style.display = 'flex';
 
+        if (!_smDocType || (_smDocType !== 'passport' && _smDocType !== 'visa')) {
+            const formIdTypeEl = document.getElementById('ci-id-type') || document.getElementById('guest-id-type');
+            const formIdType = formIdTypeEl ? formIdTypeEl.value : '';
+            if (formIdType === 'passport' || formIdType === 'visa') {
+                _smDocType = formIdType;
+            } else {
+                _smDocType = 'passport';
+            }
+        }
+
+        _smPhotoPasteActive = true;
+        document.addEventListener('paste', _smPasteHandler);
+
         _smRenderPhotoPlaceholder();
-        _smSetConfirmEnabled(false);
-        scanModalStartPhotoCamera();
+        _smSetConfirmEnabled(_smPhotoFile !== null, _smParsed);
     } else if (tab === 'cccd-photo') {
         if (tabCccdPhoto) tabCccdPhoto.classList.add('active');
         if (panelCccdPhoto) panelCccdPhoto.style.display = 'flex';
 
-        _smRenderCccdPhotoPlaceholder();
-        _smSetConfirmEnabled(_smCccdImages.front !== null || _smCccdImages.back !== null);
+        // Enable paste listener for cccd-photo (independent of scanner)
+        _smCccdPasteActive = true;
+        document.addEventListener('paste', _smPasteHandler);
+
+        if (_smParsed && _smParsed.is_valid) {
+            _smRenderInfo(_smParsed);
+        } else {
+            _smRenderCccdPhotoPlaceholder();
+        }
+        _smSetConfirmEnabled(_smCccdImages.front !== null, _smParsed);
     } else {
         if (tabQr) tabQr.classList.add('active');
         if (panelQr) panelQr.style.display = 'block';
+        if (testRow) testRow.style.display = '';
 
         _smReset();
         _smToggleScannerPanel(true);
@@ -1244,85 +1314,46 @@ function scanModalSwitchTab(tab) {
     }
 }
 
-async function scanModalStartPhotoCamera() {
-    if (!window.isSecureContext) {
-        _smUpdatePhotoStatus('Camera chỉ hoạt động trên HTTPS hoặc localhost.', 'error');
-        return;
-    }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        _smUpdatePhotoStatus('Trình duyệt chưa hỗ trợ truy cập camera.', 'error');
-        return;
-    }
+function _smSetPhotoImage(fileBlob, filename) {
+    if (!fileBlob) return;
+    _smPhotoFile = { blob: fileBlob, filename: filename || 'document.jpg' };
+    _smParsed = null;
 
-    const video = _smEl('sm-photo-video');
-    if (!video) return;
-
-    _smUpdatePhotoStatus('Đang mở camera…', '');
-    try {
-        _smPhotoCameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: 'environment' } },
-            audio: false,
-        });
-
-        video.srcObject = _smPhotoCameraStream;
-        await video.play();
-
-        _smPhotoCameraActive = true;
-        _smUpdatePhotoStatus('Camera đã sẵn sàng. Hãy chụp ảnh!', '');
-
-        const captureBtn = _smEl('sm-photo-btn-capture');
-        if (captureBtn) captureBtn.style.display = 'inline-flex';
-    } catch (err) {
-        scanModalStopPhotoCamera();
-        _smUpdatePhotoStatus('Không mở được camera. Vui lòng nhấn "Tải ảnh" để chọn file.', 'error');
-    }
-}
-
-function scanModalStopPhotoCamera() {
-    if (_smPhotoCameraStream) {
-        _smPhotoCameraStream.getTracks().forEach(track => track.stop());
-        _smPhotoCameraStream = null;
-    }
-    _smPhotoCameraActive = false;
-
-    const video = _smEl('sm-photo-video');
-    if (video) video.srcObject = null;
-
-    const captureBtn = _smEl('sm-photo-btn-capture');
-    if (captureBtn) captureBtn.style.display = 'none';
-}
-
-function scanModalCapturePhoto() {
-    const video = _smEl('sm-photo-video');
-    const canvas = _smEl('sm-photo-canvas');
     const preview = _smEl('sm-photo-preview');
-    const mask = _smEl('sm-photo-mask-overlay');
+    const placeholder = _smEl('sm-photo-placeholder');
+    const removeBtn = _smEl('sm-photo-remove');
 
-    if (!video || !canvas || !preview) return;
-    if (!_smPhotoCameraActive) return;
+    if (preview) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(fileBlob);
+    }
+    if (placeholder) placeholder.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = 'flex';
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    _smRenderPhotoPlaceholder();
+    _smSetConfirmEnabled(true, null);
+}
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+function _smClearPhotoImage() {
+    _smPhotoFile = null;
+    _smParsed = null;
 
-    const dataUrl = canvas.toDataURL('image/jpeg');
-    preview.src = dataUrl;
-    preview.style.display = 'block';
-    video.style.display = 'none';
-    if (mask) mask.style.display = 'none';
+    const preview = _smEl('sm-photo-preview');
+    const placeholder = _smEl('sm-photo-placeholder');
+    const removeBtn = _smEl('sm-photo-remove');
+    const fileInput = _smEl('sm-photo-file');
 
-    scanModalStopPhotoCamera();
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    if (placeholder) placeholder.style.display = 'flex';
+    if (removeBtn) removeBtn.style.display = 'none';
+    if (fileInput) fileInput.value = '';
 
-    canvas.toBlob((blob) => {
-        if (blob) {
-            _smSubmitPhoto(blob, 'captured_passport.jpg');
-        } else {
-            _smUpdatePhotoStatus('Lỗi chụp ảnh từ canvas.', 'error');
-        }
-    }, 'image/jpeg', 0.95);
+    _smRenderPhotoPlaceholder();
+    _smSetConfirmEnabled(false, null);
 }
 
 function scanModalFileSelected(event) {
@@ -1330,24 +1361,7 @@ function scanModalFileSelected(event) {
     if (!input || !input.files || !input.files.length) return;
 
     const file = input.files[0];
-    const preview = _smEl('sm-photo-preview');
-    const video = _smEl('sm-photo-video');
-    const mask = _smEl('sm-photo-mask-overlay');
-
-    if (!preview) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        preview.src = e.target.result;
-        preview.style.display = 'block';
-        if (video) video.style.display = 'none';
-        if (mask) mask.style.display = 'none';
-    };
-    reader.readAsDataURL(file);
-
-    scanModalStopPhotoCamera();
-
-    _smSubmitPhoto(file, file.name);
+    _smSetPhotoImage(file, file.name);
 }
 
 function _smSubmitPhoto(fileBlob, filename) {
@@ -1412,11 +1426,12 @@ function _smRenderPhotoPlaceholder() {
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
                fill="none" stroke="currentColor" stroke-width="1.8"
                stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
           </svg>
         </div>
-        <span class="sm-info-empty-text">Chụp hoặc tải lên<br>${title} để xử lý</span>
+        <span class="sm-info-empty-text">Dán ảnh (Ctrl+V) hoặc chọn tệp<br>${title} để xử lý</span>
       </div>`;
 }
 
@@ -1554,6 +1569,8 @@ function _smCccdFileSelected(event, side) {
 function _smSetCccdImage(side, fileOrBlob) {
     if (!fileOrBlob) return;
     _smCccdImages[side] = fileOrBlob;
+    _smParsed = null;
+    _smRenderCccdPhotoPlaceholder();
 
     const preview = _smEl(`sm-cccd-preview-${side}`);
     const placeholder = _smEl(`sm-cccd-placeholder-${side}`);
@@ -1570,11 +1587,13 @@ function _smSetCccdImage(side, fileOrBlob) {
     if (placeholder) placeholder.style.display = 'none';
     if (removeBtn) removeBtn.style.display = 'flex';
 
-    _smSetConfirmEnabled(_smCccdImages.front !== null || _smCccdImages.back !== null);
+    _smSetConfirmEnabled(_smCccdImages.front !== null, _smParsed);
 }
 
 function _smClearCccdSide(side) {
     _smCccdImages[side] = null;
+    _smParsed = null;
+    _smRenderCccdPhotoPlaceholder();
 
     const preview = _smEl(`sm-cccd-preview-${side}`);
     const placeholder = _smEl(`sm-cccd-placeholder-${side}`);
@@ -1586,7 +1605,7 @@ function _smClearCccdSide(side) {
     if (removeBtn) removeBtn.style.display = 'none';
     if (fileInput) fileInput.value = '';
 
-    _smSetConfirmEnabled(_smCccdImages.front !== null || _smCccdImages.back !== null);
+    _smSetConfirmEnabled(_smCccdImages.front !== null, _smParsed);
 }
 
 function _smSetupCccdDropzones() {
@@ -1622,6 +1641,67 @@ function _smSetupCccdDropzones() {
     });
 }
 
+async function _smSubmitCccdPhoto() {
+    if (_smProcessing) return;
+    if (!_smCccdImages.front) {
+        if (typeof pmsToast === 'function') {
+            pmsToast('Vui lòng chọn hoặc dán ảnh mặt trước CCCD', false);
+        } else {
+            alert('Vui lòng chọn hoặc dán ảnh mặt trước CCCD');
+        }
+        return;
+    }
+
+    _smProcessing = true;
+    _smSetConfirmEnabled(false);
+
+    const infoPanel = _smEl('sm-info-panel');
+    if (infoPanel) {
+        infoPanel.innerHTML = `
+          <div class="sm-info-empty">
+            <div class="sm-info-empty-icon">
+              <svg class="pms-addr-loading-spinner" style="border-width:2px;width:24px;height:24px;" viewBox="0 0 24 24"></svg>
+            </div>
+            <span class="sm-info-empty-text">Đang gửi và nhận dạng OCR…</span>
+          </div>`;
+    }
+
+    const fd = new FormData();
+    fd.append('front', _smCccdImages.front, 'cccd_front.jpg');
+    if (_smCccdImages.back) {
+        fd.append('back', _smCccdImages.back, 'cccd_back.jpg');
+    }
+
+    try {
+        const res = await fetch('/api/pms/scan/cccd-photo', {
+            method: 'POST',
+            body: fd
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Lỗi kết nối máy chủ');
+        }
+        const data = await res.json();
+        _smProcessing = false;
+
+        if (data.success && data.data) {
+            _smParsed = data.data;
+            _smRenderInfo(_smParsed);
+            _smSetConfirmEnabled(true, _smParsed);
+            _smSessionStats.ok++;
+            _smUpdateSessionBadge();
+        } else {
+            throw new Error(data.error || 'Không nhận diện được thông tin trên ảnh CCCD');
+        }
+    } catch (err) {
+        _smProcessing = false;
+        _smSetConfirmEnabled(true, null); // Allow retry
+        _smSessionStats.fail++;
+        _smUpdateSessionBadge();
+        _smRenderError({ error: err.message });
+    }
+}
+
 async function _smUploadGuestDoc(guestId, docType, blob) {
     const fd = new FormData();
     fd.append('file', blob, `${docType}.jpg`);
@@ -1631,7 +1711,12 @@ async function _smUploadGuestDoc(guestId, docType, blob) {
         body: fd
     });
     if (!r.ok) {
-        throw new Error(`Failed to upload: ${r.statusText}`);
+        let detail = r.statusText;
+        try {
+            const body = await r.json();
+            detail = body.detail || body.error || detail;
+        } catch (_) {}
+        throw new Error(`Upload ${docType} failed (${r.status}): ${detail}`);
     }
     return r.json();
 }
@@ -1639,6 +1724,7 @@ async function _smUploadGuestDoc(guestId, docType, blob) {
 // Window bindings
 window._smCccdFileSelected = _smCccdFileSelected;
 window._smClearCccdSide    = _smClearCccdSide;
+window._smClearPhotoImage  = _smClearPhotoImage;
 window.uploadGuestDocument = _smUploadGuestDoc;
 
 // Setup on runtime load

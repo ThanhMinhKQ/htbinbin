@@ -12,7 +12,6 @@
 // - pms_checkout.js: Check-out modal
 // - pms_modals.js: Room detail, add guest, transfer
 
-console.log('PMS modules loaded successfully');
 
 // Export PMS namespace
 window.PMS = window.PMS || { floors: {}, branchId: null, roomTypes: [], timer: null, _loading: false };

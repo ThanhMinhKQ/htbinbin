@@ -1327,7 +1327,27 @@ def api_get_guest_profile(
             },
             "preferences": profile_preferences,
             "notes": None,  # Can be extended later
+            "documents": [
+                {
+                    "id": d.id,
+                    "doc_type": d.doc_type,
+                    "file_path": d.file_path,
+                    "thumbnail_path": d.thumbnail_path or d.file_path,
+                    "created_at": d.created_at.isoformat() if d.created_at else None,
+                }
+                for d in (guest.documents or [])
+            ],
         },
+        "documents": [
+            {
+                "id": d.id,
+                "doc_type": d.doc_type,
+                "file_path": d.file_path,
+                "thumbnail_path": d.thumbnail_path or d.file_path,
+                "created_at": d.created_at.isoformat() if d.created_at else None,
+            }
+            for d in (guest.documents or [])
+        ],
     })
 
 

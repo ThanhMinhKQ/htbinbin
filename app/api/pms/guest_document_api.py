@@ -31,7 +31,7 @@ async def upload_document(
     """
     # 1. Require login
     current_user = _require_login(request)
-    user_id = current_user.id if current_user else None
+    user_id = current_user.get("id") if isinstance(current_user, dict) else getattr(current_user, "id", None)
 
     # 2. Validate doc_type
     doc_type = doc_type.strip().lower()

@@ -208,8 +208,8 @@ def _log_parser_method(log: OTAParsingLog) -> str:
     if explicit:
         if any(token in explicit for token in ("rule", "parse", "template", "regex")):
             return "rule"
-        if any(token in explicit for token in ("ai", "gemini", "llm")):
-            return "gemini"
+        if any(token in explicit for token in ("ai", "gemini", "llm", "gpt", "gatecheap")):
+            return "ai"
     if log.booking and isinstance(log.booking.raw_data, dict):
         raw_method = str(
             log.booking.raw_data.get("parser_method")
@@ -219,11 +219,11 @@ def _log_parser_method(log: OTAParsingLog) -> str:
         ).lower()
         if any(token in raw_method for token in ("rule", "parse", "template", "regex")):
             return "rule"
-        if any(token in raw_method for token in ("ai", "gemini", "llm")):
-            return "gemini"
+        if any(token in raw_method for token in ("ai", "gemini", "llm", "gpt", "gatecheap")):
+            return "ai"
     # Các log thành công sau quota-guard có booking/extracted_data nhưng chưa ghi marker cũ;
     # nếu không thấy dấu AI rõ ràng thì mặc định xem là parser rule để không phóng đại lượt Gemini.
-    return "gemini" if log.status == OTAParsingStatus.FAILED else "rule"
+    return "ai" if log.status == OTAParsingStatus.FAILED else "rule"
 
 
 def _is_relevant_ota_log(log: OTAParsingLog) -> bool:
@@ -638,7 +638,7 @@ def api_ota_status(
     success_booking_logs = [log for log in relevant_logs if _is_success_booking_log(log)]
     cancel_booking_logs = [log for log in relevant_logs if _is_cancel_booking_log(log)]
     modification_booking_logs = [log for log in relevant_logs if _is_modification_booking_log(log)]
-    ai_count = sum(1 for log in relevant_logs if _log_parser_method(log) in ("gemini", "ai"))
+    ai_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "ai")
     rule_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule")
     skipped_count = sum(1 for log in relevant_logs if _log_parser_method(log) == "rule_skip" or (log.extracted_data or {}).get("status") == "SKIPPED")
     latest_relevant_log = success_booking_logs[0] if success_booking_logs else None

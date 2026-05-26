@@ -140,4 +140,4 @@ class HealthStatus(BaseModel):
     logs_today: int
     recent_failures_24h: int
     warnings: List[str]
-    gemini_api_configured: bool
+    ai_api_configured: bool
