@@ -6,11 +6,18 @@ Attempts to use pytesseract for OCR, falling back to mock parser for testing if 
 from __future__ import annotations
 import logging
 from datetime import datetime
-from mrz.checker.td3 import TD3CodeChecker
-from mrz.checker.td2 import TD2CodeChecker
-from mrz.checker.td1 import TD1CodeChecker
 
 logger = logging.getLogger(__name__)
+
+# Try importing MRZ library
+HAS_MRZ = False
+try:
+    from mrz.checker.td3 import TD3CodeChecker
+    from mrz.checker.td2 import TD2CodeChecker
+    from mrz.checker.td1 import TD1CodeChecker
+    HAS_MRZ = True
+except ImportError:
+    logger.warning("python-mrz is not installed. MRZ parsing will be unavailable.")
 
 # Try importing OCR libraries
 HAS_OCR = False
@@ -28,6 +35,9 @@ def parse_mrz_text(mrz_lines: list[str]) -> dict:
     Supports TD1, TD2, TD3 formats.
     Returns a normalized guest info dictionary.
     """
+    if not HAS_MRZ:
+        return {"is_valid": False, "error": "Thư viện python-mrz chưa được cài đặt trên server."}
+
     # Clean lines
     cleaned_lines = [line.strip().upper().replace(" ", "") for line in mrz_lines if line.strip()]
 

@@ -42,6 +42,9 @@ google-genai
 # ===== IMAGE =====
 pillow==11.3.0
 
+# ===== PASSPORT MRZ =====
+python-mrz==0.9.1
+
 # ===== FUZZY SEARCH =====
 thefuzz==0.22.1
 
