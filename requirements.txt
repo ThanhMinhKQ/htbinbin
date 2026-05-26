@@ -43,7 +43,7 @@ google-genai
 pillow==11.3.0
 
 # ===== PASSPORT MRZ =====
-python-mrz==0.9.1
+mrz==0.6.2
 
 # ===== FUZZY SEARCH =====
 thefuzz==0.22.1
