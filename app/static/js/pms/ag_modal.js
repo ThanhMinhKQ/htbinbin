@@ -16,6 +16,7 @@ let agGuestList = [];           // guest objects managed within this modal sessi
 let _agEditIndex = null;       // index into agGuestList being edited
 let _agIsOldGuest = false;
 let _agIsExternalEdit = false;
+let _agPendingDocImages = null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Open Modal
@@ -27,6 +28,7 @@ async function openAG(stayId, roomNum) {
     agGuestId = null;
     agEditMode = false;
     _agEditIndex = null;
+    _agPendingDocImages = null;
 
     // Always clear to prevent stale data
     agGuestList = [];
@@ -270,6 +272,7 @@ function agRefreshGuestForm() {
 
     agGuestId = null;
     _agIsOldGuest = false;
+    _agPendingDocImages = null;
     document.getElementById('ag-guest-id').value = '';
 
     // Remove notices
@@ -369,6 +372,9 @@ async function agAddGuest() {
         agUpdateCapacityWarn();
         pmsToast(`Chú ý: Số khách (${total}) vượt quá giới hạn phòng (tối đa ${agMaxGuests} người).`);
     }
+
+    g.pending_images = _agPendingDocImages;
+    _agPendingDocImages = null;
 
     agGuestList.push(g);
     agRefreshGuestForm();
@@ -595,8 +601,10 @@ async function agUpdateGuest() {
     agGuestList[_agEditIndex] = {
         ...agGuestList[_agEditIndex],
         ...g,
-        id: agGuestId
+        id: agGuestId,
+        pending_images: _agPendingDocImages || agGuestList[_agEditIndex].pending_images
     };
+    _agPendingDocImages = null;
 
     _agEditIndex = null;
     agGuestId = null;
@@ -639,9 +647,18 @@ window.agRemoveGuest = agRemoveGuest;
 // ─── CCCD QR Scan ───────────────────────────────────────────────────────────
 
 function agScanCode() {
+    const idTypeEl = document.getElementById('ag-id-type');
+    const idType = idTypeEl ? idTypeEl.value : 'cccd';
+    const isPhoto = (idType === 'passport' || idType === 'visa');
+
     openScanModal(async (parsed) => {
-        await agFillFromScan(parsed);
-        pmsToast(`Đã quét: ${parsed.name}`, true);
+        if (parsed) {
+            await agFillFromScan(parsed);
+            pmsToast(`Đã quét: ${parsed.name}`, true);
+        }
+    }, {
+        ...(isPhoto ? { mode: 'photo', docType: idType } : {}),
+        onImages: (images) => { _agPendingDocImages = images; }
     });
 }
 
@@ -789,6 +806,10 @@ async function agFillFromScan(parsed) {
     const expireEl = document.getElementById('ag-id-expire');
 
     const isCmnd = parsed.card_type === 'CMND';
+    const isPassport = parsed.card_type === 'passport';
+    const isVisa = parsed.card_type === 'visa';
+    const isPhoto = isPassport || isVisa;
+
     const idValue = isCmnd
         ? (parsed.old_id || parsed.id_number || parsed.cccd || '')
         : (parsed.id_number || parsed.cccd || '');
@@ -841,7 +862,7 @@ async function agFillFromScan(parsed) {
         cccdEl.classList.remove('is-invalid');
     }
     if (idTypeEl) {
-        idTypeEl.value = isCmnd ? 'cmnd' : 'cccd';
+        idTypeEl.value = isPhoto ? parsed.card_type : (isCmnd ? 'cmnd' : 'cccd');
         if (typeof agToggleIdFields === 'function') agToggleIdFields(idTypeEl);
     }
     if (nameEl) {
@@ -863,12 +884,14 @@ async function agFillFromScan(parsed) {
         }
     }
 
-    const cardType = parsed.card_type || 'CCCD_CU';
-    if (typeof pmsMatchAddressToForm === 'function') {
-        await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ag', cardType);
-    }
-    if (typeof pmsShowAddressValidationIssues === 'function') {
-        pmsShowAddressValidationIssues('ag');
+    if (!isPhoto) {
+        const cardType = parsed.card_type || 'CCCD_CU';
+        if (typeof pmsMatchAddressToForm === 'function') {
+            await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ag', cardType);
+        }
+        if (typeof pmsShowAddressValidationIssues === 'function') {
+            pmsShowAddressValidationIssues('ag');
+        }
     }
 
     agUnlockAllFields();
@@ -950,6 +973,8 @@ async function submitAG() {
             }
 
             // Add form guest as new entry
+            formGuest.pending_images = _agPendingDocImages;
+            _agPendingDocImages = null;
             allGuests.unshift(formGuest);
             console.log('[submitAG] Added form guest to list, allGuests length:', allGuests.length);
         }
@@ -1123,7 +1148,18 @@ async function submitAG() {
             if (g.company_address) fd.append('company_address', g.company_address);
             if (g.notes) fd.append('notes', g.notes);
 
-            await pmsApi(`/api/pms/stays/${stayId}/guests`, { method: 'POST', body: fd });
+            const r = await pmsApi(`/api/pms/stays/${stayId}/guests`, { method: 'POST', body: fd });
+            if (g.pending_images && r && r.master_guest_id && typeof uploadGuestDocument === 'function') {
+                for (const [docType, blob] of Object.entries(g.pending_images)) {
+                    if (blob) {
+                        try {
+                            await uploadGuestDocument(r.master_guest_id, docType, blob);
+                        } catch (uploadErr) {
+                            console.warn(`[AG] Failed to upload ${docType}:`, uploadErr);
+                        }
+                    }
+                }
+            }
             savedCount++;
         }
 

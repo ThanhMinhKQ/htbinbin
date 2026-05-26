@@ -1497,3 +1497,423 @@ html.dark .pms-addr-progress-dot.done {
   50% { box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.3); }
   100% { box-shadow: inset 0 0 0 2px transparent; }
 }
+
+
+/* ── TAB SELECTOR & PHOTO SCANNING STYLES ── */
+
+.sm-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.sm-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sm-tab:hover {
+  color: #1e293b;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.sm-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode overrides for tabs */
+.dark .sm-tabs,
+html.dark .sm-tabs {
+  background: #1e293b;
+}
+
+.dark .sm-tab,
+html.dark .sm-tab {
+  color: #94a3b8;
+}
+
+.dark .sm-tab:hover,
+html.dark .sm-tab:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark .sm-tab.active,
+html.dark .sm-tab.active {
+  background: #0f172a;
+  color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Photo Scan Panel */
+.sm-photo-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sm-photo-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #090d16;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sm-photo-video, .sm-photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Guides / Target Reticle */
+.sm-photo-corner-tl, .sm-photo-corner-tr, .sm-photo-corner-bl, .sm-photo-corner-br {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 3px solid #3b82f6;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.sm-photo-corner-tl { top: 20px; left: 20px; border-right: none; border-bottom: none; border-top-left-radius: 4px; }
+.sm-photo-corner-tr { top: 20px; right: 20px; border-left: none; border-bottom: none; border-top-right-radius: 4px; }
+.sm-photo-corner-bl { bottom: 20px; left: 20px; border-right: none; border-top: none; border-bottom-left-radius: 4px; }
+.sm-photo-corner-br { bottom: 20px; right: 20px; border-left: none; border-top: none; border-bottom-right-radius: 4px; }
+
+/* Guide overlay with standard document bounding box mask */
+.sm-photo-mask-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.sm-photo-guide {
+  width: calc(100% - 40px);
+  height: calc(100% - 40px);
+  border: 1px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* Outer mask shadow */
+}
+
+.sm-photo-guide span {
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+  text-align: center;
+  max-width: 80%;
+}
+
+/* Status row */
+.sm-photo-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.sm-photo-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+.sm-photo-status.processing .sm-photo-status-dot {
+  background: #eab308;
+  box-shadow: 0 0 8px #eab308;
+  animation: sm-pulse-yellow 1.5s infinite;
+}
+
+.sm-photo-status.success .sm-photo-status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.sm-photo-status.error .sm-photo-status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+/* Dark mode for status */
+.dark .sm-photo-status,
+html.dark .sm-photo-status {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+/* Action Controls */
+.sm-photo-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.sm-photo-btn-capture, .sm-photo-label-upload {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.sm-photo-btn-capture {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+}
+
+.sm-photo-btn-capture:hover {
+  background: #2563eb;
+}
+
+.sm-photo-btn-capture:active {
+  transform: scale(0.98);
+}
+
+.sm-photo-label-upload {
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #d1d5db;
+  text-align: center;
+}
+
+.sm-photo-label-upload:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.sm-photo-label-upload:active {
+  transform: scale(0.98);
+}
+
+/* Dark mode controls */
+.dark .sm-photo-label-upload,
+html.dark .sm-photo-label-upload {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+.dark .sm-photo-label-upload:hover,
+html.dark .sm-photo-label-upload:hover {
+  background: #334155;
+  border-color: #64748b;
+}
+
+/* Animations */
+@keyframes sm-pulse-yellow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.9); }
+}
+
+
+/* ── CCCD DUAL PHOTO UPLOAD / PASTE STYLES ── */
+
+.sm-cccd-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.sm-cccd-photo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sm-cccd-photo-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+html.dark .sm-cccd-photo-label {
+  color: #cbd5e1;
+}
+
+.sm-cccd-dropzone {
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  aspect-ratio: 1.58 / 1; /* CCCD ratio is roughly 85.6mm x 53.98mm = 1.58 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.sm-cccd-dropzone:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.sm-cccd-dropzone.has-image {
+  border-style: solid;
+  border-color: #e2e8f0;
+  background: #ffffff;
+}
+
+.sm-cccd-dropzone.dragover {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+html.dark .sm-cccd-dropzone {
+  border-color: #475569;
+  background: #0f172a;
+}
+
+html.dark .sm-cccd-dropzone:hover {
+  border-color: #60a5fa;
+  background: #1e3a5f;
+}
+
+html.dark .sm-cccd-dropzone.has-image {
+  border-color: #334155;
+  background: #0b0f19;
+}
+
+html.dark .sm-cccd-dropzone.dragover {
+  border-color: #34d399;
+  background: #064e3b;
+}
+
+.sm-cccd-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+html.dark .sm-cccd-placeholder {
+  color: #94a3b8;
+}
+
+.sm-cccd-placeholder svg {
+  color: #94a3b8;
+  transition: color 0.2s;
+}
+
+.sm-cccd-dropzone:hover .sm-cccd-placeholder svg {
+  color: #3b82f6;
+}
+
+html.dark .sm-cccd-dropzone:hover .sm-cccd-placeholder svg {
+  color: #60a5fa;
+}
+
+.sm-cccd-placeholder span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sm-cccd-placeholder small {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.sm-cccd-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 1;
+}
+
+.sm-cccd-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.7);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.sm-cccd-remove-btn:hover {
+  background: #ef4444;
+  transform: scale(1.1);
+}
+
+.sm-cccd-remove-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 560px) {
+  .sm-cccd-photo-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .sm-cccd-dropzone {
+    aspect-ratio: 1.58 / 1;
+  }
+}

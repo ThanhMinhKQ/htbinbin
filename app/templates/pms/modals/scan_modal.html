@@ -30,6 +30,19 @@
     <!-- BODY -->
     <div class="sm-body">
 
+      <!-- TAB SELECTOR -->
+      <div class="sm-tabs" id="sm-tabs" style="display: none;">
+        <button type="button" class="sm-tab active" id="sm-tab-qr" onclick="scanModalSwitchTab('qr')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>Quét QR CCCD
+        </button>
+        <button type="button" class="sm-tab" id="sm-tab-cccd-photo" onclick="scanModalSwitchTab('cccd-photo')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Quét Ảnh CCCD
+        </button>
+        <button type="button" class="sm-tab" id="sm-tab-photo" onclick="scanModalSwitchTab('photo')">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:middle;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>Passport/Visa
+        </button>
+      </div>
+
       <!-- SCANNER PANEL — visible while waiting, hidden after success -->
       <div class="sm-scanner-panel" id="sm-scanner-panel">
         <div class="sm-scanner-viewport" id="sm-scanner-viewport">
@@ -66,6 +79,101 @@
 
         <!-- Live preview — shows real-time data as scanner types -->
         <div class="sm-live-preview" id="sm-live-preview"></div>
+      </div>
+
+      <!-- DUAL CCCD PHOTO PANEL — new tab for front and back CCCD upload/paste -->
+      <div class="sm-photo-panel sm-cccd-photo-panel" id="sm-cccd-photo-panel" style="display: none;">
+        <div class="sm-cccd-photo-grid">
+
+          <!-- Mặt trước -->
+          <div class="sm-cccd-photo-card">
+            <span class="sm-cccd-photo-label">Mặt trước CCCD</span>
+            <div class="sm-cccd-dropzone" id="sm-cccd-dropzone-front" onclick="document.getElementById('sm-cccd-file-front').click()">
+              <div class="sm-cccd-placeholder" id="sm-cccd-placeholder-front">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>Dán ảnh (Ctrl+V) hoặc Chọn tệp</span>
+                <small>Kéo thả ảnh mặt trước vào đây</small>
+              </div>
+              <img id="sm-cccd-preview-front" class="sm-cccd-preview-img" style="display: none;" alt="Mặt trước CCCD" />
+              <button type="button" class="sm-cccd-remove-btn" id="sm-cccd-remove-front" style="display: none;" onclick="event.stopPropagation(); _smClearCccdSide('front')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <input type="file" id="sm-cccd-file-front" accept="image/*" style="display: none;" onchange="_smCccdFileSelected(event, 'front')" />
+            </div>
+          </div>
+
+          <!-- Mặt sau -->
+          <div class="sm-cccd-photo-card">
+            <span class="sm-cccd-photo-label">Mặt sau CCCD (chứa Địa chỉ mới)</span>
+            <div class="sm-cccd-dropzone" id="sm-cccd-dropzone-back" onclick="document.getElementById('sm-cccd-file-back').click()">
+              <div class="sm-cccd-placeholder" id="sm-cccd-placeholder-back">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <span>Dán ảnh (Ctrl+V) hoặc Chọn tệp</span>
+                <small>Kéo thả ảnh mặt sau vào đây</small>
+              </div>
+              <img id="sm-cccd-preview-back" class="sm-cccd-preview-img" style="display: none;" alt="Mặt sau CCCD" />
+              <button type="button" class="sm-cccd-remove-btn" id="sm-cccd-remove-back" style="display: none;" onclick="event.stopPropagation(); _smClearCccdSide('back')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+              <input type="file" id="sm-cccd-file-back" accept="image/*" style="display: none;" onchange="_smCccdFileSelected(event, 'back')" />
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- PHOTO PANEL — visible when in photo scan mode -->
+      <div class="sm-photo-panel" id="sm-photo-panel" style="display: none;">
+        <div class="sm-photo-viewport" id="sm-photo-viewport">
+          <video id="sm-photo-video" class="sm-photo-video" playsinline muted autoplay></video>
+          <canvas id="sm-photo-canvas" class="sm-photo-canvas" hidden></canvas>
+          <img id="sm-photo-preview" class="sm-photo-preview" style="display: none;" alt="Ảnh đã chụp/tải lên" />
+
+          <!-- Corner brackets -->
+          <div class="sm-photo-corner-tl"></div>
+          <div class="sm-photo-corner-tr"></div>
+          <div class="sm-photo-corner-bl"></div>
+          <div class="sm-photo-corner-br"></div>
+
+          <!-- Guide mask overlay -->
+          <div class="sm-photo-mask-overlay" id="sm-photo-mask-overlay">
+            <div class="sm-photo-guide">
+              <span id="sm-photo-guide-text">Đặt hộ chiếu / visa vào khung hình</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sm-photo-status" id="sm-photo-status">
+          <span class="sm-photo-status-dot" id="sm-photo-status-dot"></span>
+          <span id="sm-photo-status-text">Đang chờ chụp hoặc tải ảnh…</span>
+        </div>
+
+        <div class="sm-photo-controls">
+          <button type="button" class="sm-photo-btn-capture" id="sm-photo-btn-capture" onclick="scanModalCapturePhoto()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:text-bottom;">
+              <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+            Chụp ảnh
+          </button>
+
+          <label class="sm-photo-label-upload">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:text-bottom;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Tải ảnh / Chọn tệp
+            <input type="file" id="sm-photo-file" accept="image/*" capture="environment" style="display: none;" onchange="scanModalFileSelected(event)" />
+          </label>
+        </div>
       </div>
 
       <!-- INFO PANEL — guest card, injected by JS -->

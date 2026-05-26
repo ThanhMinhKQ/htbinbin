@@ -38,6 +38,8 @@ from .api.pms import (
     vn_address_router as pms_vn_address,
     guest_activities_router as pms_guest_activities,
     cccd_scan_router as pms_cccd_scan,
+    photo_scan_router as pms_photo_scan,
+    guest_document_router as pms_guest_document,
     folio_router as pms_folio,
     inventory_integration_router as pms_inventory,
     reservation_router as pms_reservations,
@@ -365,6 +367,8 @@ app.include_router(pms_admin, tags=["PMS Admin"])
 app.include_router(pms_vn_address, tags=["PMS VN Address"])
 app.include_router(pms_guest_activities, tags=["PMS Guest Activities"])
 app.include_router(pms_cccd_scan, tags=["PMS CCCD Scan"])
+app.include_router(pms_photo_scan, tags=["PMS Photo Scan"])
+app.include_router(pms_guest_document, tags=["PMS Guest Documents"])
 app.include_router(pms_folio, tags=["PMS Folio"])
 app.include_router(pms_inventory, tags=["PMS Inventory"])
 app.include_router(pms_reservations, tags=["PMS Reservations"])

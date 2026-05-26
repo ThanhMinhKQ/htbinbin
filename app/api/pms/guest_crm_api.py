@@ -23,7 +23,7 @@ from ...db.models import (
     Guest, GuestMembership, GuestStaySummary, GuestServiceUsage,
     GuestPaymentSummary, GuestActivity, HotelStay, HotelGuest,
     HotelRoom, HotelRoomType, Folio, FolioTransaction, Payment, Branch, MemberTier,
-    GuestIdentity, GuestPreference, User,
+    GuestIdentity, GuestPreference, User, GuestDocument,
     HotelStayStatus,
 )
 from ...db.session import get_db
@@ -986,13 +986,14 @@ def api_get_guest_profile(
     """
     user = _require_login(request)
 
-    # Single query: guest + membership + preferences
+    # Single query: guest + membership + preferences + documents
     guest = (
         db.query(Guest)
         .options(
             joinedload(Guest.membership),
             joinedload(Guest.profile),
             selectinload(Guest.preferences),
+            selectinload(Guest.documents),
         )
         .filter(Guest.id == guest_id)
         .first()
@@ -1279,6 +1280,16 @@ def api_get_guest_profile(
             "risk_flags": risk_flags,
             "blacklist_info": blacklist_info,
             "tags": guest.tags or [],
+            "documents": [
+                {
+                    "id": d.id,
+                    "doc_type": d.doc_type,
+                    "file_path": d.file_path,
+                    "thumbnail_path": d.thumbnail_path or d.file_path,
+                    "created_at": d.created_at.isoformat() if d.created_at else None,
+                }
+                for d in (guest.documents or [])
+            ],
         },
         "stats": {
             "total_stays": total_stays,

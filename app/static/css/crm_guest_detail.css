@@ -3607,3 +3607,149 @@ html.dark .gd-current-progress-inline {
 }
 .gd-input:focus { outline: none; border-color: var(--crm-accent); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
 html.dark .gd-input { background: var(--crm-bg); border-color: var(--crm-border); color: var(--crm-text); }
+
+/* ========== Guest Documents ========== */
+.gd-docs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.gd-doc-card {
+  position: relative;
+  border-radius: var(--crm-radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--crm-border);
+  background: var(--crm-bg-soft);
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 4/3;
+  transition: all 0.2s;
+}
+.gd-doc-card:hover {
+  border-color: var(--crm-accent);
+  box-shadow: var(--crm-shadow-sm);
+}
+.gd-doc-img-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+.gd-doc-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s;
+}
+.gd-doc-img-wrap:hover .gd-doc-img {
+  transform: scale(1.05);
+}
+.gd-doc-badge {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(48, 42, 34, 0.75);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+.gd-doc-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.85);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.15s;
+  z-index: 10;
+}
+.gd-doc-card:hover .gd-doc-remove {
+  opacity: 1;
+}
+.gd-doc-remove:hover {
+  background: rgba(220, 38, 38, 1);
+}
+.gd-doc-remove svg {
+  width: 12px;
+  height: 12px;
+}
+.gd-doc-add-card {
+  border: 1px dashed var(--crm-border);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 6px;
+  aspect-ratio: 4/3;
+  border-radius: var(--crm-radius-sm);
+  transition: all 0.2s;
+}
+.gd-doc-add-card:hover {
+  border-color: var(--crm-accent);
+  color: var(--crm-accent);
+  background: var(--crm-bg-soft);
+}
+.gd-doc-add-card svg {
+  width: 20px;
+  height: 20px;
+}
+.gd-docs-viewer {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200000;
+  cursor: zoom-out;
+}
+.gd-docs-viewer img {
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  cursor: default;
+}
+.gd-docs-viewer-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.gd-docs-viewer-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.gd-docs-viewer-close svg {
+  width: 20px;
+  height: 20px;
+}
+

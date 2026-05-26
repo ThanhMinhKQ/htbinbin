@@ -6,6 +6,7 @@
 let _egStayId = null;
 let _egGuestId = null;
 let _egGuestData = null; // original guest object
+let _egPendingDocImages = null;
 
 // ─── Address cache ──────────────────────────────────────────────────────────────
 const _egVnCache = {
@@ -44,6 +45,7 @@ async function openEG(stayId, guestId) {
     _egStayId = stayId;
     _egGuestId = guestId;
     _egGuestData = null;
+    _egPendingDocImages = null;
 
     if (!stayId || !guestId) {
         pmsToast('Thiếu thông tin lưu trú hoặc khách', false);
@@ -411,6 +413,8 @@ function egClearForm() {
     // Reset address section lock
     const staySection = document.getElementById('eg-addr-section');
     if (staySection) staySection.classList.remove('eg-section-locked');
+
+    _egPendingDocImages = null;
 }
 
 // ─── Address helpers ───────────────────────────────────────────────────────────
@@ -771,7 +775,20 @@ async function egSaveGuest() {
         // ID fields NOT included — they are locked
 
         const stayId = _egStayId;
-        await pmsApi(`/api/pms/guests/${guestId}`, { method: 'PUT', body: fd });
+        const r = await pmsApi(`/api/pms/guests/${guestId}`, { method: 'PUT', body: fd });
+
+        if (_egPendingDocImages && r && r.master_guest_id && typeof uploadGuestDocument === 'function') {
+            for (const [docType, blob] of Object.entries(_egPendingDocImages)) {
+                if (blob) {
+                    try {
+                        await uploadGuestDocument(r.master_guest_id, docType, blob);
+                    } catch (uploadErr) {
+                        console.warn(`[EG] Failed to upload ${docType}:`, uploadErr);
+                    }
+                }
+            }
+            _egPendingDocImages = null;
+        }
 
         // Reload room detail
         const roomNum = document.getElementById('rd-room-num')?.textContent || '';
@@ -804,6 +821,124 @@ async function egSaveGuest() {
     }
 }
 window.egSaveGuest = egSaveGuest;
+
+// ─── Photo/QR Scan Integration ────────────────────────────────────────────────
+function egScanCode() {
+    const idType = (_egGuestData ? _egGuestData.id_type : '') || '';
+    const isPhoto = (idType === 'passport' || idType === 'visa');
+    if (typeof openScanModal === 'function') {
+        openScanModal(async (parsed) => {
+            if (parsed) {
+                await egFillFromScan(parsed);
+                if (typeof pmsToast === 'function') {
+                    pmsToast(`Đã quét: ${parsed.name}`, true);
+                }
+            }
+        }, {
+            ...(isPhoto ? { mode: 'photo', docType: idType } : {}),
+            onImages: (images) => { _egPendingDocImages = images; }
+        });
+    }
+}
+window.egScanCode = egScanCode;
+
+async function egFillFromScan(parsed) {
+    if (!parsed.is_valid) return;
+
+    const currentIdType = (_egGuestData ? _egGuestData.id_type : '') || '';
+    const currentCccd = (_egGuestData ? _egGuestData.cccd : '') || '';
+
+    const isCmnd = parsed.card_type === 'CMND';
+    const isPassport = parsed.card_type === 'passport';
+    const isVisa = parsed.card_type === 'visa';
+    const isPhoto = isPassport || isVisa;
+
+    const scannedIdType = isPhoto ? parsed.card_type : (isCmnd ? 'cmnd' : 'cccd');
+    const scannedCccd = (isCmnd
+        ? (parsed.old_id || parsed.id_number || parsed.cccd || '')
+        : (parsed.id_number || parsed.cccd || '')).trim().toUpperCase();
+
+    // Warn if ID number doesn't match the locked fields of the guest being edited
+    if (currentCccd && scannedCccd && currentCccd.trim().toUpperCase() !== scannedCccd) {
+        if (!confirm(`Cảnh báo: Số giấy tờ quét được (${scannedCccd}) không khớp với số giấy tờ của khách đang sửa (${currentCccd}). Bạn có chắc chắn muốn điền thông tin?`)) {
+            return;
+        }
+    }
+
+    const nameEl   = document.getElementById('eg-name');
+    const genderEl = document.getElementById('eg-gender');
+    const birthEl  = document.getElementById('eg-birth');
+    const expireEl = document.getElementById('eg-id-expire');
+    const natEl    = document.getElementById('eg-nationality');
+
+    if (nameEl) {
+        if (typeof pmsTitleCase === 'function') {
+            nameEl.value = pmsTitleCase(parsed.name || '');
+        } else {
+            nameEl.value = (parsed.name || '').toUpperCase();
+        }
+        nameEl.classList.remove('is-invalid');
+    }
+    if (genderEl && parsed.gender) genderEl.value = parsed.gender;
+    if (birthEl && parsed.dob) {
+        if (typeof pmsScanDateToISO === 'function') {
+            birthEl.value = pmsScanDateToISO(parsed.dob);
+        } else {
+            birthEl.value = parsed.dob;
+        }
+        if (typeof egCheckBirth === 'function') egCheckBirth(birthEl);
+    }
+    if (expireEl && parsed.expiry_date) {
+        if (parsed.expiry_date === 'Không thời hạn' && typeof pmsSetCCCDPermanentExpiry === 'function') {
+            pmsSetCCCDPermanentExpiry(expireEl);
+        } else {
+            if (typeof pmsSetGuestIdExpireValue === 'function') {
+                pmsSetGuestIdExpireValue(expireEl, parsed.expiry_date);
+            } else if (typeof pmsScanDateToISO === 'function') {
+                expireEl.value = pmsScanDateToISO(parsed.expiry_date);
+            } else {
+                expireEl.value = parsed.expiry_date;
+            }
+            if (typeof egCheckIdExpire === 'function') egCheckIdExpire(expireEl);
+        }
+    }
+    if (natEl && parsed.nationality) {
+        const natValue = parsed.nationality.trim().toUpperCase();
+        const dl = document.getElementById('dl-eg-nationality');
+        if (dl) {
+            let found = false;
+            for (const opt of dl.options) {
+                if (opt.value.toUpperCase().startsWith(natValue)) {
+                    natEl.value = opt.value;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const nameMap = {
+                    'VIETNAM': 'VNM', 'VIET NAM': 'VNM', 'VN': 'VNM',
+                    'CHINA': 'CHN', 'CHINESE': 'CHN', 'CN': 'CHN',
+                };
+                const lookup = nameMap[natValue] || natValue;
+                for (const opt of dl.options) {
+                    if (opt.value.toUpperCase().includes(lookup)) {
+                        natEl.value = opt.value;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!isPhoto) {
+        const cardType = parsed.card_type || 'CCCD_CU';
+        if (typeof pmsMatchAddressToForm === 'function') {
+            await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'eg', cardType);
+        }
+    }
+}
+window.egFillFromScan = egFillFromScan;
 
 // ─── Global exports ────────────────────────────────────────────────────────────
 window.egOnProvinceChange = egOnProvinceChange;

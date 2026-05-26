@@ -1648,6 +1648,7 @@ class Guest(Base):
     )
 
     # Relationships
+    documents = relationship("GuestDocument", back_populates="guest", cascade="all, delete-orphan")
     identities = relationship("GuestIdentity", back_populates="guest", cascade="all, delete-orphan")
     profile = relationship("GuestProfile", back_populates="guest", uselist=False, cascade="all, delete-orphan")
     preferences = relationship("GuestPreference", back_populates="guest", cascade="all, delete-orphan")
@@ -1677,6 +1678,29 @@ class GuestIdentity(Base):
     )
 
     guest = relationship("Guest", back_populates="identities")
+
+
+class GuestDocument(Base):
+    """Ảnh giấy tờ tùy thân của khách (CCCD, Passport, Visa)"""
+    __tablename__ = "guest_documents"
+
+    id = Column(BIGINT, primary_key=True)
+    guest_id = Column(BIGINT, ForeignKey("guests.id", ondelete="CASCADE"), nullable=False, index=True)
+    doc_type = Column(String(20), nullable=False)  # cccd_front, cccd_back, passport, visa
+    file_path = Column(Text, nullable=False)        # Full image URL (Supabase public or /uploads/...)
+    thumbnail_path = Column(Text)                   # Thumbnail URL
+    file_size = Column(Integer)                     # bytes
+    width = Column(Integer)
+    height = Column(Integer)
+    uploaded_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        Index("uq_guest_doc_type", "guest_id", "doc_type", unique=True),
+    )
+
+    guest = relationship("Guest", back_populates="documents")
+    uploader = relationship("User", foreign_keys=[uploaded_by])
 
 
 class GuestProfile(Base):

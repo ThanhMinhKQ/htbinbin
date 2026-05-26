@@ -1427,6 +1427,7 @@ def api_add_guest_to_stay(
     return JSONResponse({
         "message": f"Thêm khách {full_name} thành công",
         "guest_id": guest.id,
+        "master_guest_id": guest.guest_id,
     })
 
 
@@ -1882,5 +1883,6 @@ async def api_update_guest(
     return JSONResponse({
         "message": "Cập nhật thành công",
         "guest_id": guest.id,
+        "master_guest_id": guest.guest_id,
         "check_out_at": guest.check_out_at.isoformat() if guest.check_out_at else None,
     })

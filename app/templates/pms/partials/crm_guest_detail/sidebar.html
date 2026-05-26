@@ -166,4 +166,50 @@
     <span x-text="guest.is_blacklisted ? 'Gỡ BL' : 'Blacklist'"></span>
   </button>
 
+  <!-- Giấy tờ tùy thân -->
+  <section class="gd-info-card gd-docs-section">
+    <h3 class="gd-info-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      Giấy tờ tùy thân
+    </h3>
+    <div class="gd-docs-grid">
+      <template x-for="doc in (profile?.documents || [])" :key="doc.id">
+        <div class="gd-doc-card">
+          <div class="gd-doc-img-wrap" @click="openViewer(doc.file_path)">
+            <img :src="doc.thumbnail_path || doc.file_path" class="gd-doc-img" alt="Giấy tờ tùy thân" />
+            <span class="gd-doc-badge" x-text="docTypeLabel(doc.doc_type)"></span>
+          </div>
+          <button type="button" class="gd-doc-remove" @click.stop="deleteDocument(doc.id)" title="Xóa ảnh này">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </template>
+
+      <!-- Thêm ảnh -->
+      <template x-if="(profile?.documents || []).length < 4">
+        <div class="gd-doc-add-card" @click="$refs.docFileInput.click()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/>
+            <line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          <span>Thêm ảnh</span>
+        </div>
+      </template>
+    </div>
+    <input type="file" x-ref="docFileInput" style="display: none;" accept="image/*" @change="uploadNewDocument($event)" />
+  </section>
+
+  <!-- Full-screen Viewer Overlay -->
+  <template x-if="activeViewerUrl">
+    <div class="gd-docs-viewer" @click="closeViewer()">
+      <button type="button" class="gd-docs-viewer-close" @click.stop="closeViewer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <img :src="activeViewerUrl" @click.stop alt="Xem ảnh lớn" />
+    </div>
+  </template>
+
 </aside>

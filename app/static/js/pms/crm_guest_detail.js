@@ -41,6 +41,79 @@ function guestDetail() {
     // Tier journey
     tierJourney: [],
 
+    // Guest Documents
+    activeViewerUrl: null,
+
+    docTypeLabel(type) {
+      const map = {
+        cccd_front: 'CCCD Trước',
+        cccd_back: 'CCCD Sau',
+        passport: 'Passport',
+        visa: 'Visa'
+      };
+      return map[type] || type;
+    },
+
+    openViewer(url) {
+      this.activeViewerUrl = url;
+    },
+
+    closeViewer() {
+      this.activeViewerUrl = null;
+    },
+
+    async deleteDocument(docId) {
+      if (!confirm('Bạn có chắc chắn muốn xóa ảnh giấy tờ này?')) return;
+      try {
+        const res = await fetch(`/api/pms/crm/guests/${this.guestId}/documents/${docId}`, {
+          method: 'DELETE',
+          credentials: 'same-origin'
+        });
+        if (!res.ok) throw new Error('Delete failed');
+        await this.loadProfile();
+      } catch (e) {
+        console.error(e);
+        alert('Không thể xóa tài liệu: ' + e.message);
+      }
+    },
+
+    async uploadNewDocument(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const type = window.prompt("Chọn loại ảnh để tải lên:\n1 - Mặt trước CCCD\n2 - Mặt sau CCCD\n3 - Passport\n4 - Visa", "1");
+      if (!type) return;
+
+      let docType = "";
+      if (type === "1") docType = "cccd_front";
+      else if (type === "2") docType = "cccd_back";
+      else if (type === "3") docType = "passport";
+      else if (type === "4") docType = "visa";
+      else {
+        alert("Lựa chọn không hợp lệ!");
+        return;
+      }
+
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('doc_type', docType);
+
+      try {
+        const res = await fetch(`/api/pms/crm/guests/${this.guestId}/documents`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: fd
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        await this.loadProfile();
+      } catch (e) {
+        console.error(e);
+        alert('Không thể tải lên tài liệu: ' + e.message);
+      } finally {
+        event.target.value = ''; // reset file input
+      }
+    },
+
     async init() {
       await Promise.all([
         this.loadProfile(),

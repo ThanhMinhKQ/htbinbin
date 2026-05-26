@@ -353,6 +353,15 @@
         <h5 class="v-title" id="eg-title" style="margin:0; font-weight:700; font-size:16px;">Sửa thông tin khách</h5>
         <div id="eg-sub" style="color:#64748b; font-size:13px; margin-top:4px;"></div>
       </div>
+      <button type="button" class="v-btn primary" id="eg-scan-btn" onclick="egScanCode()" title="F1"
+        style="padding:6px 14px; font-size:13px; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        Quét giấy tờ
+      </button>
       <button class="v-close" onclick="closeModal('egModal')" style="background:none; border:none; cursor:pointer; color:#94a3b8; padding:10px;">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>

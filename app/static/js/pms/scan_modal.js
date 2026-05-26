@@ -37,6 +37,13 @@ let _smCameraActive    = false;
 let _smBarcodeDetector = null;
 let _smLastCameraText  = '';
 
+// --- PHOTO SCANNING VARIABLES ---
+let _smOpts             = {};
+let _smDocType          = 'passport';
+let _smPhotoCameraStream = null;
+let _smPhotoCameraActive = false;
+let _smCccdImages       = { front: null, back: null };
+
 /* ═══════════════════════════════════════════════════════════════════
    ARCHITECTURE: INPUT-FIRST, SINGLE-SOURCE-OF-TRUTH
    ═══════════════════════════════════════════════════════════════════
@@ -89,8 +96,10 @@ function _smSanitizeRaw(raw) {
 /* ═══════════════════════════════════════════════════════════════════
    OPEN / CLOSE
    ═══════════════════════════════════════════════════════════════════ */
-function openScanModal(onSuccess) {
+function openScanModal(onSuccess, opts) {
     _smOnSuccess      = onSuccess || null;
+    _smOpts           = opts || {};
+    _smDocType        = _smOpts.docType || 'passport';
     _smParsed         = null;
     _smActive         = true;
     _smProcessing     = false;
@@ -100,6 +109,8 @@ function openScanModal(onSuccess) {
     _smLastInputTime  = 0;
     _clearAllTimers();
     _smResetCameraUi();
+    _smResetPhotoUi();
+    _smResetCccdPhotoUi();
 
     // ── Reset UI ────────────────────────────────────────────────
     _smSetIcon(
@@ -109,12 +120,22 @@ function openScanModal(onSuccess) {
       + '<path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>'
       + '<line x1="7" y1="12" x2="17" y2="12"/>'
     );
-    _smEl('sm-title').textContent = 'Quét CCCD / Căn cước';
-    _smEl('sm-sub').textContent   = 'Đọc mã QR từ thẻ CCCD gắn chip hoặc giấy tờ';
 
-    _smToggleScannerPanel(true);
-    _smUpdateScannerStatus('scanning');
-    _smRenderPlaceholder();
+    const isPhoto = (_smOpts.mode === 'photo' || _smDocType === 'passport' || _smDocType === 'visa');
+
+    _smEl('sm-title').textContent = isPhoto
+        ? (_smDocType === 'passport' ? 'Quét Passport / Hộ chiếu' : 'Quét Visa email (China)')
+        : 'Quét CCCD / Căn cước';
+
+    _smEl('sm-sub').textContent = isPhoto
+        ? (_smDocType === 'passport' ? 'Chụp hoặc tải ảnh trang thông tin hộ chiếu để nhận dạng' : 'Chụp hoặc tải ảnh xác nhận Visa China để nhận dạng')
+        : 'Đọc mã QR từ thẻ CCCD gắn chip hoặc giấy tờ';
+
+    const tabContainer = _smEl('sm-tabs');
+    if (tabContainer) {
+        tabContainer.style.display = 'flex';
+    }
+
     _smSetConfirmEnabled(false);
     _smUpdateSessionBadge();
 
@@ -125,23 +146,22 @@ function openScanModal(onSuccess) {
     const modal = _smEl('scanModal');
     if (modal) {
         modal.classList.add('show');
-        modal.removeAttribute('aria-hidden');
+        modal.setAttribute('aria-hidden', 'false');
     }
 
-    // ── Arm scanner & aggressive focus ──────────────────────────
-    _armScanner();
-    _smFocusInput();
-    setTimeout(_smFocusInput, 80);
-    setTimeout(_smFocusInput, 200);
-
-    // ── Auto-start camera on touch devices ──────────────────────
-    if (_smIsTouchDevice()) {
-        setTimeout(scanModalStartCamera, 300);
+    // Switch to initial tab
+    if (_smOpts.mode === 'cccd-photo') {
+        scanModalSwitchTab('cccd-photo');
+    } else if (isPhoto) {
+        scanModalSwitchTab('photo');
+    } else {
+        scanModalSwitchTab('qr');
     }
 }
 
 function scanModalClose() {
     _smStopCamera();
+    scanModalStopPhotoCamera();
     _smDisarmScanner();
     _clearAllTimers();
     _smActive       = false;
@@ -157,20 +177,32 @@ function scanModalClose() {
 }
 
 function scanModalBack() {
-    _smStopCamera();
-    _smReset();
-    _smToggleScannerPanel(true);
-    _smUpdateScannerStatus('scanning');
-    _smSetConfirmEnabled(false);
-    _smEl('sm-info-panel').innerHTML = '';
-    _smRenderPlaceholder();
+    const tabPhoto = _smEl('sm-tab-photo');
+    const isPhotoTab = tabPhoto && tabPhoto.classList.contains('active');
 
-    const input = _smEl('sm-test-input');
-    if (input) { input.value = ''; input.readOnly = false; }
+    if (isPhotoTab) {
+        scanModalStopPhotoCamera();
+        _smResetPhotoUi();
+        _smRenderPhotoPlaceholder();
+        _smSetConfirmEnabled(false);
+        _smEl('sm-info-panel').innerHTML = '';
+        scanModalStartPhotoCamera();
+    } else {
+        _smStopCamera();
+        _smReset();
+        _smToggleScannerPanel(true);
+        _smUpdateScannerStatus('scanning');
+        _smSetConfirmEnabled(false);
+        _smEl('sm-info-panel').innerHTML = '';
+        _smRenderPlaceholder();
 
-    _armScanner();
-    _smFocusInput();
-    setTimeout(_smFocusInput, 80);
+        const input = _smEl('sm-test-input');
+        if (input) { input.value = ''; input.readOnly = false; }
+
+        _armScanner();
+        _smFocusInput();
+        setTimeout(_smFocusInput, 80);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -181,6 +213,9 @@ function scanModalBack() {
    ═══════════════════════════════════════════════════════════════════ */
 function _smFocusInput() {
     if (!_smActive || _smCameraActive) return;
+    const tabQr = _smEl('sm-tab-qr');
+    const isQrActive = tabQr && tabQr.classList.contains('active');
+    if (!isQrActive) return;
     const input = _smEl('sm-test-input');
     if (!input) return;
     if (document.activeElement !== input) {
@@ -205,7 +240,9 @@ function _smStartFocusGuard() {
             if (indicator) indicator.classList.add('sm-focus-lost');
             // Re-capture only when modal is visible and not processing
             const modal = _smEl('scanModal');
-            if (modal && modal.classList.contains('show') && !_smProcessing && !_smCameraActive) {
+            const tabQr = _smEl('sm-tab-qr');
+            const isQrActive = tabQr && tabQr.classList.contains('active');
+            if (modal && modal.classList.contains('show') && !_smProcessing && !_smCameraActive && isQrActive) {
                 input.focus({ preventScroll: true });
             }
         }
@@ -218,8 +255,7 @@ function _smStartFocusGuard() {
 
 function _smOnModalClick(e) {
     if (!_smActive || _smProcessing || _smCameraActive) return;
-    const tag = (e.target.tagName || '').toUpperCase();
-    if (tag === 'BUTTON' || tag === 'A') return; // let buttons work
+    if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.sm-cccd-dropzone') || e.target.closest('input')) return;
     _smFocusInput();
 }
 
@@ -357,6 +393,31 @@ function _smInputHandler() {
    ═══════════════════════════════════════════════════════════════════ */
 function _smPasteHandler(e) {
     if (!_smActive || _smProcessing) return;
+
+    // Support image pasting for CCCD photo tab
+    const tabCccdPhoto = _smEl('sm-tab-cccd-photo');
+    const isCccdPhotoActive = tabCccdPhoto && tabCccdPhoto.classList.contains('active');
+
+    if (isCccdPhotoActive) {
+        const items = (e.clipboardData || e.originalEvent?.clipboardData)?.items;
+        if (items) {
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        if (!_smCccdImages.front) {
+                            _smSetCccdImage('front', blob);
+                        } else {
+                            _smSetCccdImage('back', blob);
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+        return;
+    }
 
     const input = _smEl('sm-test-input');
     if (!input || document.activeElement !== input) return;
@@ -849,9 +910,41 @@ function _smSetConfirmEnabled(enabled, parsed) {
     const btn = _smEl('sm-confirm-btn');
     if (!btn) return;
     btn.disabled = !enabled;
-    btn.onclick = enabled && parsed
-        ? () => { if (_smOnSuccess) _smOnSuccess(parsed); scanModalClose(); }
-        : null;
+
+    const tabCccdPhoto = _smEl('sm-tab-cccd-photo');
+    const isCccdPhotoActive = tabCccdPhoto && tabCccdPhoto.classList.contains('active');
+
+    if (isCccdPhotoActive) {
+        btn.onclick = enabled ? () => {
+            if (_smOpts && typeof _smOpts.onImages === 'function') {
+                _smOpts.onImages({
+                    cccd_front: _smCccdImages.front,
+                    cccd_back: _smCccdImages.back
+                });
+            }
+            if (_smOnSuccess) _smOnSuccess(null);
+            scanModalClose();
+        } : null;
+    } else {
+        btn.onclick = enabled && parsed
+            ? () => {
+                if (_smOnSuccess) _smOnSuccess(parsed);
+                if (_smOpts && typeof _smOpts.onImages === 'function') {
+                    const canvas = _smEl('sm-photo-canvas');
+                    if (canvas && _smDocType) {
+                        canvas.toBlob((blob) => {
+                            if (blob) {
+                                const imgs = {};
+                                imgs[_smDocType] = blob;
+                                _smOpts.onImages(imgs);
+                            }
+                        }, 'image/jpeg', 0.95);
+                    }
+                }
+                scanModalClose();
+            }
+            : null;
+    }
 }
 
 function _updateLivePreview(text) {
@@ -1058,3 +1151,499 @@ window.scanModalBack        = scanModalBack;
 window.scanModalTestInput   = scanModalTestInput;
 window.scanModalStartCamera = scanModalStartCamera;
 window.scanModalStopCamera  = scanModalStopCamera;
+window.scanModalSwitchTab   = scanModalSwitchTab;
+window.scanModalCapturePhoto = scanModalCapturePhoto;
+window.scanModalFileSelected = scanModalFileSelected;
+window.scanModalStartPhotoCamera = scanModalStartPhotoCamera;
+window.scanModalStopPhotoCamera  = scanModalStopPhotoCamera;
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   PHOTO SCANNING IMPLEMENTATION
+   ═══════════════════════════════════════════════════════════════════ */
+
+function _smResetPhotoUi() {
+    _smPhotoCameraActive = false;
+    const video = _smEl('sm-photo-video');
+    const preview = _smEl('sm-photo-preview');
+    const fileInput = _smEl('sm-photo-file');
+    const captureBtn = _smEl('sm-photo-btn-capture');
+    const mask = _smEl('sm-photo-mask-overlay');
+
+    if (video) { video.srcObject = null; video.style.display = 'block'; }
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    if (fileInput) fileInput.value = '';
+    if (captureBtn) captureBtn.style.display = 'none';
+    if (mask) mask.style.display = 'flex';
+
+    _smUpdatePhotoStatus('Đang chờ chụp hoặc tải ảnh…', '');
+}
+
+function _smUpdatePhotoStatus(text, state) {
+    const statusBox = _smEl('sm-photo-status');
+    const statusText = _smEl('sm-photo-status-text');
+    if (!statusBox || !statusText) return;
+
+    statusText.textContent = text || 'Đang chờ chụp hoặc tải ảnh…';
+    statusBox.classList.remove('processing', 'success', 'error');
+    if (state) statusBox.classList.add(state);
+}
+
+function scanModalSwitchTab(tab) {
+    const tabQr = _smEl('sm-tab-qr');
+    const tabCccdPhoto = _smEl('sm-tab-cccd-photo');
+    const tabPhoto = _smEl('sm-tab-photo');
+    const panelQr = _smEl('sm-scanner-panel');
+    const panelCccdPhoto = _smEl('sm-cccd-photo-panel');
+    const panelPhoto = _smEl('sm-photo-panel');
+
+    if (tabQr) tabQr.classList.remove('active');
+    if (tabCccdPhoto) tabCccdPhoto.classList.remove('active');
+    if (tabPhoto) tabPhoto.classList.remove('active');
+
+    if (panelQr) panelQr.style.display = 'none';
+    if (panelCccdPhoto) panelCccdPhoto.style.display = 'none';
+    if (panelPhoto) panelPhoto.style.display = 'none';
+
+    _smStopCamera();
+    scanModalStopPhotoCamera();
+    _smDisarmScanner();
+
+    if (tab === 'photo') {
+        if (tabPhoto) tabPhoto.classList.add('active');
+        if (panelPhoto) panelPhoto.style.display = 'flex';
+
+        _smRenderPhotoPlaceholder();
+        _smSetConfirmEnabled(false);
+        scanModalStartPhotoCamera();
+    } else if (tab === 'cccd-photo') {
+        if (tabCccdPhoto) tabCccdPhoto.classList.add('active');
+        if (panelCccdPhoto) panelCccdPhoto.style.display = 'flex';
+
+        _smRenderCccdPhotoPlaceholder();
+        _smSetConfirmEnabled(_smCccdImages.front !== null || _smCccdImages.back !== null);
+    } else {
+        if (tabQr) tabQr.classList.add('active');
+        if (panelQr) panelQr.style.display = 'block';
+
+        _smReset();
+        _smToggleScannerPanel(true);
+        _smUpdateScannerStatus('scanning');
+        _smRenderPlaceholder();
+        _smSetConfirmEnabled(false);
+
+        const input = _smEl('sm-test-input');
+        if (input) { input.value = ''; input.readOnly = false; }
+
+        _armScanner();
+        _smFocusInput();
+
+        if (_smIsTouchDevice()) {
+            setTimeout(scanModalStartCamera, 100);
+        }
+    }
+}
+
+async function scanModalStartPhotoCamera() {
+    if (!window.isSecureContext) {
+        _smUpdatePhotoStatus('Camera chỉ hoạt động trên HTTPS hoặc localhost.', 'error');
+        return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        _smUpdatePhotoStatus('Trình duyệt chưa hỗ trợ truy cập camera.', 'error');
+        return;
+    }
+
+    const video = _smEl('sm-photo-video');
+    if (!video) return;
+
+    _smUpdatePhotoStatus('Đang mở camera…', '');
+    try {
+        _smPhotoCameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false,
+        });
+
+        video.srcObject = _smPhotoCameraStream;
+        await video.play();
+
+        _smPhotoCameraActive = true;
+        _smUpdatePhotoStatus('Camera đã sẵn sàng. Hãy chụp ảnh!', '');
+
+        const captureBtn = _smEl('sm-photo-btn-capture');
+        if (captureBtn) captureBtn.style.display = 'inline-flex';
+    } catch (err) {
+        scanModalStopPhotoCamera();
+        _smUpdatePhotoStatus('Không mở được camera. Vui lòng nhấn "Tải ảnh" để chọn file.', 'error');
+    }
+}
+
+function scanModalStopPhotoCamera() {
+    if (_smPhotoCameraStream) {
+        _smPhotoCameraStream.getTracks().forEach(track => track.stop());
+        _smPhotoCameraStream = null;
+    }
+    _smPhotoCameraActive = false;
+
+    const video = _smEl('sm-photo-video');
+    if (video) video.srcObject = null;
+
+    const captureBtn = _smEl('sm-photo-btn-capture');
+    if (captureBtn) captureBtn.style.display = 'none';
+}
+
+function scanModalCapturePhoto() {
+    const video = _smEl('sm-photo-video');
+    const canvas = _smEl('sm-photo-canvas');
+    const preview = _smEl('sm-photo-preview');
+    const mask = _smEl('sm-photo-mask-overlay');
+
+    if (!video || !canvas || !preview) return;
+    if (!_smPhotoCameraActive) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const dataUrl = canvas.toDataURL('image/jpeg');
+    preview.src = dataUrl;
+    preview.style.display = 'block';
+    video.style.display = 'none';
+    if (mask) mask.style.display = 'none';
+
+    scanModalStopPhotoCamera();
+
+    canvas.toBlob((blob) => {
+        if (blob) {
+            _smSubmitPhoto(blob, 'captured_passport.jpg');
+        } else {
+            _smUpdatePhotoStatus('Lỗi chụp ảnh từ canvas.', 'error');
+        }
+    }, 'image/jpeg', 0.95);
+}
+
+function scanModalFileSelected(event) {
+    const input = event.target;
+    if (!input || !input.files || !input.files.length) return;
+
+    const file = input.files[0];
+    const preview = _smEl('sm-photo-preview');
+    const video = _smEl('sm-photo-video');
+    const mask = _smEl('sm-photo-mask-overlay');
+
+    if (!preview) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        if (video) video.style.display = 'none';
+        if (mask) mask.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+
+    scanModalStopPhotoCamera();
+
+    _smSubmitPhoto(file, file.name);
+}
+
+function _smSubmitPhoto(fileBlob, filename) {
+    if (_smProcessing) return;
+    _smProcessing = true;
+    _smSetConfirmEnabled(false);
+
+    _smUpdatePhotoStatus('Đang gửi và phân tích ảnh OCR…', 'processing');
+
+    _smEl('sm-info-panel').innerHTML = `
+      <div class="sm-info-empty">
+        <div class="sm-info-empty-icon">
+          <svg class="pms-addr-loading-spinner" style="border-width:2px;width:24px;height:24px;" viewBox="0 0 24 24"></svg>
+        </div>
+        <span class="sm-info-empty-text">Đang nhận diện ký tự OCR…</span>
+      </div>`;
+
+    const fd = new FormData();
+    fd.append('image', fileBlob, filename);
+    fd.append('doc_type', _smDocType);
+
+    fetch('/api/pms/scan/photo', {
+        method: 'POST',
+        body: fd
+    })
+    .then(res => {
+        if (!res.ok) {
+            return res.json().then(err => { throw new Error(err.detail || 'Lỗi kết nối máy chủ'); });
+        }
+        return res.json();
+    })
+    .then(res => {
+        _smProcessing = false;
+        if (res.success && res.data) {
+            _smParsed = res.data;
+            _smUpdatePhotoStatus('Nhận diện thông tin thành công!', 'success');
+            _smRenderPhotoInfo(res.data);
+            _smSetConfirmEnabled(true, res.data);
+            _smSessionStats.ok++;
+            _smUpdateSessionBadge();
+        } else {
+            throw new Error(res.error || 'Không nhận diện được mã MRZ hoặc thông tin trên ảnh');
+        }
+    })
+    .catch(err => {
+        _smProcessing = false;
+        _smUpdatePhotoStatus(err.message, 'error');
+        _smEl('sm-info-panel').innerHTML = `
+          <div class="sm-error-block">
+            <div class="sm-error-title">${_esc(err.message)}</div>
+          </div>`;
+        _smSessionStats.fail++;
+        _smUpdateSessionBadge();
+    });
+}
+
+function _smRenderPhotoPlaceholder() {
+    const title = _smDocType === 'passport' ? 'ảnh trang hộ chiếu' : 'ảnh xác nhận Visa';
+    _smEl('sm-info-panel').innerHTML = `
+      <div class="sm-info-empty">
+        <div class="sm-info-empty-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <span class="sm-info-empty-text">Chụp hoặc tải lên<br>${title} để xử lý</span>
+      </div>`;
+}
+
+function _smRenderPhotoInfo(p) {
+    const panel    = _smEl('sm-info-panel');
+    const idVal    = p.id_number || '—';
+    const idLabel  = p.card_type === 'passport' ? 'Passport' : 'Visa email (China)';
+    const idKind   = p.nationality || '—';
+    const gender   = _genderLabel(p.gender);
+
+    let stripCls = 'none';
+    let expiryNote = '';
+    let expiryIcon = _expiryIcon('none');
+
+    if (p.expiry_date) {
+        let displayExpiry = p.expiry_date;
+        if (p.expiry_date.includes('-')) {
+            const parts = p.expiry_date.split('-');
+            if (parts.length === 3) {
+                displayExpiry = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+        }
+        const { status, daysText } = _expiryStatusAndDays(displayExpiry);
+        stripCls = _expiryStripClass(status);
+        expiryIcon = _expiryIcon(status);
+        expiryNote = daysText || '';
+    }
+
+    let displayDob = p.dob || '—';
+    if (p.dob && p.dob.includes('-')) {
+        const parts = p.dob.split('-');
+        if (parts.length === 3) {
+            displayDob = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+    }
+
+    let ageVal = '—';
+    if (p.dob) {
+        try {
+            const birth = new Date(p.dob);
+            const ageDiff = Date.now() - birth.getTime();
+            const ageDate = new Date(ageDiff);
+            ageVal = String(Math.abs(ageDate.getUTCFullYear() - 1970));
+        } catch (_) {}
+    }
+
+    panel.innerHTML = `
+      <div class="sm-result-sheet" role="region" aria-label="Thông tin trích xuất từ ảnh">
+        <header class="sm-sheet-top">
+          <div class="sm-sheet-top-text">
+            <span class="sm-sheet-k">Số hộ chiếu / Visa</span>
+            <span class="sm-sheet-id">${_esc(idVal)}</span>
+          </div>
+          <div class="sm-sheet-top-meta">
+            <span class="sm-sheet-pill">${_esc(idLabel)}</span>
+            <span class="sm-sheet-pill sm-sheet-pill--muted">${_esc(idKind)}</span>
+          </div>
+          <div class="sm-sheet-check" title="Đã đọc được dữ liệu">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+        </header>
+
+        <div class="sm-sheet-main">
+          <div class="sm-sheet-name-block">
+            <span class="sm-sheet-k">Họ và tên</span>
+            <div class="sm-sheet-name-line">
+              <span class="sm-sheet-name">${_esc(p.name || '—')}</span>
+              <span class="sm-sheet-gender ${_esc(gender.cls)}">${_esc(gender.label)}</span>
+            </div>
+          </div>
+
+          <dl class="sm-sheet-dl sm-sheet-dl--3">
+            <div class="sm-sheet-row">
+              <dt>Ngày sinh</dt>
+              <dd>${_esc(displayDob)}</dd>
+            </div>
+            <div class="sm-sheet-row">
+              <dt>Quốc tịch</dt>
+              <dd>${_esc(p.nationality || '—')}</dd>
+            </div>
+            <div class="sm-sheet-row">
+              <dt>Tuổi</dt>
+              <dd>${_esc(ageVal)}</dd>
+            </div>
+          </dl>
+
+          <div class="sm-sheet-expiry sm-sheet-expiry--${stripCls}">
+            <div class="sm-sheet-expiry-inner">
+              <span class="sm-sheet-k">Hạn giấy tờ</span>
+              <span class="sm-sheet-expiry-date">${_esc(p.expiry_date || '—')}</span>
+            </div>
+            <div class="sm-sheet-expiry-side">
+              ${expiryNote ? `<span class="sm-sheet-expiry-note">${_esc(expiryNote)}</span>` : ''}
+              <span class="sm-sheet-expiry-ico">${expiryIcon}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CCCD TWO-SIDE PHOTO SCANNING IMPLEMENTATION
+   ═══════════════════════════════════════════════════════════════════ */
+
+function _smResetCccdPhotoUi() {
+    _smCccdImages = { front: null, back: null };
+    _smClearCccdSide('front');
+    _smClearCccdSide('back');
+}
+
+function _smRenderCccdPhotoPlaceholder() {
+    _smEl('sm-info-panel').innerHTML = `
+      <div class="sm-info-empty">
+        <div class="sm-info-empty-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <span class="sm-info-empty-text">Dán ảnh (Ctrl+V) hoặc Chọn tệp<br>Mặt trước và mặt sau CCCD</span>
+      </div>`;
+}
+
+function _smCccdFileSelected(event, side) {
+    const input = event.target;
+    if (!input || !input.files || !input.files.length) return;
+    const file = input.files[0];
+    _smSetCccdImage(side, file);
+}
+
+function _smSetCccdImage(side, fileOrBlob) {
+    if (!fileOrBlob) return;
+    _smCccdImages[side] = fileOrBlob;
+
+    const preview = _smEl(`sm-cccd-preview-${side}`);
+    const placeholder = _smEl(`sm-cccd-placeholder-${side}`);
+    const removeBtn = _smEl(`sm-cccd-remove-${side}`);
+
+    if (preview) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(fileOrBlob);
+    }
+    if (placeholder) placeholder.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = 'flex';
+
+    _smSetConfirmEnabled(_smCccdImages.front !== null || _smCccdImages.back !== null);
+}
+
+function _smClearCccdSide(side) {
+    _smCccdImages[side] = null;
+
+    const preview = _smEl(`sm-cccd-preview-${side}`);
+    const placeholder = _smEl(`sm-cccd-placeholder-${side}`);
+    const removeBtn = _smEl(`sm-cccd-remove-${side}`);
+    const fileInput = _smEl(`sm-cccd-file-${side}`);
+
+    if (preview) { preview.src = ''; preview.style.display = 'none'; }
+    if (placeholder) placeholder.style.display = 'flex';
+    if (removeBtn) removeBtn.style.display = 'none';
+    if (fileInput) fileInput.value = '';
+
+    _smSetConfirmEnabled(_smCccdImages.front !== null || _smCccdImages.back !== null);
+}
+
+function _smSetupCccdDropzones() {
+    ['front', 'back'].forEach(side => {
+        const zone = _smEl(`sm-cccd-dropzone-${side}`);
+        if (!zone) return;
+
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.add('dragover');
+        });
+
+        zone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('dragover');
+        });
+
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('dragover');
+
+            const files = e.dataTransfer?.files;
+            if (files && files.length) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    _smSetCccdImage(side, file);
+                }
+            }
+        });
+    });
+}
+
+async function _smUploadGuestDoc(guestId, docType, blob) {
+    const fd = new FormData();
+    fd.append('file', blob, `${docType}.jpg`);
+    fd.append('doc_type', docType);
+    const r = await fetch(`/api/pms/crm/guests/${guestId}/documents`, {
+        method: 'POST',
+        body: fd
+    });
+    if (!r.ok) {
+        throw new Error(`Failed to upload: ${r.statusText}`);
+    }
+    return r.json();
+}
+
+// Window bindings
+window._smCccdFileSelected = _smCccdFileSelected;
+window._smClearCccdSide    = _smClearCccdSide;
+window.uploadGuestDocument = _smUploadGuestDoc;
+
+// Setup on runtime load
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    _smSetupCccdDropzones();
+} else {
+    document.addEventListener('DOMContentLoaded', _smSetupCccdDropzones);
+}

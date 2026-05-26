@@ -848,6 +848,7 @@ def api_checkin(
         "check_in_at": ci.isoformat(),
         "check_out_at": co.isoformat() if co else None,
         "deposit": deposit,
+        "guest_id": guest_master.id if guest_master else None,
     })
 
 

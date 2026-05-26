@@ -2539,16 +2539,24 @@ Object.assign(BookingHub, {
             pmsToast('Modal quét CCCD chưa sẵn sàng', false);
             return;
         }
+        const idTypeEl = document.getElementById('bk-form-id-type');
+        const idType = idTypeEl ? idTypeEl.value : 'cccd';
+        const isPhoto = (idType === 'passport' || idType === 'visa');
+
         openScanModal(async (parsed) => {
             await this.fillBookingGuestFromScan(parsed);
             pmsToast(`Đã quét: ${parsed.name || parsed.id_number || parsed.old_id || ''}`, true);
-        });
+        }, isPhoto ? { mode: 'photo', docType: idType } : undefined);
     },
 
     async fillBookingGuestFromScan(parsed) {
         if (!parsed?.is_valid) return;
 
         const isCmnd = parsed.card_type === 'CMND';
+        const isPassport = parsed.card_type === 'passport';
+        const isVisa = parsed.card_type === 'visa';
+        const isPhoto = isPassport || isVisa;
+
         const idValue = isCmnd
             ? (parsed.old_id || parsed.id_number || parsed.cccd || '')
             : (parsed.id_number || parsed.cccd || '');
@@ -2578,7 +2586,7 @@ Object.assign(BookingHub, {
         };
         set('bk-form-guest-id', '');
         set('bk-form-guest-cccd', normalizedId);
-        set('bk-form-id-type', isCmnd ? 'cmnd' : 'cccd');
+        set('bk-form-id-type', isPhoto ? parsed.card_type : (isCmnd ? 'cmnd' : 'cccd'));
         set('bk-form-guest-name', typeof pmsTitleCase === 'function' ? pmsTitleCase(parsed.name || '') : (parsed.name || ''));
         set('bk-form-gender', parsed.gender || '');
         if (parsed.dob && typeof pmsScanDateToISO === 'function') {
@@ -2595,8 +2603,10 @@ Object.assign(BookingHub, {
                 this.checkBookingIdExpire(expireEl);
             }
         }
-        set('bk-form-nationality', 'VNM - Việt Nam');
-        await this.fillBookingAddressFromScan(parsed.address, parsed.card_type || 'CCCD_CU');
+        set('bk-form-nationality', isPassport ? (parsed.nationality || 'USA') : (isVisa ? (parsed.nationality || 'CHN') : 'VNM - Việt Nam'));
+        if (!isPhoto) {
+            await this.fillBookingAddressFromScan(parsed.address, parsed.card_type || 'CCCD_CU');
+        }
         this.onBookingIdTypeChange();
         this.clearReservationValidation();
 

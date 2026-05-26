@@ -11,6 +11,7 @@ window._pmsCiRiskConfirmed = false;
 window._pmsCiRiskFlags = null;
 let pmsCiMaxGuests = 2;
 let pmsCiSubmitting = false;
+let _pmsCiPendingDocImages = null;
 
 function pmsCiSetBusy(isBusy, text = 'Đang nhận phòng...') {
     const dialog = document.getElementById('ci-dialog');
@@ -21,6 +22,7 @@ function pmsCiSetBusy(isBusy, text = 'Đang nhận phòng...') {
 }
 
 function pmsCiOpenModal() {
+    _pmsCiPendingDocImages = null;
     const modal = document.getElementById('ciModal');
     if (!modal) return;
     if (modal.parentElement !== document.body) {
@@ -1171,9 +1173,21 @@ function pmsCiUpdateCapacityWarn() {
 }
 
 function pmsCiScanCode() {
+    const idTypeEl = document.getElementById('ci-id-type');
+    const idType = idTypeEl ? idTypeEl.value : 'cccd';
+    const isPhoto = (idType === 'passport' || idType === 'visa');
+
     openScanModal(async (parsed) => {
-        await pmsCiFillFromScan(parsed);
-        pmsToast(`Đã quét: ${parsed.name}`, true);
+        if (parsed) {
+            await pmsCiFillFromScan(parsed);
+            pmsToast(`Đã quét: ${parsed.name}`, true);
+        }
+    }, {
+        ...(isPhoto ? { mode: 'photo', docType: idType } : {}),
+        onImages: (images) => {
+            _pmsCiPendingDocImages = images;
+            console.log('[CI] Stashed scanned images:', Object.keys(images || {}));
+        }
     });
 }
 
@@ -1186,11 +1200,15 @@ async function pmsCiFillFromScan(parsed) {
     const nameEl   = document.getElementById('ci-name');
 
     const isCmnd = parsed.card_type === 'CMND';
+    const isPassport = parsed.card_type === 'passport';
+    const isVisa = parsed.card_type === 'visa';
+    const isPhoto = isPassport || isVisa;
+
     const idValue = isCmnd
         ? (parsed.old_id || parsed.id_number || parsed.cccd || '')
         : (parsed.id_number || parsed.cccd || '');
 
-    // ── Step 1: Check if CCCD exists in DB ────────────────────────────────
+    // ── Step 1: Check if CCCD/Passport exists in DB ───────────────────────
     const cccdToCheck = idValue.trim().toUpperCase();
     if (cccdToCheck && cccdToCheck.length >= 3) {
         try {
@@ -1217,7 +1235,7 @@ async function pmsCiFillFromScan(parsed) {
         cccdEl.classList.remove('is-invalid');
     }
     if (idTypeEl) {
-        idTypeEl.value = isCmnd ? 'cmnd' : 'cccd';
+        idTypeEl.value = isPhoto ? parsed.card_type : (isCmnd ? 'cmnd' : 'cccd');
         pmsCiToggleIdFields(idTypeEl);
     }
     if (nameEl) {
@@ -1242,13 +1260,15 @@ async function pmsCiFillFromScan(parsed) {
         }
     }
 
-    const cardType = parsed.card_type || 'CCCD_CU';
-    if (typeof pmsMatchAddressToForm === 'function') {
-        await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ci', cardType);
-    }
+    if (!isPhoto) {
+        const cardType = parsed.card_type || 'CCCD_CU';
+        if (typeof pmsMatchAddressToForm === 'function') {
+            await pmsMatchAddressToForm({ ...(parsed.address || {}), address_mode: parsed.address_mode }, 'ci', cardType);
+        }
 
-    if (typeof pmsShowAddressValidationIssues === 'function') {
-        pmsShowAddressValidationIssues('ci');
+        if (typeof pmsShowAddressValidationIssues === 'function') {
+            pmsShowAddressValidationIssues('ci');
+        }
     }
 
     // Unlock fields for manual entry
@@ -2154,6 +2174,20 @@ async function submitCI() {
         pmsCiCloseModal();
         pmsToast(r.message);
 
+        // Upload stashed document images
+        if (_pmsCiPendingDocImages && r.guest_id) {
+            for (const [docType, blob] of Object.entries(_pmsCiPendingDocImages)) {
+                if (blob && typeof uploadGuestDocument === 'function') {
+                    try {
+                        await uploadGuestDocument(r.guest_id, docType, blob);
+                    } catch (uploadErr) {
+                        console.warn(`[CI] Failed to upload ${docType}:`, uploadErr);
+                    }
+                }
+            }
+            _pmsCiPendingDocImages = null;
+        }
+
         const roomId = document.getElementById('ci-room-id')?.value;
         if (typeof pmsSetRoomLoading === 'function') pmsSetRoomLoading(roomId);
         if (typeof pmsLoadRooms === 'function') await pmsLoadRooms(undefined, true);
@@ -2171,6 +2205,21 @@ async function submitCI() {
                 const retry = await pmsApi('/api/pms/checkin', { method: 'POST', body: fd });
                 pmsCiCloseModal();
                 pmsToast(retry.message);
+
+                // Upload stashed document images on retry success
+                if (_pmsCiPendingDocImages && retry.guest_id) {
+                    for (const [docType, blob] of Object.entries(_pmsCiPendingDocImages)) {
+                        if (blob && typeof uploadGuestDocument === 'function') {
+                            try {
+                                await uploadGuestDocument(retry.guest_id, docType, blob);
+                            } catch (uploadErr) {
+                                console.warn(`[CI] Failed to upload ${docType}:`, uploadErr);
+                            }
+                        }
+                    }
+                    _pmsCiPendingDocImages = null;
+                }
+
                 const roomId = document.getElementById('ci-room-id')?.value;
                 if (typeof pmsSetRoomLoading === 'function') pmsSetRoomLoading(roomId);
                 if (typeof pmsLoadRooms === 'function') await pmsLoadRooms(undefined, true);
