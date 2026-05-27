@@ -11,7 +11,7 @@ const SM_MIN_LEN             = 10;      // min chars for a valid scan
 const SM_TIMEOUT_MS          = 90000;   // 90 s overall timeout (generous)
 const SM_TERMINATE_MS        = 300;     // silence window → stream complete (backup)
 const SM_SCANNER_SPEED_MS    = 30;      // chars faster than this = scanner, not human
-const SM_FOCUS_GUARD_MS      = 250;     // re-check focus interval
+const SM_FOCUS_GUARD_MS      = 500;     // re-check focus interval
 const SM_MAX_RETRY           = 2;       // auto-retry count for short / corrupt data
 const SM_DEBOUNCE_ENTER_MS   = 60;      // debounce after Enter before processing
 const SM_REARM_DELAY_MS      = 1200;    // delay before re-arming after error
@@ -661,8 +661,18 @@ function _smStartCameraDecodeLoop() {
         return;
     }
 
+    let lastDecodeTime = 0;
+    const DECODE_INTERVAL = 66; // ~15fps — sufficient for QR decode, saves CPU
+
     const loop = async () => {
         if (!_smCameraActive || _smProcessing) return;
+
+        const now = performance.now();
+        if (now - lastDecodeTime < DECODE_INTERVAL) {
+            _smCameraRaf = requestAnimationFrame(loop);
+            return;
+        }
+        lastDecodeTime = now;
 
         const decoded = await _smDecodeCameraFrame();
         const raw = _smSanitizeRaw(decoded || '');
@@ -850,6 +860,10 @@ function _smShowResult(parsed) {
     _smParsed = parsed.is_valid ? parsed : _smParsed;
 
     if (parsed.is_valid) {
+        // Clear scanner timeout — user got a valid result via photo/QR, no need to keep counting
+        _clearAllTimers();
+        _smActive = false;
+        _smDisarmScanner();
         _smToggleScannerPanel(false);
         _smUpdateScannerStatus('done');
         _smRenderInfo(parsed);
@@ -1258,6 +1272,12 @@ function scanModalSwitchTab(tab) {
         document.removeEventListener('paste', _smPasteHandler);
     }
 
+    // Reset all state when switching tabs so each tab starts clean
+    _clearAllTimers();
+    _smParsed = null;
+    _smResetPhotoUi();
+    _smResetCccdPhotoUi();
+
     if (tab === 'photo') {
         if (tabPhoto) tabPhoto.classList.add('active');
         if (panelPhoto) panelPhoto.style.display = 'flex';
@@ -1276,7 +1296,7 @@ function scanModalSwitchTab(tab) {
         document.addEventListener('paste', _smPasteHandler);
 
         _smRenderPhotoPlaceholder();
-        _smSetConfirmEnabled(_smPhotoFile !== null, _smParsed);
+        _smSetConfirmEnabled(false);
     } else if (tab === 'cccd-photo') {
         if (tabCccdPhoto) tabCccdPhoto.classList.add('active');
         if (panelCccdPhoto) panelCccdPhoto.style.display = 'flex';
@@ -1285,12 +1305,8 @@ function scanModalSwitchTab(tab) {
         _smCccdPasteActive = true;
         document.addEventListener('paste', _smPasteHandler);
 
-        if (_smParsed && _smParsed.is_valid) {
-            _smRenderInfo(_smParsed);
-        } else {
-            _smRenderCccdPhotoPlaceholder();
-        }
-        _smSetConfirmEnabled(_smCccdImages.front !== null, _smParsed);
+        _smRenderCccdPhotoPlaceholder();
+        _smSetConfirmEnabled(false);
     } else {
         if (tabQr) tabQr.classList.add('active');
         if (panelQr) panelQr.style.display = 'block';
