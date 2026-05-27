@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 from app.api.pms.mrz_parser import (
     _parse_mrz_date,
     parse_mrz_text,
@@ -45,15 +45,17 @@ class PhotoScanTestCase(unittest.TestCase):
         self.assertFalse(res["is_valid"])
         self.assertIn("error", res)
 
-    def test_parse_passport_uses_vision_labeled_fields(self):
+
+class PhotoScanAsyncTestCase(unittest.IsolatedAsyncioTestCase):
+    async def test_parse_passport_uses_vision_labeled_fields(self):
         vision_text = (
             "Surname: Stephens\nGiven names: Maria\nPassport No: B9876543\n"
             "Nationality: USA\nDate of birth: 15/05/1990\nSex: F\n"
             "Date of expiry: 31/12/2030\nDate of issue: 01/01/2020\n"
         )
         with patch.object(mrz_parser.settings, "GATECHEAP_API_KEY", "test-key"), \
-             patch.object(mrz_parser, "_run_passport_ocr", return_value=vision_text) as mock_vision:
-            result = parse_mrz_from_image(b"fake-image-bytes", "passport.jpg")
+             patch.object(mrz_parser, "_run_passport_ocr", new=AsyncMock(return_value=vision_text)) as mock_vision:
+            result = await parse_mrz_from_image(b"fake-image-bytes", "passport.jpg")
             self.assertTrue(result["is_valid"])
             self.assertEqual(result["card_type"], "passport")
             self.assertEqual(result["id_number"], "B9876543")
@@ -64,17 +66,17 @@ class PhotoScanTestCase(unittest.TestCase):
             self.assertEqual(result["nationality"], "USA")
             mock_vision.assert_called_once()
 
-    def test_parse_passport_returns_error_when_vision_returns_empty(self):
+    async def test_parse_passport_returns_error_when_vision_returns_empty(self):
         with patch.object(mrz_parser.settings, "GATECHEAP_API_KEY", "test-key"), \
-             patch.object(mrz_parser, "_run_passport_ocr", return_value=""):
-            result = parse_mrz_from_image(b"fake-image-bytes", "passport.jpg")
+             patch.object(mrz_parser, "_run_passport_ocr", new=AsyncMock(return_value="")):
+            result = await parse_mrz_from_image(b"fake-image-bytes", "passport.jpg")
             self.assertFalse(result["is_valid"])
             self.assertIn("MRZ", result["error"])
 
-    def test_parse_mrz_from_image_without_api_key_does_not_return_mock(self):
+    async def test_parse_mrz_from_image_without_api_key_does_not_return_mock(self):
         # When GATECHEAP_API_KEY is missing, passport parser must NOT inject mock data.
         with patch.object(mrz_parser.settings, "GATECHEAP_API_KEY", ""):
-            result = parse_mrz_from_image(b"not-an-image", "real_passport.jpg")
+            result = await parse_mrz_from_image(b"not-an-image", "real_passport.jpg")
             self.assertFalse(result["is_valid"])
             self.assertNotIn("JOHN SMITH", str(result))
             self.assertIn("chưa được cấu hình", result["error"])

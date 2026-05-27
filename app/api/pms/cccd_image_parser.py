@@ -4,6 +4,7 @@ CCCD/CMND Image Parser using Gatecheap Vision API (OpenAI-compatible).
 Extracts structured guest information from front and back photos of CCCD.
 """
 from __future__ import annotations
+import asyncio
 import base64
 import logging
 import re
@@ -68,7 +69,7 @@ def _is_no_image_response(text: str) -> bool:
     return bool(text) and bool(_NO_IMAGE_PATTERNS.search(text))
 
 
-def parse_cccd_image(front_bytes: bytes, back_bytes: bytes | None = None) -> dict:
+async def parse_cccd_image(front_bytes: bytes, back_bytes: bytes | None = None) -> dict:
     """
     OCR front and back CCCD images using Gatecheap Vision API and parse structured guest information.
     Sends front first, then back sequentially to avoid proxy issues with concurrent/multi-image requests.
@@ -79,14 +80,14 @@ def parse_cccd_image(front_bytes: bytes, back_bytes: bytes | None = None) -> dic
 
     if front_bytes:
         try:
-            front_text = _run_gatecheap_ocr(front_bytes, _PROMPT_FRONT)
+            front_text = await _run_gatecheap_ocr(front_bytes, _PROMPT_FRONT)
         except Exception as e:
             logger.error(f"Error running Gatecheap OCR on front image: {e}")
             front_text = ""
 
     if back_bytes:
         try:
-            back_text = _run_gatecheap_ocr(back_bytes, _PROMPT_BACK)
+            back_text = await _run_gatecheap_ocr(back_bytes, _PROMPT_BACK)
         except Exception as e:
             logger.error(f"Error running Gatecheap OCR on back image: {e}")
             back_text = ""
@@ -163,13 +164,13 @@ def _build_ocr_payload(image_bytes: bytes, prompt_text: str, model: str) -> tupl
     return url, headers, json_body
 
 
-def _run_gatecheap_ocr(image_bytes: bytes, prompt_text: str = "") -> str:
-    """Run OCR via Gatecheap Vision API (OpenAI-compatible, base64 image). Synchronous version."""
+async def _run_gatecheap_ocr(image_bytes: bytes, prompt_text: str = "") -> str:
+    """Run OCR via Gatecheap Vision API (OpenAI-compatible, base64 image). Async, non-blocking."""
     if not settings.GATECHEAP_API_KEY:
         logger.warning("GATECHEAP_API_KEY not set — skipping OCR.")
         return ""
 
-    image_bytes = _preprocess_image(image_bytes)
+    image_bytes = await asyncio.to_thread(_preprocess_image, image_bytes)
     logger.info(f"[CCCD OCR] preprocessed image size: {len(image_bytes)} bytes")
 
     models_to_try = [
@@ -186,33 +187,34 @@ def _run_gatecheap_ocr(image_bytes: bytes, prompt_text: str = "") -> str:
     _MIN_OCR_CHARS = 50
 
     last_error = None
-    for model in models_to_try:
-        try:
-            url, headers, json_body = _build_ocr_payload(image_bytes, prompt_text, model)
-            response = httpx.post(url, headers=headers, json=json_body, timeout=20.0)
-            response.raise_for_status()
-            raw_body = response.text
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        for model in models_to_try:
             try:
-                result = response.json()
-            except Exception:
-                logger.warning(f"Gatecheap OCR model={model} returned non-JSON (status {response.status_code}): {raw_body[:200]!r}")
-                continue
-            text = result["choices"][0]["message"]["content"]
-            finish_reason = result["choices"][0].get("finish_reason", "unknown")
-            if text and text.strip():
-                text = text.strip()
-                logger.info(f"Gatecheap OCR model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}")
-                if _is_no_image_response(text):
-                    logger.warning(f"Gatecheap OCR model={model} hallucinated no-image response, trying next model")
+                url, headers, json_body = _build_ocr_payload(image_bytes, prompt_text, model)
+                response = await client.post(url, headers=headers, json=json_body)
+                response.raise_for_status()
+                raw_body = response.text
+                try:
+                    result = response.json()
+                except Exception:
+                    logger.warning(f"Gatecheap OCR model={model} returned non-JSON (status {response.status_code}): {raw_body[:200]!r}")
                     continue
-                if len(text) >= _MIN_OCR_CHARS:
-                    return text
-                logger.warning(f"Gatecheap OCR model={model} returned too few chars ({len(text)}), trying next model")
+                text = result["choices"][0]["message"]["content"]
+                finish_reason = result["choices"][0].get("finish_reason", "unknown")
+                if text and text.strip():
+                    text = text.strip()
+                    logger.info(f"Gatecheap OCR model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}")
+                    if _is_no_image_response(text):
+                        logger.warning(f"Gatecheap OCR model={model} hallucinated no-image response, trying next model")
+                        continue
+                    if len(text) >= _MIN_OCR_CHARS:
+                        return text
+                    logger.warning(f"Gatecheap OCR model={model} returned too few chars ({len(text)}), trying next model")
+                    continue
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Gatecheap OCR failed with model={model}: {e}")
                 continue
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Gatecheap OCR failed with model={model}: {e}")
-            continue
 
     if last_error:
         raise last_error

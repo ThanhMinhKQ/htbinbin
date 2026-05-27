@@ -57,7 +57,7 @@ async def api_scan_cccd_photo(
 
     # Run image parser
     try:
-        result = parse_cccd_image(front_contents, back_contents)
+        result = await parse_cccd_image(front_contents, back_contents)
     except TimeoutException:
         logger.error("CCCD OCR timeout — Gatecheap server not responding")
         return JSONResponse(status_code=200, content={
@@ -123,7 +123,7 @@ async def api_scan_photo(
 
     # Route based on doc_type
     if doc_type == "passport":
-        result = parse_mrz_from_image(contents, image.filename)
+        result = await parse_mrz_from_image(contents, image.filename)
     else:  # visa
         result = parse_china_visa(contents, image.filename)
 

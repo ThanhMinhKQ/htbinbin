@@ -8,6 +8,7 @@ Keeps a small ICAO-MRZ text fallback (`parse_mrz_text`) for cases where caller
 already has clean MRZ lines extracted (e.g. unit tests, third-party MRZ readers).
 """
 from __future__ import annotations
+import asyncio
 import base64
 import io
 import logging
@@ -147,13 +148,13 @@ def _has_passport_signal(text: str) -> bool:
     return False
 
 
-def _run_passport_ocr(image_bytes: bytes) -> str:
-    """Call Gatecheap Vision API to extract passport fields. Returns raw text or ''."""
+async def _run_passport_ocr(image_bytes: bytes) -> str:
+    """Call Gatecheap Vision API to extract passport fields. Async, non-blocking. Returns raw text or ''."""
     if not settings.GATECHEAP_API_KEY:
         logger.warning("GATECHEAP_API_KEY not set — passport OCR skipped.")
         return ""
 
-    image_bytes = _preprocess_image(image_bytes)
+    image_bytes = await asyncio.to_thread(_preprocess_image, image_bytes)
 
     models_to_try = [
         settings.GATECHEAP_MODEL,
@@ -165,38 +166,39 @@ def _run_passport_ocr(image_bytes: bytes) -> str:
     _MIN_OCR_CHARS = 30  # passport response should at least have a few fields
     last_error = None
 
-    for model in models_to_try:
-        try:
-            url, headers, json_body = _build_ocr_payload(image_bytes, _PROMPT_PASSPORT, model)
-            response = httpx.post(url, headers=headers, json=json_body, timeout=30.0)
-            response.raise_for_status()
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for model in models_to_try:
             try:
-                result = response.json()
-            except Exception:
-                logger.warning(
-                    f"Passport OCR model={model} returned non-JSON: {response.text[:200]!r}"
-                )
-                continue
-            text = (result["choices"][0]["message"].get("content") or "").strip()
-            finish_reason = result["choices"][0].get("finish_reason", "unknown")
-            if text:
-                logger.info(
-                    f"Passport OCR model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}"
-                )
-                if len(text) < _MIN_OCR_CHARS:
+                url, headers, json_body = _build_ocr_payload(image_bytes, _PROMPT_PASSPORT, model)
+                response = await client.post(url, headers=headers, json=json_body)
+                response.raise_for_status()
+                try:
+                    result = response.json()
+                except Exception:
                     logger.warning(
-                        f"Passport OCR model={model} returned too few chars ({len(text)}), trying next model"
+                        f"Passport OCR model={model} returned non-JSON: {response.text[:200]!r}"
                     )
                     continue
-                if not _has_passport_signal(text):
-                    logger.warning(
-                        f"Passport OCR model={model} returned reasoning-only output, trying next model"
+                text = (result["choices"][0]["message"].get("content") or "").strip()
+                finish_reason = result["choices"][0].get("finish_reason", "unknown")
+                if text:
+                    logger.info(
+                        f"Passport OCR model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}"
                     )
-                    continue
-                return text
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Passport OCR failed with model={model}: {e}")
+                    if len(text) < _MIN_OCR_CHARS:
+                        logger.warning(
+                            f"Passport OCR model={model} returned too few chars ({len(text)}), trying next model"
+                        )
+                        continue
+                    if not _has_passport_signal(text):
+                        logger.warning(
+                            f"Passport OCR model={model} returned reasoning-only output, trying next model"
+                        )
+                        continue
+                    return text
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Passport OCR failed with model={model}: {e}")
 
     if last_error:
         raise last_error
@@ -360,7 +362,7 @@ def _parse_td3_manual(line1: str, line2: str) -> dict:
 # ──────────────────────────────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────────────────────────────
-def parse_mrz_from_image(image_bytes: bytes, filename: str = "") -> dict:
+async def parse_mrz_from_image(image_bytes: bytes, filename: str = "") -> dict:
     """
     Extract and parse Passport information from uploaded image bytes via Gatecheap Vision API.
     """
@@ -378,7 +380,7 @@ def parse_mrz_from_image(image_bytes: bytes, filename: str = "") -> dict:
 
     t0 = time.monotonic()
     try:
-        ocr_text = _run_passport_ocr(image_bytes)
+        ocr_text = await _run_passport_ocr(image_bytes)
     except Exception as exc:
         logger.error("Error calling Gatecheap Vision for passport: %s", exc)
         return {

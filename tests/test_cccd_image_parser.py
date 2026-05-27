@@ -100,7 +100,8 @@ Nốt ruồi cách 1cm dưới sau cánh mũi trái
     @patch("app.api.pms.cccd_image_parser.settings")
     def test_parse_cccd_image_no_mock_fallback(self, mock_settings):
         mock_settings.GATECHEAP_API_KEY = None
-        res = parse_cccd_image(b"dummy_front_bytes", b"dummy_back_bytes")
+        import asyncio
+        res = asyncio.run(parse_cccd_image(b"dummy_front_bytes", b"dummy_back_bytes"))
         self.assertFalse(res["is_valid"])
         self.assertIn("Không thể đọc được nội dung", res["error"])
 

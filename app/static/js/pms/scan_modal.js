@@ -191,6 +191,7 @@ function scanModalClose() {
 }
 
 function scanModalBack() {
+    if (_smProcessing) return;
     const tabPhoto = _smEl('sm-tab-photo');
     const isPhotoTab = tabPhoto && tabPhoto.classList.contains('active');
 
@@ -955,7 +956,11 @@ function _smSetConfirmEnabled(enabled, parsed) {
     const isCccdPhotoActive = tabCccdPhoto && tabCccdPhoto.classList.contains('active');
 
     if (isCccdPhotoActive) {
-        if (!parsed || !parsed.is_valid) {
+        if (_smProcessing) {
+            btn.textContent = 'Đang nhận diện…';
+            btn.disabled = true;
+            btn.onclick = null;
+        } else if (!parsed || !parsed.is_valid) {
             btn.textContent = 'Nhận diện ảnh CCCD';
             btn.disabled = !_smCccdImages.front;
             btn.onclick = _smCccdImages.front ? () => _smSubmitCccdPhoto() : null;
@@ -973,7 +978,11 @@ function _smSetConfirmEnabled(enabled, parsed) {
             };
         }
     } else if (tabPhoto && tabPhoto.classList.contains('active')) {
-        if (!parsed || !parsed.is_valid) {
+        if (_smProcessing) {
+            btn.textContent = 'Đang nhận diện…';
+            btn.disabled = true;
+            btn.onclick = null;
+        } else if (!parsed || !parsed.is_valid) {
             btn.textContent = 'Nhận diện ảnh Passport/Visa';
             btn.disabled = !_smPhotoFile;
             btn.onclick = _smPhotoFile ? () => _smSubmitPhoto(_smPhotoFile.blob, _smPhotoFile.filename) : null;
@@ -1241,6 +1250,8 @@ function _smUpdatePhotoStatus(text, state) {
 }
 
 function scanModalSwitchTab(tab) {
+    if (_smProcessing) return;
+
     const tabQr = _smEl('sm-tab-qr');
     const tabCccdPhoto = _smEl('sm-tab-cccd-photo');
     const tabPhoto = _smEl('sm-tab-photo');
@@ -1331,7 +1342,7 @@ function scanModalSwitchTab(tab) {
 }
 
 function _smSetPhotoImage(fileBlob, filename) {
-    if (!fileBlob) return;
+    if (!fileBlob || _smProcessing) return;
     _smPhotoFile = { blob: fileBlob, filename: filename || 'document.jpg' };
     _smParsed = null;
 
@@ -1355,6 +1366,7 @@ function _smSetPhotoImage(fileBlob, filename) {
 }
 
 function _smClearPhotoImage() {
+    if (_smProcessing) return;
     _smPhotoFile = null;
     _smParsed = null;
 
@@ -1373,6 +1385,7 @@ function _smClearPhotoImage() {
 }
 
 function scanModalFileSelected(event) {
+    if (_smProcessing) return;
     const input = event.target;
     if (!input || !input.files || !input.files.length) return;
 
@@ -1576,6 +1589,7 @@ function _smRenderCccdPhotoPlaceholder() {
 }
 
 function _smCccdFileSelected(event, side) {
+    if (_smProcessing) return;
     const input = event.target;
     if (!input || !input.files || !input.files.length) return;
     const file = input.files[0];
@@ -1583,7 +1597,7 @@ function _smCccdFileSelected(event, side) {
 }
 
 function _smSetCccdImage(side, fileOrBlob) {
-    if (!fileOrBlob) return;
+    if (!fileOrBlob || _smProcessing) return;
     _smCccdImages[side] = fileOrBlob;
     _smParsed = null;
     _smRenderCccdPhotoPlaceholder();
@@ -1607,6 +1621,7 @@ function _smSetCccdImage(side, fileOrBlob) {
 }
 
 function _smClearCccdSide(side) {
+    if (_smProcessing) return;
     _smCccdImages[side] = null;
     _smParsed = null;
     _smRenderCccdPhotoPlaceholder();
