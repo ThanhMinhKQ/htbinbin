@@ -123,7 +123,6 @@ def _build_ocr_payload(image_bytes: bytes, prompt_text: str, model: str) -> tupl
         }],
         "temperature": 0.0,
         "max_tokens": 8192,
-        "reasoning_effort": "minimal",
         "stream": False,
     }
     return url, headers, json_body
@@ -169,7 +168,7 @@ def _run_passport_ocr(image_bytes: bytes) -> str:
     for model in models_to_try:
         try:
             url, headers, json_body = _build_ocr_payload(image_bytes, _PROMPT_PASSPORT, model)
-            response = httpx.post(url, headers=headers, json=json_body, timeout=12.0)
+            response = httpx.post(url, headers=headers, json=json_body, timeout=30.0)
             response.raise_for_status()
             try:
                 result = response.json()
