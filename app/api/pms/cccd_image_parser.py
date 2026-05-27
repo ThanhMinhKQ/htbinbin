@@ -4,7 +4,6 @@ CCCD/CMND Image Parser using Gatecheap Vision API (OpenAI-compatible).
 Extracts structured guest information from front and back photos of CCCD.
 """
 from __future__ import annotations
-import asyncio
 import base64
 import logging
 import re
@@ -53,6 +52,27 @@ _PROMPT_BACK = (
     "Chỉ trả về các trường dữ liệu, không giải thích thêm."
 )
 
+_PROMPT_BOTH = (
+    "Bạn nhận được 2 ảnh CCCD/Căn cước công dân Việt Nam: ảnh thứ NHẤT là MẶT TRƯỚC, "
+    "ảnh thứ HAI là MẶT SAU. Hãy trích xuất dữ liệu từ CẢ HAI ảnh và trả về theo đúng format sau:\n\n"
+    "===FRONT===\n"
+    "Số / No.: ...\n"
+    "Họ và tên / Full name: ...\n"
+    "Ngày sinh / Date of birth: dd/mm/yyyy\n"
+    "Giới tính / Sex: Nam hoặc Nữ\n"
+    "Quốc tịch / Nationality: ...\n"
+    "Quê quán / Place of origin: ...\n"
+    "Nơi thường trú / Place of residence: ...\n"
+    "Có giá trị đến / Date of expiry: dd/mm/yyyy\n"
+    "===BACK===\n"
+    "Nơi thường trú / Place of residence: ... (địa chỉ đầy đủ)\n"
+    "Ngày cấp: ngày ... tháng ... năm ...\n"
+    "Đặc điểm nhận dạng: ...\n\n"
+    "BỎ QUA các dòng tiêu đề như 'CỘNG HÒA XÃ HỘI', 'Độc lập - Tự do - Hạnh phúc', "
+    "'CĂN CƯỚC CÔNG DÂN', logo, chức danh. "
+    "Chỉ trả về các trường dữ liệu theo đúng format trên, không giải thích thêm."
+)
+
 
 _NO_IMAGE_PATTERNS = re.compile(
     r"(không\s*(thấy|nhận|có)\s*ảnh|chưa\s*thấy\s*ảnh|gửi\s*lại\s*ảnh|"
@@ -69,17 +89,15 @@ def _is_no_image_response(text: str) -> bool:
 def parse_cccd_image(front_bytes: bytes, back_bytes: bytes | None = None) -> dict:
     """
     OCR front and back CCCD images using Gatecheap Vision API and parse structured guest information.
-    Sends front+back in parallel when both provided.
+    When both images are provided, sends them in a single API request to avoid concurrent-request issues.
     """
     t0 = time.monotonic()
     front_text = ""
     back_text = ""
 
     if front_bytes and back_bytes:
-        # Run both OCR calls in parallel via asyncio
-        front_text, back_text = _run_parallel_ocr(front_bytes, back_bytes)
+        front_text, back_text = _run_dual_ocr(front_bytes, back_bytes)
     else:
-        # Single image — sequential
         if front_bytes:
             try:
                 front_text = _run_gatecheap_ocr(front_bytes, _PROMPT_FRONT)
@@ -107,35 +125,6 @@ def parse_cccd_image(front_bytes: bytes, back_bytes: bytes | None = None) -> dic
 
     return _parse_cccd_text(front_text, back_text)
 
-
-def _run_parallel_ocr(front_bytes: bytes, back_bytes: bytes) -> tuple[str, str]:
-    """Run front and back OCR in parallel using asyncio + httpx.AsyncClient."""
-    async def _do():
-        tasks = [
-            _run_gatecheap_ocr_async(front_bytes, _PROMPT_FRONT),
-            _run_gatecheap_ocr_async(back_bytes, _PROMPT_BACK),
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        front = results[0] if isinstance(results[0], str) else ""
-        back = results[1] if isinstance(results[1], str) else ""
-        if isinstance(results[0], Exception):
-            logger.error(f"Error running Gatecheap OCR on front image: {results[0]}")
-        if isinstance(results[1], Exception):
-            logger.error(f"Error running Gatecheap OCR on back image: {results[1]}")
-        return front, back
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        loop = None
-
-    if loop and loop.is_running():
-        # Already inside async context (FastAPI) — create task on existing loop
-        import concurrent.futures
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(asyncio.run, _do()).result()
-    else:
-        return asyncio.run(_do())
 
 def _preprocess_image(image_bytes: bytes) -> bytes:
     """Preprocess image: fix EXIF orientation, resize to 1024px, compress JPEG quality 70."""
@@ -186,6 +175,107 @@ def _build_ocr_payload(image_bytes: bytes, prompt_text: str, model: str) -> tupl
         "stream": False,
     }
     return url, headers, json_body
+
+
+def _build_dual_image_payload(front_bytes: bytes, back_bytes: bytes, model: str) -> tuple[str, dict, dict]:
+    """Build payload with 2 images (front + back CCCD) in a single request."""
+    front_b64 = base64.b64encode(front_bytes).decode()
+    back_b64 = base64.b64encode(back_bytes).decode()
+    url = f"{settings.GATECHEAP_BASE_URL}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {settings.GATECHEAP_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    json_body = {
+        "model": model,
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "text", "text": _PROMPT_BOTH},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{front_b64}"}},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{back_b64}"}},
+            ],
+        }],
+        "temperature": 0.0,
+        "max_tokens": 4096,
+        "stream": False,
+    }
+    return url, headers, json_body
+
+
+def _run_dual_ocr(front_bytes: bytes, back_bytes: bytes) -> tuple[str, str]:
+    """Send both CCCD images in a single API request. Returns (front_text, back_text)."""
+    if not settings.GATECHEAP_API_KEY:
+        logger.warning("GATECHEAP_API_KEY not set — skipping OCR.")
+        return "", ""
+
+    front_bytes = _preprocess_image(front_bytes)
+    back_bytes = _preprocess_image(back_bytes)
+    logger.info(f"[CCCD OCR dual] front={len(front_bytes)}B back={len(back_bytes)}B")
+
+    models_to_try = [
+        settings.GATECHEAP_MODEL,
+        settings.GATECHEAP_FALLBACK_MODEL,
+        settings.GATECHEAP_SECOND_FALLBACK_MODEL,
+    ]
+    models_to_try = [m for m in models_to_try if m]
+
+    _MIN_OCR_CHARS = 50
+    last_error = None
+
+    for model in models_to_try:
+        try:
+            url, headers, json_body = _build_dual_image_payload(front_bytes, back_bytes, model)
+            response = httpx.post(url, headers=headers, json=json_body, timeout=30.0)
+            response.raise_for_status()
+            try:
+                result = response.json()
+            except Exception:
+                logger.warning(f"Gatecheap OCR dual model={model} returned non-JSON: {response.text[:200]!r}")
+                continue
+            text = (result["choices"][0]["message"].get("content") or "").strip()
+            finish_reason = result["choices"][0].get("finish_reason", "unknown")
+            logger.info(f"Gatecheap OCR dual model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}")
+            if _is_no_image_response(text):
+                logger.warning(f"Gatecheap OCR dual model={model} hallucinated no-image, trying next model")
+                continue
+            if len(text) < _MIN_OCR_CHARS:
+                logger.warning(f"Gatecheap OCR dual model={model} too few chars ({len(text)}), trying next model")
+                continue
+            # Split response by ===FRONT=== / ===BACK=== markers
+            return _split_dual_response(text)
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Gatecheap OCR dual failed model={model}: {e}")
+            continue
+
+    if last_error:
+        logger.error(f"All models failed for dual OCR: {last_error}")
+    return "", ""
+
+
+def _split_dual_response(text: str) -> tuple[str, str]:
+    """Split ===FRONT=== / ===BACK=== delimited response into two parts."""
+    front_text = ""
+    back_text = ""
+
+    # Try splitting on markers
+    front_match = re.search(r"===\s*FRONT\s*===", text, re.IGNORECASE)
+    back_match = re.search(r"===\s*BACK\s*===", text, re.IGNORECASE)
+
+    if front_match and back_match:
+        front_text = text[front_match.end():back_match.start()].strip()
+        back_text = text[back_match.end():].strip()
+    elif back_match:
+        # Only BACK marker found — everything before it is front
+        front_text = text[:back_match.start()].strip()
+        back_text = text[back_match.end():].strip()
+    else:
+        # No markers — treat entire response as front text
+        front_text = text
+        logger.warning("Dual OCR response missing ===BACK=== marker, treating all as front")
+
+    return front_text, back_text
 
 
 def _run_gatecheap_ocr(image_bytes: bytes, prompt_text: str = "") -> str:
@@ -243,61 +333,6 @@ def _run_gatecheap_ocr(image_bytes: bytes, prompt_text: str = "") -> str:
         raise last_error
     return ""
 
-
-async def _run_gatecheap_ocr_async(image_bytes: bytes, prompt_text: str = "") -> str:
-    """Run OCR via Gatecheap Vision API. Async version for parallel front+back calls."""
-    if not settings.GATECHEAP_API_KEY:
-        logger.warning("GATECHEAP_API_KEY not set — skipping OCR.")
-        return ""
-
-    image_bytes = _preprocess_image(image_bytes)
-    logger.info(f"[CCCD OCR async] preprocessed image size: {len(image_bytes)} bytes")
-
-    models_to_try = [
-        settings.GATECHEAP_MODEL,
-        settings.GATECHEAP_FALLBACK_MODEL,
-        settings.GATECHEAP_SECOND_FALLBACK_MODEL,
-    ]
-    models_to_try = [m for m in models_to_try if m]
-
-    if not prompt_text:
-        prompt_text = _PROMPT_FRONT
-
-    _MIN_OCR_CHARS = 50
-
-    last_error = None
-    async with httpx.AsyncClient() as client:
-        for model in models_to_try:
-            try:
-                url, headers, json_body = _build_ocr_payload(image_bytes, prompt_text, model)
-                response = await client.post(url, headers=headers, json=json_body, timeout=20.0)
-                response.raise_for_status()
-                raw_body = response.text
-                try:
-                    result = response.json()
-                except Exception:
-                    logger.warning(f"Gatecheap OCR (async) model={model} returned non-JSON (status {response.status_code}): {raw_body[:200]!r}")
-                    continue
-                text = result["choices"][0]["message"]["content"]
-                finish_reason = result["choices"][0].get("finish_reason", "unknown")
-                if text and text.strip():
-                    text = text.strip()
-                    logger.info(f"Gatecheap OCR (async) model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}")
-                    if _is_no_image_response(text):
-                        logger.warning(f"Gatecheap OCR (async) model={model} hallucinated no-image response, trying next model")
-                        continue
-                    if len(text) >= _MIN_OCR_CHARS:
-                        return text
-                    logger.warning(f"Gatecheap OCR (async) model={model} returned too few chars ({len(text)}), trying next model")
-                    continue
-            except Exception as e:
-                last_error = e
-                logger.warning(f"Gatecheap OCR failed (async) with model={model}: {e}")
-                continue
-
-    if last_error:
-        raise last_error
-    return ""
 
 def _extract_residence_from_lines(text_lines: list[str], *, allow_unlabeled: bool = False) -> str:
     residence_lines = []
