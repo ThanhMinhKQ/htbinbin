@@ -54,6 +54,18 @@ _PROMPT_BACK = (
 )
 
 
+_NO_IMAGE_PATTERNS = re.compile(
+    r"(không\s*(thấy|nhận|có)\s*ảnh|chưa\s*thấy\s*ảnh|gửi\s*lại\s*ảnh|"
+    r"no\s*image|don'?t\s*see\s*(an|any)\s*image|i\s*can'?t\s*see\s*(an|any)\s*image)",
+    re.IGNORECASE,
+)
+
+
+def _is_no_image_response(text: str) -> bool:
+    """Detect when model hallucinates that no image was attached."""
+    return bool(text) and bool(_NO_IMAGE_PATTERNS.search(text))
+
+
 def parse_cccd_image(front_bytes: bytes, back_bytes: bytes | None = None) -> dict:
     """
     OCR front and back CCCD images using Gatecheap Vision API and parse structured guest information.
@@ -215,6 +227,9 @@ def _run_gatecheap_ocr(image_bytes: bytes, prompt_text: str = "") -> str:
             if text and text.strip():
                 text = text.strip()
                 logger.info(f"Gatecheap OCR model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}")
+                if _is_no_image_response(text):
+                    logger.warning(f"Gatecheap OCR model={model} hallucinated no-image response, trying next model")
+                    continue
                 if len(text) >= _MIN_OCR_CHARS:
                     return text
                 logger.warning(f"Gatecheap OCR model={model} returned too few chars ({len(text)}), trying next model")
@@ -268,6 +283,9 @@ async def _run_gatecheap_ocr_async(image_bytes: bytes, prompt_text: str = "") ->
                 if text and text.strip():
                     text = text.strip()
                     logger.info(f"Gatecheap OCR (async) model={model} returned {len(text)} chars (finish={finish_reason}): {text[:200]!r}")
+                    if _is_no_image_response(text):
+                        logger.warning(f"Gatecheap OCR (async) model={model} hallucinated no-image response, trying next model")
+                        continue
                     if len(text) >= _MIN_OCR_CHARS:
                         return text
                     logger.warning(f"Gatecheap OCR (async) model={model} returned too few chars ({len(text)}), trying next model")
