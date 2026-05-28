@@ -350,7 +350,7 @@ html.dark #inventory-page .inv-overview-header {
 /* ── KPI dashboard cards with booking-card rhythm ── */
 #inventory-page .inv-kpi-grid {
   display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   gap: 16px !important;
   margin: 0 0 16px !important;
 }
