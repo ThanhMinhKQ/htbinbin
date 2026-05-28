@@ -10,9 +10,25 @@ from datetime import datetime, timedelta
 import math
 import json
 import random
+import threading
+import time as _time
 from decimal import Decimal
 from pydantic import BaseModel
 import string # THÊM: Để tạo mã giao dịch
+
+
+# ── Dashboard summary cache ──────────────────────────────────────────
+# Cache in-process trong 30s cho /api/dashboard-summary để giảm tải khi
+# nhiều client cùng poll. Invalidate khi có giao dịch mới (insert/update/
+# delete/close) thông qua _invalidate_dashboard_cache().
+_DASHBOARD_CACHE_TTL_SECONDS = 30.0
+_dashboard_cache: dict[tuple, tuple[float, dict]] = {}
+_dashboard_cache_lock = threading.Lock()
+
+
+def _invalidate_dashboard_cache() -> None:
+    with _dashboard_cache_lock:
+        _dashboard_cache.clear()
 
 
 class _DecimalEncoder(json.JSONEncoder):
@@ -516,7 +532,7 @@ def _get_filtered_transactions(
 # ENDPOINT TẢI TRANG (SỬA)
 # ----------------------------------------------------------------------
 @router.get("", response_class=HTMLResponse)
-async def shift_report_page(
+def shift_report_page(
     request: Request,
     db: Session = Depends(get_db),
     page: int = 1,
@@ -623,44 +639,44 @@ async def shift_report_page(
 # ----------------------------------------------------------------------
 # Endpoint nhẹ để kiểm tra thay đổi (dùng cho polling)
 @router.get("/api/changes")
-async def api_check_changes(
+def api_check_changes(
     request: Request,
     db: Session = Depends(get_db),
     since_id: int = 0,
     chi_nhanh: Optional[str] = None,
 ):
-    """API nhẹ để kiểm tra có thay đổi mới không. Trả về ID lớn nhất và số bản ghi mới."""
+    """API nhẹ để kiểm tra có thay đổi mới không. Trả về ID lớn nhất.
+
+    Sync handler — Starlette tự đẩy vào threadpool, tránh block event loop khi
+    SQLAlchemy session là sync.
+    """
     user_data = request.session.get("user")
     if not user_data:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    # Lấy chi nhánh
     active_branch_for_letan = None
     if user_data.get("role") == 'letan' and not chi_nhanh:
         active_branch_for_letan = get_active_branch(request, db, user_data)
 
     branch_filter = chi_nhanh or active_branch_for_letan
 
-    query = db.query(func.max(ShiftReportTransaction.id).label('max_id'), func.count(ShiftReportTransaction.id).label('count'))
-    
+    query = db.query(func.max(ShiftReportTransaction.id).label('max_id'))
+
     if branch_filter:
         query = query.join(ShiftReportTransaction.branch).filter(Branch.branch_code == branch_filter)
-    
-    if since_id > 0:
-        query = query.filter(ShiftReportTransaction.id > since_id)
 
     result = query.first()
+    current_max_id = result.max_id if result and result.max_id is not None else 0
 
     return DecimalSafeJSONResponse({
-        "has_changes": result.count > 0 if result else False,
-        "max_id": result.max_id if result else since_id,
-        "new_count": result.count if result else 0,
+        "has_changes": current_max_id > since_id,
+        "max_id": current_max_id if current_max_id > 0 else since_id,
     })
 
 
 @router.get("/api", response_model=ShiftTransactionsResponse)
-async def api_shift_report_transactions(
-    request: Request, 
+def api_shift_report_transactions(
+    request: Request,
     db: Session = Depends(get_db),
     page: int = 1,
     per_page: int = 20,
@@ -804,6 +820,7 @@ async def add_shift_transaction( # SỬA
     
     db.add(new_transaction)
     db.commit()
+    _invalidate_dashboard_cache()
     # SỬA: Refresh quan hệ
     db.refresh(new_transaction, ["branch", "recorder"])
     return {"status": "success", "message": "Đã thêm giao dịch thành công.", "item": _serialize_transaction(new_transaction)}
@@ -826,7 +843,7 @@ class PMSAddShiftPayload(BaseModel):
 
 
 @router.post("/add-json", status_code=201, response_model=dict)
-async def add_shift_transaction_from_pms(
+def add_shift_transaction_from_pms(
     payload: PMSAddShiftPayload,
     request: Request,
     db: Session = Depends(get_db),
@@ -902,6 +919,7 @@ async def add_shift_transaction_from_pms(
 
     db.add(new_transaction)
     db.commit()
+    _invalidate_dashboard_cache()
     db.refresh(new_transaction, ["branch", "recorder"])
 
     return {
@@ -915,7 +933,7 @@ async def add_shift_transaction_from_pms(
 # ENDPOINT CHỈNH SỬA (SỬA)
 # ----------------------------------------------------------------------
 @router.get("/edit-source/{item_id}", response_model=dict)
-async def get_shift_edit_source(item_id: int, request: Request, db: Session = Depends(get_db)):
+def get_shift_edit_source(item_id: int, request: Request, db: Session = Depends(get_db)):
     """Trả về thông tin nguồn (truy vết) của một dòng giao ca trước khi cho user sửa.
 
     UI dùng kết quả này để render cảnh báo: dòng giao ca này đang link tới Folio nào,
@@ -1011,7 +1029,7 @@ async def get_shift_edit_source(item_id: int, request: Request, db: Session = De
 
 
 @router.post("/edit-details/{item_id}", response_model=dict)
-async def edit_shift_transaction_details( # SỬA
+def edit_shift_transaction_details( # SỬA
     item_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -1137,6 +1155,7 @@ async def edit_shift_transaction_details( # SỬA
                     cascade_summary["folio_rebalanced"] = True
 
     db.commit()
+    _invalidate_dashboard_cache()
     # SỬA: Refresh quan hệ
     db.refresh(item, ["branch", "recorder", "closer", "deleter"])
     return {
@@ -1151,7 +1170,7 @@ async def edit_shift_transaction_details( # SỬA
 # ENDPOINT CẬP NHẬT TRẠNG THÁI (SỬA)
 # ----------------------------------------------------------------------
 @router.post("/update/{item_id}", response_model=dict)
-async def update_shift_transaction_status( # SỬA
+def update_shift_transaction_status( # SỬA
     item_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -1184,6 +1203,7 @@ async def update_shift_transaction_status( # SỬA
     # XOÁ: Logic action "return" và "dispose"
     
     db.commit()
+    _invalidate_dashboard_cache()
     # SỬA: Refresh TẤT CẢ các quan hệ
     db.refresh(item, ["branch", "recorder", "closer", "deleter"])
     return {"status": "success", "message": "Đã cập nhật trạng thái.", "item": _serialize_transaction(item)}
@@ -1192,9 +1212,9 @@ async def update_shift_transaction_status( # SỬA
 # ENDPOINT XÓA (SỬA: Chỉ đổi tên model/status)
 # ----------------------------------------------------------------------
 @router.post("/delete/{item_id}", response_class=DecimalSafeJSONResponse)
-async def delete_shift_transaction( # SỬA
-    item_id: int, 
-    request: Request, 
+def delete_shift_transaction( # SỬA
+    item_id: int,
+    request: Request,
     db: Session = Depends(get_db),
     hard_delete: bool = Form(False) 
 ):
@@ -1262,6 +1282,7 @@ async def delete_shift_transaction( # SỬA
 
         db.delete(item)
         db.commit()
+        _invalidate_dashboard_cache()
         return DecimalSafeJSONResponse({
             "status": "success",
             "message": "Đã xóa vĩnh viễn giao dịch.",
@@ -1288,7 +1309,7 @@ async def delete_shift_transaction( # SỬA
 # ENDPOINT XÓA HÀNG LOẠT (SỬA: Chỉ đổi tên model/status)
 # ----------------------------------------------------------------------
 @router.post("/batch-delete", response_model=dict)
-async def batch_delete_shift_transactions( # SỬA
+def batch_delete_shift_transactions( # SỬA
     payload: BatchDeleteTransactionsPayload, # SỬA: Dùng schema mới
     request: Request,
     db: Session = Depends(get_db)
@@ -1364,8 +1385,9 @@ async def batch_delete_shift_transactions( # SỬA
                 db.delete(item)
                 deleted_ids.append(item_id_to_delete)
             db.commit()
+            _invalidate_dashboard_cache()
             return DecimalSafeJSONResponse({
-                "status": "success", 
+                "status": "success",
                 "message": f"Đã xóa vĩnh viễn {len(deleted_ids)} mục.",
                 "ids": ids_to_process,
                 "hard_delete": True
@@ -1392,9 +1414,10 @@ async def batch_delete_shift_transactions( # SỬA
                 "deleter_id": deleter_id,
                 "deleted_datetime": now
             }, synchronize_session=False)
-            
+
             db.commit()
-            
+            _invalidate_dashboard_cache()
+
             # SỬA: Query model mới
             updated_items = db.query(ShiftReportTransaction).options(
                 joinedload(ShiftReportTransaction.branch),
@@ -1420,7 +1443,7 @@ async def batch_delete_shift_transactions( # SỬA
 # app/api/shift_report.py
 
 @router.post("/batch-close", response_model=dict)
-async def batch_close_transactions(
+def batch_close_transactions(
     payload: BatchCloseTransactionsPayload,
     request: Request,
     db: Session = Depends(get_db)
@@ -1503,6 +1526,7 @@ async def batch_close_transactions(
             )
             db.add(new_log_entry)
             db.commit()
+            _invalidate_dashboard_cache()
 
             db.refresh(new_log_entry)
             new_log_id = new_log_entry.id
@@ -1524,7 +1548,7 @@ async def batch_close_transactions(
         raise HTTPException(status_code=500, detail="Lỗi server khi kết ca.")
 
 @router.get("/api/dashboard-summary")
-async def get_dashboard_summary(
+def get_dashboard_summary(
     request: Request,
     db: Session = Depends(get_db),
     chi_nhanh: Optional[str] = None,
@@ -1539,6 +1563,24 @@ async def get_dashboard_summary(
     user_data = request.session.get("user")
     if not user_data:
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập.")
+
+    # Cache key bao gồm role + active branch để Lễ tân không thấy data của Admin.
+    user_role = user_data.get("role")
+    user_branch = user_data.get("branch") or user_data.get("active_branch") or ""
+    cache_key = (
+        user_role,
+        user_branch,
+        chi_nhanh or "",
+        status or "",
+        from_date or "",
+        to_date or "",
+        transaction_type or "",
+    )
+    now_mono = _time.monotonic()
+    with _dashboard_cache_lock:
+        cached = _dashboard_cache.get(cache_key)
+        if cached and (now_mono - cached[0]) < _DASHBOARD_CACHE_TTL_SECONDS:
+            return DecimalSafeJSONResponse(content=cached[1])
 
     try:
         # --- 1. CHUẨN BỊ BỘ LỌC CHUNG (FILTERS) ---
@@ -1723,7 +1765,7 @@ async def get_dashboard_summary(
                 })
 
         # --- 6. TRẢ VỀ KẾT QUẢ ---
-        return DecimalSafeJSONResponse(content={
+        result_payload = {
             "status": "success",
             "data": {
                 "by_branch": final_branch_ranking,
@@ -1759,7 +1801,10 @@ async def get_dashboard_summary(
                     "pending_net": float(pending_summary["net_total"] or 0),
                 }
             }
-        })
+        }
+        with _dashboard_cache_lock:
+            _dashboard_cache[cache_key] = (_time.monotonic(), result_payload)
+        return DecimalSafeJSONResponse(content=result_payload)
 
     except Exception as e:
         logger.error(f"Lỗi khi lấy dữ liệu dashboard giao ca: {e}", exc_info=True)
@@ -1775,7 +1820,7 @@ async def get_dashboard_summary(
         })
 
 @router.get("/api/shift-close-details/{log_id}", response_model=dict)
-async def get_shift_close_details(
+def get_shift_close_details(
     log_id: int,
     request: Request,
     db: Session = Depends(get_db)
@@ -1822,7 +1867,7 @@ async def get_shift_close_details(
     })
 
 @router.post("/api/undo-shift-close/{log_id}", response_model=dict)
-async def undo_shift_close(
+def undo_shift_close(
     log_id: int,
     request: Request,
     db: Session = Depends(get_db)
@@ -1852,6 +1897,7 @@ async def undo_shift_close(
         # Xóa bản ghi log
         db.delete(log_entry)
         db.commit()
+        _invalidate_dashboard_cache()
         return {"status": "success", "message": "Đã hoàn tác kết ca thành công."}
     except Exception as e:
         db.rollback()
@@ -1859,7 +1905,7 @@ async def undo_shift_close(
         raise HTTPException(status_code=500, detail="Lỗi server khi hoàn tác kết ca.")
 
 @router.delete("/api/delete-shift-close/{log_id}", response_model=dict)
-async def delete_shift_close(
+def delete_shift_close(
     log_id: int,
     request: Request,
     db: Session = Depends(get_db)
@@ -1888,6 +1934,7 @@ async def delete_shift_close(
         # Xóa bản ghi log
         db.delete(log_entry)
         db.commit()
+        _invalidate_dashboard_cache()
         return {"status": "success", "message": "Đã xóa vĩnh viễn lần kết ca và các giao dịch liên quan."}
     except Exception as e:
         db.rollback()
@@ -1895,7 +1942,7 @@ async def delete_shift_close(
         raise HTTPException(status_code=500, detail="Lỗi server khi xóa kết ca.")
 
 @router.get("/api/monthly-summary")
-async def get_monthly_summary(
+def get_monthly_summary(
     request: Request,
     year: int,
     db: Session = Depends(get_db)
@@ -1969,7 +2016,7 @@ class UndoTransactionPayload(BaseModel):
     transaction_id: int
 
 @router.post("/api/undo-transaction-from-log", response_model=dict)
-async def undo_transaction_from_log(
+def undo_transaction_from_log(
     payload: UndoTransactionPayload,
     request: Request,
     db: Session = Depends(get_db)
@@ -2018,11 +2065,12 @@ async def undo_transaction_from_log(
         db.delete(log_entry)
 
     db.commit()
+    _invalidate_dashboard_cache()
     return {"status": "success", "message": "Đã hoàn tác giao dịch thành công."}
 
 
 @router.get("/api/pending-summary")
-async def get_pending_summary(
+def get_pending_summary(
     request: Request,
     branch: str,
     db: Session = Depends(get_db)
@@ -2030,24 +2078,52 @@ async def get_pending_summary(
     """
     API để lấy tổng số tiền của các giao dịch đang ở trạng thái PENDING
     cho một chi nhánh cụ thể.
+
+    Tối ưu: dùng SQL aggregate (SUM + CASE) thay vì load mọi row vào RAM rồi
+    summarize trong Python. Chỉ trả về field client thực sự đọc.
     """
     user_data = request.session.get("user")
     if not user_data or user_data.get("role") not in ["admin", "boss", "letan", "quanly"]:
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     try:
-        pending_transactions = db.query(ShiftReportTransaction).join(
-            Branch, ShiftReportTransaction.branch_id == Branch.id
-        ).filter(
-            Branch.branch_code == branch,
-            ShiftReportTransaction.status == ShiftReportStatus.PENDING
-        ).all()
-        summary = summarize_shift_transactions(pending_transactions)
+        refund_type = TransactionType.CASH_EXPENSE.value
+        refund_case = case(
+            (ShiftReportTransaction.transaction_type == refund_type, ShiftReportTransaction.amount),
+            else_=0,
+        )
+        inflow_case = case(
+            (ShiftReportTransaction.transaction_type != refund_type, ShiftReportTransaction.amount),
+            else_=0,
+        )
+
+        row = (
+            db.query(
+                func.coalesce(func.sum(inflow_case), 0).label("gross_inflow"),
+                func.coalesce(func.sum(refund_case), 0).label("refund_outflow"),
+                func.count(ShiftReportTransaction.id).label("count"),
+            )
+            .join(Branch, ShiftReportTransaction.branch_id == Branch.id)
+            .filter(
+                Branch.branch_code == branch,
+                ShiftReportTransaction.status == ShiftReportStatus.PENDING,
+            )
+            .first()
+        )
+
+        gross_inflow = float(row.gross_inflow or 0) if row else 0.0
+        refund_outflow = float(row.refund_outflow or 0) if row else 0.0
+        net_total = gross_inflow - refund_outflow
 
         return DecimalSafeJSONResponse(content={
             "status": "success",
-            "total_pending_amount": summary["net_total"],
-            "summary": summary,
+            "total_pending_amount": net_total,
+            "summary": {
+                "gross_inflow": gross_inflow,
+                "refund_outflow": refund_outflow,
+                "net_total": net_total,
+                "count": int(row.count or 0) if row else 0,
+            },
         })
     except Exception as e:
         logger.error(f"Lỗi khi lấy tổng hợp giao dịch chờ xử lý cho chi nhánh '{branch}': {e}", exc_info=True)
@@ -2059,7 +2135,7 @@ class DeleteTransactionFromLogPayload(BaseModel):
 # app/api/shift_report.py
 
 @router.get("/api/all-pending")
-async def get_all_pending_for_branch(
+def get_all_pending_for_branch(
     request: Request,
     branch: str, # Nhận chi nhánh từ query param
     db: Session = Depends(get_db),
@@ -2118,7 +2194,7 @@ async def get_all_pending_for_branch(
         return DecimalSafeJSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 @router.post("/api/delete-transaction-from-log/{transaction_id}", response_model=dict)
-async def delete_transaction_from_log(
+def delete_transaction_from_log(
     transaction_id: int,
     payload: DeleteTransactionFromLogPayload,
     request: Request,
@@ -2186,6 +2262,7 @@ async def delete_transaction_from_log(
         _set_model_attr(log_entry, "closed_branch_revenue", closed_branch_revenue)
 
     db.commit()
+    _invalidate_dashboard_cache()
 
     # Chuẩn bị dữ liệu log đã cập nhật để trả về
     updated_log_details = {
@@ -2207,7 +2284,7 @@ async def delete_transaction_from_log(
 # ====================================================================
 
 @router.get("/api/pms-pending-summary", response_model=dict)
-async def get_pms_pending_summary(
+def get_pms_pending_summary(
     request: Request,
     branch: str,
     db: Session = Depends(get_db),
@@ -2258,7 +2335,7 @@ async def get_pms_pending_summary(
 # ====================================================================
 
 @router.get("/api/analytics")
-async def get_shift_analytics(
+def get_shift_analytics(
     request: Request,
     db: Session = Depends(get_db),
     month: Optional[int] = None,

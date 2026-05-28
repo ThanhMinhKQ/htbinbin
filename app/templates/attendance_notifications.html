@@ -665,7 +665,7 @@
           <col span="6" style="width: 10.5%;">
           {% else %}
           <col style="width: 37%;">
-          <col span="5" style="width: 12.6%;">
+          <col span="4" style="width: 15.75%;">
           {% endif %}
         </colgroup>
         <thead class="sticky top-0 z-10 border-b border-slate-200 bg-slate-50/90 backdrop-blur-sm text-xs uppercase text-slate-600 dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-300">
@@ -678,7 +678,9 @@
             <th class="px-4 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Thông báo</th>
             <th class="px-2 py-4 text-center font-bold tracking-wider text-slate-500 dark:text-slate-400">Trạng thái</th>
             <th class="px-2 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Mức độ</th>
+            {% if can_manage_shift_notifications %}
             <th class="px-2 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Đối tượng</th>
+            {% endif %}
             <th class="px-2 py-4 font-bold tracking-wider text-slate-500 dark:text-slate-400">Hiệu lực</th>
             <th class="px-2 py-4 text-center font-bold tracking-wider text-slate-500 dark:text-slate-400">Xác nhận</th>
             {% if can_manage_shift_notifications %}
@@ -714,10 +716,12 @@
               <td class="px-2 py-4 align-middle">
                 <span class="inline-flex whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold shadow-sm" :class="priorityClass(item.priority)" :title="priorityLabel(item.priority)" x-text="priorityLabel(item.priority)"></span>
               </td>
+              {% if can_manage_shift_notifications %}
               <td class="px-2 py-4 align-middle text-[11px] text-slate-600 dark:text-slate-300">
                 <div class="whitespace-nowrap font-semibold text-slate-800 dark:text-slate-200" :title="shiftLabel(item.schedule_shift)" x-text="shiftLabel(item.schedule_shift)"></div>
                 <div class="mt-1 whitespace-nowrap text-slate-500" :title="audienceLabel(item)" x-text="audienceLabel(item)"></div>
               </td>
+              {% endif %}
               <td class="px-2 py-4 align-middle text-[11px] text-slate-600 dark:text-slate-300">
                 <div class="whitespace-nowrap font-medium text-slate-800 dark:text-slate-200" :title="formatDate(item.starts_at) || 'Không giới hạn'" x-text="formatDate(item.starts_at) || 'Không giới hạn'"></div>
                 <div class="mt-1 whitespace-nowrap text-slate-500" :title="`đến ${formatDate(item.ends_at) || 'Không giới hạn'}`">đến <span class="font-medium" x-text="formatDate(item.ends_at) || 'Không giới hạn'"></span></div>
@@ -778,10 +782,12 @@
             <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Xác nhận</div>
             <div class="font-bold text-slate-800 dark:text-slate-100 text-sm" x-text="formatNumber(item.read_count || 0)"></div>
           </div>
+          {% if can_manage_shift_notifications %}
           <div class="col-span-2 sm:col-span-1">
             <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Đối tượng</div>
             <div class="sn-line-clamp text-slate-700 dark:text-slate-200" x-text="audienceLabel(item)"></div>
           </div>
+          {% endif %}
           <div class="col-span-2 sm:col-span-1">
             <div class="text-slate-400 uppercase tracking-wider text-[10px] font-bold mb-1">Hiệu lực</div>
             <div class="whitespace-normal break-words text-slate-700 dark:text-slate-200" x-text="formatDate(item.starts_at) || 'Không giới hạn'"></div>
@@ -839,6 +845,7 @@
           </div>
           <div class="sn-rich-content text-sm text-slate-800 dark:text-slate-100" x-html="richBody(detailItem?.body)"></div>
         </div>
+        {% if can_manage_shift_notifications %}
         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800/50">
             <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -878,6 +885,7 @@
             <div class="mt-1.5 text-xs text-slate-400">Tạo lúc <span x-text="formatDate(detailItem?.created_at)"></span></div>
           </div>
         </div>
+        {% endif %}
       </div>
 
       <div class="flex flex-col-reverse gap-3 border-t border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800 sm:flex-row sm:justify-end">

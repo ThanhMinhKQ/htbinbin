@@ -16,10 +16,15 @@ export default function(config = {}) {
     groupedStocks: {},
     stockSearch: '', // Search term for filtering stocks
     selectedCategory: '', // Selected category filter (empty = 'Tất cả')
-    stockViewMode: 'cards',
-    selectedMonth: new Date().getMonth() + 1, // 1-12
+    stockStatusFilter: 'ALL', // ALL | STABLE | WARNING
+    stockSortField: '', // '', 'product_name', 'categoryName', 'quantity', 'total_import', 'total_export', 'status'
+    stockSortDir: 'asc', // 'asc' | 'desc'
+    stockViewMode: 'list',
+    selectedMonth: new Date().getMonth() + 1, // 1-12 (kept for backward compat / stock-list gating)
     selectedYear: new Date().getFullYear(),
     selectedMonthInput: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // For input type="month" (YYYY-MM format)
+    overviewDateFrom: '', // YYYY-MM-DD; default = first day of current month
+    overviewDateTo: '',   // YYYY-MM-DD; default = today
     loadingOverview: true,
 
     // Product History Modal State
@@ -63,6 +68,22 @@ export default function(config = {}) {
         return ['Tất cả', ...categories];
     },
 
+    matchesStockStatusFilter(item) {
+        if (this.stockStatusFilter === 'ALL') return true;
+        const isWarning = item.status === 'Cảnh báo';
+        if (this.stockStatusFilter === 'WARNING') return isWarning;
+        if (this.stockStatusFilter === 'STABLE') return !isWarning;
+        return true;
+    },
+
+    getStockCountByStatus(status) {
+        if (!this.stocks) return 0;
+        if (status === 'ALL') return this.stocks.length;
+        if (status === 'WARNING') return this.stocks.filter(s => s.status === 'Cảnh báo').length;
+        if (status === 'STABLE') return this.stocks.filter(s => s.status !== 'Cảnh báo').length;
+        return 0;
+    },
+
     // Function to get filtered grouped stocks (not a getter because spread operator doesn't preserve getters)
     filteredGroupedStocks() {
         let result = this.groupedStocks;
@@ -74,16 +95,13 @@ export default function(config = {}) {
             };
         }
 
-        // Then, filter by search term if provided
-        if (!this.stockSearch || this.stockSearch.trim() === '') {
-            return result;
-        }
-
-        const searchTerm = this.stockSearch.toLowerCase().trim();
+        const searchTerm = (this.stockSearch || '').toLowerCase().trim();
         const filtered = {};
 
         Object.keys(result).forEach(categoryName => {
             const filteredItems = result[categoryName].filter(item => {
+                if (!this.matchesStockStatusFilter(item)) return false;
+                if (!searchTerm) return true;
                 const productName = (item.product_name || '').toLowerCase();
                 const productCode = (item.product_code || '').toLowerCase();
                 return productName.includes(searchTerm) || productCode.includes(searchTerm);
@@ -98,9 +116,51 @@ export default function(config = {}) {
     },
 
     getFlatFilteredStocks() {
-        return Object.entries(this.filteredGroupedStocks()).flatMap(([categoryName, items]) => {
+        const flat = Object.entries(this.filteredGroupedStocks()).flatMap(([categoryName, items]) => {
             return items.map(item => ({ ...item, categoryName }));
         });
+
+        if (!this.stockSortField) return flat;
+
+        const field = this.stockSortField;
+        const dir = this.stockSortDir === 'desc' ? -1 : 1;
+        const numericFields = ['quantity', 'total_import', 'total_export'];
+
+        return flat.slice().sort((a, b) => {
+            let av, bv;
+            if (field === 'quantity') {
+                av = Number(a.quantity ?? a.closing_balance ?? a.quantity_base ?? 0);
+                bv = Number(b.quantity ?? b.closing_balance ?? b.quantity_base ?? 0);
+            } else if (numericFields.includes(field)) {
+                av = Number(a[field] ?? 0);
+                bv = Number(b[field] ?? 0);
+            } else {
+                av = (a[field] ?? '').toString().toLowerCase();
+                bv = (b[field] ?? '').toString().toLowerCase();
+            }
+            if (av < bv) return -1 * dir;
+            if (av > bv) return 1 * dir;
+            return 0;
+        });
+    },
+
+    setStockSort(field) {
+        if (this.stockSortField === field) {
+            if (this.stockSortDir === 'asc') {
+                this.stockSortDir = 'desc';
+            } else if (this.stockSortDir === 'desc') {
+                this.stockSortField = '';
+                this.stockSortDir = 'asc';
+            }
+        } else {
+            this.stockSortField = field;
+            this.stockSortDir = 'asc';
+        }
+    },
+
+    getStockSortIcon(field) {
+        if (this.stockSortField !== field) return '↕';
+        return this.stockSortDir === 'asc' ? '↑' : '↓';
     },
 
     getCashInflow() {
@@ -137,12 +197,17 @@ export default function(config = {}) {
         return Boolean(this.isCurrentWarehouseMain || this.isCurrentBranchAdmin);
     },
 
-    // Check if the selected month/year is the current month
+    // Check if the date range covers the entire current month (for stock-list gating)
     isCurrentMonth() {
         const now = new Date();
-        const currentMonth = now.getMonth() + 1; // 1-12
-        const currentYear = now.getFullYear();
-        return this.selectedMonth === currentMonth && this.selectedYear === currentYear;
+        const todayStr = this.formatLocalDate(now);
+        if (this.overviewDateTo && this.overviewDateTo !== todayStr) {
+            const toDate = new Date(this.overviewDateTo);
+            if (toDate.getFullYear() !== now.getFullYear() || toDate.getMonth() !== now.getMonth()) {
+                return false;
+            }
+        }
+        return this.selectedMonth === (now.getMonth() + 1) && this.selectedYear === now.getFullYear();
     },
 
     formatLocalDate(date) {
@@ -152,20 +217,39 @@ export default function(config = {}) {
         return `${year}-${month}-${day}`;
     },
 
-    normalizeOverviewMonth() {
-        const monthValue = this.selectedMonthInput || `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
-        const match = String(monthValue).match(/^(\d{4})-(\d{2})$/);
-        if (!match) {
-            const now = new Date();
-            this.selectedYear = now.getFullYear();
-            this.selectedMonth = now.getMonth() + 1;
-            this.selectedMonthInput = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
-            return;
-        }
+    formatVietnameseDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    },
 
-        this.selectedYear = Number(match[1]);
-        this.selectedMonth = Number(match[2]);
-        this.selectedMonthInput = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
+    getOverviewRangeLabel() {
+        if (!this.overviewDateFrom || !this.overviewDateTo) return '';
+        if (this.overviewDateFrom === this.overviewDateTo) {
+            return this.formatVietnameseDate(this.overviewDateFrom);
+        }
+        return `${this.formatVietnameseDate(this.overviewDateFrom)} → ${this.formatVietnameseDate(this.overviewDateTo)}`;
+    },
+
+    ensureOverviewRangeDefaults() {
+        if (this.overviewDateFrom && this.overviewDateTo) return;
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        this.overviewDateFrom = this.formatLocalDate(firstDay);
+        this.overviewDateTo = this.formatLocalDate(now);
+    },
+
+    syncMonthFromRange() {
+        if (!this.overviewDateFrom) return;
+        const [y, m] = this.overviewDateFrom.split('-');
+        this.selectedYear = Number(y);
+        this.selectedMonth = Number(m);
+        this.selectedMonthInput = `${y}-${m}`;
+    },
+
+    normalizeOverviewMonth() {
+        this.ensureOverviewRangeDefaults();
+        this.syncMonthFromRange();
     },
 
     async initOverview() {
@@ -178,25 +262,102 @@ export default function(config = {}) {
     },
 
     getMonthDateRange() {
-        this.normalizeOverviewMonth();
-        const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
-        const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
+        this.ensureOverviewRangeDefaults();
+        this.syncMonthFromRange();
         return {
-            dateFrom: this.formatLocalDate(firstDay),
-            dateTo: this.formatLocalDate(lastDay)
+            dateFrom: this.overviewDateFrom,
+            dateTo: this.overviewDateTo
         };
     },
 
+    onOverviewRangeChange() {
+        if (this.overviewDateFrom && this.overviewDateTo && this.overviewDateFrom > this.overviewDateTo) {
+            const tmp = this.overviewDateFrom;
+            this.overviewDateFrom = this.overviewDateTo;
+            this.overviewDateTo = tmp;
+            this._syncRangePickers();
+        }
+        this.syncMonthFromRange();
+        this.fetchOverview();
+    },
+
+    _parseISODate(iso) {
+        if (!iso) return null;
+        const [y, m, d] = iso.split('-').map(Number);
+        return new Date(y, (m || 1) - 1, d || 1);
+    },
+
+    _syncRangePickers() {
+        if (this._overviewPickerFrom && this.overviewDateFrom) {
+            this._overviewPickerFrom.setDate(this._parseISODate(this.overviewDateFrom), false);
+        }
+        if (this._overviewPickerTo && this.overviewDateTo) {
+            this._overviewPickerTo.setDate(this._parseISODate(this.overviewDateTo), false);
+        }
+    },
+
+    initOverviewRangePickers(rootEl) {
+        if (typeof flatpickr === 'undefined') return;
+        this.ensureOverviewRangeDefaults();
+        const fromInput = rootEl.querySelector('[data-overview-date="from"]');
+        const toInput = rootEl.querySelector('[data-overview-date="to"]');
+        if (!fromInput || !toInput) return;
+
+        const locale = (flatpickr.l10ns && flatpickr.l10ns.vn) ? 'vn' : 'default';
+        const common = {
+            dateFormat: 'd/m/Y',
+            allowInput: false,
+            locale,
+        };
+
+        if (this._overviewPickerFrom) this._overviewPickerFrom.destroy();
+        if (this._overviewPickerTo) this._overviewPickerTo.destroy();
+
+        this._overviewPickerFrom = flatpickr(fromInput, {
+            ...common,
+            defaultDate: this._parseISODate(this.overviewDateFrom),
+            onChange: (dates) => {
+                if (!dates.length) return;
+                this.overviewDateFrom = this.formatLocalDate(dates[0]);
+                if (this._overviewPickerTo) this._overviewPickerTo.set('minDate', this._parseISODate(this.overviewDateFrom));
+                this.onOverviewRangeChange();
+            }
+        });
+        this._overviewPickerTo = flatpickr(toInput, {
+            ...common,
+            defaultDate: this._parseISODate(this.overviewDateTo),
+            minDate: this._parseISODate(this.overviewDateFrom),
+            onChange: (dates) => {
+                if (!dates.length) return;
+                this.overviewDateTo = this.formatLocalDate(dates[0]);
+                this.onOverviewRangeChange();
+            }
+        });
+    },
+
     updateMonth() {
-        this.normalizeOverviewMonth();
+        // Backward compat for any month input still wired
+        const match = String(this.selectedMonthInput || '').match(/^(\d{4})-(\d{2})$/);
+        if (!match) return;
+        const y = Number(match[1]);
+        const m = Number(match[2]);
+        const now = new Date();
+        const firstDay = new Date(y, m - 1, 1);
+        const lastDay = new Date(y, m, 0);
+        const isCurrent = (y === now.getFullYear() && m === (now.getMonth() + 1));
+        this.overviewDateFrom = this.formatLocalDate(firstDay);
+        this.overviewDateTo = this.formatLocalDate(isCurrent ? now : lastDay);
+        this.syncMonthFromRange();
         this.fetchOverview();
     },
 
     resetToCurrentMonth() {
         const now = new Date();
-        this.selectedMonth = now.getMonth() + 1;
-        this.selectedYear = now.getFullYear();
-        this.selectedMonthInput = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+        this.overviewDateFrom = this.formatLocalDate(firstDay);
+        this.overviewDateTo = this.formatLocalDate(now);
+        this.syncMonthFromRange();
+        this._syncRangePickers();
         this.stockSearch = '';
         this.selectedCategory = '';
         this.fetchOverview();
@@ -441,6 +602,9 @@ export default function(config = {}) {
     resetStockFilters() {
         this.selectedCategory = '';
         this.stockSearch = '';
+        this.stockStatusFilter = 'ALL';
+        this.stockSortField = '';
+        this.stockSortDir = 'asc';
     },
 
     exportStockToExcel() {

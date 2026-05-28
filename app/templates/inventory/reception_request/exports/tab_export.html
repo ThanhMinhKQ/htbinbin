@@ -55,20 +55,35 @@
     <div class="inv-table-card">
         <div class="inv-table-scroll relative">
             <template x-if="loadingExports">
-                <table class="w-full text-sm text-left border-collapse">
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                        <template x-for="i in 5" :key="i">
-                            <tr>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:90px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:70px;"></div></td>
-                                <td class="px-4 py-3 text-center"><div class="skeleton skeleton-text" style="width:30px;margin:0 auto;"></div></td>
-                                <td class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:60px;margin-left:auto;"></div></td>
+                <div class="skeleton-stagger">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-slate-800">
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:70px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:70px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:70px;"></div></th>
+                                <th class="px-4 py-3 text-center"><div class="skeleton skeleton-text" style="width:50px;margin:0 auto;"></div></th>
                             </tr>
-                        </template>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <template x-for="i in 5" :key="i">
+                                <tr>
+                                    <td class="px-4 py-3">
+                                        <div class="skeleton skeleton-text" style="width:88px;"></div>
+                                        <div class="skeleton skeleton-text-sm" style="width:56px;margin-top:4px;"></div>
+                                    </td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:90px;"></div></td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:90px;"></div></td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-badge" style="width:68px;"></div></td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:72px;"></div></td>
+                                    <td class="px-4 py-3 text-center"><div class="skeleton skeleton-btn" style="width:64px;height:28px;margin:0 auto;border-radius:8px;"></div></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
             </template>
             <template x-if="!loadingExports">
             <table class="w-full text-sm text-left text-slate-500 dark:text-slate-400 border-collapse">
@@ -143,77 +158,5 @@
             </button>
         </div>
     </div>
-
-    <!-- Export Detail Modal -->
-    <div x-show="isExportDetailModalOpen" x-cloak
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        @click.self="closeExportDetail()">
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto mx-4">
-            <div class="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-lg font-bold text-slate-900 dark:text-white">Chi tiết phiếu xuất</h3>
-                <button @click="closeExportDetail()" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div class="p-6" x-show="!viewingExportTicket">
-                <div class="flex justify-center py-8">
-                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-                </div>
-            </div>
-            <div class="p-6 space-y-4" x-show="viewingExportTicket">
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400">Mã phiếu:</span>
-                        <span class="ml-2 font-medium text-slate-900 dark:text-white" x-text="viewingExportTicket?.code"></span>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400">Trạng thái:</span>
-                        <span class="ml-2 font-medium" x-text="viewingExportTicket?.status === 'SHIPPING' ? 'Đang giao' : viewingExportTicket?.status === 'COMPLETED' ? 'Hoàn tất' : viewingExportTicket?.status"></span>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400">Kho nguồn:</span>
-                        <span class="ml-2 font-medium text-slate-900 dark:text-white" x-text="viewingExportTicket?.source_warehouse_name || 'Kho Tổng'"></span>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400">Kho đích:</span>
-                        <span class="ml-2 font-medium text-slate-900 dark:text-white" x-text="viewingExportTicket?.dest_warehouse_name || ''"></span>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400">Ngày tạo:</span>
-                        <span class="ml-2" x-text="viewingExportTicket?.created_at ? new Date(viewingExportTicket.created_at).toLocaleString('vi-VN') : ''"></span>
-                    </div>
-                    <div>
-                        <span class="text-slate-500 dark:text-slate-400">Ghi chú:</span>
-                        <span class="ml-2" x-text="viewingExportTicket?.notes || 'Không có'"></span>
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                    <h4 class="font-semibold text-slate-900 dark:text-white mb-2">Danh sách sản phẩm</h4>
-                    <table class="w-full text-sm border-collapse">
-                        <thead>
-                            <tr class="border-b border-slate-200 dark:border-slate-700">
-                                <th class="text-left py-2 px-2">Sản phẩm</th>
-                                <th class="text-right py-2 px-2">SL yêu cầu</th>
-                                <th class="text-right py-2 px-2">SL duyệt</th>
-                                <th class="text-right py-2 px-2">SL nhận</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="item in (viewingExportTicket?.items || [])" :key="item.id">
-                                <tr class="border-b border-slate-100 dark:border-slate-700/50">
-                                    <td class="py-2 px-2 text-slate-900 dark:text-white" x-text="item.product_name"></td>
-                                    <td class="py-2 px-2 text-right" x-text="`${item.request_quantity} ${item.request_unit || ''}`"></td>
-                                    <td class="py-2 px-2 text-right" x-text="item.approved_quantity != null ? item.approved_quantity : '-'"></td>
-                                    <td class="py-2 px-2 text-right" x-text="item.received_quantity != null ? item.received_quantity : '-'"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
+

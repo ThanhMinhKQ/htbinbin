@@ -513,8 +513,11 @@ export default {
             await new Promise(resolve => setTimeout(resolve, 200));
 
             // Calculate dynamic scale - Balance quality and performance
-            const captureWidth = Math.ceil(Math.max(captureTarget.scrollWidth, captureTarget.offsetWidth, captureTarget.getBoundingClientRect().width));
-            const captureHeight = Math.ceil(Math.max(captureTarget.scrollHeight, captureTarget.offsetHeight, captureTarget.getBoundingClientRect().height, document.documentElement.scrollHeight));
+            // Only use captureTarget's own metrics — never fall back to document.scrollHeight
+            // because the wrapper sits inside <body> and would inherit overlay/fixed-position height.
+            const targetRect = captureTarget.getBoundingClientRect();
+            const captureWidth = Math.ceil(Math.max(captureTarget.scrollWidth, captureTarget.offsetWidth, targetRect.width));
+            const captureHeight = Math.ceil(Math.max(captureTarget.scrollHeight, captureTarget.offsetHeight, targetRect.height));
             const totalPixels = captureHeight * captureWidth;
 
             // Smart scaling for optimal performance

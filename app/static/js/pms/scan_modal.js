@@ -126,11 +126,11 @@ function openScanModal(onSuccess, opts) {
 
     _smEl('sm-title').textContent = isPhoto
         ? (_smDocType === 'passport' ? 'Quét Passport / Hộ chiếu' : 'Quét Visa email (China)')
-        : 'Quét CCCD / Căn cước';
+        : 'Quét mã QR CCCD';
 
     _smEl('sm-sub').textContent = isPhoto
         ? (_smDocType === 'passport' ? 'Chụp hoặc tải ảnh trang thông tin hộ chiếu để nhận dạng' : 'Chụp hoặc tải ảnh xác nhận Visa China để nhận dạng')
-        : 'Đọc mã QR từ thẻ CCCD gắn chip hoặc giấy tờ';
+        : 'Dùng máy quét QR tại quầy lễ tân để đọc chip CCCD';
 
     const tabContainer = _smEl('sm-tabs');
     if (tabContainer) {
@@ -1289,6 +1289,9 @@ function scanModalSwitchTab(tab) {
     _smResetPhotoUi();
     _smResetCccdPhotoUi();
 
+    const titleEl = _smEl('sm-title');
+    const subEl = _smEl('sm-sub');
+
     if (tab === 'photo') {
         if (tabPhoto) tabPhoto.classList.add('active');
         if (panelPhoto) panelPhoto.style.display = 'flex';
@@ -1306,6 +1309,9 @@ function scanModalSwitchTab(tab) {
         _smPhotoPasteActive = true;
         document.addEventListener('paste', _smPasteHandler);
 
+        if (titleEl) titleEl.textContent = _smDocType === 'visa' ? 'Quét Visa email (China)' : 'Quét Passport / Hộ chiếu';
+        if (subEl) subEl.textContent = _smDocType === 'visa' ? 'Chụp hoặc tải ảnh xác nhận Visa China để nhận dạng' : 'Chụp hoặc tải ảnh trang thông tin hộ chiếu để nhận dạng';
+
         _smRenderPhotoPlaceholder();
         _smSetConfirmEnabled(false);
     } else if (tab === 'cccd-photo') {
@@ -1315,6 +1321,9 @@ function scanModalSwitchTab(tab) {
         // Enable paste listener for cccd-photo (independent of scanner)
         _smCccdPasteActive = true;
         document.addEventListener('paste', _smPasteHandler);
+
+        if (titleEl) titleEl.textContent = 'Quét Ảnh CCCD / Căn cước';
+        if (subEl) subEl.textContent = 'Tải ảnh mặt trước và mặt sau CCCD để nhận dạng';
 
         _smRenderCccdPhotoPlaceholder();
         _smSetConfirmEnabled(false);
@@ -1326,6 +1335,9 @@ function scanModalSwitchTab(tab) {
         _smReset();
         _smToggleScannerPanel(true);
         _smUpdateScannerStatus('scanning');
+        if (titleEl) titleEl.textContent = 'Quét mã QR CCCD';
+        if (subEl) subEl.textContent = 'Dùng máy quét QR tại quầy lễ tân để đọc chip CCCD';
+
         _smRenderPlaceholder();
         _smSetConfirmEnabled(false);
 
@@ -1500,10 +1512,16 @@ function _smRenderPhotoInfo(p) {
     let ageVal = '—';
     if (p.dob) {
         try {
-            const birth = new Date(p.dob);
-            const ageDiff = Date.now() - birth.getTime();
-            const ageDate = new Date(ageDiff);
-            ageVal = String(Math.abs(ageDate.getUTCFullYear() - 1970));
+            // p.dob = YYYY-MM-DD; parse as local date (not UTC) to avoid off-by-one near midnight
+            const parts = p.dob.split('-');
+            if (parts.length === 3) {
+                const birth = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                const today = new Date();
+                let age = today.getFullYear() - birth.getFullYear();
+                const m = today.getMonth() - birth.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age -= 1;
+                if (age >= 0 && age < 150) ageVal = String(age);
+            }
         } catch (_) {}
     }
 

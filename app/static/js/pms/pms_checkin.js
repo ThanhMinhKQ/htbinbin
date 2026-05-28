@@ -1243,7 +1243,7 @@ async function pmsCiFillFromScan(parsed) {
     const cccdToCheck = idValue.trim().toUpperCase();
     if (cccdToCheck && cccdToCheck.length >= 3) {
         try {
-            const searchRes = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(cccdToCheck)}`);
+            const searchRes = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(cccdToCheck)}&include_total=false&page_size=1`);
             if (searchRes && searchRes.guests && searchRes.guests.length > 0) {
                 const guest = searchRes.guests[0];
                 // Found existing guest — use DB data and lock form

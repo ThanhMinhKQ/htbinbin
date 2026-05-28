@@ -112,7 +112,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
     min-width: 0;
     max-width: 100%;
@@ -120,6 +120,25 @@
 
   .pms-header-actions > * {
     flex-shrink: 0;
+  }
+
+  .pms-header-actions .v-btn {
+    height: 30px;
+    padding: 0 10px;
+  }
+
+  .pms-header-actions .v-select {
+    height: 30px;
+    padding: 4px 28px 4px 10px;
+  }
+
+  .pms-header-actions .mini-stats {
+    margin-right: 2px;
+  }
+
+  .pms-header-actions .mini-stat {
+    padding: 4px 10px;
+    font-size: 11.5px;
   }
 
   /* Add padding back to the rest of the content */
@@ -2467,13 +2486,398 @@
     background: #450a0a;
     border-left-color: #f87171;
   }
+
+  /* ── DKLT Export Dropdown ── */
+  .pms-dklt-wrap {
+    position: relative;
+  }
+
+  .pms-dklt-btn {
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+    box-shadow: 0 1px 2px rgba(13, 148, 136, 0.25);
+  }
+
+  .pms-dklt-btn:hover {
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(13, 148, 136, 0.35);
+    transform: translateY(-1px);
+  }
+
+  .pms-dklt-btn:active {
+    transform: translateY(0);
+  }
+
+  .pms-dklt-btn svg {
+    stroke: #fff;
+  }
+
+  html.dark .pms-dklt-btn {
+    background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 100%) !important;
+    color: #042f2e !important;
+    box-shadow: 0 1px 2px rgba(20, 184, 166, 0.4);
+  }
+
+  html.dark .pms-dklt-btn:hover {
+    background: linear-gradient(135deg, #5eead4 0%, #2dd4bf 100%) !important;
+    color: #042f2e !important;
+    box-shadow: 0 4px 14px rgba(45, 212, 191, 0.5);
+  }
+
+  html.dark .pms-dklt-btn svg {
+    stroke: #042f2e;
+  }
+
+  .pms-dklt-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 180px;
+    z-index: 70;
+    border: 1px solid var(--pms-border);
+    border-radius: 10px;
+    background: var(--pms-bg);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pms-dklt-menu[hidden] {
+    display: none !important;
+  }
+
+  .pms-dklt-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    color: var(--pms-text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+  }
+
+  .pms-dklt-item:hover {
+    background: var(--pms-bg-hover);
+  }
+
+  .pms-dklt-item svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    color: var(--pms-text-muted);
+  }
+
+  /* ── DKLT Export Modal ── */
+  .pms-dklt-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(2px);
+  }
+
+  .pms-dklt-modal.show { display: flex; }
+
+  .pms-dklt-dialog {
+    width: 100%;
+    max-width: 640px;
+    max-height: calc(100vh - 40px);
+    background: var(--pms-bg);
+    border: 1px solid var(--pms-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .pms-dklt-modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--pms-border);
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+    color: #fff;
+  }
+
+  .pms-dklt-modal-head h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .pms-dklt-modal-head p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    opacity: 0.9;
+  }
+
+  .pms-dklt-modal-close {
+    background: rgba(255, 255, 255, 0.15);
+    border: 0;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .pms-dklt-modal-close:hover { background: rgba(255, 255, 255, 0.28); }
+
+  .pms-dklt-modal-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pms-dklt-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .pms-dklt-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .pms-dklt-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pms-text);
+  }
+
+  .pms-dklt-section-title input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #14b8a6;
+  }
+
+  .pms-dklt-counter {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--pms-text-muted);
+    background: var(--pms-bg-hover);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
+  .pms-dklt-search {
+    flex: 1;
+    min-width: 180px;
+    padding: 6px 10px;
+    border: 1px solid var(--pms-border);
+    border-radius: 8px;
+    background: var(--pms-bg);
+    color: var(--pms-text);
+    font-size: 12px;
+  }
+
+  .pms-dklt-search:focus {
+    outline: none;
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.15);
+  }
+
+  .pms-dklt-room-list {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--pms-border);
+    border-radius: 10px;
+    background: var(--pms-bg-soft, var(--pms-bg));
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .pms-dklt-room-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .pms-dklt-room-item:hover { background: var(--pms-bg-hover); }
+
+  .pms-dklt-room-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: #14b8a6;
+  }
+
+  .pms-dklt-room-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .pms-dklt-room-num {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pms-text);
+  }
+
+  .pms-dklt-room-meta {
+    font-size: 11px;
+    color: var(--pms-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pms-dklt-room-tags {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .pms-dklt-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .pms-dklt-tag.vn { background: #dbeafe; color: #1d4ed8; }
+  .pms-dklt-tag.fn { background: #fef3c7; color: #b45309; }
+
+  html.dark .pms-dklt-tag.vn { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+  html.dark .pms-dklt-tag.fn { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+
+  .pms-dklt-empty {
+    text-align: center;
+    color: var(--pms-text-muted);
+    font-size: 12px;
+    padding: 20px;
+  }
+
+  .pms-dklt-format-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .pms-dklt-format-card {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 2px solid var(--pms-border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .pms-dklt-format-card:hover { background: var(--pms-bg-hover); }
+
+  .pms-dklt-format-card input[type="radio"] {
+    margin-top: 2px;
+    accent-color: #14b8a6;
+    flex-shrink: 0;
+  }
+
+  .pms-dklt-format-card:has(input:checked) {
+    border-color: #14b8a6;
+    background: rgba(20, 184, 166, 0.08);
+  }
+
+  .pms-dklt-format-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--pms-text);
+  }
+
+  .pms-dklt-format-desc {
+    font-size: 11px;
+    color: var(--pms-text-muted);
+    margin-top: 2px;
+  }
+
+  .pms-dklt-modal-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--pms-border);
+    background: var(--pms-bg-soft, var(--pms-bg));
+  }
+
+  .pms-dklt-foot-info {
+    font-size: 12px;
+    color: var(--pms-text-muted);
+  }
+
+  .pms-dklt-foot-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pms-dklt-submit {
+    background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%) !important;
+    color: #fff !important;
+    border-color: transparent !important;
+  }
+
+  .pms-dklt-submit:hover {
+    background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+  }
+
+  .pms-dklt-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 540px) {
+    .pms-dklt-format-grid { grid-template-columns: 1fr; }
+    .pms-dklt-modal-foot { flex-direction: column; align-items: stretch; }
+    .pms-dklt-foot-actions { justify-content: flex-end; }
+  }
 </style>
 {% endblock %}
 
 {% block app_header_actions %}
 <div class="pms-header-actions">
     <!-- Mini stats - badge style -->
-    <div class="mini-stats px-3">
+    <div class="mini-stats">
       <span class="mini-stat">
         <span class="dot" style="background:#10b981;"></span>
         Ở: <b id="cnt-occ">0</b>
@@ -2546,7 +2950,7 @@
         <path d="M3 10h18" />
         <path d="m9 16 2 2 4-4" />
       </svg>
-      Đến hôm nay
+      Hôm nay
       <span id="pms-arrivals-count" class="pms-arrivals-count">0</span>
     </button>
 
@@ -2580,21 +2984,33 @@
     </div>
 
     {% if is_admin %}
-    <button class="v-btn !py-1.5 !px-3 !text-[12px] !font-bold" type="button" onclick="PmsRoomSetup.open()"
-      title="Cấu hình sơ đồ phòng">
+    <button class="v-btn !py-1.5 !px-2 !text-[12px] !font-bold" type="button" onclick="PmsRoomSetup.open()"
+      title="Cấu hình sơ đồ phòng" aria-label="Cấu hình sơ đồ phòng">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="3" />
         <path
           d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.31.22.65.22 1H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15z" />
       </svg>
-      Cấu hình
     </button>
     {% endif %}
 
+    <div class="pms-dklt-wrap" id="pms-dklt-wrap">
+      <button class="v-btn pms-dklt-btn !py-1.5 !px-3 !text-[12px] !font-bold" type="button"
+        onclick="pmsOpenDkltModal()" title="Xuất danh sách Đăng ký lưu trú">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Xuất ĐKLT
+      </button>
+    </div>
+
     <button
-      class="v-btn primary !bg-slate-900 dark:!bg-primary-600 !text-white !border-none hover:shadow-lg transition-all"
-      onclick="pmsLoadRooms()">
+      class="v-btn primary !bg-slate-900 dark:!bg-primary-600 !text-white !border-none hover:shadow-lg transition-all !px-2"
+      onclick="pmsLoadRooms()" title="Làm mới sơ đồ phòng" aria-label="Làm mới sơ đồ phòng">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
         stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -2602,7 +3018,6 @@
         <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
         <path d="M16 16h5v5" />
       </svg>
-      Làm mới
     </button>
 </div>
 {% endblock %}
@@ -2654,6 +3069,70 @@
 </div>
 {% endif %}
 <div id="pms-toast"></div>
+
+<div class="pms-dklt-modal" id="pms-dklt-modal" aria-hidden="true">
+  <div class="pms-dklt-dialog" role="dialog" aria-modal="true" aria-labelledby="pms-dklt-title">
+    <div class="pms-dklt-modal-head">
+      <div>
+        <h3 id="pms-dklt-title">Xuất Đăng ký lưu trú</h3>
+        <p>Chọn phòng cần xuất và định dạng file. Phòng giờ (chưa có ngày đi dự kiến) bị bỏ qua tự động.</p>
+      </div>
+      <button class="pms-dklt-modal-close" type="button" onclick="pmsCloseDkltModal()" aria-label="Đóng">×</button>
+    </div>
+    <div class="pms-dklt-modal-body">
+      <div class="pms-dklt-section">
+        <div class="pms-dklt-section-head">
+          <label class="pms-dklt-section-title">
+            <input type="checkbox" id="pms-dklt-select-all" checked onchange="pmsDkltToggleAll(this.checked)" />
+            <span>Phòng đang lưu trú</span>
+            <span class="pms-dklt-counter" id="pms-dklt-counter">0/0</span>
+          </label>
+          <input type="search" class="pms-dklt-search" id="pms-dklt-search"
+            placeholder="Tìm số phòng hoặc khách..." oninput="pmsDkltFilter(this.value)" />
+        </div>
+        <div class="pms-dklt-room-list" id="pms-dklt-room-list">
+          <div class="pms-dklt-empty">Đang tải...</div>
+        </div>
+      </div>
+
+      <div class="pms-dklt-section">
+        <div class="pms-dklt-section-title">Định dạng file</div>
+        <div class="pms-dklt-format-grid">
+          <label class="pms-dklt-format-card">
+            <input type="radio" name="pms-dklt-format" value="excel" checked />
+            <div class="pms-dklt-format-body">
+              <div class="pms-dklt-format-name">Excel</div>
+              <div class="pms-dklt-format-desc">Hỗ trợ cả khách Việt Nam và nước ngoài.</div>
+            </div>
+          </label>
+          <label class="pms-dklt-format-card">
+            <input type="radio" name="pms-dklt-format" value="xml" />
+            <div class="pms-dklt-format-body">
+              <div class="pms-dklt-format-name">XML</div>
+              <div class="pms-dklt-format-desc">Chỉ dùng cho khách nước ngoài (mẫu KBTT).</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="pms-dklt-modal-foot">
+      <div class="pms-dklt-foot-info" id="pms-dklt-foot-info">—</div>
+      <div class="pms-dklt-foot-actions">
+        <button type="button" class="v-btn" onclick="pmsCloseDkltModal()">Huỷ</button>
+        <button type="button" class="v-btn primary pms-dklt-submit" id="pms-dklt-submit"
+          onclick="pmsDkltSubmit()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Xuất file
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -2708,7 +3187,7 @@
   // vào dashboard gây nghẽn pool DB (mặc dù endpoint chỉ đọc JSON, vẫn đi qua event loop).
 </script>
 <script src="/static/js/pms/scan_modal.js"></script>
-<script src="/static/js/pms/pms_dashboard.js"></script>
+<script src="/static/js/pms/pms_dashboard.js?v=20260528-perf"></script>
 <script src="/static/js/pms/pms_booking.js"></script>
 <script src="/static/js/pms/nationalities.js"></script>
 <script src="/static/js/pms/pms_addr.js"></script>

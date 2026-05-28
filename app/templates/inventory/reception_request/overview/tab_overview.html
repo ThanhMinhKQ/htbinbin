@@ -1,233 +1,359 @@
 <div x-show="currentTab === 'overview'" class="inv-tab-page" x-cloak>
-    <!-- Tab Header -->
-    <div class="inv-tab-header inv-overview-header">
-        <div class="min-w-0 flex items-center gap-3 inv-overview-warehouse-selector">
-            <label class="text-sm font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">Kho:</label>
-            <select x-model="currentWarehouseId"
-                @change="initOverview()"
-                class="form-select text-sm rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 shadow-sm focus:border-[#F48F68] focus:ring-[#F48F68] w-full sm:w-64">
-                <option value="">Chọn Kho Hàng</option>
-                <template x-for="w in allWarehouses" :key="w.id">
-                    <option :value="w.id" x-text="w.name + (w.branch_name ? ' (' + w.branch_name + ')' : ' (Kho Tổng)')"></option>
-                </template>
-            </select>
-        </div>
-        <div class="flex flex-col sm:flex-row gap-3 items-end sm:items-center">
-            <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm shadow-sm">
-                <input type="month" x-model="selectedMonthInput" @change="updateMonth()"
-                    class="border-none bg-transparent text-sm font-bold text-slate-700 dark:text-slate-100 focus:ring-0 cursor-pointer p-0">
-                <button @click="resetToCurrentMonth()"
-                    class="p-1 rounded-md text-slate-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-slate-700 transition-colors"
-                    title="Quay về tháng hiện tại">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="inv-segmented">
-                <button type="button" @click="stockViewMode = 'cards'"
-                    :class="stockViewMode === 'cards' ? 'is-active' : ''"
-                    class="inv-segmented-btn">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                    Thẻ
-                </button>
-                <button type="button" @click="stockViewMode = 'list'"
-                    :class="stockViewMode === 'list' ? 'is-active' : ''"
-                    class="inv-segmented-btn">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-                    </svg>
-                    Danh sách
-                </button>
-            </div>
-
-            <button type="button" x-show="isCurrentWarehouseBranch()" @click="openShiftSales()"
-                class="inv-overview-shift-btn inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/20 hover:border-emerald-400 hover:shadow-md transition-all"
-                title="Xem nhanh các món đã bán trong ca của bạn">
-                <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm shrink-0">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                    </svg>
-                </span>
-                <span class="text-[11px] font-black text-emerald-700 dark:text-emerald-300 whitespace-nowrap">Bán trong ca</span>
-            </button>
-        </div>
-    </div>
 
     <!-- Main Content Area with Scroll -->
     <div class="flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-10">
 
         <!-- Skeleton Loading -->
         <div x-show="loadingOverview" x-cloak class="space-y-4">
-            <div class="inv-kpi-grid">
-                <template x-for="i in 4" :key="i">
-                    <div class="inv-kpi-card animate-pulse">
-                        <div class="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded mb-3"></div>
-                        <div class="h-8 w-24 bg-slate-200 dark:bg-slate-700 rounded"></div>
+            <!-- Stats row skeleton -->
+            <div class="inv-stats-row grid grid-cols-1 md:grid-cols-4 xl:grid-cols-4 gap-4">
+                <!-- Flow card skeleton -->
+                <div class="md:col-span-2 xl:col-span-2 skeleton-card p-5 flex flex-col gap-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex flex-col gap-2">
+                            <div class="skeleton skeleton-text" style="width:70px;"></div>
+                            <div class="skeleton skeleton-text-xl" style="width:50px;"></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="skeleton skeleton-badge" style="width:60px;"></div>
+                            <div class="skeleton skeleton-badge" style="width:60px;"></div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-3 skeleton-stagger">
+                        <template x-for="i in 3" :key="i">
+                            <div class="flex items-center gap-3">
+                                <div class="skeleton skeleton-text" style="width:72px;flex-shrink:0;"></div>
+                                <div class="skeleton skeleton-progress flex-1"></div>
+                                <div class="skeleton skeleton-text" style="width:48px;flex-shrink:0;"></div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <!-- Health card skeleton -->
+                <div class="skeleton-card p-5 flex flex-col gap-4">
+                    <div class="flex items-start justify-between">
+                        <div class="flex flex-col gap-2">
+                            <div class="skeleton skeleton-text" style="width:80px;"></div>
+                            <div class="skeleton skeleton-text-xl" style="width:40px;"></div>
+                        </div>
+                        <div class="skeleton skeleton-badge" style="width:56px;"></div>
+                    </div>
+                    <div class="flex justify-center">
+                        <div class="skeleton skeleton-circle" style="width:96px;height:96px;"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="skeleton" style="height:36px;border-radius:10px;"></div>
+                        <div class="skeleton" style="height:36px;border-radius:10px;"></div>
+                    </div>
+                </div>
+                <!-- Cashflow tiles skeleton -->
+                <div class="flex flex-col gap-3">
+                    <template x-for="i in 3" :key="i">
+                        <div class="skeleton" style="height:56px;border-radius:12px;flex:1;"></div>
+                    </template>
+                </div>
+            </div>
+            <!-- Stock toolbar skeleton -->
+            <div class="skeleton-card p-4 flex items-center justify-between gap-3">
+                <div class="skeleton skeleton-text-lg" style="width:100px;"></div>
+                <div class="flex gap-2">
+                    <div class="skeleton" style="width:160px;height:34px;border-radius:8px;"></div>
+                    <div class="skeleton" style="width:120px;height:34px;border-radius:8px;"></div>
+                    <div class="skeleton" style="width:200px;height:34px;border-radius:8px;"></div>
+                </div>
+            </div>
+            <!-- Stock cards skeleton -->
+            <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 skeleton-stagger">
+                <template x-for="i in 6" :key="i">
+                    <div class="skeleton-card p-5 flex flex-col gap-3">
+                        <div class="flex items-start justify-between">
+                            <div class="flex flex-col gap-2 flex-1">
+                                <div class="skeleton skeleton-text" style="width:70%;"></div>
+                                <div class="skeleton skeleton-text-sm" style="width:40%;"></div>
+                            </div>
+                            <div class="skeleton skeleton-badge" style="width:52px;"></div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="skeleton" style="height:52px;border-radius:10px;"></div>
+                            <div class="skeleton" style="height:52px;border-radius:10px;"></div>
+                            <div class="skeleton" style="height:52px;border-radius:10px;"></div>
+                        </div>
+                        <div class="skeleton skeleton-progress"></div>
                     </div>
                 </template>
-            </div>
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                <div class="xl:col-span-2 inv-table-card p-6 h-48 animate-pulse bg-white/50 dark:bg-slate-800/50"></div>
-                <div class="inv-table-card p-6 h-48 animate-pulse bg-white/50 dark:bg-slate-800/50"></div>
             </div>
         </div>
 
         <div x-show="!loadingOverview" class="space-y-4">
-            <!-- Top KPI Grid -->
-            <div class="inv-kpi-grid">
-                <div class="inv-kpi-card" data-accent="coral">
-                    <p class="inv-kpi-label">Yêu cầu</p>
-                    <p class="inv-kpi-value" x-text="stats.totalRequests || 0"></p>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        <span class="inv-metric-chip is-warning" x-text="`${stats.pendingRequests || 0} chờ`"></span>
-                        <span class="inv-metric-chip is-info" x-text="`${stats.shippingRequests || 0} giao`"></span>
-                        <span class="inv-metric-chip is-success" x-text="`${stats.completedRequests || 0} xong`"></span>
-                    </div>
-                    <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5h6M9 12h6m-6 7h6M5 5h.01M5 12h.01M5 19h.01" />
-                    </svg>
-                </div>
 
-                <div class="inv-kpi-card" data-accent="teal">
-                    <p class="inv-kpi-label">Tiền vào</p>
-                    <p class="inv-kpi-value text-emerald-600 dark:text-emerald-400" x-text="formatMoney(getCashInflow())"></p>
-                    <div class="mt-3 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div class="h-full rounded-full bg-emerald-500 transition-all duration-700" :style="`width: ${getCashflowWidth(getCashInflow())}`"></div>
-                    </div>
-                    <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-
-                <div class="inv-kpi-card" data-accent="yellow">
-                    <p class="inv-kpi-label">Tiền ra</p>
-                    <p class="inv-kpi-value text-rose-600 dark:text-rose-400" x-text="formatMoney(getCashOutflow())"></p>
-                    <div class="mt-3 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div class="h-full rounded-full bg-rose-500 transition-all duration-700" :style="`width: ${getCashflowWidth(getCashOutflow())}`"></div>
-                    </div>
-                    <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                </div>
-
-                <div class="inv-kpi-card" data-accent="slate">
-                    <p class="inv-kpi-label">Thuần</p>
-                    <p class="inv-kpi-value" :class="getNetCashflow() >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'" x-text="formatMoney(getNetCashflow())"></p>
-                    <div class="mt-3 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                        <div class="h-full rounded-full transition-all duration-700"
-                            :class="getNetCashflow() >= 0 ? 'bg-emerald-500' : 'bg-rose-500'"
-                            :style="`width: ${getCashflowWidth(getNetCashflow())}`"></div>
-                    </div>
-                    <svg class="inv-kpi-watermark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                </div>
-            </div>
-
-            <!-- Flow & Health -->
-            <div class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-3 gap-4">
-                <div class="md:col-span-2 xl:col-span-2 inv-table-card inv-overview-panel">
-                    <div class="inv-panel-topline">
-                        <span>Luồng phiếu</span>
-                        <div class="inv-panel-pills">
-                            <span><strong x-text="stats.totalImports || 0"></strong> nhập</span>
-                            <span><strong x-text="stats.totalExports || 0"></strong> xuất</span>
+            <!-- Flow, Health & Cashflow -->
+            <div class="inv-stats-row grid grid-cols-1 md:grid-cols-4 xl:grid-cols-4 gap-4">
+                <div class="md:col-span-2 xl:col-span-2 inv-glass-card inv-flow-card">
+                    <div class="inv-glass-head">
+                        <div class="min-w-0">
+                            <p class="inv-glass-eyebrow">Luồng phiếu</p>
+                            <div class="inv-glass-headline">
+                                <span class="inv-glass-figure" x-text="stats.totalRequests || 0"></span>
+                                <span class="inv-glass-figure-label">tổng phiếu</span>
+                            </div>
+                        </div>
+                        <div class="inv-glass-pillset">
+                            <span class="inv-glass-stat hover:scale-105 transition-transform duration-200 cursor-pointer" data-tone="success">
+                                <span class="inv-glass-stat-dot"></span>
+                                <svg class="w-3.5 h-3.5 mr-0.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 13l-7 7-7-7m14-6l-7 7-7-7" />
+                                </svg>
+                                <strong x-text="stats.totalImports || 0" class="mr-1"></strong>
+                                <span>Nhập</span>
+                            </span>
+                            <span class="inv-glass-stat hover:scale-105 transition-transform duration-200 cursor-pointer" data-tone="primary">
+                                <span class="inv-glass-stat-dot"></span>
+                                <svg class="w-3.5 h-3.5 mr-0.5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 11l7-7 7 7M5 19l7-7 7 7" />
+                                </svg>
+                                <strong x-text="stats.totalExports || 0" class="mr-1"></strong>
+                                <span>Xuất</span>
+                            </span>
                         </div>
                     </div>
 
-                    <div class="inv-flow-lanes">
+                    <div class="inv-flow-stack">
                         <template x-for="item in [
                             { label: 'Chờ duyệt', value: stats.pendingRequests || 0, tone: 'warning' },
                             { label: 'Đang giao', value: stats.shippingRequests || 0, tone: 'info' },
                             { label: 'Hoàn thành', value: stats.completedRequests || 0, tone: 'success' }
                         ]" :key="item.label">
-                            <div class="inv-flow-lane" :data-tone="item.tone">
-                                <div class="inv-flow-lane-head">
-                                    <span x-text="item.label"></span>
+                            <div class="inv-flow-row group/row" :data-tone="item.tone">
+                                <div class="flex items-center gap-1.5 min-w-0">
+                                    <span class="inv-flow-row-label truncate" x-text="item.label"></span>
+                                </div>
+                                <div class="inv-flow-rail">
+                                    <span :style="`width: ${stats.totalRequests > 0 ? Math.round((item.value / stats.totalRequests) * 100) : 0}%`"></span>
+                                </div>
+                                <span class="inv-flow-row-num">
                                     <strong x-text="item.value"></strong>
-                                </div>
-                                <div class="inv-flow-track">
-                                    <div :style="`width: ${stats.totalRequests > 0 ? Math.round((item.value / stats.totalRequests) * 100) : 0}%`"></div>
-                                </div>
+                                    <em class="px-1.5 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 text-[9px] font-black tracking-tight border border-slate-200/40 dark:border-slate-700/40" x-text="`${stats.totalRequests > 0 ? Math.round((item.value / stats.totalRequests) * 100) : 0}%`"></em>
+                                </span>
                             </div>
                         </template>
                     </div>
                 </div>
 
-                <div class="inv-table-card inv-overview-panel inv-health-card">
-                    <div class="inv-panel-topline">
-                        <span>Sức khỏe kho</span>
-                        <span class="inv-risk-chip" x-text="`${Math.round(stats.stockWarningPercentage || 0)}% rủi ro`"></span>
+                <div class="inv-glass-card inv-health-card-v2">
+                    <div class="inv-glass-head">
+                        <div>
+                            <p class="inv-glass-eyebrow">Sức khỏe kho</p>
+                            <div class="inv-glass-headline">
+                                <span class="inv-glass-figure" x-text="stocks.length || 0"></span>
+                                <span class="inv-glass-figure-label">mã hàng</span>
+                            </div>
+                        </div>
+                        <span class="inv-health-status shadow-sm border border-slate-200/20"
+                               :data-tone="(stats.stockWarningPercentage || 0) >= 30 ? 'danger' : (stats.stockWarningPercentage || 0) >= 10 ? 'warning' : 'success'">
+                            <div class="flex items-center gap-1">
+                                <span class="text-[13px] font-black" x-text="`${Math.round(stats.stockWarningPercentage || 0)}%`"></span>
+                                <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path x-show="(stats.stockWarningPercentage || 0) > 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8L10 17l-4-4-6 6" />
+                                    <path x-show="(stats.stockWarningPercentage || 0) === 0" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <span class="text-[9px] font-bold uppercase tracking-wider opacity-85">rủi ro</span>
+                        </span>
                     </div>
 
-                    <div class="relative py-4 flex flex-col items-center">
-                        <div class="relative h-28 w-28 inv-health-gauge">
-                            <svg class="h-28 w-28 -rotate-90" viewBox="0 0 112 112">
-                                <circle cx="56" cy="56" r="48" stroke="currentColor" stroke-width="10" fill="transparent" class="text-slate-100 dark:text-slate-800" />
-                                <circle cx="56" cy="56" r="48" stroke="currentColor" stroke-width="10" fill="transparent"
-                                    :stroke-dasharray="2 * Math.PI * 48"
-                                    :stroke-dashoffset="2 * Math.PI * 48 * (1 - ((stats.stockWarningPercentage || 0) / 100))"
-                                    class="text-primary-500 transition-all duration-1000" stroke-linecap="round" />
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span class="text-3xl font-black text-slate-900 dark:text-white" x-text="stats.stockWarningCount || 0"></span>
-                                <span class="text-[9px] font-black uppercase text-slate-400 tracking-tighter">cảnh báo</span>
-                            </div>
+                    <div class="inv-health-ring-wrap">
+                        <svg class="inv-health-ring" viewBox="0 0 120 120" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="invHealthGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#24B1B1" />
+                                    <stop offset="100%" stop-color="#FFE0C5" />
+                                </linearGradient>
+                            </defs>
+                            <circle cx="60" cy="60" r="50" class="inv-health-ring-track" />
+                            <circle cx="60" cy="60" r="50" class="inv-health-ring-fill"
+                                stroke="url(#invHealthGradient)"
+                                :stroke-dasharray="2 * Math.PI * 50"
+                                :stroke-dashoffset="2 * Math.PI * 50 * (1 - ((stats.stockWarningPercentage || 0) / 100))" />
+                        </svg>
+                        <div class="inv-health-ring-center flex flex-col items-center justify-center">
+                            <span class="inv-health-ring-num font-black leading-none" x-text="stats.stockWarningCount || 0"></span>
+                            <span class="inv-health-ring-cap text-[9px] font-black uppercase tracking-wider text-slate-400 mt-1" x-text="(stats.stockWarningCount || 0) > 0 ? 'cảnh báo' : 'an toàn'"></span>
                         </div>
                     </div>
 
-                    <div class="inv-health-total">
-                        <span>Tổng mã hàng</span>
-                        <strong x-text="stocks.length || 0"></strong>
+                    <div class="inv-health-split">
+                        <div class="inv-health-split-row group/split border border-slate-100 dark:border-slate-800 hover:border-emerald-500/20 transition-all duration-200" data-tone="success">
+                            <span class="inv-health-split-dot"></span>
+                            <span class="inv-health-split-label">Ổn định</span>
+                            <strong class="font-black text-slate-800 dark:text-white" x-text="(stocks.length || 0) - (stats.stockWarningCount || 0)"></strong>
+                        </div>
+                        <div class="inv-health-split-row group/split border border-slate-100 dark:border-slate-800 hover:border-amber-500/20 transition-all duration-200" data-tone="warning">
+                            <span class="inv-health-split-dot"></span>
+                            <span class="inv-health-split-label">Cảnh báo</span>
+                            <strong class="font-black text-slate-800 dark:text-white" x-text="stats.stockWarningCount || 0"></strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cashflow Column — 3 stat tiles -->
+                <div class="flex flex-col gap-3">
+                    <div class="inv-cf-tile" data-accent="inflow">
+                        <div class="inv-cf-tile-icon">
+                            <!-- Premium Trending Up / Inflow Icon -->
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8L10 17l-4-4-6 6" />
+                            </svg>
+                        </div>
+                        <div class="inv-cf-tile-body">
+                            <span class="inv-cf-tile-label">Tiền vào</span>
+                            <span class="inv-cf-tile-value" x-text="formatMoney(getCashInflow())"></span>
+                        </div>
+                        <div class="inv-cf-tile-bar">
+                            <div class="inv-cf-tile-bar-fill" :style="`width: ${getCashflowWidth(getCashInflow())}`"></div>
+                        </div>
+                    </div>
+
+                    <div class="inv-cf-tile" data-accent="outflow">
+                        <div class="inv-cf-tile-icon">
+                            <!-- Premium Trending Down / Outflow Icon -->
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 17h8m0 0V9m0 8L10 7l-4 4-6-6" />
+                            </svg>
+                        </div>
+                        <div class="inv-cf-tile-body">
+                            <span class="inv-cf-tile-label">Tiền ra</span>
+                            <span class="inv-cf-tile-value" x-text="formatMoney(getCashOutflow())"></span>
+                        </div>
+                        <div class="inv-cf-tile-bar">
+                            <div class="inv-cf-tile-bar-fill" :style="`width: ${getCashflowWidth(getCashOutflow())}`"></div>
+                        </div>
+                    </div>
+
+                    <div class="inv-cf-tile" :data-accent="getNetCashflow() >= 0 ? 'net-pos' : 'net-neg'">
+                        <div class="inv-cf-tile-icon">
+                            <!-- Premium Balance Scales Icon -->
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 3v17M3 12h18M3 12l4.5-4.5m13.5 4.5L16.5 7.5M9 21h6" />
+                            </svg>
+                        </div>
+                        <div class="inv-cf-tile-body">
+                            <span class="inv-cf-tile-label">Thuần</span>
+                            <span class="inv-cf-tile-value" x-text="formatMoney(getNetCashflow())"></span>
+                        </div>
+                        <div class="inv-cf-tile-bar">
+                            <div class="inv-cf-tile-bar-fill" :style="`width: ${getCashflowWidth(getNetCashflow())}`"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <!-- Inventory Section Header -->
-            <div class="inv-toolbar inv-stock-toolbar">
-                <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-                    <div class="inv-panel-topline min-w-0">
-                        <span>Tồn kho</span>
+            <div class="inv-stock-toolbar-v2 mt-6 relative overflow-hidden">
+                <!-- Diagonal Cross Top Right Fade Grid Background -->
+                <div class="absolute inset-0 pointer-events-none opacity-60 dark:opacity-[0.15]"
+                     style="background-image: linear-gradient(45deg, transparent 49%, var(--inv-border) 49%, var(--inv-border) 51%, transparent 51%), linear-gradient(-45deg, transparent 49%, var(--inv-border) 49%, var(--inv-border) 51%, transparent 51%); background-size: 32px 32px; -webkit-mask-image: radial-gradient(ellipse 80% 80% at 0% 0%, #000 50%, transparent 90%); mask-image: radial-gradient(ellipse 80% 80% at 0% 0%, #000 50%, transparent 90%); z-index: 0;">
+                </div>
+
+                <!-- Row 1: Title + date + view toggle -->
+                <div class="inv-stb-row inv-stb-row-top relative z-10">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="inv-stb-title">Tồn kho</span>
                         <div class="inv-panel-pills">
                             <span><strong x-text="getFlatFilteredStocks().length"></strong> hiển thị</span>
                             <span><strong x-text="stocks.length || 0"></strong> tổng</span>
                         </div>
                     </div>
-
-                    <div class="flex flex-col sm:flex-row gap-2 w-full xl:w-auto">
-                        <select x-model="selectedCategory"
-                            class="inv-field w-full sm:w-48">
-                            <template x-for="category in getAvailableCategories()" :key="category">
-                                <option :value="category === 'Tất cả' ? '' : category" x-text="category"></option>
-                            </template>
-                        </select>
-                        <div class="relative w-full sm:w-72">
-                            <input type="text" x-model="stockSearch" placeholder="Tìm tên hoặc mã sản phẩm..."
-                                class="inv-field-search w-full">
-                            <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                                <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <button x-show="selectedCategory || stockSearch" @click="resetStockFilters()"
-                            class="inv-btn-secondary">
-                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    <div class="flex items-center gap-2 shrink-0">
+                        <!-- Date range picker -->
+                        <div class="inv-stb-datepicker" x-init="$nextTick(() => initOverviewRangePickers($el))">
+                            <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            Xóa lọc
+                            <input type="text" placeholder="dd/mm/yyyy" data-overview-date="from" readonly
+                                class="inv-stb-date-input">
+                            <span class="inv-stb-date-sep">→</span>
+                            <input type="text" placeholder="dd/mm/yyyy" data-overview-date="to" readonly
+                                class="inv-stb-date-input">
+                            <button @click="resetToCurrentMonth()" class="inv-stb-date-reset" title="Về tháng hiện tại">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- View toggle -->
+                        <div class="inv-segmented">
+                            <button type="button" @click="stockViewMode = 'cards'"
+                                :class="stockViewMode === 'cards' ? 'is-active' : ''"
+                                class="inv-segmented-btn" title="Dạng thẻ">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                            </button>
+                            <button type="button" @click="stockViewMode = 'list'"
+                                :class="stockViewMode === 'list' ? 'is-active' : ''"
+                                class="inv-segmented-btn" title="Dạng danh sách">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Row 2: Filters + search + actions -->
+                <div class="inv-stb-row inv-stb-row-filters relative z-10">
+                    <!-- Status pills -->
+                    <div class="inv-stb-status-pills">
+                        <template x-for="opt in [
+                            {value: 'ALL', label: 'Tất cả'},
+                            {value: 'STABLE', label: 'Ổn định'},
+                            {value: 'WARNING', label: 'Cảnh báo'}
+                        ]" :key="opt.value">
+                            <button type="button"
+                                @click="stockStatusFilter = opt.value"
+                                class="inv-stb-status-btn"
+                                :class="stockStatusFilter === opt.value ? 'is-active' : ''"
+                                :data-status="opt.value.toLowerCase()">
+                                <span x-text="opt.label"></span>
+                                <span class="inv-stb-status-count" x-text="getStockCountByStatus(opt.value)"></span>
+                            </button>
+                        </template>
+                    </div>
+
+                    <!-- Category select -->
+                    <select x-model="selectedCategory" class="inv-field inv-stb-category">
+                        <template x-for="category in getAvailableCategories()" :key="category">
+                            <option :value="category === 'Tất cả' ? '' : category" x-text="category"></option>
+                        </template>
+                    </select>
+
+                    <!-- Search -->
+                    <div class="relative inv-stb-search">
+                        <input type="text" x-model="stockSearch" placeholder="Tìm tên hoặc mã sản phẩm..."
+                            class="inv-field-search w-full">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <svg class="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-2 shrink-0 ml-auto">
+                        <button x-show="selectedCategory || stockSearch || stockStatusFilter !== 'ALL' || stockSortField"
+                            @click="resetStockFilters()"
+                            class="inv-btn-secondary px-3"
+                            title="Xóa bộ lọc">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
                         </button>
                         <button type="button" @click="exportStockToExcel()"
-                            class="inv-btn-secondary shrink-0 inline-flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            class="inv-btn-secondary inline-flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
-                            Xuất Excel
+                            Excel
                         </button>
                     </div>
                 </div>
@@ -242,7 +368,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     </div>
-                    <h4 class="text-lg font-black text-slate-800 dark:text-slate-100" x-text="selectedMonthInput"></h4>
+                    <h4 class="text-lg font-black text-slate-800 dark:text-slate-100" x-text="getOverviewRangeLabel()"></h4>
                     <span class="mt-2 inv-risk-chip">Chi tiết tồn kho chỉ mở cho tháng hiện tại</span>
                     <button @click="resetToCurrentMonth()" class="mt-6 inv-btn-primary">Về tháng hiện tại</button>
                 </div>
@@ -328,12 +454,54 @@
                             <table class="w-full text-sm">
                                 <thead class="inv-table-head">
                                     <tr>
-                                        <th class="px-4 py-3 text-left">Sản phẩm</th>
-                                        <th class="px-4 py-3 text-left">Nhóm</th>
-                                        <th class="px-4 py-3 text-right">Tồn</th>
-                                        <th class="px-4 py-3 text-right">Nhập</th>
-                                        <th class="px-4 py-3 text-right">Xuất</th>
-                                        <th class="px-4 py-3 text-center">Trạng thái</th>
+                                        <th class="px-4 py-3 text-left">
+                                            <button type="button" @click="setStockSort('product_name')"
+                                                class="inline-flex items-center gap-1 font-black uppercase tracking-tighter hover:text-primary-600 transition-colors"
+                                                :class="stockSortField === 'product_name' ? 'text-primary-600 dark:text-primary-400' : ''">
+                                                Sản phẩm
+                                                <span class="text-[10px] tabular-nums" x-text="getStockSortIcon('product_name')"></span>
+                                            </button>
+                                        </th>
+                                        <th class="px-4 py-3 text-left">
+                                            <button type="button" @click="setStockSort('categoryName')"
+                                                class="inline-flex items-center gap-1 font-black uppercase tracking-tighter hover:text-primary-600 transition-colors"
+                                                :class="stockSortField === 'categoryName' ? 'text-primary-600 dark:text-primary-400' : ''">
+                                                Nhóm
+                                                <span class="text-[10px] tabular-nums" x-text="getStockSortIcon('categoryName')"></span>
+                                            </button>
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            <button type="button" @click="setStockSort('quantity')"
+                                                class="inline-flex items-center gap-1 font-black uppercase tracking-tighter hover:text-primary-600 transition-colors ml-auto"
+                                                :class="stockSortField === 'quantity' ? 'text-primary-600 dark:text-primary-400' : ''">
+                                                Tồn
+                                                <span class="text-[10px] tabular-nums" x-text="getStockSortIcon('quantity')"></span>
+                                            </button>
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            <button type="button" @click="setStockSort('total_import')"
+                                                class="inline-flex items-center gap-1 font-black uppercase tracking-tighter hover:text-primary-600 transition-colors ml-auto"
+                                                :class="stockSortField === 'total_import' ? 'text-primary-600 dark:text-primary-400' : ''">
+                                                Nhập
+                                                <span class="text-[10px] tabular-nums" x-text="getStockSortIcon('total_import')"></span>
+                                            </button>
+                                        </th>
+                                        <th class="px-4 py-3 text-right">
+                                            <button type="button" @click="setStockSort('total_export')"
+                                                class="inline-flex items-center gap-1 font-black uppercase tracking-tighter hover:text-primary-600 transition-colors ml-auto"
+                                                :class="stockSortField === 'total_export' ? 'text-primary-600 dark:text-primary-400' : ''">
+                                                Xuất
+                                                <span class="text-[10px] tabular-nums" x-text="getStockSortIcon('total_export')"></span>
+                                            </button>
+                                        </th>
+                                        <th class="px-4 py-3 text-center">
+                                            <button type="button" @click="setStockSort('status')"
+                                                class="inline-flex items-center gap-1 font-black uppercase tracking-tighter hover:text-primary-600 transition-colors mx-auto"
+                                                :class="stockSortField === 'status' ? 'text-primary-600 dark:text-primary-400' : ''">
+                                                Trạng thái
+                                                <span class="text-[10px] tabular-nums" x-text="getStockSortIcon('status')"></span>
+                                            </button>
+                                        </th>
                                         <th class="px-4 py-3 text-right">Audit</th>
                                     </tr>
                                 </thead>

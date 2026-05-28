@@ -43,6 +43,7 @@ from .api.pms import (
     folio_router as pms_folio,
     inventory_integration_router as pms_inventory,
     reservation_router as pms_reservations,
+    dklt_export_router as pms_dklt_export,
 )
 from .api.pms.guest_crm_api import router as guest_crm_router
 
@@ -372,6 +373,7 @@ app.include_router(pms_guest_document, tags=["PMS Guest Documents"])
 app.include_router(pms_folio, tags=["PMS Folio"])
 app.include_router(pms_inventory, tags=["PMS Inventory"])
 app.include_router(pms_reservations, tags=["PMS Reservations"])
+app.include_router(pms_dklt_export, tags=["PMS DKLT Export"])
 
 # PMS - Guest CRM
 app.include_router(guest_crm_router, tags=["PMS - CRM"])

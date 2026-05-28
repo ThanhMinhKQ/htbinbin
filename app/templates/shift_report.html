@@ -2303,29 +2303,55 @@
             // ==========================================================
 
             lastKnownMaxId: 0,
-            
+            _pollAbortController: null,
+            _pollInFlight: false,
+
             init() {
-                // Lightweight polling: kiểm tra thay đổi mỗi 3 giây, chỉ refresh khi có dữ liệu mới
-                this.autoRefreshInterval = setInterval(async () => {
+                // Lightweight polling: kiểm tra thay đổi mỗi 8 giây, pause khi tab background.
+                // - AbortController để cancel request khi tab hidden hoặc unmount.
+                // - _pollInFlight flag tránh chồng request khi server chậm.
+                const POLL_INTERVAL_MS = 8000;
+
+                const pollOnce = async () => {
+                    if (document.hidden) return;
+                    if (this._pollInFlight) return;
                     if (this.loading || this.isAddModalOpen || this.isEditModalOpen || this.isDetailsModalOpen || this.isClosingShift) {
                         return;
                     }
-                    
+
                     const chiNhanhEl = document.getElementById('chi_nhanh');
                     const chi_nhanh = chiNhanhEl ? chiNhanhEl.value : '';
-                    
+
+                    this._pollInFlight = true;
+                    this._pollAbortController = new AbortController();
                     try {
-                        const resp = await fetch(`/shift-report/api/changes?since_id=${this.lastKnownMaxId}&chi_nhanh=${chi_nhanh}`);
+                        const resp = await fetch(
+                            `/shift-report/api/changes?since_id=${this.lastKnownMaxId}&chi_nhanh=${encodeURIComponent(chi_nhanh)}`,
+                            { signal: this._pollAbortController.signal }
+                        );
                         const data = await resp.json();
-                        
+
                         if (data.has_changes) {
                             this.lastKnownMaxId = data.max_id;
                             await this.refreshShiftReportState();
                         }
                     } catch (e) {
-                        // Silently fail polling
+                        // Silently fail polling (kể cả AbortError)
+                    } finally {
+                        this._pollInFlight = false;
+                        this._pollAbortController = null;
                     }
-                }, 3000);
+                };
+
+                this.autoRefreshInterval = setInterval(pollOnce, POLL_INTERVAL_MS);
+
+                // Hủy request đang chạy khi tab chuyển sang background để tránh giữ
+                // connection mở lâu trên server.
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden && this._pollAbortController) {
+                        this._pollAbortController.abort();
+                    }
+                });
 
                 // SỬA: Khởi tạo flatpickr ngay trong init và lưu instance
                 const datePickerConfig = {

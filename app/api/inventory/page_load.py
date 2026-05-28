@@ -6,6 +6,7 @@ from datetime import datetime
 from ...db.session import get_db
 from ...db.models import (
     InventoryTransfer, InventoryTransferItem, TicketStatus, InventoryReceipt,
+    Branch, Warehouse,
 )
 
 router = APIRouter()

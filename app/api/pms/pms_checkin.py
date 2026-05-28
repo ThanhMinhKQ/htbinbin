@@ -281,8 +281,8 @@ def api_checkin(
                     eg_cccd = eg_data.get("cccd", "")
                     if eg_cccd and len(eg_cccd.strip()) >= 3:
                         all_cccds.append(eg_cccd.strip())
-        except:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"[checkin] extra_guests pre-scan JSON parse failed: {e}")
             
     if all_cccds:
         active_guests = (
@@ -396,13 +396,14 @@ def api_checkin(
     old_city_v, old_district_v, old_ward_v = None, None, None
     new_city_v, new_ward_v = None, None
     new_district_v = None
+    conv = {}
 
     if address_type == "old" and _ward_s:
         old_city_v     = old_city.strip() or _city_s
         old_district_v = old_district.strip() or _dist_s
         old_ward_v     = old_ward.strip() or _ward_s
         if not new_city.strip() or not new_ward.strip():
-            conv = convert_old_to_new_sync(old_ward_v, old_city_v, old_district_v)
+            conv = convert_old_to_new_sync(old_ward_v, old_city_v, old_district_v) or {}
         new_city_v = new_city.strip() if new_city.strip() else conv.get("new_province", old_city_v)
         new_ward_v = new_ward.strip() if new_ward.strip() else conv.get("new_ward", old_ward_v)
     else:
@@ -541,14 +542,15 @@ def api_checkin(
                     eg_new_city_v, eg_new_ward_v, eg_new_district_v = eg_city, eg_ward, eg_dist
                     eg_client_new_city = eg_data.get("new_city", "")
                     eg_client_new_ward = eg_data.get("new_ward", "")
+                    conv = {}
                     if eg_addr_type == "old" and eg_ward:
                         eg_old_city_v = eg_data.get("old_city") or eg_city
                         eg_old_district_v = eg_data.get("old_district") or eg_dist
                         eg_old_ward_v = eg_data.get("old_ward") or eg_ward
                         if not eg_client_new_city or not eg_client_new_ward:
-                            conv = convert_old_to_new_sync(eg_old_ward_v, eg_old_city_v, eg_old_district_v)
-                        eg_new_city_v = eg_client_new_city or (conv.get("new_province", eg_old_city_v) if 'conv' in dir() else eg_old_city_v)
-                        eg_new_ward_v = eg_client_new_ward or (conv.get("new_ward", eg_old_ward_v) if 'conv' in dir() else eg_old_ward_v)
+                            conv = convert_old_to_new_sync(eg_old_ward_v, eg_old_city_v, eg_old_district_v) or {}
+                        eg_new_city_v = eg_client_new_city or conv.get("new_province", eg_old_city_v)
+                        eg_new_ward_v = eg_client_new_ward or conv.get("new_ward", eg_old_ward_v)
 
                     # Resolve guest master for extra guest
                     eg_guest_master = None
@@ -656,8 +658,11 @@ def api_checkin(
                     # Collect for timeline logging
                     _extra_hotel_guests.append(eg)
 
-        except:
-            pass  # Ignore invalid JSON
+        except json.JSONDecodeError as e:
+            logger.warning(f"[checkin] extra_guests JSON parse failed: {e}")
+        except Exception as e:
+            logger.exception(f"[checkin] extra_guests processing failed: {e}")
+            raise HTTPException(status_code=400, detail=f"Lỗi xử lý khách phụ: {e}")
 
     # Flush tất cả extra guests 1 lần (thay vì flush từng guest trong loop)
     db.flush()

@@ -831,7 +831,7 @@ async function agFillFromScan(parsed) {
 
         // Not in local list — check DB (guest from a previous stay)
         try {
-            const searchRes = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(cccdToCheck)}`);
+            const searchRes = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(cccdToCheck)}&include_total=false&page_size=1`);
             if (searchRes && searchRes.guests && searchRes.guests.length > 0) {
                 const guest = searchRes.guests[0];
                 if (typeof PMS_ADDR !== 'undefined' && PMS_ADDR.markAutofill) {

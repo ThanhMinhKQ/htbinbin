@@ -69,22 +69,39 @@
         <!-- Table -->
         <div class="overflow-x-auto relative min-h-[400px]">
             <template x-if="loadingImports">
-                <table class="w-full text-sm text-left border-collapse">
-                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                        <template x-for="i in 6" :key="i">
-                            <tr>
-                                <td class="px-4 py-3 w-12"><div class="skeleton skeleton-text" style="width:16px;height:16px;border-radius:4px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:90px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:110px;"></div></td>
-                                <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
-                                <td class="px-4 py-3 text-center"><div class="skeleton skeleton-text" style="width:30px;margin:0 auto;"></div></td>
-                                <td class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:60px;margin-left:auto;"></div></td>
-                                <td class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:50px;margin-left:auto;"></div></td>
+                <div class="skeleton-stagger">
+                    <table class="w-full text-sm text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-slate-100 dark:border-slate-800">
+                                <th class="px-4 py-3 w-12"><div class="skeleton skeleton-icon"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:70px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:100px;"></div></th>
+                                <th class="px-4 py-3"><div class="skeleton skeleton-text" style="width:70px;"></div></th>
+                                <th class="px-4 py-3 text-center"><div class="skeleton skeleton-text" style="width:50px;margin:0 auto;"></div></th>
+                                <th class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:60px;margin-left:auto;"></div></th>
+                                <th class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:50px;margin-left:auto;"></div></th>
                             </tr>
-                        </template>
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            <template x-for="i in 6" :key="i">
+                                <tr>
+                                    <td class="px-4 py-3 w-12"><div class="skeleton skeleton-icon" style="width:16px;height:16px;border-radius:4px;"></div></td>
+                                    <td class="px-4 py-3">
+                                        <div class="skeleton skeleton-text" style="width:88px;"></div>
+                                        <div class="skeleton skeleton-text-sm" style="width:56px;margin-top:4px;"></div>
+                                    </td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:80px;"></div></td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-text" style="width:110px;"></div></td>
+                                    <td class="px-4 py-3"><div class="skeleton skeleton-badge" style="width:68px;"></div></td>
+                                    <td class="px-4 py-3 text-center"><div class="skeleton skeleton-badge" style="width:56px;margin:0 auto;"></div></td>
+                                    <td class="px-4 py-3 text-right"><div class="skeleton skeleton-text" style="width:60px;margin-left:auto;"></div></td>
+                                    <td class="px-4 py-3 text-right"><div class="skeleton skeleton-btn" style="width:56px;height:28px;margin-left:auto;border-radius:8px;"></div></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
             </template>
             <template x-if="!loadingImports">
             <table class="w-full text-sm text-left border-collapse">

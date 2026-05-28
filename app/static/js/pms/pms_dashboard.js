@@ -52,7 +52,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopDashboardPolling();
-        else { pmsLoadRooms(undefined, true); pmsLoadOtaStatus(true); startDashboardPolling(); }
+        else {
+            stopDashboardPolling(); // ensure no leftover interval before restart
+            pmsLoadRooms(undefined, true);
+            pmsLoadOtaStatus(true);
+            startDashboardPolling();
+        }
     });
     startDashboardPolling();
     document.addEventListener('keydown', (e) => {
@@ -82,6 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ─────────────────────────────────────────────────────────────────────────────
     async function pmsLoadRooms(bid, silent = false) {
     if (PMS._loading) return; // tránh gọi chồng
+    // Dedup guard: bỏ qua lần gọi silent nếu vừa load xong < 3s (tránh nhiều caller dồn dập sau check-in/checkout/transfer)
+    const now = Date.now();
+    if (silent && PMS._lastLoadAt && (now - PMS._lastLoadAt) < 3000 && bid === undefined) return;
     PMS._loading = true;
     PMS._roomsLoaded = false;
     if (bid!==undefined) PMS.branchId=bid;
@@ -105,7 +113,14 @@ document.addEventListener('DOMContentLoaded', () => {
         PMS.floors = data.floors || {};
         PMS.roomTypes = roomTypesData;
         PMS._roomsLoaded = true;
-        await pmsLoadTodayArrivals(true);
+        PMS._lastLoadAt = Date.now();
+        // today-arrivals tách độc lập: chỉ refetch nếu chưa có hoặc cache > 60s
+        const arrivalsAge = PMS._arrivalsLoadedAt ? (Date.now() - PMS._arrivalsLoadedAt) : Infinity;
+        if (!PMS.todayArrivals || arrivalsAge > 60000) {
+            await pmsLoadTodayArrivals(true);
+        } else {
+            pmsUpdateArrivalBadge();
+        }
         pmsRender();
     } catch(e) {
         if (loadEl) loadEl.innerHTML=`<div class="pms-empty"><p class="text-danger small">${e.message}</p></div>`;
@@ -154,10 +169,16 @@ function pmsArrivalBranchUrl(path) {
 
 async function pmsLoadOtaStatus(silent = false) {
     const requestBranchId = PMS.branchId || null;
+    // Dedup: skip silent calls if just fetched < 5s ago for same branch
+    if (silent && PMS_OTA_STATUS._loading) return;
+    if (silent && PMS_OTA_STATUS._lastLoadedAt
+        && PMS_OTA_STATUS._lastLoadedBranchId === requestBranchId
+        && (Date.now() - PMS_OTA_STATUS._lastLoadedAt) < 5000) return;
     const params = new URLSearchParams();
     if (requestBranchId) params.set('branch_id', requestBranchId);
     const url = `/api/pms/reservations/ota/status${params.toString() ? `?${params.toString()}` : ''}`;
 
+    PMS_OTA_STATUS._loading = true;
     try {
         const data = pmsDashboardApiData(await pmsApi(url), {});
         if ((PMS.branchId || null) !== requestBranchId) return;
@@ -172,6 +193,8 @@ async function pmsLoadOtaStatus(silent = false) {
         PMS_OTA_STATUS.branchId = data.branch_id ?? requestBranchId;
         PMS_OTA_STATUS.branchName = data.branch_name || pmsCurrentBranchName();
         PMS_OTA_STATUS.loading = false;
+        PMS_OTA_STATUS._lastLoadedAt = Date.now();
+        PMS_OTA_STATUS._lastLoadedBranchId = requestBranchId;
         pmsRenderOtaStatus();
         if (previous !== null && pending > previous) {
             pmsShowOtaBanner(pending - previous, pending);
@@ -185,6 +208,8 @@ async function pmsLoadOtaStatus(silent = false) {
         PMS_OTA_STATUS.loading = false;
         pmsRenderOtaStatus(e.message || 'Không tải được trạng thái OTA');
         if (!silent) pmsToast(e.message || 'Không tải được trạng thái OTA', false);
+    } finally {
+        PMS_OTA_STATUS._loading = false;
     }
 }
 
@@ -251,6 +276,279 @@ function pmsCloseOtaPopover() {
     bell.setAttribute('aria-expanded', 'false');
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DKLT Export (Đăng ký lưu trú) — modal chọn phòng + format
+// ─────────────────────────────────────────────────────────────────────────────
+const PMS_DKLT = {
+    stays: [],          // [{stay_id, room_number, primary_guest, vn_count, foreign_count, ...}]
+    selected: new Set(),// stay_id đang chọn
+    filter: '',         // search query lowercase
+    loaded: false,
+};
+
+async function pmsOpenDkltModal() {
+    const modal = document.getElementById('pms-dklt-modal');
+    if (!modal) return;
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+
+    document.getElementById('pms-dklt-search').value = '';
+    PMS_DKLT.filter = '';
+    document.getElementById('pms-dklt-select-all').checked = true;
+
+    const list = document.getElementById('pms-dklt-room-list');
+    list.innerHTML = '<div class="pms-dklt-empty">Đang tải...</div>';
+
+    try {
+        const params = new URLSearchParams();
+        if (PMS.branchId) params.set('branch_id', PMS.branchId);
+        const url = `/api/pms/dklt/rooms${params.toString() ? '?' + params.toString() : ''}`;
+        const data = await pmsApi(url);
+        PMS_DKLT.stays = Array.isArray(data?.stays) ? data.stays : [];
+        PMS_DKLT.selected = new Set(PMS_DKLT.stays.map(s => s.stay_id));
+        PMS_DKLT.loaded = true;
+        pmsDkltRender();
+    } catch (err) {
+        console.error('[DKLT] load rooms failed:', err);
+        list.innerHTML = `<div class="pms-dklt-empty">Không tải được danh sách phòng: ${err?.message || 'lỗi'}</div>`;
+    }
+}
+
+function pmsCloseDkltModal() {
+    const modal = document.getElementById('pms-dklt-modal');
+    if (!modal) return;
+    modal.classList.remove('show');
+    modal.setAttribute('aria-hidden', 'true');
+}
+
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('pms-dklt-modal');
+    if (modal && e.target === modal) pmsCloseDkltModal();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const modal = document.getElementById('pms-dklt-modal');
+    if (modal?.classList.contains('show')) pmsCloseDkltModal();
+});
+
+function pmsDkltVisibleStays() {
+    const q = (PMS_DKLT.filter || '').trim().toLowerCase();
+    if (!q) return PMS_DKLT.stays;
+    return PMS_DKLT.stays.filter(s => {
+        const room = (s.room_number || '').toLowerCase();
+        const guest = (s.primary_guest || '').toLowerCase();
+        return room.includes(q) || guest.includes(q);
+    });
+}
+
+function pmsDkltRender() {
+    const list = document.getElementById('pms-dklt-room-list');
+    if (!list) return;
+
+    if (!PMS_DKLT.stays.length) {
+        list.innerHTML = '<div class="pms-dklt-empty">Không có phòng nào đang lưu trú (đã loại phòng giờ).</div>';
+        pmsDkltUpdateFooter();
+        return;
+    }
+
+    const visible = pmsDkltVisibleStays();
+    if (!visible.length) {
+        list.innerHTML = '<div class="pms-dklt-empty">Không tìm thấy phòng phù hợp.</div>';
+        pmsDkltUpdateFooter();
+        return;
+    }
+
+    list.innerHTML = visible.map(s => {
+        const checked = PMS_DKLT.selected.has(s.stay_id) ? 'checked' : '';
+        const tags = [];
+        if (s.vn_count > 0) tags.push(`<span class="pms-dklt-tag vn">VN ${s.vn_count}</span>`);
+        if (s.foreign_count > 0) tags.push(`<span class="pms-dklt-tag fn">NN ${s.foreign_count}</span>`);
+        const meta = s.primary_guest
+            ? `${pmsEscape(s.primary_guest)}`
+            : `${(s.vn_count + s.foreign_count)} khách`;
+        return `
+            <label class="pms-dklt-room-item">
+                <input type="checkbox" data-stay-id="${s.stay_id}" ${checked}
+                    onchange="pmsDkltToggleStay(${s.stay_id}, this.checked)" />
+                <div class="pms-dklt-room-info">
+                    <div class="pms-dklt-room-num">Phòng ${pmsEscape(s.room_number || '—')}</div>
+                    <div class="pms-dklt-room-meta">${meta}</div>
+                </div>
+                <div class="pms-dklt-room-tags">${tags.join('')}</div>
+            </label>
+        `;
+    }).join('');
+
+    pmsDkltUpdateFooter();
+    pmsDkltSyncSelectAll();
+}
+
+function pmsDkltUpdateFooter() {
+    const counter = document.getElementById('pms-dklt-counter');
+    const info = document.getElementById('pms-dklt-foot-info');
+    const submit = document.getElementById('pms-dklt-submit');
+
+    const total = PMS_DKLT.stays.length;
+    const selectedCount = PMS_DKLT.selected.size;
+    if (counter) counter.textContent = `${selectedCount}/${total}`;
+
+    let vn = 0, fn = 0;
+    PMS_DKLT.stays.forEach(s => {
+        if (PMS_DKLT.selected.has(s.stay_id)) {
+            vn += Number(s.vn_count || 0);
+            fn += Number(s.foreign_count || 0);
+        }
+    });
+    if (info) {
+        info.textContent = selectedCount
+            ? `Sẽ xuất ${vn} khách VN + ${fn} khách nước ngoài (${selectedCount} phòng).`
+            : 'Chưa chọn phòng nào.';
+    }
+    if (submit) submit.disabled = selectedCount === 0;
+}
+
+function pmsDkltSyncSelectAll() {
+    const visible = pmsDkltVisibleStays();
+    const all = document.getElementById('pms-dklt-select-all');
+    if (!all || !visible.length) return;
+    const allSelected = visible.every(s => PMS_DKLT.selected.has(s.stay_id));
+    const someSelected = visible.some(s => PMS_DKLT.selected.has(s.stay_id));
+    all.checked = allSelected;
+    all.indeterminate = !allSelected && someSelected;
+}
+
+function pmsDkltToggleStay(stayId, checked) {
+    if (checked) PMS_DKLT.selected.add(stayId);
+    else PMS_DKLT.selected.delete(stayId);
+    pmsDkltUpdateFooter();
+    pmsDkltSyncSelectAll();
+}
+
+function pmsDkltToggleAll(checked) {
+    const visible = pmsDkltVisibleStays();
+    visible.forEach(s => {
+        if (checked) PMS_DKLT.selected.add(s.stay_id);
+        else PMS_DKLT.selected.delete(s.stay_id);
+    });
+    document.querySelectorAll('#pms-dklt-room-list input[type="checkbox"]').forEach(cb => {
+        const id = Number(cb.dataset.stayId);
+        cb.checked = PMS_DKLT.selected.has(id);
+    });
+    pmsDkltUpdateFooter();
+}
+
+function pmsDkltFilter(q) {
+    PMS_DKLT.filter = q || '';
+    pmsDkltRender();
+}
+
+function pmsEscape(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+async function pmsDkltSubmit() {
+    const submit = document.getElementById('pms-dklt-submit');
+    if (!submit || submit.disabled) return;
+
+    const format = document.querySelector('input[name="pms-dklt-format"]:checked')?.value || 'excel';
+    const ids = Array.from(PMS_DKLT.selected);
+    if (!ids.length) {
+        pmsToast('Hãy chọn ít nhất một phòng để xuất.', false);
+        return;
+    }
+
+    let vn = 0, fn = 0;
+    PMS_DKLT.stays.forEach(s => {
+        if (PMS_DKLT.selected.has(s.stay_id)) {
+            vn += Number(s.vn_count || 0);
+            fn += Number(s.foreign_count || 0);
+        }
+    });
+
+    // VN chỉ hỗ trợ Excel; XML chỉ áp dụng cho khách nước ngoài.
+    const groups = [];
+    if (format === 'xml') {
+        if (fn) groups.push('foreign');
+    } else {
+        if (vn) groups.push('vn');
+        if (fn) groups.push('foreign');
+    }
+
+    if (!groups.length) {
+        pmsToast(format === 'xml'
+            ? 'Phòng đã chọn không có khách nước ngoài. Hãy chọn Excel hoặc thêm phòng nước ngoài.'
+            : 'Phòng đã chọn không có khách hợp lệ.', false);
+        return;
+    }
+
+    submit.disabled = true;
+    const labelOriginal = submit.innerHTML;
+    submit.innerHTML = 'Đang xuất...';
+
+    try {
+        for (const g of groups) {
+            await pmsDownloadDkltFile(g, format, ids);
+        }
+        const fmtLabel = format === 'xml' ? 'XML' : 'Excel';
+        pmsToast(`Đã xuất ${groups.length} file ĐKLT (${fmtLabel}).`, true);
+        pmsCloseDkltModal();
+    } catch (err) {
+        console.error('[DKLT] export failed:', err);
+        pmsToast(err?.message || 'Không xuất được file ĐKLT.', false);
+    } finally {
+        submit.disabled = false;
+        submit.innerHTML = labelOriginal;
+    }
+}
+
+async function pmsDownloadDkltFile(group, format, stayIds) {
+    const params = new URLSearchParams();
+    if (PMS.branchId) params.set('branch_id', PMS.branchId);
+    params.set('group', group);
+    params.set('format', format);
+    if (Array.isArray(stayIds) && stayIds.length) {
+        params.set('stay_ids', stayIds.join(','));
+    }
+    const url = `/api/pms/dklt/export?${params.toString()}`;
+    const res = await fetch(url, { credentials: 'same-origin' });
+    if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+            const j = await res.json();
+            if (j?.detail) msg = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail);
+        } catch (_) { /* ignore */ }
+        throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    let filename = '';
+    const m1 = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+    const m2 = /filename="?([^";]+)"?/i.exec(cd);
+    if (m1) {
+        try { filename = decodeURIComponent(m1[1]); } catch (_) { filename = m1[1]; }
+    } else if (m2) {
+        filename = m2[1];
+    }
+    if (!filename) {
+        const ext = format === 'xml' ? 'xml' : 'xlsx';
+        const tag = group === 'foreign' ? 'NN' : 'VN';
+        filename = `DKLT_${tag}.${ext}`;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+        URL.revokeObjectURL(a.href);
+        a.remove();
+    }, 0);
+}
+
+
 function pmsShowOtaBanner(delta, pending) {
     const existing = document.getElementById('pms-ota-toast');
     if (existing) existing.remove();
@@ -291,11 +589,16 @@ function pmsFormatOtaDateTime(value) {
 }
 
 async function pmsLoadTodayArrivals(silent = false) {
+    // Dedup: skip silent calls if just fetched < 5s ago
+    if (silent && PMS._arrivalsLoading) return;
+    if (silent && PMS._arrivalsLoadedAt && (Date.now() - PMS._arrivalsLoadedAt) < 5000) return;
     const modalOpen = document.getElementById('pms-arrivals-modal')?.classList.contains('show');
     if (!silent && modalOpen) pmsRenderArrivalsLoading();
+    PMS._arrivalsLoading = true;
     try {
         const data = pmsDashboardApiData(await pmsApi(pmsArrivalBranchUrl('/api/pms/reservations/today-arrivals')), {});
         PMS.todayArrivals = Array.isArray(data.items) ? data.items : [];
+        PMS._arrivalsLoadedAt = Date.now();
         pmsUpdateArrivalBadge();
         if (!silent && modalOpen) {
             pmsRenderArrivalsModal();
@@ -304,6 +607,8 @@ async function pmsLoadTodayArrivals(silent = false) {
         PMS.todayArrivals = PMS.todayArrivals || [];
         pmsUpdateArrivalBadge();
         if (!silent) pmsToast(e.message || 'Không tải được đặt phòng đến hôm nay', false);
+    } finally {
+        PMS._arrivalsLoading = false;
     }
 }
 

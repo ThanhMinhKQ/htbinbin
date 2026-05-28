@@ -4,7 +4,7 @@
 {% block page_title %}Quản lý Yêu Cầu Kho{% endblock %}
 
 {% block head %}
-<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=2.5">
+<link rel="stylesheet" href="/static/css/inventory/pms_inventory.css?v=3.0-kpi3">
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 {% endblock %}
 
@@ -68,6 +68,20 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21V9m0 0l4 4m-4-4l-4 4M5 3h14" />
             </svg>
             Lịch sử xuất
+        </button>
+    </div>
+
+    <!-- Shift sales button — only visible on overview tab -->
+    <div x-show="tab === 'overview'" class="flex items-center gap-2 shrink-0">
+        <button type="button" @click="window.dispatchEvent(new CustomEvent('inventory:open-shift-sales'))"
+            class="inv-overview-shift-btn inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/20 hover:border-emerald-400 hover:shadow-md transition-all"
+            title="Xem nhanh các món đã bán trong ca của bạn">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+            </span>
+            <span class="text-[11px] font-black text-emerald-700 dark:text-emerald-300 whitespace-nowrap">Bán trong ca</span>
         </button>
     </div>
 </div>
@@ -229,6 +243,8 @@
                 {% include "inventory/shared/imports/modal_import.html" %}
                 {% include "inventory/shared/imports/modal_import_detail.html" %}
                 {% include "inventory/shared/imports/modal_edit_import.html" %}
+                {% include "inventory/reception_request/exports/modal_export_detail.html" %}
+
 
                 <!-- Global Image Viewer Modal -->
                 <div x-show="viewingImage" style="display: none;"

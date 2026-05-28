@@ -16,6 +16,7 @@ from .guest_document_api import router as guest_document_router
 from .folio_api import router as folio_router
 from .inventory_integration import router as inventory_integration_router
 from .reservation_api import router as reservation_router
+from .pms_export import router as dklt_export_router
 
 __all__ = [
     "pages_router",
@@ -32,4 +33,5 @@ __all__ = [
     "folio_router",
     "inventory_integration_router",
     "reservation_router",
+    "dklt_export_router",
 ]

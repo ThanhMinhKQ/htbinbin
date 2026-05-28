@@ -21,11 +21,10 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
         ...overview,
 
         initApp() {
-            this.initCurrentTab();
-
-            this.$watch('currentTab', (newTab) => {
-                localStorage.setItem('reception_currentTab', newTab);
-            });
+            // Lễ tân vào trang yêu cầu vật tư luôn land ở tab "Tổng quan", không
+            // dùng localStorage để nhớ tab cũ.
+            try { localStorage.removeItem('reception_currentTab'); } catch (_) {}
+            this.currentTab = 'overview';
 
             this.$watch('pendingCount', (newVal) => {
                 window.dispatchEvent(new CustomEvent('inventory:set-pending-count', { detail: newVal }));
@@ -89,6 +88,8 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
             if (this.currentBranchId || this.currentWarehouseId) {
                 this._pageLoad();
             }
+
+            window.addEventListener('inventory:open-shift-sales', () => this.openShiftSales());
         },
 
         async _pageLoad() {

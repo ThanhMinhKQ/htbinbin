@@ -2564,7 +2564,7 @@ Object.assign(BookingHub, {
 
         if (normalizedId && normalizedId.length >= 3) {
             try {
-                const searchRes = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(normalizedId)}`);
+                const searchRes = await pmsApi(`/api/pms/crm/guests/search?cccd=${encodeURIComponent(normalizedId)}&include_total=false&page_size=1`);
                 const guests = searchRes?.guests || searchRes?.items || [];
                 if (guests.length > 0) {
                     await this.selectCrmGuest(guests[0]);
