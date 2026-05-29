@@ -118,24 +118,42 @@
                     </div>
 
                     <div class="inv-flow-stack">
-                        <template x-for="item in [
-                            { label: 'Chờ duyệt', value: stats.pendingRequests || 0, tone: 'warning' },
-                            { label: 'Đang giao', value: stats.shippingRequests || 0, tone: 'info' },
-                            { label: 'Hoàn thành', value: stats.completedRequests || 0, tone: 'success' }
-                        ]" :key="item.label">
-                            <div class="inv-flow-row group/row" :data-tone="item.tone">
-                                <div class="flex items-center gap-1.5 min-w-0">
-                                    <span class="inv-flow-row-label truncate" x-text="item.label"></span>
-                                </div>
-                                <div class="inv-flow-rail">
-                                    <span :style="`width: ${stats.totalRequests > 0 ? Math.round((item.value / stats.totalRequests) * 100) : 0}%`"></span>
-                                </div>
-                                <span class="inv-flow-row-num">
-                                    <strong x-text="item.value"></strong>
-                                    <em class="px-1.5 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 text-[9px] font-black tracking-tight border border-slate-200/40 dark:border-slate-700/40" x-text="`${stats.totalRequests > 0 ? Math.round((item.value / stats.totalRequests) * 100) : 0}%`"></em>
-                                </span>
+                        <div class="inv-flow-row group/row" data-tone="warning">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="inv-flow-row-label truncate">Chờ duyệt</span>
                             </div>
-                        </template>
+                            <div class="inv-flow-rail">
+                                <span :style="`width: ${stats.totalRequests > 0 ? Math.round(((stats.pendingRequests || 0) / stats.totalRequests) * 100) : 0}%`"></span>
+                            </div>
+                            <span class="inv-flow-row-num">
+                                <strong x-text="stats.pendingRequests || 0"></strong>
+                                <em class="px-1.5 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 text-[9px] font-black tracking-tight border border-slate-200/40 dark:border-slate-700/40" x-text="`${stats.totalRequests > 0 ? Math.round(((stats.pendingRequests || 0) / stats.totalRequests) * 100) : 0}%`"></em>
+                            </span>
+                        </div>
+                        <div class="inv-flow-row group/row" data-tone="info">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="inv-flow-row-label truncate">Đang giao</span>
+                            </div>
+                            <div class="inv-flow-rail">
+                                <span :style="`width: ${stats.totalRequests > 0 ? Math.round(((stats.shippingRequests || 0) / stats.totalRequests) * 100) : 0}%`"></span>
+                            </div>
+                            <span class="inv-flow-row-num">
+                                <strong x-text="stats.shippingRequests || 0"></strong>
+                                <em class="px-1.5 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 text-[9px] font-black tracking-tight border border-slate-200/40 dark:border-slate-700/40" x-text="`${stats.totalRequests > 0 ? Math.round(((stats.shippingRequests || 0) / stats.totalRequests) * 100) : 0}%`"></em>
+                            </span>
+                        </div>
+                        <div class="inv-flow-row group/row" data-tone="success">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="inv-flow-row-label truncate">Hoàn thành</span>
+                            </div>
+                            <div class="inv-flow-rail">
+                                <span :style="`width: ${stats.totalRequests > 0 ? Math.round(((stats.completedRequests || 0) / stats.totalRequests) * 100) : 0}%`"></span>
+                            </div>
+                            <span class="inv-flow-row-num">
+                                <strong x-text="stats.completedRequests || 0"></strong>
+                                <em class="px-1.5 py-0.5 rounded-md bg-slate-100/80 dark:bg-slate-800/80 text-[9px] font-black tracking-tight border border-slate-200/40 dark:border-slate-700/40" x-text="`${stats.totalRequests > 0 ? Math.round(((stats.completedRequests || 0) / stats.totalRequests) * 100) : 0}%`"></em>
+                            </span>
+                        </div>
                     </div>
                 </div>
 

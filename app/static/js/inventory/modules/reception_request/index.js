@@ -1,5 +1,5 @@
 import initialState from '../../shared/state.js?v=3.1';
-import utils from './utils.js?v=3.1';
+import utils from './utils.js?v=3.2-pagination';
 import requests from './requests.js?v=3.0';
 import approvals from './approvals.js?v=3.5';
 import imports from './imports.js?v=3.0';
@@ -115,9 +115,7 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                     this.approvalsList = d.approvals.records || [];
                     this.totalApprovalRecords = d.approvals.totalRecords || 0;
                     this.totalApprovalPages = d.approvals.totalPages || 0;
-                    if (this.currentTab === 'approvals') {
-                        this.pendingCount = d.approvals.pendingCount || 0;
-                    }
+                    this.pendingCount = d.approvals.pendingCount || 0;
                 }
                 if (d.imports) {
                     this.importsList = d.imports.records || [];
@@ -126,6 +124,20 @@ function receptionRequestApp(totalRecords, currentPage, totalPages) {
                 }
                 if (d.stats) {
                     this.dashboardStats = d.stats;
+                    this.stats = this.stats || {};
+                    this.stats.totalRequests = d.stats.requests?.total || 0;
+                    this.stats.pendingRequests = d.stats.requests?.pending || 0;
+                    this.stats.shippingRequests = d.stats.requests?.shipping || 0;
+                    this.stats.completedRequests = d.stats.requests?.completed || 0;
+                    this.stats.totalImports = d.stats.imports?.total || 0;
+                    this.stats.totalImportAmount = d.stats.imports?.total_amount || 0;
+                    this.stats.totalExports = d.stats.exports?.total || 0;
+                    this.stats.totalSalesAmount = d.stats.sales?.total_amount || 0;
+                    this.stats.cashflow = d.stats.cashflow || {
+                        inflow: this.stats.totalSalesAmount,
+                        outflow: this.stats.totalImportAmount,
+                        net: this.stats.totalSalesAmount - this.stats.totalImportAmount
+                    };
                 }
 
                 const tab = this.currentTab;

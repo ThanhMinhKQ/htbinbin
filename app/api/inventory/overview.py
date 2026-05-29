@@ -175,9 +175,16 @@ async def get_dashboard_stats(
     warehouse_id: int = None,
     date_from: str = None,
     date_to: str = None,
+    perspective: str = "manager",
     db: Session = Depends(get_db)
 ):
-    """Dashboard stats — single raw SQL query for all aggregations."""
+    """Dashboard stats — single raw SQL query for all aggregations.
+
+    perspective:
+      - "manager"   : warehouse is the request source (manager owns kho nguồn)
+      - "reception" : warehouse is the request dest (reception nhận hàng)
+    """
+    is_reception = perspective == "reception"
     start_time = None
     end_time = None
     try:
@@ -211,6 +218,14 @@ async def get_dashboard_stats(
         wh_imp_filter = "1=1"
         wh_sm_filter = "1=1"
 
+    # Request stats: manager perspective uses source_warehouse, reception uses dest_warehouse
+    wh_req_filter = wh_dest_filter if is_reception else wh_src_filter
+    req_join = (
+        "LEFT JOIN warehouses dw ON it.dest_warehouse_id = dw.id"
+        if (branch_id and is_reception)
+        else ("LEFT JOIN warehouses sw ON it.source_warehouse_id = sw.id" if branch_id else "")
+    )
+
     date_filter_it = ""
     date_filter_ir = ""
     date_filter_sm = ""
@@ -232,15 +247,13 @@ async def get_dashboard_stats(
 
     sql = text(f"""
         SELECT
-            -- requests
-            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
-             WHERE {wh_dest_filter} {date_filter_it}) AS req_total,
-            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
-             WHERE {wh_dest_filter} AND it.status = 'PENDING') AS req_pending,
-            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
-             WHERE {wh_dest_filter} AND it.status = 'SHIPPING') AS req_shipping,
-            (SELECT COUNT(*) FROM inventory_transfers it {dest_join}
-             WHERE {wh_dest_filter} AND it.status = 'COMPLETED' {date_filter_it}) AS req_completed,
+            -- requests: pending/shipping ignore date range (active tickets from any period must stay visible)
+            (SELECT COUNT(*) FROM inventory_transfers it {req_join}
+             WHERE {wh_req_filter} AND it.status = 'PENDING') AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it {req_join}
+             WHERE {wh_req_filter} AND it.status = 'SHIPPING') AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it {req_join}
+             WHERE {wh_req_filter} AND it.status = 'COMPLETED' {date_filter_it}) AS req_completed,
             -- imports
             (SELECT COUNT(*) FROM inventory_receipts ir {imp_join}
              WHERE {wh_imp_filter} {date_filter_ir}) AS imp_count,
@@ -268,12 +281,16 @@ async def get_dashboard_stats(
     import_amount = float(row.imp_amount or 0) + float(row.incoming_val or 0)
     sales_amount = float(row.sales_amount or 0)
 
+    req_pending = row.req_pending or 0
+    req_shipping = row.req_shipping or 0
+    req_completed = row.req_completed or 0
+
     return {
         "requests": {
-            "total": row.req_total or 0,
-            "pending": row.req_pending or 0,
-            "shipping": row.req_shipping or 0,
-            "completed": row.req_completed or 0
+            "total": req_pending + req_shipping + req_completed,
+            "pending": req_pending,
+            "shipping": req_shipping,
+            "completed": req_completed
         },
         "imports": {
             "total": row.imp_count or 0,
@@ -299,6 +316,7 @@ async def get_overview_combined(
     branch_id: int = None,
     date_from: str = None,
     date_to: str = None,
+    perspective: str = "manager",
     db: Session = Depends(get_db)
 ):
     """Single endpoint combining stock-summary + dashboard-stats — 1 round-trip."""
@@ -307,7 +325,7 @@ async def get_overview_combined(
     )
     stats_data = await get_dashboard_stats(
         warehouse_id=warehouse_id, branch_id=branch_id,
-        date_from=date_from, date_to=date_to, db=db
+        date_from=date_from, date_to=date_to, perspective=perspective, db=db
     )
     return {"stock": stock_data, "stats": stats_data}
 

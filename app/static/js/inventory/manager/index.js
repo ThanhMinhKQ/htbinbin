@@ -1,5 +1,5 @@
 import initialState from '../shared/state.js?v=3.1';
-import utils from './utils.js?v=3.1';
+import utils from './utils.js?v=3.2-pagination';
 import requests from './requests.js?v=3.1';
 import approvals from './approvals.js?v=3.5';
 import imports from './imports.js?v=3.1';
@@ -10,6 +10,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
     return {
         ...initialState(totalRecords, currentPage, totalPages, {
             storageKey: 'manager_currentTab',
+            defaultTab: 'overview',
             validTabs: ['requests', 'approvals', 'import', 'export', 'overview'],
         }),
         ...utils,
@@ -20,7 +21,9 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
         ...overview,
 
         initApp() {
-            this.initCurrentTab();
+            // Khi mở "Quản lý kho" luôn land ở tab "Tổng quan", không nhớ tab cũ.
+            try { localStorage.removeItem('manager_currentTab'); } catch (_) {}
+            this.currentTab = 'overview';
 
             this.$watch('currentTab', (newTab) => {
                 localStorage.setItem('manager_currentTab', newTab);
@@ -103,9 +106,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                     this.approvalsList = d.approvals.records || [];
                     this.totalApprovalRecords = d.approvals.totalRecords || 0;
                     this.totalApprovalPages = d.approvals.totalPages || 1;
-                    if (this.currentTab === 'approvals') {
-                        this.pendingCount = d.approvals.pendingCount || 0;
-                    }
+                    this.pendingCount = d.approvals.pendingCount || 0;
                 }
 
                 // Imports

@@ -376,7 +376,8 @@ export default function(config = {}) {
 
         try {
             if (wh) {
-                const combinedRes = await fetch(`/api/inventory/overview-combined?warehouse_id=${wh}&date_from=${dateFrom}&date_to=${dateTo}`);
+                const perspective = config.perspective || 'manager';
+                const combinedRes = await fetch(`/api/inventory/overview-combined?warehouse_id=${wh}&date_from=${dateFrom}&date_to=${dateTo}&perspective=${perspective}`);
                 if (combinedRes.ok) {
                     const json = await combinedRes.json();
                     this.stocks = (json.stock?.data || []).map(s => ({
@@ -411,7 +412,7 @@ export default function(config = {}) {
 
             const [stockRes, statsRes] = await Promise.all([
                 fetch(`/api/inventory/report-realtime?${param}`),
-                fetch(`/api/inventory/dashboard-stats?${param}&date_from=${dateFrom}&date_to=${dateTo}`)
+                fetch(`/api/inventory/dashboard-stats?${param}&date_from=${dateFrom}&date_to=${dateTo}&perspective=${config.perspective || 'manager'}`)
             ]);
 
             if (stockRes.ok) {

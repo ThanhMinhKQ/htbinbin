@@ -221,11 +221,15 @@ async def get_page_load(
 
     # ── 3. Overview stats (raw SQL single query) ──
     ov_params: dict = {}
+    # Request stats perspective:
+    # - Manager (source warehouse owner): count tickets where source_warehouse_id = wh_id
+    # - Reception (dest warehouse owner): count tickets where dest_warehouse_id = wh_id
     if is_reception:
+        ov_wh_req = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
         ov_wh_export = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
     else:
+        ov_wh_req = "it.source_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
         ov_wh_export = "it.source_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
-    ov_wh_dest = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
     ov_wh_ir = "ir.warehouse_id = :wh_id" if warehouse_id else "1=1"
     ov_wh_sm = "sm.warehouse_id = :wh_id" if warehouse_id else "1=1"
     if warehouse_id:
@@ -246,17 +250,16 @@ async def get_page_load(
 
     stats_sql = sa_text(f"""
         SELECT
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} {ov_date_it}) AS req_total,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='PENDING') AS req_pending,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='SHIPPING') AS req_shipping,
-            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS req_completed,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_req} AND it.status='PENDING') AS req_pending,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_req} AND it.status='SHIPPING') AS req_shipping,
+            (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_req} AND it.status='COMPLETED' {ov_date_it}) AS req_completed,
             (SELECT COUNT(*) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_count,
             (SELECT COALESCE(SUM(ir.total_amount),0) FROM inventory_receipts ir WHERE {ov_wh_ir} {ov_date_ir}) AS imp_amount,
             (SELECT COALESCE(SUM(iti.received_quantity * p.cost_price),0)
              FROM inventory_transfer_items iti
              JOIN inventory_transfers it ON iti.transfer_id = it.id
              JOIN products p ON iti.product_id = p.id
-             WHERE {ov_wh_dest} AND it.status='COMPLETED' {ov_date_it}) AS incoming_val,
+             WHERE {ov_wh_req} AND it.status='COMPLETED' {ov_date_it}) AS incoming_val,
             (SELECT COUNT(*) FROM inventory_transfers it WHERE {ov_wh_export} AND it.status='COMPLETED' {ov_date_it}) AS exp_count,
             (SELECT COALESCE(ABS(SUM(sm.quantity_change * p.sell_price)),0)
              FROM stock_movements sm
@@ -267,6 +270,10 @@ async def get_page_load(
     stats_row = db.execute(stats_sql, ov_params).fetchone()
     import_amount = float(stats_row.imp_amount or 0) + float(stats_row.incoming_val or 0)
     sales_amount = float(stats_row.sales_amount or 0)
+
+    req_pending = stats_row.req_pending or 0
+    req_shipping = stats_row.req_shipping or 0
+    req_completed = stats_row.req_completed or 0
 
     return {
         "approvals": {
@@ -283,8 +290,8 @@ async def get_page_load(
             "currentPage": page
         },
         "stats": {
-            "requests": {"total": stats_row.req_total or 0, "pending": stats_row.req_pending or 0,
-                         "shipping": stats_row.req_shipping or 0, "completed": stats_row.req_completed or 0},
+            "requests": {"total": req_pending + req_shipping + req_completed, "pending": req_pending,
+                         "shipping": req_shipping, "completed": req_completed},
             "imports": {"total": stats_row.imp_count or 0, "total_amount": import_amount},
             "exports": {"total": stats_row.exp_count or 0},
             "sales": {"total_amount": sales_amount},

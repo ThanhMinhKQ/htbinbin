@@ -20,8 +20,9 @@
         {% endfor %}
     </select>
 </div>
-<div x-data="{ tab: localStorage.getItem('manager_currentTab') || 'requests', pendingCount: 0 }"
+<div x-data="{ tab: 'overview', pendingCount: 0 }"
     @inventory:set-pending-count.window="pendingCount = $event.detail"
+    @inventory:set-tab.window="tab = $event.detail"
     class="max-w-full overflow-x-auto">
     <div class="inv-main-tabs inline-flex min-h-11 items-center gap-1 p-1">
         <button type="button"
@@ -170,7 +171,7 @@
             init() {
                 // Dynamically import the module
                 // Use new INVENTORY MANAGER module
-                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=3.1-badge")
+                import("{{ url_for('static', path='/js/inventory/manager/index.js') }}?v=3.3-pagination")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.inventoryManagerApp;

@@ -9,8 +9,9 @@
 {% endblock %}
 
 {% block app_header_actions %}
-<div x-data="{ tab: localStorage.getItem('reception_currentTab') || 'overview', pendingCount: 0 }"
+<div x-data="{ tab: 'overview', pendingCount: 0 }"
     @inventory:set-pending-count.window="pendingCount = $event.detail"
+    @inventory:set-tab.window="tab = $event.detail"
     class="flex items-center gap-3 max-w-full overflow-x-auto">
     {% if user_role not in ('letan',) %}
     <div class="inv-header-warehouse-control">
@@ -71,8 +72,8 @@
         </button>
     </div>
 
-    <!-- Shift sales button — only visible on overview tab -->
-    <div x-show="tab === 'overview'" class="flex items-center gap-2 shrink-0">
+    <!-- Shift sales button — visible on all tabs -->
+    <div class="flex items-center gap-2 shrink-0">
         <button type="button" @click="window.dispatchEvent(new CustomEvent('inventory:open-shift-sales'))"
             class="inv-overview-shift-btn inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-emerald-200 dark:border-emerald-800/60 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/20 hover:border-emerald-400 hover:shadow-md transition-all"
             title="Xem nhanh các món đã bán trong ca của bạn">
@@ -176,7 +177,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=3.8-badge")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=4.0-pagination")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;
