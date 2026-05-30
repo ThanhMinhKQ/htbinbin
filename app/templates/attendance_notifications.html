@@ -274,6 +274,14 @@
       word-break: break-word;
     }
     .sn-rich-content p { margin: 0 0 0.65rem; }
+    .sn-rich-content h1, .sn-rich-content h2, .sn-rich-content h3 {
+      font-weight: 700;
+      line-height: 1.3;
+      margin: 1rem 0 0.5rem;
+    }
+    .sn-rich-content h1 { font-size: 1.5rem; }
+    .sn-rich-content h2 { font-size: 1.25rem; }
+    .sn-rich-content h3 { font-size: 1.1rem; }
     .sn-rich-content ul, .sn-rich-content ol { 
       margin: 0.5rem 0 0.75rem 0.25rem; 
       padding-left: 1.5rem;
@@ -933,122 +941,12 @@
                 <input type="file" x-ref="imageFileInput" accept="image/*" class="hidden" @change="handleFileChange($event, true)">
                 <input type="file" x-ref="docFileInput" class="hidden" @change="handleFileChange($event, false)">
                 
-                <div class="sn-editor-toolbar flex items-center justify-between" @mousedown="saveSelection($event)">
-                  <div class="flex flex-wrap gap-2 items-center">
-                    <!-- Text Formatting Group -->
-                    <div class="flex items-center gap-0.5">
-                      <button type="button" class="sn-editor-btn" title="In đậm (Ctrl+B)" @click="editorCommand('bold')">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="In nghiêng (Ctrl+I)" @click="editorCommand('italic')">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Gạch chân (Ctrl+U)" @click="editorCommand('underline')">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Gạch ngang" @click="editorCommand('strikeThrough')">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zm-1 8h16v-2H4v2z"/></svg>
-                      </button>
-                    </div>
-                    
-                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
-
-                    <!-- Paragraph styling select -->
-                    <select class="sn-editor-select min-w-[110px]" @change="editorBlock($event.target.value); $event.target.value = ''" title="Chọn định dạng khối chữ (Tiêu đề, Đoạn văn...)">
-                      <option value="" selected disabled>Định dạng</option>
-                      <option value="p">Đoạn văn (P)</option>
-                      <option value="h1">Tiêu đề lớn (H1)</option>
-                      <option value="h2">Tiêu đề vừa (H2)</option>
-                      <option value="h3">Tiêu đề nhỏ (H3)</option>
-                      <option value="blockquote">Trích dẫn</option>
-                    </select>
-
-                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
-
-                    <!-- Color Pickers Group -->
-                    <div class="flex items-center gap-1">
-                      <span class="relative inline-flex items-center">
-                        <button type="button" class="sn-editor-btn relative" title="Đổi màu chữ" @click="$refs.textColorInput.click()">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 5v12m0 0H5m4 0h4M3 17h18"></path></svg>
-                          <span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-[3px] rounded-full bg-red-500"></span>
-                        </button>
-                        <input type="color" x-ref="textColorInput" class="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none" @input="editorCommand('foreColor', $event.target.value)">
-                      </span>
-                      <span class="relative inline-flex items-center">
-                        <button type="button" class="sn-editor-btn relative" title="Đổi màu nền chữ (Highlight)" @click="$refs.bgColorInput.click()">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-3"></path></svg>
-                          <span class="absolute bottom-1 left-1/2 -translate-x-1/2 w-3.5 h-[3px] rounded-full bg-yellow-300"></span>
-                        </button>
-                        <input type="color" x-ref="bgColorInput" class="absolute inset-0 opacity-0 w-0 h-0 pointer-events-none" @input="editorCommand('hiliteColor', $event.target.value)">
-                      </span>
-                    </div>
-
-                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
-
-                    <!-- Lists Group -->
-                    <div class="flex items-center gap-0.5">
-                      <button type="button" class="sn-editor-btn" title="Tạo danh sách chấm tròn" @click="editorCommand('insertUnorderedList')">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="5" cy="6" r="1.5" fill="currentColor"/><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="5" cy="18" r="1.5" fill="currentColor"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 6h11M9 12h11M9 18h11"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Tạo danh sách đánh số" @click="editorCommand('insertOrderedList')">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h1m-1 2h2m-2 4h2m-2 2h1m1-3H4v3m10-9h7M9 12h12m-12 6h12"/></svg>
-                      </button>
-                    </div>
-
-                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5"></span>
-
-                    <!-- Alignment Group -->
-                    <div class="flex items-center gap-0.5 hidden sm:flex">
-                      <button type="button" class="sn-editor-btn" title="Canh lề trái" @click="editorCommand('justifyLeft')">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h16"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Canh lề giữa" @click="editorCommand('justifyCenter')">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M7 12h10M4 18h16"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Canh lề phải" @click="editorCommand('justifyRight')">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M10 12h10M4 18h16"/></svg>
-                      </button>
-                    </div>
-                    
-                    <span class="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5 hidden sm:block"></span>
-
-                    <!-- Insert Links and Media Group -->
-                    <div class="flex items-center gap-0.5">
-                      <button type="button" class="sn-editor-btn" title="Chèn một liên kết (đường dẫn)" @click="insertLink()">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Tải ảnh lên từ máy tính của bạn" @click="$refs.imageFileInput.click()">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Chèn ảnh thông qua một đường link URL" @click="insertImage()">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Tải file đính kèm lên (Word, PDF, Excel...)" @click="$refs.docFileInput.click()">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                      </button>
-                      <button type="button" class="sn-editor-btn" title="Chèn link đến một file tài liệu bên ngoài" @click="insertAttachment()">
-                        <svg class="w-4 h-4" fill="none" stroke-dasharray="1 1" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div class="flex items-center">
-                    <button type="button" class="sn-editor-btn text-slate-400 hover:text-red-500" title="Xóa toàn bộ định dạng của đoạn văn bản đã chọn" @click="editorCommand('removeFormat')">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7h-8M9 5v4m0 0H5m4 0h4m-4 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div x-ref="editor" 
-                     class="sn-editor-area sn-rich-content" 
-                     contenteditable="true" 
-                     data-placeholder="Soạn nội dung thông báo, có thể định dạng, chèn link, ảnh hoặc file đính kèm..." 
-                     @input="syncEditor()" 
-                     @blur="deferSyncEditor()"
-                     @dragover.prevent
-                     @drop.prevent="handleDrop($event)"
-                     @paste="handlePaste($event)">
-                </div>
+                <!-- Quill tự render toolbar phía trên vùng soạn -->
+                <div x-ref="editor" class="sn-editor-area sn-rich-content"></div>
+                <!-- Fallback nếu Quill không nạp được (CDN lỗi) -->
+                <textarea x-ref="editorFallback" x-model="form.body"
+                          class="sn-editor-area sn-rich-content hidden"
+                          placeholder="Soạn nội dung thông báo..."></textarea>
               </div>
               <p class="mt-2 text-xs text-slate-500">Mẹo: Kéo thả file/ảnh trực tiếp vào khung soạn thảo hoặc dùng phím tắt Ctrl+V/Cmd+V để dán.</p>
             </div>
@@ -1321,9 +1219,11 @@ function shiftNotificationAdmin(options = {}) {
     },
     savedRange: null,
     saveSelection(event) {
-      // Prevent default only for buttons/selects, not color inputs
+      // Chỉ preventDefault cho nút bấm (chống cướp focus khỏi editor).
+      // KHÔNG preventDefault với INPUT (color picker) và SELECT (dropdown
+      // định dạng) — nếu chặn mousedown thì native dropdown không mở được.
       const tag = event.target.tagName;
-      if (tag !== 'INPUT') event.preventDefault();
+      if (tag !== 'INPUT' && tag !== 'SELECT') event.preventDefault();
       // Save current selection range so we can restore it before execCommand
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
@@ -1517,7 +1417,9 @@ function shiftNotificationAdmin(options = {}) {
       });
     },
     editorBlock(tag) {
-      this.editorCommand('formatBlock', tag);
+      if (!tag) return;
+      // formatBlock cần dạng '<h1>' trên Firefox; Chrome chấp nhận cả hai.
+      this.editorCommand('formatBlock', `<${tag}>`);
     },
     safeUrl(value, image = false) {
       const raw = String(value || '').trim();
