@@ -1196,73 +1196,43 @@ function shiftNotificationAdmin(options = {}) {
       if (this.saving) return;
       this.modalOpen = false;
     },
+    quill: null,
+    initQuill() {
+      const el = this.$refs.editor;
+      if (!el) return;
+      if (typeof Quill === 'undefined' || !window.ShiftEditorConfig) {
+        // Fallback: hiện textarea, ẩn vùng Quill
+        if (this.$refs.editorFallback) this.$refs.editorFallback.classList.remove('hidden');
+        el.classList.add('hidden');
+        return;
+      }
+      if (this.quill) return; // đã init một lần
+      this.quill = new Quill(el, {
+        theme: 'snow',
+        placeholder: 'Soạn nội dung thông báo, có thể định dạng, chèn link, ảnh hoặc file...',
+        modules: {
+          toolbar: {
+            container: window.ShiftEditorConfig.toolbar,
+            handlers: {
+              image: () => this.$refs.imageFileInput.click(),
+            },
+          },
+        },
+      });
+      this.quill.on('text-change', () => {
+        this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
+      });
+    },
     refreshEditor() {
       setTimeout(() => {
-        if (this.$refs && this.$refs.editor) {
-          this.$refs.editor.innerHTML = this.richBody(this.form.body || '');
+        this.initQuill();
+        const html = this.richBody(this.form.body || '');
+        if (this.quill) {
+          this.quill.clipboard.dangerouslyPasteHTML(html);
+        } else if (this.$refs.editorFallback) {
+          this.$refs.editorFallback.value = this.form.body || '';
         }
       }, 0);
-    },
-    syncEditor() {
-      if (this.$refs && this.$refs.editor) {
-        this.form.body = this.$refs.editor.innerHTML || '';
-      }
-    },
-    deferSyncEditor() {
-      // Defer sync on blur — if focus moves to toolbar buttons, we don't
-      // want to sanitize immediately and destroy list/block structures.
-      setTimeout(() => {
-        if (this.$refs && this.$refs.editor) {
-          this.form.body = this.$refs.editor.innerHTML || '';
-        }
-      }, 150);
-    },
-    savedRange: null,
-    saveSelection(event) {
-      // Chỉ preventDefault cho nút bấm (chống cướp focus khỏi editor).
-      // KHÔNG preventDefault với INPUT (color picker) và SELECT (dropdown
-      // định dạng) — nếu chặn mousedown thì native dropdown không mở được.
-      const tag = event.target.tagName;
-      if (tag !== 'INPUT' && tag !== 'SELECT') event.preventDefault();
-      // Save current selection range so we can restore it before execCommand
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        const editor = this.$refs?.editor;
-        if (editor && editor.contains(range.commonAncestorContainer)) {
-          this.savedRange = range.cloneRange();
-        }
-      }
-    },
-    restoreSelection() {
-      if (!this.savedRange) return;
-      const sel = window.getSelection();
-      if (sel) {
-        sel.removeAllRanges();
-        sel.addRange(this.savedRange);
-      }
-    },
-    editorCommand(command, value = null) {
-      const editor = this.$refs?.editor;
-      if (!editor) return;
-
-      editor.focus();
-      this.restoreSelection();
-
-      // If still no range inside editor, place cursor at end
-      const sel = window.getSelection();
-      if (!sel || sel.rangeCount === 0 || !editor.contains(sel.anchorNode)) {
-        const range = document.createRange();
-        range.selectNodeContents(editor);
-        range.collapse(false);
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-
-      document.execCommand(command, false, value);
-      // Don't syncEditor() here — the editor's @input event handles it.
-      // Immediate sync after list/block commands causes sanitize to strip
-      // newly created DOM before the browser finishes rendering it.
     },
     handleFileChange(event, isImage) {
       if (!this.canManage) return;
@@ -1393,7 +1363,7 @@ function shiftNotificationAdmin(options = {}) {
               newHtml = `<a href="${this.escapeAttr(data.url)}" download="${this.escapeAttr(data.filename)}" target="_blank" rel="noopener noreferrer" class="sn-attachment-badge inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60 px-3 py-1.5 text-sm font-semibold text-blue-600 dark:text-blue-400 no-underline hover:bg-slate-100 dark:hover:bg-slate-800 my-1 mr-2" contenteditable="false"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="truncate max-w-[180px]">${this.escapeHtml(data.filename)}</span><span class="text-xs text-slate-400 font-normal">(${readableSize})</span></a>`;
             }
             tempEl.outerHTML = newHtml;
-            this.syncEditor();
+            if (this.quill) this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
           }
         } else {
           throw new Error(data.message || 'Unknown upload error');
@@ -1412,14 +1382,9 @@ function shiftNotificationAdmin(options = {}) {
         const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
         if (tempEl) {
           tempEl.outerHTML = `<span class="text-red-500 text-xs font-semibold" contenteditable="false">[Tải tệp lỗi: ${this.escapeHtml(file.name)}]</span>`;
-          this.syncEditor();
+          if (this.quill) this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
         }
       });
-    },
-    editorBlock(tag) {
-      if (!tag) return;
-      // formatBlock cần dạng '<h1>' trên Firefox; Chrome chấp nhận cả hai.
-      this.editorCommand('formatBlock', `<${tag}>`);
     },
     safeUrl(value, image = false) {
       const raw = String(value || '').trim();
@@ -1575,7 +1540,7 @@ function shiftNotificationAdmin(options = {}) {
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     },
     payload() {
-      this.syncEditor();
+      if (this.quill) this.form.body = this.quill.root.innerHTML;
       const sanitizedBody = this.sanitizeRichHtml(this.form.body || '');
       return {
         title: this.form.title,
