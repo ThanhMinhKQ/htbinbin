@@ -68,6 +68,20 @@ class Settings(BaseSettings):
 # Khởi tạo một đối tượng settings duy nhất để dùng trong toàn bộ ứng dụng
 settings = Settings()
 
+# --- ENFORCE STRONG SECRETS Ở PRODUCTION ---
+# Tránh deploy thật mà quên đổi secret mặc định (đã công khai trong source code).
+_INSECURE_DEFAULTS = {
+    "SECRET_KEY": "a_very_secret_key_please_change_me_in_env_file",
+    "PUBSUB_VERIFICATION_TOKEN": "binbin_pubsub_secret_2024",
+}
+if settings.ENVIRONMENT.lower() == "production":
+    _bad = [k for k, v in _INSECURE_DEFAULTS.items() if getattr(settings, k, None) == v]
+    if _bad:
+        raise RuntimeError(
+            "Không thể khởi động ở production với secret mặc định: "
+            f"{', '.join(_bad)}. Hãy đặt giá trị ngẫu nhiên trong biến môi trường."
+        )
+
 
 # --- CẤU HÌNH LOGGING ---
 logging.basicConfig(

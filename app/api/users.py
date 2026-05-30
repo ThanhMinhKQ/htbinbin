@@ -9,6 +9,8 @@ import secrets
 from ..db.session import get_db, SessionLocal
 from ..db.models import User, Department, Branch, AttendanceLog
 from ..core.utils import get_current_work_shift, _get_log_shift_for_user
+from ..core.security import verify_password, hash_password, is_hashed
+from ..core.rate_limit import limiter
 from ..schemas.user import VerifyPasswordPayload # THÊM: Import schema mới
 from ..core.config import logger # Import logger từ core
 from ..services.user_service import sync_employees_from_source 
@@ -25,6 +27,7 @@ templates = Jinja2Templates(directory=os.path.join(APP_ROOT, "templates"))
 # router/api/users.py
 
 @router.post("/login")
+@limiter.limit("5 per minute")
 def login_submit(
     request: Request,
     username: str = Form(...),
@@ -44,7 +47,7 @@ def login_submit(
     ).first()
 
     # --- Xác thực mật khẩu ---
-    if not user or user.password != password:
+    if not user or not verify_password(password, user.password):
         # Logic báo lỗi vẫn giữ nguyên, không cần thay đổi
         user_exists = db.query(User).options(joinedload(User.department)).filter(User.employee_code == username).first()
         guessed_role = ""
@@ -56,6 +59,15 @@ def login_submit(
             "role": guessed_role
         })
         return RedirectResponse(f"/login?{query}", status_code=303)
+
+    # Rehash-on-login: nâng cấp mật khẩu plaintext cũ sang bcrypt sau khi xác thực thành công
+    if not is_hashed(user.password):
+        try:
+            user.password = hash_password(password)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Lỗi rehash mật khẩu khi đăng nhập cho {username}: {e}")
 
     # === THAY ĐỔI: Truy cập trực tiếp từ relationship, không cần query lại ===
     user_role_code = user.department.role_code if user.department else "khac"
@@ -223,6 +235,7 @@ def search_login_users(q: str = "", db: Session = Depends(get_db)):
     return JSONResponse(content=user_list)
 
 @router.post("/api/users/verify-password", response_class=JSONResponse)
+@limiter.limit("10 per minute")
 async def verify_current_user_password(
     request: Request,
     payload: VerifyPasswordPayload,
@@ -244,7 +257,15 @@ async def verify_current_user_password(
         raise HTTPException(status_code=403, detail="Tài khoản này không có quyền xác thực.")
 
     # SỬA: So sánh mật khẩu từ payload với mật khẩu trong DB
-    if user.password == payload.password:
+    if verify_password(payload.password, user.password):
+        # Rehash-on-verify: nâng cấp plaintext cũ sang bcrypt
+        if not is_hashed(user.password):
+            try:
+                user.password = hash_password(payload.password)
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                logger.error(f"Lỗi rehash mật khẩu khi xác thực cho {payload.username}: {e}")
         return {"success": True, "message": "Xác thực thành công."}
     else:
         raise HTTPException(status_code=401, detail="Mật khẩu không chính xác.")
@@ -317,12 +338,12 @@ def change_password_submit(
         return JSONResponse(status_code=404, content={"status": "error", "message": "Người dùng không tồn tại."})
 
     # So sánh mật khẩu cũ
-    if user_db.password != current_password:
+    if not verify_password(current_password, user_db.password):
         return JSONResponse(status_code=400, content={"status": "error", "message": "Mật khẩu hiện tại không đúng."})
-    
+
     # 3. Cập nhật
     try:
-        user_db.password = new_password
+        user_db.password = hash_password(new_password)
         db.commit()
         return JSONResponse(content={"status": "success", "message": "Đổi mật khẩu thành công!"})
     except Exception as e:

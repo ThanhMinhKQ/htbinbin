@@ -2,12 +2,51 @@ from fastapi import Request, HTTPException
 from sqlalchemy.orm import Session
 from typing import Any, Optional
 import secrets
+import bcrypt
 
 # Import model User để truy vấn
 from ..db.models import User, AttendanceLog
 from ..db.session import SessionLocal
 from .utils import get_current_work_shift
 from .config import logger
+
+# ====================================================================
+# PASSWORD HASHING (bcrypt)
+# ====================================================================
+# Mật khẩu cũ được lưu plaintext. Để tương thích ngược, verify_password()
+# nhận diện cả hash bcrypt lẫn plaintext cũ. Khi user đăng nhập thành công
+# bằng mật khẩu plaintext, caller nên gọi hash_password() để nâng cấp
+# (rehash-on-login).
+
+_BCRYPT_PREFIXES = ("$2a$", "$2b$", "$2y$")
+
+
+def is_hashed(value: Optional[str]) -> bool:
+    """True nếu chuỗi đã là hash bcrypt (không phải plaintext cũ)."""
+    return bool(value) and value.startswith(_BCRYPT_PREFIXES)
+
+
+def hash_password(plain: str) -> str:
+    """Hash mật khẩu bằng bcrypt. bcrypt giới hạn 72 byte nên cắt an toàn."""
+    pw_bytes = plain.encode("utf-8")[:72]
+    return bcrypt.hashpw(pw_bytes, bcrypt.gensalt()).decode("utf-8")
+
+
+def verify_password(plain: str, stored: Optional[str]) -> bool:
+    """
+    So khớp mật khẩu nhập vào với giá trị lưu trong DB.
+    - Nếu `stored` là hash bcrypt: dùng bcrypt.checkpw (constant-time).
+    - Nếu `stored` là plaintext cũ: so sánh constant-time để tránh timing attack.
+    """
+    if not stored or plain is None:
+        return False
+    if is_hashed(stored):
+        try:
+            return bcrypt.checkpw(plain.encode("utf-8")[:72], stored.encode("utf-8"))
+        except (ValueError, TypeError):
+            return False
+    # Plaintext cũ — so sánh constant-time
+    return secrets.compare_digest(plain, stored)
 
 def get_branch_code(branch_value: Any) -> Optional[str]:
     """

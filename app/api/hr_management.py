@@ -17,6 +17,7 @@ from ..db.session import get_db
 from ..db.models import User, Branch, Department, AttendanceRecord, ServiceRecord
 from ..core.config import logger
 from ..core.utils import VN_TZ
+from ..core.security import hash_password
 
 router = APIRouter()
 
@@ -644,7 +645,7 @@ def reset_employee_password(
     if not user:
         raise HTTPException(status_code=404, detail="Nhân viên không tồn tại.")
 
-    user.password = payload.new_password
+    user.password = hash_password(payload.new_password)
     try:
         db.commit()
         logger.info(f"[HR] Đặt lại mật khẩu cho: {user.name} ({user.employee_id})")

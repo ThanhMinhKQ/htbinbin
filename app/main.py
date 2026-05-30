@@ -16,10 +16,15 @@ import atexit
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware # Cần import cái này
 from apscheduler.schedulers.background import BackgroundScheduler
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+from .core.rate_limit import limiter
 
 # --- IMPORT MODULES ---
 from .api import (
@@ -77,6 +82,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# --- RATE LIMITING (slowapi) ---
+# Chống brute-force login & lạm dụng API. Không thay thế DoS protection ở tầng mạng.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# Giới hạn kích thước request body (chống payload-DoS).
+# Upload ảnh đi qua /uploads & API scan nên cho phép tối đa 25MB.
+_MAX_BODY_BYTES = 25 * 1024 * 1024
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > _MAX_BODY_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request quá lớn (tối đa 25MB)."},
+                )
+        except ValueError:
+            pass
+    return await call_next(request)
+
 # --- MIDDLEWARE ---
 
 @app.middleware("http")
@@ -126,7 +156,14 @@ async def add_env_to_state(request: Request, call_next):
     return response
 
 # [QUAN TRỌNG] 2. Add SessionMiddleware SAU CÙNG
-app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
+_is_production = settings.ENVIRONMENT.lower() == "production"
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    https_only=_is_production,   # chỉ gửi cookie qua HTTPS ở production
+    same_site="lax",            # giảm rủi ro CSRF
+    max_age=14 * 24 * 60 * 60,  # phiên hết hạn sau 14 ngày
+)
 
 
 # --- STATIC FILES ---
@@ -155,6 +192,13 @@ async def startup_event():
 
     for _attempt in range(_max_startup_retries):
         try:
+            # Bảo đảm extension pg_trgm tồn tại trong schema public trước khi tạo bảng.
+            # Index ix_guests_active_full_name_trgm dùng gin_trgm_ops; thiếu extension
+            # sẽ khiến create_all rollback toàn bộ bảng (DB mới/reset chưa có sẵn).
+            from sqlalchemy import text as _sa_text
+            with _task_engine.begin() as _conn:
+                _conn.execute(_sa_text("CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public"))
+
             # Tạo bảng nếu chưa có
             # Dùng _task_engine (NullPool) để tránh cạnh tranh connection pool
             Base.metadata.create_all(bind=_task_engine)

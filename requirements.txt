@@ -13,6 +13,10 @@ pydantic==2.12.0
 pydantic-settings==2.11.0
 python-dotenv==1.0.1
 
+# ===== SECURITY =====
+bcrypt==4.2.1
+slowapi==0.1.9
+
 # ===== TEMPLATE / FORM =====
 Jinja2==3.1.4
 python-multipart==0.0.9

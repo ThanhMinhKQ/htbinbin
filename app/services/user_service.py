@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from ..db.models import User, Branch, Department
 from ..core.config import logger
+from ..core.security import hash_password, verify_password
 
 def sync_employees_from_source(db: Session, employees_source: list[dict], force_delete: bool = False):
     """
@@ -71,8 +72,8 @@ def sync_employees_from_source(db: Session, employees_source: list[dict], force_
 
             # Password
             new_password = emp.get("password")
-            if new_password and existing_user.password != new_password:
-                existing_user.password = new_password
+            if new_password and not verify_password(new_password, existing_user.password):
+                existing_user.password = hash_password(new_password)
                 changed = True
             
             if changed:
@@ -83,7 +84,7 @@ def sync_employees_from_source(db: Session, employees_source: list[dict], force_
                 employee_id=employee_id,
                 employee_code=emp.get("code"),
                 name=emp.get("name"),
-                password=emp.get("password", "123456"),
+                password=hash_password(emp.get("password", "123456")),
                 main_branch_id=branch_id,
                 department_id=department_id,
                 shift=emp.get("shift"),
