@@ -423,6 +423,64 @@
       }
       .sn-editor-shell { height: 240px; }
     }
+
+    /* ===== Quill editor (snow theme) override ===== */
+    .sn-editor-shell .ql-toolbar.ql-snow {
+      border: 0;
+      border-bottom: 1px solid rgb(226 232 240);
+      background: rgb(248 250 252);
+      flex: 0 0 auto;
+    }
+    .sn-editor-shell .ql-container.ql-snow {
+      border: 0;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      font-family: inherit;
+      font-size: 15px;
+    }
+    .sn-editor-shell .ql-editor {
+      padding: 1rem;
+      line-height: 1.65;
+      color: rgb(15 23 42);
+    }
+    .sn-editor-shell .ql-editor.ql-blank::before {
+      color: rgb(148 163 184);
+      font-style: normal;
+    }
+    /* Dark mode */
+    .dark .sn-editor-shell .ql-toolbar.ql-snow {
+      border-color: rgb(51 65 85);
+      background: rgb(30 41 59);
+    }
+    .dark .sn-editor-shell .ql-editor { color: rgb(241 245 249); }
+    .dark .sn-editor-shell .ql-snow .ql-stroke { stroke: rgb(203 213 225); }
+    .dark .sn-editor-shell .ql-snow .ql-fill { fill: rgb(203 213 225); }
+    .dark .sn-editor-shell .ql-snow .ql-picker { color: rgb(203 213 225); }
+    .dark .sn-editor-shell .ql-snow .ql-picker-options {
+      background: rgb(30 41 59);
+      border-color: rgb(51 65 85);
+    }
+    /* Font picker labels */
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Inter"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Inter"]::before { content: 'Inter'; font-family: 'Inter', sans-serif; }
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Arial"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Arial"]::before { content: 'Arial'; font-family: Arial, sans-serif; }
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Times New Roman"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Times New Roman"]::before { content: 'Times New Roman'; font-family: 'Times New Roman', serif; }
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Roboto"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Roboto"]::before { content: 'Roboto'; font-family: 'Roboto', sans-serif; }
+    .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="Be Vietnam Pro"]::before,
+    .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="Be Vietnam Pro"]::before { content: 'Be Vietnam Pro'; font-family: 'Be Vietnam Pro', sans-serif; }
+    /* Size picker labels */
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="12px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before { content: 'Nhỏ'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="15px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="15px"]::before { content: 'Thường'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="20px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before { content: 'Lớn'; }
+    .ql-snow .ql-picker.ql-size .ql-picker-label[data-value="28px"]::before,
+    .ql-snow .ql-picker.ql-size .ql-picker-item[data-value="28px"]::before { content: 'Rất lớn'; }
   </style>
 
 
