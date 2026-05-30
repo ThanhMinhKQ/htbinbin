@@ -1001,8 +1001,13 @@ function pmsRender() {
             return;
         }
         floorsEl.innerHTML = `<div class="pms-empty">
-            ${PMS_SVG.bed}
-            <p>Chưa có phòng nào. <a href="/pms/setup?tab=rooms">Thiết lập phòng ngay</a></p>
+            <div class="pms-empty-icon">${PMS_SVG.bed}</div>
+            <h3 class="pms-empty-title">Chưa có phòng nào</h3>
+            <p class="pms-empty-desc">Thiết lập danh sách phòng để bắt đầu quản lý sơ đồ phòng, nhận khách và theo dõi lưu trú.</p>
+            <a class="pms-empty-btn" href="/pms/setup?tab=rooms">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+              Thiết lập phòng ngay
+            </a>
         </div>`;
         ['cnt-occ','cnt-vac','cnt-all'].forEach(id => {
             const el = document.getElementById(id); if (el) el.textContent = '0';

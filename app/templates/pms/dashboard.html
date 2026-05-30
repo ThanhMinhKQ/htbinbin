@@ -1915,20 +1915,94 @@
   }
 
   .pms-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     text-align: center;
-    padding: 3rem;
+    max-width: 420px;
+    margin: 4vh auto;
+    padding: 2.5rem 2rem;
+    animation: pms-empty-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  .pms-empty svg {
-    width: 64px;
-    height: 64px;
-    stroke: var(--pms-border);
-    margin-bottom: 12px;
+  @keyframes pms-empty-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  .pms-empty p {
-    color: var(--pms-text-muted);
+  .pms-empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 88px;
+    margin-bottom: 20px;
+    border-radius: 24px;
+    background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+    border: 1px solid var(--pms-border-light);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.12);
+  }
+
+  .pms-empty-icon svg {
+    width: 42px;
+    height: 42px;
+    stroke: var(--pms-accent);
     margin: 0;
+  }
+
+  html.dark .pms-empty-icon {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+    border-color: var(--pms-border);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  html.dark .pms-empty-icon svg {
+    stroke: #60a5fa;
+  }
+
+  .pms-empty-title {
+    margin: 0 0 6px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--pms-text);
+    letter-spacing: -0.01em;
+  }
+
+  .pms-empty-desc {
+    margin: 0 0 22px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--pms-text-muted);
+  }
+
+  .pms-empty-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    border-radius: 10px;
+    background: var(--pms-accent);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transition: transform .15s, box-shadow .15s, background .15s;
+  }
+
+  .pms-empty-btn:hover {
+    background: var(--pms-accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+  }
+
+  .pms-empty-btn:active {
+    transform: translateY(0);
+  }
+
+  .pms-empty-btn svg {
+    stroke: #fff;
   }
 
   /* Toast — always above sub-modals (z-index 10000) */
@@ -3482,7 +3556,7 @@
   // vào dashboard gây nghẽn pool DB (mặc dù endpoint chỉ đọc JSON, vẫn đi qua event loop).
 </script>
 <script src="/static/js/pms/scan_modal.js"></script>
-<script src="/static/js/pms/pms_dashboard.js?v=20260530-dklt-badge7"></script>
+<script src="/static/js/pms/pms_dashboard.js?v=20260531-empty-state"></script>
 <script src="/static/js/pms/pms_booking.js"></script>
 <script src="/static/js/pms/nationalities.js"></script>
 <script src="/static/js/pms/pms_addr.js"></script>
