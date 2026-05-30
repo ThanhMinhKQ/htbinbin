@@ -1222,6 +1222,8 @@ function shiftNotificationAdmin(options = {}) {
       this.quill.on('text-change', () => {
         this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
       });
+      this.quill.root.addEventListener('drop', (e) => this.handleDrop(e), true);
+      this.quill.root.addEventListener('paste', (e) => this.handlePaste(e), true);
     },
     refreshEditor() {
       setTimeout(() => {
@@ -1245,18 +1247,10 @@ function shiftNotificationAdmin(options = {}) {
     },
     handleDrop(event) {
       if (!this.canManage) return;
+      event.preventDefault();
       const files = event.dataTransfer?.files;
       if (!files || files.length === 0) return;
-      
-      if (document.caretRangeFromPoint && event.clientX && event.clientY) {
-        const range = document.caretRangeFromPoint(event.clientX, event.clientY);
-        const sel = window.getSelection();
-        if (range && sel) {
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
-      }
-      
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const isImage = file.type.startsWith('image/');
@@ -1325,12 +1319,9 @@ function shiftNotificationAdmin(options = {}) {
         return;
       }
 
-      if (this.$refs && this.$refs.editor) this.$refs.editor.focus();
-
-      const tempId = 'loading-' + Math.random().toString(36).substring(2, 9);
-      const tempHtml = `<span id="${tempId}" class="sn-upload-spinner" contenteditable="false">[Đang tải ${isImage ? 'ảnh' : 'tệp'}: ${this.escapeHtml(file.name)}...]</span>`;
-
-      this.editorCommand('insertHTML', tempHtml);
+      if (!this.quill) return;
+      // Ghi nhớ vị trí chèn trước khi upload
+      const insertAt = (this.quill.getSelection(true) || { index: this.quill.getLength() }).index;
       this.uploadingCount += 1;
 
       const formData = new FormData();
@@ -1342,32 +1333,24 @@ function shiftNotificationAdmin(options = {}) {
       })
       .then(res => {
         if (!res.ok) {
-          return res.json().then(data => {
-            throw new Error(data.detail || 'Upload failed');
-          }).catch(() => {
-            throw new Error('Upload failed');
-          });
+          return res.json().then(data => { throw new Error(data.detail || 'Upload failed'); })
+            .catch(() => { throw new Error('Upload failed'); });
         }
         return res.json();
       })
       .then(data => {
         this.uploadingCount = Math.max(0, this.uploadingCount - 1);
-        if (data.status === 'success') {
-          const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
-          if (tempEl) {
-            let newHtml = '';
-            if (isImage) {
-              newHtml = `<img src="${this.escapeAttr(data.url)}" alt="${this.escapeAttr(data.filename)}" class="max-w-full rounded-lg my-2 border border-slate-200 dark:border-slate-700 shadow-sm" loading="lazy">`;
-            } else {
-              const readableSize = this.formatBytes(data.size);
-              newHtml = `<a href="${this.escapeAttr(data.url)}" download="${this.escapeAttr(data.filename)}" target="_blank" rel="noopener noreferrer" class="sn-attachment-badge inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60 px-3 py-1.5 text-sm font-semibold text-blue-600 dark:text-blue-400 no-underline hover:bg-slate-100 dark:hover:bg-slate-800 my-1 mr-2" contenteditable="false"><svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="truncate max-w-[180px]">${this.escapeHtml(data.filename)}</span><span class="text-xs text-slate-400 font-normal">(${readableSize})</span></a>`;
-            }
-            tempEl.outerHTML = newHtml;
-            if (this.quill) this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
-          }
+        if (data.status !== 'success') throw new Error(data.message || 'Unknown upload error');
+        if (isImage) {
+          this.quill.insertEmbed(insertAt, 'image', data.url, 'user');
+          this.quill.setSelection(insertAt + 1);
         } else {
-          throw new Error(data.message || 'Unknown upload error');
+          const label = `${data.filename} (${this.formatBytes(data.size)})`;
+          this.quill.insertText(insertAt, label, 'link', data.url, 'user');
+          this.quill.insertText(insertAt + label.length, '\n', 'user');
+          this.quill.setSelection(insertAt + label.length + 1);
         }
+        this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
       })
       .catch(err => {
         this.uploadingCount = Math.max(0, this.uploadingCount - 1);
@@ -1378,11 +1361,6 @@ function shiftNotificationAdmin(options = {}) {
             message: `Không thể tải tệp "${file.name}": ${err.message}`,
             type: 'err'
           });
-        }
-        const tempEl = this.$refs.editor.querySelector(`#${tempId}`);
-        if (tempEl) {
-          tempEl.outerHTML = `<span class="text-red-500 text-xs font-semibold" contenteditable="false">[Tải tệp lỗi: ${this.escapeHtml(file.name)}]</span>`;
-          if (this.quill) this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
         }
       });
     },
@@ -1397,21 +1375,29 @@ function shiftNotificationAdmin(options = {}) {
     },
     insertLink() {
       const url = this.safeUrl(prompt('Nhập URL liên kết'));
-      if (!url) return;
+      if (!url || !this.quill) return;
       const label = prompt('Tên hiển thị', url) || url;
-      this.editorCommand('insertHTML', `<a href="${this.escapeAttr(url)}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(label)}</a>`);
+      const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+      this.quill.insertText(range.index, label, 'link', url, 'user');
+      this.quill.setSelection(range.index + label.length);
+      this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
     },
     insertImage() {
       const url = this.safeUrl(prompt('Nhập URL hình ảnh'), true);
-      if (!url) return;
-      const alt = prompt('Mô tả ảnh', '') || '';
-      this.editorCommand('insertHTML', `<p><img src="${this.escapeAttr(url)}" alt="${this.escapeAttr(alt)}" loading="lazy" referrerpolicy="no-referrer"></p>`);
+      if (!url || !this.quill) return;
+      const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+      this.quill.insertEmbed(range.index, 'image', url, 'user');
+      this.quill.setSelection(range.index + 1);
+      this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
     },
     insertAttachment() {
       const url = this.safeUrl(prompt('Nhập URL file hoặc tài liệu'));
-      if (!url) return;
+      if (!url || !this.quill) return;
       const label = prompt('Tên file hiển thị', 'File đính kèm') || 'File đính kèm';
-      this.editorCommand('insertHTML', `<p><a href="${this.escapeAttr(url)}" target="_blank" rel="noopener noreferrer">[File] ${this.escapeHtml(label)}</a></p>`);
+      const range = this.quill.getSelection(true) || { index: this.quill.getLength() };
+      this.quill.insertText(range.index, label, 'link', url, 'user');
+      this.quill.setSelection(range.index + label.length);
+      this.form.body = this.sanitizeRichHtml(this.quill.root.innerHTML);
     },
     escapeHtml(value) {
       return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
