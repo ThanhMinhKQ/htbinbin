@@ -41,7 +41,7 @@ from .pms_helpers import (
     _get_occupied_rooms_for_dates, _room_to_dict, VN_TZ
 )
 from .vn_address import convert_old_to_new_sync
-from .guest_activity import log_room_change, log_guest_added_to_stay, log_guest_edited
+from .guest_activity import log_room_change, log_guest_added_to_stay, log_guest_edited, log_guest_transfer
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -704,6 +704,71 @@ def api_stays_history(
         "pages": (total + page_size - 1) // page_size if total else 0,
         "stats": stats,
     })
+
+
+# ─────────────────────────── API: Active Rooms (for guest transfer) ───────────────────────────
+
+@router.get("/api/pms/stays/active-rooms", tags=["PMS"])
+def api_get_active_rooms(
+    request: Request,
+    exclude_stay_id: int = Query(..., description="Stay ID to exclude"),
+    q: Optional[str] = Query(None, description="Search by room number or guest name"),
+    db: Session = Depends(get_db),
+):
+    """Danh sách phòng đang có khách (ACTIVE stays) trong cùng branch, loại trừ phòng nguồn."""
+    user = _require_login(request)
+
+    # Branch phải bám theo stay nguồn, không dựa vào active_branch của session
+    # (admin có thể đang ở "HỆ THỐNG" → không match Branch nào → list rỗng).
+    source_stay = (
+        db.query(HotelStay)
+        .filter(HotelStay.id == exclude_stay_id)
+        .first()
+    )
+    if not source_stay:
+        return JSONResponse({"items": []})
+
+    from sqlalchemy.orm import joinedload as jl
+
+    stays = (
+        db.query(HotelStay)
+        .options(jl(HotelStay.room).joinedload(HotelRoom.room_type_obj))
+        .options(jl(HotelStay.guests))
+        .filter(
+            HotelStay.branch_id == source_stay.branch_id,
+            HotelStay.status == HotelStayStatus.ACTIVE,
+            HotelStay.id != exclude_stay_id,
+        )
+        .all()
+    )
+
+    items = []
+    search = (q or "").strip().lower()
+    for s in stays:
+        room = s.room
+        if not room:
+            continue
+        primary = next((g for g in s.guests if g.is_primary and not g.check_out_at), None)
+        guest_name = primary.full_name if primary else (s.guests[0].full_name if s.guests else "—")
+        active_count = sum(1 for g in s.guests if not g.check_out_at)
+        max_guests = room.room_type_obj.max_guests if room.room_type_obj else 99
+
+        if search:
+            if search not in (room.room_number or "").lower() and search not in (guest_name or "").lower():
+                continue
+
+        items.append({
+            "stay_id": s.id,
+            "room_number": room.room_number,
+            "room_type": room.room_type_obj.name if room.room_type_obj else "—",
+            "guest_name": guest_name,
+            "guest_count": active_count,
+            "max_guests": max_guests,
+            "is_full": active_count >= max_guests,
+        })
+
+    items.sort(key=lambda x: x["room_number"])
+    return JSONResponse({"items": items})
 
 
 # ─────────────────────────── API: Stay Detail ───────────────────────────
@@ -1457,6 +1522,167 @@ def api_remove_guest_from_stay(
 
     return JSONResponse({
         "message": f"Xóa khách {guest_name} thành công",
+    })
+
+
+# ─────────────────────────── API: Set Primary Guest ───────────────────────────
+
+@router.post("/api/pms/stays/{stay_id}/set-primary-guest", tags=["PMS"])
+def api_set_primary_guest(
+    request: Request,
+    stay_id: int,
+    guest_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Chuyển vai trò khách chính sang khách khác trong cùng lưu trú"""
+    user = _require_login(request)
+
+    stay = db.query(HotelStay).filter(
+        HotelStay.id == stay_id,
+        HotelStay.status == HotelStayStatus.ACTIVE,
+    ).first()
+    if not stay:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lưu trú hoặc lưu trú đã kết thúc")
+
+    new_primary = db.query(HotelGuest).filter(
+        HotelGuest.id == guest_id,
+        HotelGuest.stay_id == stay_id,
+    ).first()
+    if not new_primary:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách trong lưu trú này")
+
+    if new_primary.is_primary:
+        return JSONResponse({"message": "Khách này đã là khách chính", "guest_id": guest_id})
+
+    if new_primary.check_out_at:
+        raise HTTPException(status_code=400, detail="Không thể đặt khách đã trả phòng làm khách chính")
+
+    old_primary = db.query(HotelGuest).filter(
+        HotelGuest.stay_id == stay_id,
+        HotelGuest.is_primary == True,
+    ).first()
+
+    if old_primary:
+        old_primary.is_primary = False
+
+    new_primary.is_primary = True
+    db.commit()
+
+    return JSONResponse({
+        "message": f"Đã chuyển khách chính sang {new_primary.full_name}",
+        "guest_id": new_primary.id,
+        "old_primary_id": old_primary.id if old_primary else None,
+    })
+
+
+# ─────────────────────────── API: Transfer Guest Between Rooms ───────────────────────────
+
+
+@router.post("/api/pms/stays/{stay_id}/transfer-guest", tags=["PMS"])
+def api_transfer_guest(
+    request: Request,
+    stay_id: int,
+    guest_id: int = Form(...),
+    target_stay_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Chuyển khách (không phải khách chính) sang phòng khác đang có khách ở."""
+    user = _require_login(request)
+
+    source_stay = (
+        db.query(HotelStay)
+        .options(joinedload(HotelStay.room))
+        .filter(
+            HotelStay.id == stay_id,
+            HotelStay.status == HotelStayStatus.ACTIVE,
+        )
+        .first()
+    )
+    if not source_stay:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lưu trú nguồn")
+
+    guest = db.query(HotelGuest).filter(
+        HotelGuest.id == guest_id,
+        HotelGuest.stay_id == stay_id,
+    ).first()
+    if not guest:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khách trong lưu trú này")
+    if guest.is_primary:
+        raise HTTPException(status_code=400, detail="Không thể chuyển khách chính. Hãy đổi vai trò trước.")
+    if guest.check_out_at:
+        raise HTTPException(status_code=400, detail="Khách đã trả phòng, không thể chuyển.")
+
+    target_stay = (
+        db.query(HotelStay)
+        .options(joinedload(HotelStay.room).joinedload(HotelRoom.room_type_obj))
+        .options(joinedload(HotelStay.guests))
+        .filter(
+            HotelStay.id == target_stay_id,
+            HotelStay.status == HotelStayStatus.ACTIVE,
+        )
+        .first()
+    )
+    if not target_stay:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lưu trú đích")
+    if target_stay.branch_id != source_stay.branch_id:
+        raise HTTPException(status_code=400, detail="Không thể chuyển khách sang chi nhánh khác")
+
+    target_active_count = sum(1 for g in target_stay.guests if not g.check_out_at)
+    max_guests = target_stay.room.room_type_obj.max_guests if target_stay.room and target_stay.room.room_type_obj else 99
+    capacity_warning = target_active_count >= max_guests
+
+    now = _now_vn()
+    guest.check_out_at = now
+
+    new_guest = HotelGuest(
+        stay_id=target_stay_id,
+        guest_id=guest.guest_id,
+        full_name=guest.full_name,
+        cccd=guest.cccd,
+        gender=guest.gender,
+        birth_date=guest.birth_date,
+        phone=guest.phone,
+        notes=guest.notes,
+        id_type=guest.id_type,
+        id_expire=guest.id_expire,
+        address=guest.address,
+        address_type=guest.address_type,
+        city=guest.city,
+        district=guest.district,
+        ward=guest.ward,
+        old_city=getattr(guest, 'old_city', None),
+        old_district=getattr(guest, 'old_district', None),
+        old_ward=getattr(guest, 'old_ward', None),
+        nationality=guest.nationality,
+        tax_code=getattr(guest, 'tax_code', None),
+        invoice_contact=getattr(guest, 'invoice_contact', None),
+        company_name=getattr(guest, 'company_name', None),
+        company_address=getattr(guest, 'company_address', None),
+        is_primary=False,
+        check_in_at=now,
+        created_by=user.get("id"),
+    )
+    db.add(new_guest)
+
+    source_room_number = source_stay.room.room_number if source_stay.room else "—"
+    target_room_number = target_stay.room.room_number if target_stay.room else "—"
+    log_guest_transfer(
+        db, source_stay, target_stay, guest,
+        from_room=source_room_number,
+        to_room=target_room_number,
+        actor_id=user.get("id"),
+    )
+
+    db.commit()
+    db.refresh(new_guest)
+
+    return JSONResponse({
+        "message": f"Đã chuyển {guest.full_name} sang phòng {target_room_number}",
+        "new_guest_id": new_guest.id,
+        "source_stay_id": stay_id,
+        "target_stay_id": target_stay_id,
+        "target_room_number": target_room_number,
+        "capacity_warning": capacity_warning,
     })
 
 

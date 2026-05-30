@@ -10,40 +10,21 @@
         <div
             class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl transform transition-all w-full max-w-5xl flex flex-col max-h-[90vh]">
 
-            <!-- Header & Status Bar -->
-            <div
-                class="px-6 py-4 border-b border-slate-200 dark:border-slate-700 bg-orange-50/50 dark:bg-orange-900/10 rounded-t-2xl shrink-0 flex justify-between items-start">
-                <div class="flex flex-col gap-1">
-                    <div class="flex items-center gap-3">
-                        <h3 class="text-xl font-bold text-slate-900 dark:text-white tracking-tight font-mono"
-                            x-text="viewingApprovalTicket?.code"></h3>
-                        <span class="px-2.5 py-0.5 rounded text-xs font-bold border shadow-sm tracking-wide uppercase"
-                            :class="getStatusClass(viewingApprovalTicket?.status)"
-                            x-text="getStatusLabel(viewingApprovalTicket?.status)"></span>
-                    </div>
-                    <div class="text-xs text-slate-500 font-medium flex items-center gap-3">
-                        <span class="flex items-center gap-1">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span x-text="viewingApprovalTicket?.created_at"></span>
-                        </span>
-                        <span x-show="viewingApprovalTicket?.approved_at"
-                            class="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Duyệt: <span x-text="viewingApprovalTicket?.approved_at"></span>
-                        </span>
-                    </div>
+            <!-- Header -->
+            <div class="px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-t-2xl shrink-0 flex items-center justify-between">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 shrink-0">Kiểm nhận</span>
+                    <h3 class="text-sm font-black text-slate-900 dark:text-white tracking-tight font-mono truncate"
+                        x-text="viewingApprovalTicket?.code"></h3>
+                    <span class="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                        :class="getStatusClass(viewingApprovalTicket?.status)"
+                        x-text="getStatusLabel(viewingApprovalTicket?.status)"></span>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-0.5 shrink-0">
                     <button @click="captureModal($el.closest('.fixed').querySelector('.max-w-5xl'))"
-                        class="text-slate-400 hover:text-blue-600 p-1.5 rounded-full hover:bg-blue-50 transition-colors"
+                        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white"
                         title="Chụp ảnh phiếu">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -51,8 +32,8 @@
                         </svg>
                     </button>
                     <button @click="closeApprovalDetailModal()"
-                        class="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-200 transition-colors">
-                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-white">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -60,172 +41,61 @@
                 </div>
             </div>
 
-            <!-- Summary Cards Section -->
-            <div
-                class="px-6 py-4 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 border-b border-slate-200 dark:border-slate-700">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Card 1: Total Items -->
-                    <div
-                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
-                        <div
-                            class="absolute right-0 top-0 w-24 h-24 bg-blue-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
+            <!-- Metadata Section -->
+            <div class="px-3 pt-3 sm:px-4 sm:pt-4">
+                <section class="rounded-xl border border-slate-200/80 bg-white p-4 dark:border-slate-700/50 dark:bg-slate-800/50">
+                    <div class="flex flex-wrap items-stretch gap-3">
+                        <div class="flex min-w-[140px] flex-1 items-start gap-2.5 rounded-lg bg-slate-50/80 px-3.5 py-2.5 border border-slate-200/60 dark:bg-slate-700/30 dark:border-slate-700/50">
+                            <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-slate-600 dark:bg-slate-600/50 dark:text-slate-300">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Luồng hàng</div>
+                                <div class="mt-0.5 truncate text-[13px] font-bold text-slate-900 dark:text-white" x-text="(viewingApprovalTicket?.source_warehouse_name || '---') + ' → ' + (viewingApprovalTicket?.branch_name || '---')"></div>
+                            </div>
                         </div>
-
-                        <div
-                            class="absolute -right-4 -bottom-4 text-blue-500/10 dark:text-blue-400/10 transform -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-transform duration-500 ease-out pointer-events-none">
-                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
-                                <path
-                                    d="M12.378 1.602a.75.75 0 00-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03zM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 00.372-.648V7.93zM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 00.372.648l8.628 5.033z" />
-                            </svg>
+                        <div class="flex min-w-[120px] flex-1 items-start gap-2.5 rounded-lg bg-slate-50/80 px-3.5 py-2.5 border border-slate-200/60 dark:bg-slate-700/30 dark:border-slate-700/50">
+                            <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-slate-600 dark:bg-slate-600/50 dark:text-slate-300">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Người lập</div>
+                                <div class="mt-0.5 truncate text-[13px] font-bold text-slate-900 dark:text-white" x-text="viewingApprovalTicket?.requester_name || '---'"></div>
+                            </div>
                         </div>
-
-                        <div class="relative z-10 flex flex-col justify-between h-full">
-                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng sản phẩm
-                            </p>
-                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
-                                x-text="viewingApprovalTicket?.items?.length || 0"></p>
+                        <div x-show="viewingApprovalTicket?.approver_name" class="flex min-w-[120px] flex-1 items-start gap-2.5 rounded-lg bg-slate-50/80 px-3.5 py-2.5 border border-slate-200/60 dark:bg-slate-700/30 dark:border-slate-700/50">
+                            <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-slate-600 dark:bg-slate-600/50 dark:text-slate-300">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Người duyệt</div>
+                                <div class="mt-0.5 truncate text-[13px] font-bold text-slate-900 dark:text-white" x-text="viewingApprovalTicket?.approver_name"></div>
+                            </div>
                         </div>
-                    </div>
-
-                    <!-- Card 2: Total Requested -->
-                    <div
-                        class="relative overflow-hidden group bg-white dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all duration-300">
-                        <div
-                            class="absolute right-0 top-0 w-24 h-24 bg-purple-500/10 rounded-full blur-xl -mr-8 -mt-8 pointer-events-none">
-                        </div>
-
-                        <div
-                            class="absolute -right-4 -bottom-4 text-purple-500/10 dark:text-purple-400/10 transform rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-500 ease-out pointer-events-none">
-                            <svg class="w-24 h-24" viewBox="0 0 24 24" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M9.661 2.237a.531.531 0 01.678 0 11.947 11.947 0 006.878 2.743c.284 0 .515.228.523.512l.012 5.363c0 .284-.223.516-.508.524l-6.38.188c-.283.009-.516-.217-.524-.501a.532.532 0 01.503-.564l5.352-.158-.01-4.28a13.065 13.065 0 01-5.524-2.825zM11.5 6.5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm-3 5a1 1 0 100 2 1 1 0 000-2zm5-5a1 1 0 100 2 1 1 0 000-2zm0 5a1 1 0 100 2 1 1 0 000-2z"
-                                    clip-rule="evenodd" />
-                                <path
-                                    d="M6 3a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2h-1.5c-.235 0-.46.037-.672.106a12.936 12.936 0 01-2.91 5.378c-.29.351-.767.502-1.218.49L7.22 8.786a1.532 1.532 0 01-1.488-1.577l.013-5.363A2.62 2.62 0 016 3z"
-                                    opacity="0.4" />
-                            </svg>
-                        </div>
-
-                        <div class="relative z-10 flex flex-col justify-between h-full">
-                            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Tổng yêu cầu
-                            </p>
-                            <p class="text-3xl font-black text-slate-800 dark:text-white font-mono tracking-tight"
-                                x-text="(viewingApprovalTicket?.items || []).reduce((sum, i) => sum + parseFloat(i.request_quantity || 0), 0).toFixed(0)">
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Card 3: Completion Status -->
-                    <div class="relative overflow-hidden group rounded-xl p-4 border shadow-sm hover:shadow-md transition-all duration-300"
-                        :class="{
-                'bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30': viewingApprovalTicket?.has_shortage,
-                'bg-green-50 dark:bg-green-900/10 border-green-100 dark:border-green-900/30': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'COMPLETED',
-                'bg-yellow-50 dark:bg-yellow-900/10 border-yellow-100 dark:border-yellow-900/30': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'PENDING',
-                'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700': !viewingApprovalTicket
-            }">
-
-                        <div class="absolute -right-4 -bottom-4 opacity-[0.08] dark:opacity-[0.1] transform -rotate-12 group-hover:scale-110 transition-transform duration-500 pointer-events-none"
-                            :class="{
-                    'text-red-600': viewingApprovalTicket?.has_shortage,
-                    'text-green-600': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'COMPLETED',
-                    'text-yellow-600': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'PENDING'
-                 }">
-
-                            <svg x-show="viewingApprovalTicket?.has_shortage" class="w-24 h-24" fill="currentColor"
-                                viewBox="0 0 24 24">
-                                <path fill-rule="evenodd"
-                                    d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003zM12 8.25a.75.75 0 01.75.75v3.75a.75.75 0 01-1.5 0V9a.75.75 0 01.75-.75zm0 8.25a.75.75 0 100-1.5.75.75 0 000 1.5z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                            <svg x-show="!viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'COMPLETED'"
-                                class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
-                                <path fill-rule="evenodd"
-                                    d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.272-2.636-.759-3.807a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM10 8.5a.75.75 0 01.75.75v1.188a.75.75 0 01-.22.53l-2.25 2.25a.75.75 0 11-1.06-1.06l.97-.97V9.25A.75.75 0 0110 8.5zm5.25 4.5a.75.75 0 010 1.5h-4.5a.75.75 0 010-1.5h4.5z"
-                                    clip-rule="evenodd" />
-                                <path
-                                    d="M16.28 8.22a.75.75 0 10-1.06 1.06l2.25 2.25L16.28 12.72a.75.75 0 001.06 1.06l1.28-1.28a.75.75 0 000-1.06l-2.34-2.22z" />
-                            </svg>
-                            <svg x-show="!viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'PENDING'"
-                                class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24">
-                                <path fill-rule="evenodd"
-                                    d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zM12.75 6a.75.75 0 00-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 000-1.5h-3.75V6z"
-                                    clip-rule="evenodd" />
-                            </svg>
-                        </div>
-
-                        <div class="relative z-10 flex flex-col justify-between h-full">
-                            <p class="text-[11px] font-bold uppercase tracking-widest mb-1" :class="{
-                        'text-red-600 dark:text-red-400': viewingApprovalTicket?.has_shortage,
-                        'text-green-600 dark:text-green-400': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'COMPLETED',
-                        'text-yellow-600 dark:text-yellow-400': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'PENDING',
-                        'text-slate-400': !viewingApprovalTicket
-                    }">Tình trạng</p>
-
-                            <div class="font-black text-2xl tracking-tight" :class="{
-                        'text-red-600 dark:text-red-400': viewingApprovalTicket?.has_shortage,
-                        'text-green-600 dark:text-green-400': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'COMPLETED',
-                        'text-yellow-600 dark:text-yellow-400': !viewingApprovalTicket?.has_shortage && viewingApprovalTicket?.status === 'PENDING',
-                        'text-slate-800 dark:text-white': !viewingApprovalTicket
-                     }">
-                                <span
-                                    x-show="viewingApprovalTicket?.has_shortage && !viewingApprovalTicket?.is_compensated_enough">Thiếu
-                                    hàng</span>
-                                <span
-                                    x-show="viewingApprovalTicket?.status === 'COMPLETED' && !viewingApprovalTicket?.has_shortage">Hoàn
-                                    tất</span>
-                                <span x-show="viewingApprovalTicket?.status === 'PENDING'">Chờ duyệt</span>
-                                <span x-show="!viewingApprovalTicket">---</span>
+                        <div class="flex min-w-[130px] flex-1 items-start gap-2.5 rounded-lg bg-slate-50/80 px-3.5 py-2.5 border border-slate-200/60 dark:bg-slate-700/30 dark:border-slate-700/50">
+                            <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-slate-600 dark:bg-slate-600/50 dark:text-slate-300">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Thời gian tạo</div>
+                                <div class="mt-0.5 truncate font-mono text-[13px] font-bold text-slate-900 dark:text-white" x-text="viewingApprovalTicket?.created_at || '---'"></div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Simplified Metadata Bar -->
-            <div
-                class="px-6 py-3 bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-2 text-sm">
-                <!-- Source -->
-                <div class="flex flex-col">
-                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Nguồn cung cấp</span>
-                    <div class="font-semibold text-slate-800 dark:text-white truncate"
-                        x-text="viewingApprovalTicket?.source_warehouse_name"></div>
-                </div>
-
-                <!-- Requester -->
-                <div class="flex flex-col">
-                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người yêu cầu</span>
-                    <div class="font-semibold text-slate-800 dark:text-white truncate"
-                        x-text="viewingApprovalTicket?.requester_name"></div>
-                </div>
-
-                <!-- Approver -->
-                <div class="flex flex-col" x-show="viewingApprovalTicket?.approver_name">
-                    <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Người duyệt</span>
-                    <div class="font-semibold text-slate-800 dark:text-white truncate"
-                        x-text="viewingApprovalTicket?.approver_name"></div>
-                </div>
-
-                <!-- Notes (Full Width) -->
-                <div class="col-span-full pt-2 border-t border-slate-200 dark:border-slate-700"
-                    x-show="viewingApprovalTicket?.notes || viewingApprovalTicket?.approver_notes">
-                    <div class="flex flex-col gap-2">
-                        <div x-show="viewingApprovalTicket?.notes" class="flex flex-col">
-                            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ghi chú</span>
-                            <p class="text-slate-700 dark:text-slate-300 text-sm" x-text="viewingApprovalTicket?.notes">
-                            </p>
+                    <div x-show="viewingApprovalTicket?.notes || viewingApprovalTicket?.approver_notes" class="mt-3 flex items-start gap-2.5 rounded-lg bg-slate-50 px-3.5 py-2.5 border border-slate-200/70 dark:bg-slate-800/60 dark:border-slate-600/20">
+                        <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-200/80 text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
                         </div>
-                        <div x-show="viewingApprovalTicket?.approver_notes" class="flex flex-col">
-                            <span class="text-xs text-slate-500 dark:text-slate-400 font-medium mb-0.5">Ý kiến
-                                duyệt</span>
-                            <p class="text-slate-700 dark:text-slate-300 text-sm"
-                                x-text="viewingApprovalTicket?.approver_notes"></p>
+                        <div class="min-w-0 text-[13px] leading-relaxed text-slate-700 dark:text-slate-300">
+                            <span x-show="viewingApprovalTicket?.notes" x-text="viewingApprovalTicket?.notes"></span>
+                            <span x-show="viewingApprovalTicket?.approver_notes" class="text-slate-500 dark:text-slate-400" x-text="' — ' + viewingApprovalTicket?.approver_notes"></span>
                         </div>
                     </div>
-                </div>
+                </section>
             </div>
 
             <!-- Scrollable Content Area -->
-            <div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/10 p-0 flex flex-col">
+            <div class="flex-1 overflow-y-auto p-0 flex flex-col">
 
                 <!-- Alert: Compensation -->
                 <div x-show="viewingApprovalTicket?.code.includes('REQ_COMP')"
@@ -258,6 +128,13 @@
                                     class="w-1.5 h-6 rounded-full bg-gradient-to-b from-blue-500 to-indigo-600"></span>
                                 <h4 class="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider"
                                     x-text="catName"></h4>
+                                <span
+                                    class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-bold text-slate-500"
+                                    x-text="category.length"></span>
+                            </div>
+
+                            <!-- Products in Category -->
+                            <div class="grid grid-cols-1 gap-2">
                                 <span
                                     class="px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-[10px] font-bold text-slate-500"
                                     x-text="category.length"></span>

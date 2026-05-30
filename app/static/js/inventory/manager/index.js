@@ -1,9 +1,9 @@
-import initialState from '../shared/state.js?v=3.1';
+import initialState from '../shared/state.js?v=3.2';
 import utils from './utils.js?v=3.2-pagination';
-import requests from './requests.js?v=3.1';
+import requests from './requests.js?v=3.2';
 import approvals from './approvals.js?v=3.5';
-import imports from './imports.js?v=3.1';
-import exports from './exports.js?v=3.1';
+import imports from './imports.js?v=3.2';
+import exports from './exports.js?v=3.2';
 import overview from './overview.js?v=3.2-shift';
 
 function inventoryManagerApp(totalRecords, currentPage, totalPages) {

@@ -394,6 +394,74 @@ export default function(config) {
         this.updateItemUnit(item);
     },
 
+    getEditProductSearchResults() {
+        const query = (this.editForm.product_search || '').toLowerCase().trim();
+        if (!query) return [];
+
+        const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
+
+        return this.normalizedProducts
+            .filter(product => {
+                const categoryName = categoriesById.get(String(product.category_id)) || '';
+                const haystack = `${product.name || ''} ${categoryName}`.toLowerCase();
+                return haystack.includes(query);
+            })
+            .slice(0, 10);
+    },
+
+    addEditProductQuick(product) {
+        const categoryId = product.category_id ? String(product.category_id) : '';
+
+        const available_units = [product.base_unit];
+        if (product.packing_unit && product.conversion_rate > 1) {
+            available_units.unshift(product.packing_unit);
+        }
+        const unit = available_units[0];
+
+        const newItem = {
+            id: Date.now() + Math.random(),
+            product_id: String(product.id),
+            product_name: product.name,
+            quantity: 1,
+            unit: unit,
+            available_units: available_units,
+            source: 'quick'
+        };
+
+        let groupIndex = this.editForm.itemGroups.findIndex(g => g.category_id == categoryId);
+
+        const category = this.normalizedCategories.find(c => String(c.id) === categoryId);
+        const categoryName = category ? category.name : '';
+
+        if (groupIndex !== -1) {
+            this.editForm.itemGroups[groupIndex].items.push(newItem);
+        } else {
+            const emptyIndex = this.editForm.itemGroups.findIndex(g =>
+                !g.category_id && g.items.length === 1 && !g.items[0].product_id
+            );
+            if (emptyIndex !== -1) {
+                this.editForm.itemGroups.splice(emptyIndex, 1, {
+                    id: Date.now() + Math.random(),
+                    category_id: categoryId,
+                    category_name: categoryName,
+                    source: 'quick',
+                    items: [newItem]
+                });
+            } else {
+                this.editForm.itemGroups.push({
+                    id: Date.now() + Math.random(),
+                    category_id: categoryId,
+                    category_name: categoryName,
+                    source: 'quick',
+                    items: [newItem]
+                });
+            }
+        }
+
+        this.editForm.product_search = '';
+        this.editForm.is_search_open = false;
+    },
+
     async submitEditRequest() {
         const itemsToSubmit = this.getFlatEditFormItems();
 

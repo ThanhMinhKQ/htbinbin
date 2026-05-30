@@ -121,6 +121,8 @@ export default function (totalRecords, currentPage, totalPages, config = {}) {
         },
         editForm: {
             source_warehouse_id: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: [],
             notes: ''
         },
@@ -129,6 +131,8 @@ export default function (totalRecords, currentPage, totalPages, config = {}) {
         editImportForm: {
             supplier_name: '',
             notes: '',
+            product_search: '',
+            is_search_open: false,
             itemGroups: [],
             existingImages: [],
             newImages: [],

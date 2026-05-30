@@ -160,7 +160,8 @@ export default {
 
         // 1. Show Loading Overlay immediately
         const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'fixed inset-0 z-[9999] pointer-events-auto bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300';
+        loadingOverlay.className = 'fixed inset-0 pointer-events-auto bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center transition-opacity duration-300';
+        loadingOverlay.style.zIndex = '99999';
         loadingOverlay.id = 'inventory-capture-working-overlay';
         loadingOverlay.innerHTML = `
             <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -432,84 +433,7 @@ export default {
             captureTarget = createCaptureTarget(content);
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-            // 1. Remove transforms to avoid blurring
-            const originalTransform = content.style.transform;
-            content.style.transform = 'none';
-            const hadTransformClass = content.classList.contains('transform');
-            if (hadTransformClass) content.classList.remove('transform');
-
-            // 2. Hide control buttons (Close/Capture/Etc) - Optimized
-            const actionButtons = [];
-
-            // Combined button query for better performance
-            const allButtons = content.querySelectorAll('button');
-            allButtons.forEach(btn => {
-                // Check if it's a header button (has SVG) or footer button (in border-t)
-                const hasSvg = btn.querySelector('svg');
-                const isVisible = btn.offsetParent !== null;
-                const inFooter = btn.closest('.border-t');
-
-                if ((hasSvg && isVisible) || inFooter) {
-                    actionButtons.push({
-                        element: btn,
-                        originalDisplay: btn.style.display
-                    });
-                    btn.style.display = 'none';
-                }
-            });
-
-            // Save and expand the modal container itself if it has max-height
-            const modalOriginalMaxHeight = content.style.maxHeight;
-            const modalOriginalHeight = content.style.height;
-            const modalOriginalOverflow = content.style.overflow;
-
-            content.style.maxHeight = 'none';
-            content.style.height = 'auto';
-            content.style.overflow = 'visible';
-
-            // Find all scrollable areas that need to be expanded
-            const scrollableAreas = content.querySelectorAll('.overflow-y-auto');
-            const savedStyles = [];
-
-            // Save original styles and expand all scrollable areas
-            scrollableAreas.forEach((area) => {
-                savedStyles.push({
-                    element: area,
-                    maxHeight: area.style.maxHeight,
-                    overflow: area.style.overflow,
-                    height: area.style.height
-                });
-
-                // Temporarily expand to show all content
-                area.style.maxHeight = 'none';
-                area.style.overflow = 'visible';
-                area.style.height = 'auto';
-            });
-
-            // Find and expand all truncated text elements
-            const truncatedElements = content.querySelectorAll('.truncate, .overflow-hidden, .text-ellipsis');
-            const savedClasses = [];
-
-            truncatedElements.forEach((el) => {
-                const classes = {
-                    element: el,
-                    hadTruncate: el.classList.contains('truncate'),
-                    hadOverflowHidden: el.classList.contains('overflow-hidden'),
-                    hadTextEllipsis: el.classList.contains('text-ellipsis'),
-                    originalWhiteSpace: el.style.whiteSpace,
-                    originalOverflow: el.style.overflow,
-                    originalTextOverflow: el.style.textOverflow
-                };
-                savedClasses.push(classes);
-
-                // Remove truncation classes and styles
-                el.classList.remove('truncate', 'overflow-hidden', 'text-ellipsis');
-                el.style.whiteSpace = 'normal';
-                el.style.overflow = 'visible';
-                el.style.textOverflow = 'clip';
-            });
-
-            // Reduced wait time for faster capture (200ms is sufficient for most cases)
+            // Simply wait for 200ms to allow the Loading Overlay and clone structure to settle gracefully
             await new Promise(resolve => setTimeout(resolve, 200));
 
             // Calculate dynamic scale - Balance quality and performance
@@ -531,24 +455,6 @@ export default {
             } else {
                 scale = 2.0; // Performance priority for huge modals
             }
-
-            // Remove padding and margins for full-screen capture
-            const originalPadding = content.style.padding;
-            const originalMargin = content.style.margin;
-            const originalBorderRadius = content.style.borderRadius;
-            const originalBoxShadow = content.style.boxShadow;
-
-            content.style.padding = '0';
-            content.style.margin = '0';
-            content.style.borderRadius = '0';
-            content.style.boxShadow = 'none';
-
-            // Capture the entire expanded content WITHOUT opacity change
-            // Disable transitions and animations to prevent ghosting
-            const originalTransition = content.style.transition;
-            const originalAnimation = content.style.animation;
-            content.style.transition = 'none';
-            content.style.animation = 'none';
 
             const canvas = await html2canvas(captureTarget, {
                 scale: scale,
@@ -671,45 +577,6 @@ export default {
             if (captureStyleEl && captureStyleEl.parentNode) {
                 captureStyleEl.parentNode.removeChild(captureStyleEl);
             }
-
-            // Restore transforms and transitions
-            content.style.transform = originalTransform;
-            content.style.transition = originalTransition;
-            content.style.animation = originalAnimation;
-            if (hadTransformClass) content.classList.add('transform');
-
-            // Restore padding, margin, and styling
-            content.style.padding = originalPadding;
-            content.style.margin = originalMargin;
-            content.style.borderRadius = originalBorderRadius;
-            content.style.boxShadow = originalBoxShadow;
-
-            // Restore buttons
-            actionButtons.forEach(btn => {
-                btn.element.style.display = btn.originalDisplay;
-            });
-
-            // Restore modal container styles
-            content.style.maxHeight = modalOriginalMaxHeight;
-            content.style.height = modalOriginalHeight;
-            content.style.overflow = modalOriginalOverflow;
-
-            // Restore all scrollable area styles
-            savedStyles.forEach(({ element, maxHeight, overflow, height }) => {
-                element.style.maxHeight = maxHeight;
-                element.style.overflow = overflow;
-                element.style.height = height;
-            });
-
-            // Restore all truncated text classes and styles
-            savedClasses.forEach(({ element, hadTruncate, hadOverflowHidden, hadTextEllipsis, originalWhiteSpace, originalOverflow, originalTextOverflow }) => {
-                if (hadTruncate) element.classList.add('truncate');
-                if (hadOverflowHidden) element.classList.add('overflow-hidden');
-                if (hadTextEllipsis) element.classList.add('text-ellipsis');
-                element.style.whiteSpace = originalWhiteSpace;
-                element.style.overflow = originalOverflow;
-                element.style.textOverflow = originalTextOverflow;
-            });
 
             // Copy to clipboard
             canvas.toBlob(async (blob) => {

@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -33,6 +33,7 @@ from ...core.utils import VN_TZ
 from ...db.models import Branch, HotelGuest, HotelRoom, HotelStay, HotelStayStatus
 from ...db.session import get_db
 from .pms_helpers import _require_login, _is_admin, _active_branch
+from .vn_address import convert_old_to_new_sync
 
 router = APIRouter()
 
@@ -163,7 +164,15 @@ def _strip_accents(s: str) -> str:
 
 def _norm(s: str) -> str:
     s = _strip_accents(s).lower().strip()
-    return re.sub(r"\s+", " ", s)
+    # Fold Unicode punctuation variants so keys match across datasets:
+    # conversion map (vn_ward_map.json) and export tables (dklt_wards.json)
+    # spell apostrophes/dashes differently (curly vs ASCII, en-dash vs hyphen),
+    # and a few conversion entries carry stray backslashes (D\\'Ran). Without
+    # folding, wards like "M'Drắk", "Ea H'Leo", "Chân Mây – Lăng Cô" never match.
+    s = s.replace("\\", "")
+    s = re.sub(r"[‘’ʼ`´]", "'", s)   # apostrophe variants → '
+    s = re.sub(r"[‐-―]", "-", s)                     # dash variants → -
+    return re.sub(r"\s+", " ", s).strip()
 
 
 def _norm_prov(s: str) -> str:
@@ -189,9 +198,26 @@ def _load_prov_lookup() -> Dict[str, Any]:
 def _load_ward_lookup() -> Dict[str, Dict[str, str]]:
     try:
         with open(_WARD_FILE, encoding="utf-8") as f:
-            return json.load(f)
+            raw = json.load(f)
     except FileNotFoundError:
         return {}
+
+    # Re-normalize stored keys through the CURRENT _norm so the lookup side and
+    # the query side always use identical normalization. The JSON keys were
+    # pre-baked by a build script with older rules (e.g. en-dash, curly quotes
+    # left unfolded), so without this a runtime _norm fix alone can't reach them.
+    # Non-destructive: original keys are kept; folded aliases are added.
+    folded: Dict[str, Dict[str, str]] = {}
+    for prov_code, bucket in raw.items():
+        if not isinstance(bucket, dict):
+            folded[prov_code] = bucket
+            continue
+        new_bucket = dict(bucket)
+        for key, display in bucket.items():
+            alias = _norm(key)
+            new_bucket.setdefault(alias, display)
+        folded[prov_code] = new_bucket
+    return folded
 
 
 def _resolve_province_display(raw: Optional[str]) -> tuple[str, Optional[str]]:
@@ -238,6 +264,49 @@ def _resolve_ward_display(raw: Optional[str], prov_code: Optional[str]) -> str:
     bucket = _load_ward_lookup().get(prov_code) or {}
     display = bucket.get(_norm_ward(raw)) or bucket.get(_norm(raw))
     return display or raw
+
+
+def _has_code(display: str) -> bool:
+    """True nếu giá trị đã ở dạng 'Mã - Tên' (cổng yêu cầu mã ở đầu)."""
+    return bool(re.match(r"^\d{3,}\s*-\s*.+$", (display or "").strip()))
+
+
+def _resolve_vn_location(g: HotelGuest) -> tuple[str, str]:
+    """Resolve (tỉnh, phường) sang format 'Mã - Tên' mà cổng Bộ Công An yêu cầu.
+
+    Khách check-in trước cải cách 1/7/2025 (hoặc qua OCR/import/nhập tay bỏ qua
+    bước convert) có thể lưu phường cũ đã bị sáp nhập — không có trong bảng mã
+    mới nên lookup trực tiếp thất bại. Khi đó dùng convert_old_to_new_sync (đã
+    dùng ở check-in) để ánh xạ phường cũ → mới rồi resolve lại sang mã.
+
+    Ưu tiên dữ liệu đã chuẩn hóa sẵn trên record; chỉ convert khi cần.
+    """
+    prov_display, prov_code = _resolve_province_display(g.city)
+    ward_display = _resolve_ward_display(g.ward, prov_code)
+
+    if _has_code(ward_display):
+        return prov_display, ward_display
+
+    # Direct lookup không ra mã → thử convert phường cũ → mới.
+    old_ward = (getattr(g, "old_ward", None) or g.ward or "").strip()
+    old_city = (getattr(g, "old_city", None) or g.city or "").strip()
+    old_district = (getattr(g, "old_district", None) or getattr(g, "district", None) or "").strip()
+    if not old_ward:
+        return prov_display, ward_display
+
+    conv = convert_old_to_new_sync(old_ward, old_city, old_district) or {}
+    if not conv.get("matched"):
+        return prov_display, ward_display
+
+    new_prov_display, new_prov_code = _resolve_province_display(
+        conv.get("new_province") or g.city
+    )
+    new_ward_display = _resolve_ward_display(conv.get("new_ward"), new_prov_code)
+
+    # Chỉ thay khi convert thực sự cho ra mã hợp lệ, tránh làm xấu dữ liệu đúng sẵn.
+    final_prov = new_prov_display if _has_code(new_prov_display) else prov_display
+    final_ward = new_ward_display if _has_code(new_ward_display) else ward_display
+    return final_prov, final_ward
 
 
 # ─────────────────────────── Helpers ─────────────────────────────
@@ -485,8 +554,7 @@ def _vn_row_values(row: Dict[str, Any], seq: int) -> List[str]:
     """Map 1 dòng theo thứ tự VN_HEADERS."""
     g: HotelGuest = row["guest"]
     s: HotelStay = row["stay"]
-    prov_display, prov_code = _resolve_province_display(g.city)
-    ward_display = _resolve_ward_display(g.ward, prov_code)
+    prov_display, ward_display = _resolve_vn_location(g)
     return [
         str(seq),                                                # STT
         (g.full_name or "").strip(),                             # HỌ TÊN
@@ -663,14 +731,25 @@ def api_dklt_rooms(
                 "vn_count": 0,
                 "foreign_count": 0,
                 "primary_guest": "",
+                "guests": [],
             }
         bucket = by_stay[sid]
-        if _is_foreign(r["guest"]):
+        g = r["guest"]
+        if _is_foreign(g):
             bucket["foreign_count"] += 1
         else:
             bucket["vn_count"] += 1
-        if not bucket["primary_guest"] and getattr(r["guest"], "is_primary", False):
-            bucket["primary_guest"] = (r["guest"].full_name or "").strip()
+        if not bucket["primary_guest"] and getattr(g, "is_primary", False):
+            bucket["primary_guest"] = (g.full_name or "").strip()
+        guest_check_in = g.check_in_at or stay.check_in_at
+        bucket["guests"].append({
+            "guest_id": g.id,
+            "full_name": (g.full_name or "").strip(),
+            "is_foreign": _is_foreign(g),
+            "is_primary": bool(getattr(g, "is_primary", False)),
+            "check_in_at": guest_check_in.isoformat() if guest_check_in else None,
+            "dklt_exported_at": g.dklt_exported_at.isoformat() if g.dklt_exported_at else None,
+        })
 
     items = list(by_stay.values())
     for it in items:
@@ -679,6 +758,7 @@ def api_dklt_rooms(
                 if r["stay"].id == it["stay_id"]:
                     it["primary_guest"] = (r["guest"].full_name or "").strip()
                     break
+        it["guests"].sort(key=lambda x: (not x["is_primary"], (x["full_name"] or "").lower()))
     items.sort(key=lambda x: (x["room_number"] or "", x["stay_id"]))
 
     return JSONResponse({
@@ -696,6 +776,7 @@ def api_dklt_export(
     group: str = "vn",
     format: str = "xml",
     stay_ids: Optional[str] = None,
+    guest_ids: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """
@@ -704,6 +785,7 @@ def api_dklt_export(
     - format: 'xml' | 'excel'
         + VN chỉ hỗ trợ excel (XML không có mẫu cho công dân VN).
         + Foreign hỗ trợ cả xml và excel.
+    - guest_ids: chuỗi id khách phân cách dấu phẩy. Ưu tiên hơn stay_ids nếu có.
     - stay_ids: chuỗi id stay phân cách dấu phẩy. Bỏ trống = tất cả phòng đang ở.
     """
     group_norm = (group or "").strip().lower()
@@ -721,8 +803,14 @@ def api_dklt_export(
     branch = _resolve_branch(request, branch_id, db)
     rows_raw = _query_active_guests(db, branch.id)
 
-    selected_ids: Optional[set[int]] = None
-    if stay_ids:
+    if guest_ids:
+        try:
+            selected_guest_ids = {int(x) for x in guest_ids.split(",") if x.strip()}
+        except ValueError:
+            raise HTTPException(status_code=400, detail="guest_ids không hợp lệ.")
+        if selected_guest_ids:
+            rows_raw = [r for r in rows_raw if r["guest"].id in selected_guest_ids]
+    elif stay_ids:
         try:
             selected_ids = {int(x) for x in stay_ids.split(",") if x.strip()}
         except ValueError:
@@ -767,3 +855,47 @@ def api_dklt_export(
         filename,
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@router.post("/api/pms/dklt/mark-exported", tags=["PMS DKLT Export"])
+def api_dklt_mark_exported(
+    request: Request,
+    payload: Dict[str, Any] = Body(...),
+    branch_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Đánh dấu các khách đã xuất ĐKLT (set dklt_exported_at/by).
+
+    Gọi sau khi frontend tải file thành công. Chỉ cập nhật khách thuộc branch
+    đã resolve để tránh ghi chéo chi nhánh.
+    """
+    user = _require_login(request)
+    branch = _resolve_branch(request, branch_id, db)
+
+    raw_ids = payload.get("guest_ids") if isinstance(payload, dict) else None
+    if not isinstance(raw_ids, list) or not raw_ids:
+        raise HTTPException(status_code=400, detail="guest_ids không hợp lệ.")
+    try:
+        guest_id_set = {int(x) for x in raw_ids}
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="guest_ids không hợp lệ.")
+
+    user_id = user.get("id")
+    now = datetime.now(VN_TZ)
+
+    rows = (
+        db.query(HotelGuest)
+        .join(HotelStay, HotelGuest.stay_id == HotelStay.id)
+        .filter(
+            HotelGuest.id.in_(guest_id_set),
+            HotelStay.branch_id == branch.id,
+        )
+        .all()
+    )
+    for g in rows:
+        g.dklt_exported_at = now
+        g.dklt_exported_by = user_id
+    db.commit()
+
+    return JSONResponse({"updated": len(rows)})
+

@@ -1566,6 +1566,8 @@ class HotelGuest(Base):
     created_at  = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     updated_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    dklt_exported_at = Column(DateTime(timezone=True), nullable=True)   # Lần xuất ĐKLT gần nhất; NULL = chưa xuất
+    dklt_exported_by = Column(BIGINT, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     stay = relationship("HotelStay", back_populates="guests")
     guest = relationship("Guest", back_populates="hotel_guests")

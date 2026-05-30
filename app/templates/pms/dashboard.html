@@ -2594,12 +2594,12 @@
 
   .pms-dklt-dialog {
     width: 100%;
-    max-width: 640px;
+    max-width: 880px;
     max-height: calc(100vh - 40px);
     background: var(--pms-bg);
     border: 1px solid var(--pms-border);
-    border-radius: 14px;
-    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+    border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.4);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2610,7 +2610,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    padding: 16px 20px;
+    padding: 20px 26px;
     border-bottom: 1px solid var(--pms-border);
     background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
     color: #fff;
@@ -2618,8 +2618,9 @@
 
   .pms-dklt-modal-head h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 700;
+    letter-spacing: -0.01em;
   }
 
   .pms-dklt-modal-head p {
@@ -2645,11 +2646,11 @@
   .pms-dklt-modal-close:hover { background: rgba(255, 255, 255, 0.28); }
 
   .pms-dklt-modal-body {
-    padding: 16px 20px;
+    padding: 20px 26px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 18px;
   }
 
   .pms-dklt-section {
@@ -2679,7 +2680,11 @@
     width: 16px;
     height: 16px;
     cursor: pointer;
-    accent-color: #14b8a6;
+    accent-color: #1e293b;
+  }
+
+  html.dark .pms-dklt-section-title input[type="checkbox"] {
+    accent-color: #e2e8f0;
   }
 
   .pms-dklt-counter {
@@ -2708,13 +2713,46 @@
     box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.15);
   }
 
+  .pms-dklt-scope {
+    display: inline-flex;
+    gap: 4px;
+    padding: 3px;
+    border-radius: 10px;
+    background: var(--pms-bg-hover);
+    border: 1px solid var(--pms-border);
+    flex-wrap: wrap;
+  }
+
+  .pms-dklt-scope-btn {
+    padding: 5px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pms-text-muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+
+  .pms-dklt-scope-btn:hover { color: var(--pms-text); }
+
+  .pms-dklt-scope-btn.active {
+    background: var(--pms-bg);
+    color: #0f766e;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  html.dark .pms-dklt-scope-btn.active { color: #2dd4bf; }
+
   .pms-dklt-room-list {
-    max-height: 260px;
+    max-height: 52vh;
     overflow-y: auto;
     border: 1px solid var(--pms-border);
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--pms-bg-soft, var(--pms-bg));
-    padding: 6px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -2769,17 +2807,242 @@
   }
 
   .pms-dklt-tag {
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
   }
 
-  .pms-dklt-tag.vn { background: #dbeafe; color: #1d4ed8; }
-  .pms-dklt-tag.fn { background: #fef3c7; color: #b45309; }
+  .pms-dklt-tag.vn { color: #1d4ed8; }
+  .pms-dklt-tag.fn { color: #b45309; }
 
-  html.dark .pms-dklt-tag.vn { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
-  html.dark .pms-dklt-tag.fn { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+  html.dark .pms-dklt-tag.vn { color: #93c5fd; }
+  html.dark .pms-dklt-tag.fn { color: #fcd34d; }
+
+  /* View toggle + date filter controls */
+  .pms-dklt-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .pms-dklt-date-custom {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+
+  .pms-dklt-date-custom label {
+    font-size: 12px;
+    color: var(--pms-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pms-dklt-date-custom input[type="date"] {
+    border: 1px solid var(--pms-border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    background: var(--pms-bg);
+    color: var(--pms-text);
+  }
+
+  /* Room group (view theo phòng) — card style */
+  .pms-dklt-room-group {
+    flex-shrink: 0;
+    border: 1px solid var(--pms-border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: var(--pms-bg);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .pms-dklt-room-group:last-child { margin-bottom: 0; }
+
+  .pms-dklt-room-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--pms-bg-hover);
+    border-bottom: 1px solid var(--pms-border);
+    cursor: pointer;
+  }
+
+  .pms-dklt-room-head input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: #1e293b;
+  }
+
+  html.dark .pms-dklt-room-head input[type="checkbox"] {
+    accent-color: #e2e8f0;
+  }
+
+  .pms-dklt-room-head .pms-dklt-room-num {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--pms-text);
+  }
+
+  .pms-dklt-room-head-tags {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .pms-dklt-room-count {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--pms-text-muted);
+    background: var(--pms-bg);
+    padding: 2px 8px;
+    border-radius: 999px;
+    flex-shrink: 0;
+  }
+
+  .pms-dklt-room-guests {
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 4px;
+  }
+
+  /* Guest row (cả 2 view) */
+  .pms-dklt-guest-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 9px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .pms-dklt-guest-item:hover {
+    background: var(--pms-bg-hover);
+    border-color: var(--pms-border);
+  }
+
+  .pms-dklt-guest-item:has(input:checked) {
+    background: rgba(30, 41, 59, 0.04);
+    border-color: rgba(30, 41, 59, 0.25);
+  }
+
+  .pms-dklt-guest-item input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    cursor: pointer;
+    accent-color: #1e293b;
+  }
+
+  html.dark .pms-dklt-guest-item input[type="checkbox"] {
+    accent-color: #e2e8f0;
+  }
+
+  .pms-dklt-guest-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .pms-dklt-guest-name {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--pms-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pms-dklt-guest-meta {
+    font-size: 11px;
+    color: var(--pms-text-muted);
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .pms-dklt-guest-room-label {
+    flex-shrink: 0;
+  }
+
+  .pms-dklt-primary-dot {
+    color: #14b8a6;
+    font-size: 10px;
+    margin-right: 4px;
+  }
+
+  .pms-dklt-guest-tags {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .pms-dklt-exported-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: #3b82f6;
+    white-space: nowrap;
+  }
+
+  html.dark .pms-dklt-exported-text {
+    color: #93c5fd;
+  }
+
+  /* Thẻ khách ĐÃ xuất ĐKLT — màu xanh dương nhạt để dễ phân biệt với khách chưa xuất */
+  .pms-dklt-guest-item.exported {
+    background: rgba(59, 130, 246, 0.06);
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+
+  .pms-dklt-guest-item.exported .pms-dklt-guest-name {
+    color: var(--pms-text-muted);
+    font-weight: 500;
+  }
+
+  .pms-dklt-guest-item.exported:hover {
+    background: rgba(59, 130, 246, 0.12);
+  }
+
+  html.dark .pms-dklt-guest-item.exported {
+    background: rgba(59, 130, 246, 0.08);
+  }
+
+  /* Phòng đã xuất hết (mọi khách đã xuất) — header xanh dương nhạt */
+  .pms-dklt-room-group.exported .pms-dklt-room-head {
+    background: rgba(59, 130, 246, 0.08);
+  }
+
+  .pms-dklt-room-group.exported .pms-dklt-room-num {
+    color: var(--pms-text-muted);
+  }
+
+  html.dark .pms-dklt-room-group.exported .pms-dklt-room-head {
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  /* View theo khách: danh sách phẳng dạng lưới 2 cột */
+  .pms-dklt-guest-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 6px;
+  }
 
   .pms-dklt-empty {
     text-align: center;
@@ -3090,6 +3353,38 @@
           <input type="search" class="pms-dklt-search" id="pms-dklt-search"
             placeholder="Tìm số phòng hoặc khách..." oninput="pmsDkltFilter(this.value)" />
         </div>
+        <div class="pms-dklt-scope" id="pms-dklt-scope" role="group" aria-label="Lọc theo quốc tịch">
+          <button type="button" class="pms-dklt-scope-btn active" data-scope="all"
+            onclick="pmsDkltSetScope('all')">Tất cả</button>
+          <button type="button" class="pms-dklt-scope-btn" data-scope="vn"
+            onclick="pmsDkltSetScope('vn')">Chỉ Việt Nam</button>
+          <button type="button" class="pms-dklt-scope-btn" data-scope="foreign"
+            onclick="pmsDkltSetScope('foreign')">Chỉ nước ngoài</button>
+        </div>
+        <div class="pms-dklt-controls">
+          <div class="pms-dklt-scope" id="pms-dklt-view" role="group" aria-label="Kiểu hiển thị">
+            <button type="button" class="pms-dklt-scope-btn active" data-view="room"
+              onclick="pmsDkltSetViewMode('room')">Theo phòng</button>
+            <button type="button" class="pms-dklt-scope-btn" data-view="guest"
+              onclick="pmsDkltSetViewMode('guest')">Theo khách</button>
+          </div>
+          <div class="pms-dklt-scope" id="pms-dklt-date" role="group" aria-label="Lọc theo ngày đến">
+            <button type="button" class="pms-dklt-scope-btn active" data-date="all"
+              onclick="pmsDkltSetDateFilter('all')">Mọi ngày</button>
+            <button type="button" class="pms-dklt-scope-btn" data-date="today"
+              onclick="pmsDkltSetDateFilter('today')">Hôm nay</button>
+            <button type="button" class="pms-dklt-scope-btn" data-date="yesterday"
+              onclick="pmsDkltSetDateFilter('yesterday')">Hôm qua</button>
+            <button type="button" class="pms-dklt-scope-btn" data-date="custom"
+              onclick="pmsDkltSetDateFilter('custom')">Khoảng ngày</button>
+          </div>
+        </div>
+        <div class="pms-dklt-date-custom" id="pms-dklt-date-custom" style="display:none;">
+          <label>Từ <input type="date" id="pms-dklt-date-from"
+            onchange="pmsDkltSetDateFrom(this.value)" /></label>
+          <label>Đến <input type="date" id="pms-dklt-date-to"
+            onchange="pmsDkltSetDateTo(this.value)" /></label>
+        </div>
         <div class="pms-dklt-room-list" id="pms-dklt-room-list">
           <div class="pms-dklt-empty">Đang tải...</div>
         </div>
@@ -3187,14 +3482,14 @@
   // vào dashboard gây nghẽn pool DB (mặc dù endpoint chỉ đọc JSON, vẫn đi qua event loop).
 </script>
 <script src="/static/js/pms/scan_modal.js"></script>
-<script src="/static/js/pms/pms_dashboard.js?v=20260528-perf"></script>
+<script src="/static/js/pms/pms_dashboard.js?v=20260530-dklt-badge7"></script>
 <script src="/static/js/pms/pms_booking.js"></script>
 <script src="/static/js/pms/nationalities.js"></script>
 <script src="/static/js/pms/pms_addr.js"></script>
 <script src="/static/js/pms/vn_address.js"></script>
 <script src="/static/js/pms/pms_checkin.js"></script>
 <script src="/static/js/pms/pms_checkout.js"></script>
-<script src="/static/js/pms/rd_modal.js?v=20260520-timezone-extension"></script>
+<script src="/static/js/pms/rd_modal.js?v=20260530-transfer-timeline"></script>
 <script src="/static/js/pms/ag_form.js"></script>
 <script src="/static/js/pms/ag_address.js"></script>
 <script src="/static/js/pms/ag_search.js"></script>

@@ -92,6 +92,34 @@
                 </div>
 
                 <div class="space-y-6 pb-6">
+                    <!-- Quick Search -->
+                    <div class="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm dark:border-blue-900/50 dark:bg-slate-800">
+                        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">Tìm và thêm vật tư</label>
+                        <div class="relative" @click.outside="editForm.is_search_open = false">
+                            <input type="text" x-model="editForm.product_search" @input="editForm.is_search_open = editForm.product_search.trim().length > 0" @keydown.escape="editForm.is_search_open = false" placeholder="Gõ tên vật tư cần thêm..." class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-white py-3 pl-11 pr-11 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 shadow-sm placeholder:text-slate-400">
+                            <svg class="absolute left-4 top-3.5 w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z"></path>
+                            </svg>
+                            <button type="button" x-show="editForm.product_search" @click="editForm.product_search = ''; editForm.is_search_open = false" class="absolute right-3 top-2.5 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                            <div x-show="editForm.is_search_open && editForm.product_search.trim().length > 0" class="absolute z-50 mt-2 w-full max-h-80 overflow-y-auto rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 shadow-2xl shadow-slate-900/20 dark:shadow-black/50" style="display: none;">
+                                <template x-for="p in getEditProductSearchResults()" :key="p.id">
+                                    <button type="button" @click="addEditProductQuick(p)" class="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 border-b border-slate-100 dark:border-slate-800 last:border-b-0 transition-colors flex items-center justify-between gap-3">
+                                        <div class="min-w-0">
+                                            <div class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate" x-text="p.name"></div>
+                                            <div class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Bấm để thêm vào phiếu</div>
+                                        </div>
+                                        <span class="shrink-0 px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300" x-text="p.packing_unit && p.conversion_rate > 1 ? `${p.packing_unit} / ${p.base_unit}` : p.base_unit"></span>
+                                    </button>
+                                </template>
+                                <div x-show="getEditProductSearchResults().length === 0" class="px-4 py-5 text-sm text-slate-400 text-center">
+                                    Không tìm thấy vật tư phù hợp
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Loop Groups -->
                     <template x-for="(group, gIdx) in editForm.itemGroups" :key="group.id">
                         <div

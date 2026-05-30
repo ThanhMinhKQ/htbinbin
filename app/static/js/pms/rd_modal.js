@@ -1423,6 +1423,12 @@ async function openRoomDetail(stayId, num, targetTab = 'room') {
                 check_out_at: g.check_out_at || null,
             }));
 
+            rdGuestList.sort((a, b) => {
+                if (a.is_primary && !b.is_primary) return -1;
+                if (!a.is_primary && b.is_primary) return 1;
+                return 0;
+            });
+
             const primaryG = rdGuestList.find(g => g.is_primary) || rdGuestList[0];
             if (primaryG) {
                 document.getElementById('rd-rep-name').value = primaryG.full_name || '';
@@ -1867,13 +1873,21 @@ function pmsRdRenderGuestList(filterText = '', filterStatus = 'staying') {
             </div>
           </div>
 
-          <div style="display:flex; flex-direction:column; gap:10px; padding-left:20px; border-left:1px solid #f1f5f9; margin-left:10px; height:100%; justify-content:center;">
-            <button onclick="pmsRdEditGuest(${i})" style="background:#fff; border:1px solid #e2e8f0; color:#64748b; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Sửa thông tin">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <div style="display:flex; flex-direction:column; gap:5px; padding-left:12px; border-left:1px solid #f1f5f9; margin-left:10px; align-items:center; justify-content:center;">
+            <button onclick="pmsRdEditGuest(${i})" style="background:#fff; border:1px solid #e2e8f0; color:#64748b; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Sửa thông tin">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
+            ${!g.is_primary && !g.check_out_at && !rdIsCheckedOut ? `
+            <button onclick="pmsRdSetPrimaryGuest(${i})" style="background:#fff; border:1px solid #e2e8f0; color:#f59e0b; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Đặt làm khách chính">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </button>
+            <button onclick="rdOpenTransferGuestModal(${i})" style="background:#fff; border:1px solid #e2e8f0; color:#6366f1; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Chuyển sang phòng khác">
+              <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8L22 12L18 16"/><path d="M2 12H22"/><path d="M6 16L2 12L6 8"/></svg>
+            </button>
+            ` : ''}
             ${!g.is_primary && !g.check_out_at ? `
-            <button onclick="pmsRdCheckoutGuest(${i})" style="background:#fff; border:1px solid #e2e8f0; color:#ef4444; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Trả phòng">
-               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button onclick="pmsRdCheckoutGuest(${i})" style="background:#fff; border:1px solid #e2e8f0; color:#ef4444; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer;" title="Trả phòng">
+               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                  <polyline points="16 17 21 12 16 7" />
                  <line x1="21" y1="12" x2="9" y2="12" />
@@ -1886,6 +1900,248 @@ function pmsRdRenderGuestList(filterText = '', filterStatus = 'staying') {
     }).join('');
     pmsRdUpdateCapacityWarn();
 }
+
+// ── Transfer Guest Between Rooms ──────────────────────────────────────────────
+let rdTransferGuestState = {
+    guestIndex: null,
+    target: null,
+    targets: [],
+    requestId: 0,
+    submitting: false,
+    searchTimer: null,
+};
+
+function rdOpenTransferGuestModal(i) {
+    const g = rdGuestList[i];
+    if (!g || g.is_primary || g.check_out_at || rdIsCheckedOut) return;
+
+    rdTransferGuestState = {
+        guestIndex: i,
+        target: null,
+        targets: [],
+        requestId: rdTransferGuestState.requestId + 1,
+        submitting: false,
+        searchTimer: null,
+    };
+
+    let modal = document.getElementById('rd-sub-modal-transfer-guest');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'rd-sub-modal-transfer-guest';
+        modal.style.cssText = 'display:none; position:absolute; inset:0; z-index:900; background:rgba(15,23,42,0.75); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px;';
+        modal.innerHTML = `
+            <div style="background:#f8fafc; border:1px solid rgba(148,163,184,0.2); border-radius:16px; width:100%; max-width:440px; max-height:80vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="padding:16px 20px; border-bottom:1px solid rgba(148,163,184,0.2); display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">Chuyển khách sang phòng khác</h3>
+                        <p id="rd-transfer-guest-summary" style="margin:2px 0 0; font-size:12px; color:#64748b;"></p>
+                    </div>
+                    <button onclick="rdCloseTransferGuestModal()" style="background:none; border:none; cursor:pointer; color:#94a3b8; font-size:20px; line-height:1;">&times;</button>
+                </div>
+                <div style="padding:12px 20px 8px;">
+                    <input id="rd-transfer-guest-search" type="text" placeholder="Tìm số phòng hoặc tên khách..." oninput="rdSearchTransferGuestTargets()" style="width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:10px; font-size:13px; outline:none;">
+                </div>
+                <div id="rd-transfer-guest-target-list" style="flex:1; overflow-y:auto; padding:8px 20px 16px; display:flex; flex-direction:column; gap:8px; min-height:280px;"></div>
+                <div id="rd-transfer-guest-error" style="display:none; padding:0 20px 8px; color:#dc2626; font-size:12px;"></div>
+                <div style="padding:12px 20px 16px; border-top:1px solid rgba(148,163,184,0.2);">
+                    <button id="rd-transfer-guest-submit-btn" onclick="rdSubmitTransferGuest()" style="width:100%; padding:12px; background:#3b82f6; color:#fff; border:none; border-radius:10px; font-size:14px; font-weight:700; cursor:pointer;">Xác nhận chuyển khách</button>
+                </div>
+            </div>
+        `;
+        (document.getElementById('rdModal') || document.getElementById('rd-dialog'))?.appendChild(modal);
+    }
+
+    const summary = document.getElementById('rd-transfer-guest-summary');
+    if (summary) summary.textContent = `Khách: ${g.full_name}`;
+    const search = document.getElementById('rd-transfer-guest-search');
+    if (search) search.value = '';
+    rdSetTransferGuestError('');
+    modal.style.display = 'flex';
+    rdSearchTransferGuestTargets();
+    setTimeout(() => search?.focus(), 50);
+}
+
+function rdCloseTransferGuestModal() {
+    const modal = document.getElementById('rd-sub-modal-transfer-guest');
+    if (modal) modal.style.display = 'none';
+    rdTransferGuestState.target = null;
+    rdTransferGuestState.targets = [];
+}
+
+function rdSetTransferGuestError(msg) {
+    const el = document.getElementById('rd-transfer-guest-error');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.display = msg ? 'block' : 'none';
+}
+
+function rdSearchTransferGuestTargets() {
+    if (!rdStayData?.id) return;
+    clearTimeout(rdTransferGuestState.searchTimer);
+    rdTransferGuestState.searchTimer = setTimeout(async () => {
+        const requestId = ++rdTransferGuestState.requestId;
+        const list = document.getElementById('rd-transfer-guest-target-list');
+        const search = document.getElementById('rd-transfer-guest-search')?.value || '';
+        if (list) list.innerHTML = `
+                <div class="rd-modal-skeleton">
+                    <div class="rd-skeleton-card"><div class="rd-skeleton-avatar"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="rd-skeleton-line" style="width:60%"></div><div class="rd-skeleton-line" style="width:40%"></div></div></div>
+                    <div class="rd-skeleton-card"><div class="rd-skeleton-avatar"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="rd-skeleton-line" style="width:55%"></div><div class="rd-skeleton-line" style="width:35%"></div></div></div>
+                    <div class="rd-skeleton-card"><div class="rd-skeleton-avatar"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="rd-skeleton-line" style="width:65%"></div><div class="rd-skeleton-line" style="width:45%"></div></div></div>
+                    <div class="rd-skeleton-card"><div class="rd-skeleton-avatar"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px;"><div class="rd-skeleton-line" style="width:50%"></div><div class="rd-skeleton-line" style="width:30%"></div></div></div>
+                </div>`;
+        try {
+            const params = new URLSearchParams({ exclude_stay_id: rdStayData.id, q: search });
+            const data = await pmsApi(`/api/pms/stays/active-rooms?${params.toString()}`);
+            if (requestId !== rdTransferGuestState.requestId) return;
+            rdTransferGuestState.targets = data.items || [];
+            rdRenderTransferGuestTargets(rdTransferGuestState.targets);
+        } catch (e) {
+            if (requestId !== rdTransferGuestState.requestId) return;
+            rdSetTransferGuestError(e.message || 'Không thể tìm phòng');
+            rdRenderTransferGuestTargets([]);
+        }
+    }, 200);
+}
+
+function rdRenderTransferGuestTargets(items = []) {
+    const list = document.getElementById('rd-transfer-guest-target-list');
+    if (!list) return;
+    if (!items.length) {
+        list.innerHTML = '<div style="padding:14px; color:#64748b; font-size:12px; text-align:center;">Không tìm thấy phòng đang có khách phù hợp</div>';
+        return;
+    }
+    list.innerHTML = items.map(item => {
+        const selected = rdTransferGuestState.target?.stay_id === item.stay_id;
+        const fullBadge = item.is_full
+            ? '<span style="font-size:10px; background:#fef2f2; color:#dc2626; padding:1px 6px; border-radius:6px; font-weight:700;">ĐẦY</span>'
+            : '';
+        return `
+        <button type="button" onclick="rdSelectTransferGuestTarget(${item.stay_id})" style="text-align:left; border:1px solid ${selected ? '#3b82f6' : 'rgba(148,163,184,0.3)'}; background:${selected ? '#eff6ff' : '#f8fafc'}; border-radius:10px; padding:10px 12px; cursor:pointer; display:flex; justify-content:space-between; gap:12px; align-items:center; transition:all 0.15s;">
+            <span style="display:flex; flex-direction:column; gap:2px; min-width:0;">
+                <strong style="font-size:13px; color:#0f172a;">Phòng ${pmsEscapeHtml(item.room_number)}</strong>
+                <small style="font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${pmsEscapeHtml(item.guest_name)} · ${item.guest_count}/${item.max_guests} khách</small>
+            </span>
+            <span style="display:flex; align-items:center; gap:6px;">
+                ${fullBadge}
+                ${selected ? '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+            </span>
+        </button>`;
+    }).join('');
+}
+
+function rdSelectTransferGuestTarget(stayId) {
+    const target = (rdTransferGuestState.targets || []).find(item => Number(item.stay_id) === Number(stayId));
+    rdTransferGuestState.target = target || null;
+    rdRenderTransferGuestTargets(rdTransferGuestState.targets);
+    rdSetTransferGuestError('');
+}
+
+async function rdSubmitTransferGuest() {
+    if (rdTransferGuestState.submitting) return;
+    const target = rdTransferGuestState.target;
+    const gIdx = rdTransferGuestState.guestIndex;
+    const g = rdGuestList[gIdx];
+    if (!g) return;
+    if (!target) {
+        rdSetTransferGuestError('Vui lòng chọn phòng đích');
+        return;
+    }
+
+    const confirmMsg = target.is_full
+        ? `Phòng ${target.room_number} đã đầy (${target.guest_count}/${target.max_guests}). Vẫn chuyển "${g.full_name}" sang?`
+        : `Xác nhận chuyển "${g.full_name}" sang phòng ${target.room_number}?`;
+    if (!confirm(confirmMsg)) return;
+
+    const btn = document.getElementById('rd-transfer-guest-submit-btn');
+    rdTransferGuestState.submitting = true;
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.65'; btn.textContent = 'Đang chuyển...'; }
+
+    try {
+        const formData = new FormData();
+        formData.append('guest_id', g.id);
+        formData.append('target_stay_id', target.stay_id);
+        const r = await pmsApi(`/api/pms/stays/${rdStayData.id}/transfer-guest`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        const sourceStayId = rdStayData?.id;
+        const sourceRoomNumber = rdStayData?.room_number;
+
+        rdCloseTransferGuestModal();
+
+        if (r.capacity_warning) {
+            pmsToast(`${r.message} (phòng đích đã vượt sức chứa)`, true);
+        } else {
+            pmsToast(r.message || 'Đã chuyển khách', true);
+        }
+
+        // Hiện khách vừa chuyển với trạng thái "ĐÃ RA" sau khi fetch lại
+        const filterEl = document.getElementById('rd-filter-status');
+        if (filterEl) filterEl.value = 'all';
+
+        // Fetch lại chi tiết phòng nguồn để cập nhật danh sách khách + timeline ngay
+        if (typeof openRoomDetail === 'function' && sourceStayId) {
+            await openRoomDetail(sourceStayId, sourceRoomNumber, 'room');
+        }
+
+        if (typeof pmsLoadRooms === 'function') pmsLoadRooms(undefined, true);
+    } catch (e) {
+        rdSetTransferGuestError(e.message || 'Không thể chuyển khách');
+    } finally {
+        rdTransferGuestState.submitting = false;
+        if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.textContent = 'Xác nhận chuyển khách'; }
+    }
+}
+
+async function pmsRdSetPrimaryGuest(i) {
+    const g = rdGuestList[i];
+    if (!g) return;
+    if (g.is_primary) {
+        pmsToast('Khách này đã là khách chính', false);
+        return;
+    }
+    if (g.check_out_at) {
+        pmsToast('Không thể đặt khách đã trả phòng làm khách chính', false);
+        return;
+    }
+    if (!confirm(`Chuyển "${g.full_name}" làm khách chính?`)) return;
+
+    const stayId = document.getElementById('rd-stay-id')?.value;
+    if (!stayId) return;
+
+    try {
+        const formData = new FormData();
+        formData.append('guest_id', g.id);
+        const r = await pmsApi(`/api/pms/stays/${stayId}/set-primary-guest`, {
+            method: 'POST',
+            body: formData,
+        });
+
+        rdGuestList.forEach(guest => { guest.is_primary = false; });
+        rdGuestList[i].is_primary = true;
+
+        rdGuestList.sort((a, b) => {
+            if (a.is_primary && !b.is_primary) return -1;
+            if (!a.is_primary && b.is_primary) return 1;
+            return 0;
+        });
+
+        if (rdStayData && rdStayData.guests) {
+            rdStayData.guests.forEach(guest => { guest.is_primary = false; });
+            const target = rdStayData.guests.find(g2 => g2.id === g.id);
+            if (target) target.is_primary = true;
+        }
+
+        const filterStatus = document.getElementById('rd-filter-status')?.value || 'all';
+        pmsRdRenderGuestList('', filterStatus);
+        pmsToast(r.message || 'Đã chuyển khách chính');
+    } catch (e) {
+        console.error('[pmsRdSetPrimaryGuest]', e);
+        pmsToast(e.message || 'Không thể chuyển khách chính', false);
+    }
+}
+
 async function pmsRdCheckoutGuest(i) {
     const g = rdGuestList[i];
     if (!g) return;

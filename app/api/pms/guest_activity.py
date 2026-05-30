@@ -323,6 +323,65 @@ def log_room_change(
     )
 
 
+def log_guest_transfer(
+    db: Session,
+    source_stay: HotelStay,
+    target_stay: HotelStay,
+    hotel_guest: HotelGuest,
+    from_room: str,
+    to_room: str,
+    actor_id: Optional[int] = None,
+) -> None:
+    """Log chuyển 1 khách (không phải khách chính) sang phòng khác đang có khách.
+
+    Ghi 2 mốc ROOM_CHANGE để cả phòng nguồn và phòng đích đều thấy trên timeline:
+    - Phòng nguồn: khách rời đi sang phòng đích.
+    - Phòng đích: nhận khách từ phòng nguồn.
+    """
+    guest_id = _get_guest_id_from_hotel_guest(hotel_guest)
+    if not guest_id:
+        return
+
+    common_extra = {
+        "from_room": from_room,
+        "to_room": to_room,
+        "guest_name": hotel_guest.full_name,
+        "cccd": hotel_guest.cccd,
+        "nationality": hotel_guest.nationality,
+        "is_guest_transfer": True,
+    }
+
+    # Mốc ở phòng NGUỒN
+    log_activity(
+        db=db,
+        guest_id=guest_id,
+        activity_type=ActivityType.ROOM_CHANGE,
+        activity_group=ActivityGroup.STAY,
+        title=f"Chuyển khách sang phòng {to_room}",
+        description=f"{hotel_guest.full_name}: rời phòng {from_room} → sang phòng {to_room}",
+        stay_id=source_stay.id,
+        branch_id=source_stay.branch_id,
+        actor_type=ActorType.USER if actor_id else ActorType.SYSTEM,
+        actor_id=actor_id,
+        extra_data={**common_extra, "direction": "out"},
+    )
+
+    # Mốc ở phòng ĐÍCH
+    log_activity(
+        db=db,
+        guest_id=guest_id,
+        activity_type=ActivityType.ROOM_CHANGE,
+        activity_group=ActivityGroup.STAY,
+        title=f"Nhận khách từ phòng {from_room}",
+        description=f"{hotel_guest.full_name}: chuyển từ phòng {from_room} → vào phòng {to_room}",
+        stay_id=target_stay.id,
+        branch_id=target_stay.branch_id,
+        actor_type=ActorType.USER if actor_id else ActorType.SYSTEM,
+        actor_id=actor_id,
+        extra_data={**common_extra, "direction": "in"},
+    )
+
+
 def log_guest_edited(
     db: Session,
     hotel_guest: HotelGuest,

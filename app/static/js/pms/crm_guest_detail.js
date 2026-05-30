@@ -41,8 +41,31 @@ function guestDetail() {
     // Tier journey
     tierJourney: [],
 
-    // Guest Documents
-    activeViewerUrl: null,
+    // Guest Documents - Viewer
+    viewerIndex: -1,
+    viewerZoom: 1,
+    viewerRotation: 0,
+    viewerPanX: 0,
+    viewerPanY: 0,
+    viewerDragging: false,
+    viewerDidPan: false,
+    _viewerDragOriginX: 0,
+    _viewerDragOriginY: 0,
+
+    get viewerDocs() {
+      return this.profile?.documents || [];
+    },
+    get viewerDoc() {
+      const docs = this.viewerDocs;
+      if (this.viewerIndex < 0 || this.viewerIndex >= docs.length) return null;
+      return docs[this.viewerIndex];
+    },
+    get viewerUrl() {
+      return this.viewerDoc?.file_path || null;
+    },
+    get viewerTransform() {
+      return 'translate(' + this.viewerPanX + 'px,' + this.viewerPanY + 'px) scale(' + this.viewerZoom + ') rotate(' + this.viewerRotation + 'deg)';
+    },
 
     docTypeLabel(type) {
       const map = {
@@ -54,12 +77,117 @@ function guestDetail() {
       return map[type] || type;
     },
 
-    openViewer(url) {
-      this.activeViewerUrl = url;
+    _resetViewerTransform() {
+      this.viewerZoom = 1;
+      this.viewerRotation = 0;
+      this.viewerPanX = 0;
+      this.viewerPanY = 0;
+      this.viewerDragging = false;
+      this.viewerDidPan = false;
+    },
+
+    openViewer(index) {
+      // Backward-compat: accept a URL string and resolve to its index
+      if (typeof index === 'string') {
+        const found = this.viewerDocs.findIndex(d => d.file_path === index);
+        index = found >= 0 ? found : 0;
+      }
+      this.viewerIndex = index;
+      this._resetViewerTransform();
     },
 
     closeViewer() {
-      this.activeViewerUrl = null;
+      this.viewerIndex = -1;
+      this._resetViewerTransform();
+    },
+
+    viewerPrev() {
+      const n = this.viewerDocs.length;
+      if (n <= 1) return;
+      this.viewerIndex = (this.viewerIndex - 1 + n) % n;
+      this._resetViewerTransform();
+    },
+
+    viewerNext() {
+      const n = this.viewerDocs.length;
+      if (n <= 1) return;
+      this.viewerIndex = (this.viewerIndex + 1) % n;
+      this._resetViewerTransform();
+    },
+
+    viewerZoomIn() {
+      this.viewerZoom = Math.min(Math.round((this.viewerZoom + 0.25) * 100) / 100, 5);
+    },
+    viewerZoomOut() {
+      this.viewerZoom = Math.max(Math.round((this.viewerZoom - 0.25) * 100) / 100, 0.25);
+      if (this.viewerZoom <= 1) { this.viewerPanX = 0; this.viewerPanY = 0; }
+    },
+    viewerResetZoom() {
+      this.viewerZoom = 1;
+      this.viewerPanX = 0;
+      this.viewerPanY = 0;
+    },
+    viewerWheel(e) {
+      const delta = e.deltaY < 0 ? 0.15 : -0.15;
+      this.viewerZoom = Math.min(Math.max(Math.round((this.viewerZoom + delta) * 100) / 100, 0.25), 5);
+      if (this.viewerZoom <= 1) { this.viewerPanX = 0; this.viewerPanY = 0; }
+    },
+    viewerRotate() {
+      this.viewerRotation = (this.viewerRotation + 90) % 360;
+    },
+
+    viewerDragStart(e) {
+      if (this.viewerZoom <= 1) return;
+      this.viewerDragging = true;
+      this.viewerDidPan = false;
+      const pt = e.touches ? e.touches[0] : e;
+      this._viewerDragOriginX = pt.clientX - this.viewerPanX;
+      this._viewerDragOriginY = pt.clientY - this.viewerPanY;
+    },
+    viewerDragMove(e) {
+      if (!this.viewerDragging) return;
+      const pt = e.touches ? e.touches[0] : e;
+      this.viewerPanX = pt.clientX - this._viewerDragOriginX;
+      this.viewerPanY = pt.clientY - this._viewerDragOriginY;
+      this.viewerDidPan = true;
+    },
+    viewerDragEnd() {
+      this.viewerDragging = false;
+    },
+
+    viewerKey(e) {
+      if (this.viewerIndex < 0) return;
+      switch (e.key) {
+        case 'Escape': this.closeViewer(); break;
+        case 'ArrowLeft': this.viewerPrev(); break;
+        case 'ArrowRight': this.viewerNext(); break;
+        case '+': case '=': this.viewerZoomIn(); break;
+        case '-': case '_': this.viewerZoomOut(); break;
+      }
+    },
+
+    async viewerDownload() {
+      const doc = this.viewerDoc;
+      if (!doc) return;
+      const url = doc.file_path;
+      const ext = ((url.split('?')[0].split('.').pop()) || 'jpg');
+      const filename = (doc.doc_type || 'giay_to') + '.' + ext;
+      try {
+        const res = await fetch(url, { credentials: 'omit' });
+        if (!res.ok) throw new Error('fetch failed');
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+      } catch (e) {
+        // Cross-origin or network block: fall back to opening the image
+        window.open(url, '_blank');
+      }
     },
 
     async deleteDocument(docId) {

@@ -364,6 +364,8 @@ export default {
     editingExport: null,
     exportEditForm: {
         notes: '',
+        product_search: '',
+        is_search_open: false,
         itemGroups: []
     },
 
@@ -381,15 +383,15 @@ export default {
                 // Group items by Category to match UI structure
                 // Logic similar to modal_export_detail view
                 const itemsByCategory = (this.editingExport.items || []).reduce((acc, item) => {
-                    const catId = item.category_id || 'OTHER';
-                    if (!acc[catId]) acc[catId] = { category_id: item.category_id, items: [] }; // Keep full category object logic
+                    const catId = item.category_id ? String(item.category_id) : 'OTHER';
+                    if (!acc[catId]) acc[catId] = { id: 'grp_' + catId + '_' + Date.now(), category_id: item.category_id ? String(item.category_id) : '', items: [] };
 
-                    // Transform item to match form structure
                     acc[catId].items.push({
-                        product_id: item.product_id,
-                        quantity: parseFloat(item.approved_quantity), // Use approved qty as the "current" qty
+                        id: 'item_' + item.product_id + '_' + Math.random().toString(36).slice(2, 8),
+                        product_id: String(item.product_id),
+                        quantity: parseFloat(item.approved_quantity),
                         unit: item.request_unit,
-                        available_units: [item.request_unit] // Init with current unit, will be updated by onEditExportProductChange logic if needed, but safe to fetch product info
+                        available_units: [item.request_unit]
                     });
                     return acc;
                 }, {});
@@ -469,6 +471,74 @@ export default {
             }
             item.unit = item.available_units[0];
         }
+    },
+
+    getEditExportProductSearchResults() {
+        const query = (this.exportEditForm.product_search || '').toLowerCase().trim();
+        if (!query) return [];
+
+        const categoriesById = new Map(this.normalizedCategories.map(c => [String(c.id), c.name]));
+
+        return this.normalizedProducts
+            .filter(product => {
+                const categoryName = categoriesById.get(String(product.category_id)) || '';
+                const haystack = `${product.name || ''} ${product.code || ''} ${categoryName}`.toLowerCase();
+                return haystack.includes(query);
+            })
+            .slice(0, 10);
+    },
+
+    addEditExportProductQuick(product) {
+        const categoryId = product.category_id ? String(product.category_id) : '';
+
+        const available_units = [product.base_unit];
+        if (product.packing_unit && product.conversion_rate > 1) {
+            available_units.unshift(product.packing_unit);
+        }
+        const unit = available_units[0];
+
+        const newItem = {
+            id: Date.now() + Math.random(),
+            product_id: String(product.id),
+            product_name: product.name,
+            quantity: 1,
+            unit: unit,
+            available_units: available_units,
+            source: 'quick'
+        };
+
+        let groupIndex = this.exportEditForm.itemGroups.findIndex(g => g.category_id == categoryId);
+
+        const category = this.normalizedCategories.find(c => String(c.id) === categoryId);
+        const categoryName = category ? category.name : '';
+
+        if (groupIndex !== -1) {
+            this.exportEditForm.itemGroups[groupIndex].items.push(newItem);
+        } else {
+            const emptyIndex = this.exportEditForm.itemGroups.findIndex(g =>
+                !g.category_id && g.items.length === 1 && !g.items[0].product_id
+            );
+            if (emptyIndex !== -1) {
+                this.exportEditForm.itemGroups.splice(emptyIndex, 1, {
+                    id: Date.now() + Math.random(),
+                    category_id: categoryId,
+                    category_name: categoryName,
+                    source: 'quick',
+                    items: [newItem]
+                });
+            } else {
+                this.exportEditForm.itemGroups.push({
+                    id: Date.now() + Math.random(),
+                    category_id: categoryId,
+                    category_name: categoryName,
+                    source: 'quick',
+                    items: [newItem]
+                });
+            }
+        }
+
+        this.exportEditForm.product_search = '';
+        this.exportEditForm.is_search_open = false;
     },
 
     getFlatExportEditFormItems() {

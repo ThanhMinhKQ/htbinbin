@@ -280,9 +280,15 @@ function pmsCloseOtaPopover() {
 // DKLT Export (Đăng ký lưu trú) — modal chọn phòng + format
 // ─────────────────────────────────────────────────────────────────────────────
 const PMS_DKLT = {
-    stays: [],          // [{stay_id, room_number, primary_guest, vn_count, foreign_count, ...}]
-    selected: new Set(),// stay_id đang chọn
+    stays: [],          // [{stay_id, room_number, guests:[...], ...}]
+    guests: [],         // mảng phẳng: {guest_id, full_name, is_foreign, is_primary, check_in_at, dklt_exported_at, stay_id, room_number}
+    selected: new Set(),// guest_id đang chọn — nguồn chân lý
     filter: '',         // search query lowercase
+    scope: 'all',       // 'all' | 'vn' | 'foreign' — lọc theo quốc tịch
+    viewMode: 'room',   // 'room' | 'guest'
+    dateFilter: 'all',  // 'all' | 'today' | 'yesterday' | 'custom' — lọc theo ngày đến
+    dateFrom: null,     // 'YYYY-MM-DD' khi custom
+    dateTo: null,
     loaded: false,
 };
 
@@ -294,6 +300,16 @@ async function pmsOpenDkltModal() {
 
     document.getElementById('pms-dklt-search').value = '';
     PMS_DKLT.filter = '';
+    PMS_DKLT.scope = 'all';
+    PMS_DKLT.viewMode = 'room';
+    PMS_DKLT.dateFilter = 'all';
+    PMS_DKLT.dateFrom = null;
+    PMS_DKLT.dateTo = null;
+    pmsDkltSyncScopeButtons();
+    pmsDkltSyncViewButtons();
+    pmsDkltSyncDateButtons();
+    const customWrap = document.getElementById('pms-dklt-date-custom');
+    if (customWrap) customWrap.style.display = 'none';
     document.getElementById('pms-dklt-select-all').checked = true;
 
     const list = document.getElementById('pms-dklt-room-list');
@@ -305,13 +321,36 @@ async function pmsOpenDkltModal() {
         const url = `/api/pms/dklt/rooms${params.toString() ? '?' + params.toString() : ''}`;
         const data = await pmsApi(url);
         PMS_DKLT.stays = Array.isArray(data?.stays) ? data.stays : [];
-        PMS_DKLT.selected = new Set(PMS_DKLT.stays.map(s => s.stay_id));
+        pmsDkltBuildGuests();
+        // Auto-tick khách CHƯA xuất; khách đã xuất không auto-tick (tránh khai trùng).
+        PMS_DKLT.selected = new Set(
+            PMS_DKLT.guests.filter(g => !g.dklt_exported_at).map(g => g.guest_id)
+        );
         PMS_DKLT.loaded = true;
         pmsDkltRender();
     } catch (err) {
         console.error('[DKLT] load rooms failed:', err);
         list.innerHTML = `<div class="pms-dklt-empty">Không tải được danh sách phòng: ${err?.message || 'lỗi'}</div>`;
     }
+}
+
+function pmsDkltBuildGuests() {
+    const out = [];
+    (PMS_DKLT.stays || []).forEach(s => {
+        (s.guests || []).forEach(g => {
+            out.push({
+                guest_id: g.guest_id,
+                full_name: g.full_name || '',
+                is_foreign: !!g.is_foreign,
+                is_primary: !!g.is_primary,
+                check_in_at: g.check_in_at || s.check_in_at || null,
+                dklt_exported_at: g.dklt_exported_at || null,
+                stay_id: s.stay_id,
+                room_number: s.room_number || '',
+            });
+        });
+    });
+    PMS_DKLT.guests = out;
 }
 
 function pmsCloseDkltModal() {
@@ -332,53 +371,155 @@ document.addEventListener('keydown', (e) => {
     if (modal?.classList.contains('show')) pmsCloseDkltModal();
 });
 
-function pmsDkltVisibleStays() {
+function pmsDkltDateKey(iso) {
+    // Trả về 'YYYY-MM-DD' theo ngày của chuỗi ISO (đã kèm offset VN từ server).
+    if (!iso) return '';
+    const s = String(iso);
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(s);
+    return m ? m[1] : '';
+}
+
+function pmsDkltTodayKey(offsetDays = 0) {
+    // Ngày hiện tại theo giờ VN (UTC+7), lùi offsetDays ngày.
+    const now = new Date();
+    const vn = new Date(now.getTime() + 7 * 3600 * 1000);
+    vn.setUTCDate(vn.getUTCDate() - offsetDays);
+    return vn.toISOString().slice(0, 10);
+}
+
+function pmsDkltGuestMatchesDate(g) {
+    const mode = PMS_DKLT.dateFilter || 'all';
+    if (mode === 'all') return true;
+    const key = pmsDkltDateKey(g.check_in_at);
+    if (!key) return false;
+    if (mode === 'today') return key === pmsDkltTodayKey(0);
+    if (mode === 'yesterday') return key === pmsDkltTodayKey(1);
+    if (mode === 'custom') {
+        const from = PMS_DKLT.dateFrom;
+        const to = PMS_DKLT.dateTo;
+        if (from && key < from) return false;
+        if (to && key > to) return false;
+        return true;
+    }
+    return true;
+}
+
+function pmsDkltVisibleGuests() {
+    const scope = PMS_DKLT.scope || 'all';
     const q = (PMS_DKLT.filter || '').trim().toLowerCase();
-    if (!q) return PMS_DKLT.stays;
-    return PMS_DKLT.stays.filter(s => {
-        const room = (s.room_number || '').toLowerCase();
-        const guest = (s.primary_guest || '').toLowerCase();
-        return room.includes(q) || guest.includes(q);
+    const filtered = PMS_DKLT.guests.filter(g => {
+        if (scope === 'vn' && g.is_foreign) return false;
+        if (scope === 'foreign' && !g.is_foreign) return false;
+        if (!pmsDkltGuestMatchesDate(g)) return false;
+        if (!q) return true;
+        const name = (g.full_name || '').toLowerCase();
+        const room = (g.room_number || '').toLowerCase();
+        return name.includes(q) || room.includes(q);
     });
+    // Khách CHƯA xuất lên trước; giữ thứ tự phụ (primary/tên) nhờ sort ổn định.
+    filtered.sort((a, b) => (a.dklt_exported_at ? 1 : 0) - (b.dklt_exported_at ? 1 : 0));
+    return filtered;
+}
+
+function pmsDkltExportedBadge(g) {
+    if (!g.dklt_exported_at) return '';
+    const key = pmsDkltDateKey(g.dklt_exported_at);
+    let label = '';
+    if (key) {
+        const [, mo, d] = key.split('-');
+        label = ` · ${d}/${mo}`;
+    }
+    return `<span class="pms-dklt-exported-text">Đã xuất${label}</span>`;
+}
+
+function pmsDkltGuestRow(g) {
+    const checked = PMS_DKLT.selected.has(g.guest_id) ? 'checked' : '';
+    const tag = g.is_foreign
+        ? '<span class="pms-dklt-tag fn">NN</span>'
+        : '<span class="pms-dklt-tag vn">VN</span>';
+    const primary = g.is_primary ? '<span class="pms-dklt-primary-dot" title="Khách chính">●</span>' : '';
+    const exportedCls = g.dklt_exported_at ? ' exported' : '';
+    const exportedBadge = pmsDkltExportedBadge(g);
+    // View theo phòng: số phòng đã nằm ở header phòng nên không lặp lại "Phòng X" trong row.
+    const isRoomView = PMS_DKLT.viewMode === 'room';
+    const roomLabel = isRoomView
+        ? ''
+        : `<span class="pms-dklt-guest-room-label">Phòng ${pmsEscape(g.room_number || '—')}</span>`;
+    // Badge "Đã xuất" đặt cạnh số phòng (dòng meta) để không chèn ép tên khách ở bên phải.
+    const meta = (roomLabel || exportedBadge)
+        ? `<div class="pms-dklt-guest-meta">${roomLabel}${exportedBadge}</div>`
+        : '';
+    return `
+        <label class="pms-dklt-guest-item${exportedCls}">
+            <input type="checkbox" data-guest-id="${g.guest_id}" ${checked}
+                onchange="pmsDkltToggleGuest(${g.guest_id}, this.checked)" />
+            <div class="pms-dklt-guest-info">
+                <div class="pms-dklt-guest-name">${primary}${pmsEscape(g.full_name || '—')}</div>
+                ${meta}
+            </div>
+            <div class="pms-dklt-guest-tags">${tag}</div>
+        </label>
+    `;
 }
 
 function pmsDkltRender() {
     const list = document.getElementById('pms-dklt-room-list');
     if (!list) return;
 
-    if (!PMS_DKLT.stays.length) {
-        list.innerHTML = '<div class="pms-dklt-empty">Không có phòng nào đang lưu trú (đã loại phòng giờ).</div>';
+    if (!PMS_DKLT.guests.length) {
+        list.innerHTML = '<div class="pms-dklt-empty">Không có khách nào đang lưu trú (đã loại phòng giờ).</div>';
         pmsDkltUpdateFooter();
         return;
     }
 
-    const visible = pmsDkltVisibleStays();
+    const visible = pmsDkltVisibleGuests();
     if (!visible.length) {
-        list.innerHTML = '<div class="pms-dklt-empty">Không tìm thấy phòng phù hợp.</div>';
+        list.innerHTML = '<div class="pms-dklt-empty">Không tìm thấy khách phù hợp.</div>';
         pmsDkltUpdateFooter();
         return;
     }
 
-    list.innerHTML = visible.map(s => {
-        const checked = PMS_DKLT.selected.has(s.stay_id) ? 'checked' : '';
-        const tags = [];
-        if (s.vn_count > 0) tags.push(`<span class="pms-dklt-tag vn">VN ${s.vn_count}</span>`);
-        if (s.foreign_count > 0) tags.push(`<span class="pms-dklt-tag fn">NN ${s.foreign_count}</span>`);
-        const meta = s.primary_guest
-            ? `${pmsEscape(s.primary_guest)}`
-            : `${(s.vn_count + s.foreign_count)} khách`;
-        return `
-            <label class="pms-dklt-room-item">
-                <input type="checkbox" data-stay-id="${s.stay_id}" ${checked}
-                    onchange="pmsDkltToggleStay(${s.stay_id}, this.checked)" />
-                <div class="pms-dklt-room-info">
-                    <div class="pms-dklt-room-num">Phòng ${pmsEscape(s.room_number || '—')}</div>
-                    <div class="pms-dklt-room-meta">${meta}</div>
+    if (PMS_DKLT.viewMode === 'guest') {
+        list.innerHTML = `<div class="pms-dklt-guest-grid">${visible.map(pmsDkltGuestRow).join('')}</div>`;
+    } else {
+        // View theo phòng: gom guest hiển thị theo stay, guest thụt vào trong mỗi phòng.
+        const byStay = new Map();
+        visible.forEach(g => {
+            if (!byStay.has(g.stay_id)) byStay.set(g.stay_id, []);
+            byStay.get(g.stay_id).push(g);
+        });
+        const order = PMS_DKLT.stays
+            .filter(s => byStay.has(s.stay_id))
+            .map(s => s.stay_id);
+        // Phòng còn khách CHƯA xuất lên trước; phòng đã xuất hết xuống dưới.
+        const roomFullyExported = (sid) => byStay.get(sid).every(g => g.dklt_exported_at);
+        order.sort((a, b) => (roomFullyExported(a) ? 1 : 0) - (roomFullyExported(b) ? 1 : 0));
+        list.innerHTML = order.map(sid => {
+            const gs = byStay.get(sid);
+            const room = gs[0].room_number || '—';
+            const allSel = gs.every(g => PMS_DKLT.selected.has(g.guest_id));
+            const someSel = gs.some(g => PMS_DKLT.selected.has(g.guest_id));
+            const roomExportedCls = roomFullyExported(sid) ? ' exported' : '';
+            return `
+                <div class="pms-dklt-room-group${roomExportedCls}">
+                    <label class="pms-dklt-room-head">
+                        <input type="checkbox" data-stay-id="${sid}" ${allSel ? 'checked' : ''}
+                            onchange="pmsDkltToggleStay(${sid}, this.checked)"
+                            ref="${!allSel && someSel ? 'ind' : ''}" />
+                        <span class="pms-dklt-room-num">Phòng ${pmsEscape(room)}</span>
+                        <span class="pms-dklt-room-count">${gs.length} khách</span>
+                    </label>
+                    <div class="pms-dklt-room-guests">
+                        ${gs.map(pmsDkltGuestRow).join('')}
+                    </div>
                 </div>
-                <div class="pms-dklt-room-tags">${tags.join('')}</div>
-            </label>
-        `;
-    }).join('');
+            `;
+        }).join('');
+        // Set indeterminate cho checkbox phòng chọn một phần.
+        list.querySelectorAll('input[data-stay-id]').forEach(cb => {
+            cb.indeterminate = cb.getAttribute('ref') === 'ind';
+        });
+    }
 
     pmsDkltUpdateFooter();
     pmsDkltSyncSelectAll();
@@ -389,57 +530,148 @@ function pmsDkltUpdateFooter() {
     const info = document.getElementById('pms-dklt-foot-info');
     const submit = document.getElementById('pms-dklt-submit');
 
-    const total = PMS_DKLT.stays.length;
+    const total = PMS_DKLT.guests.length;
     const selectedCount = PMS_DKLT.selected.size;
     if (counter) counter.textContent = `${selectedCount}/${total}`;
 
     let vn = 0, fn = 0;
-    PMS_DKLT.stays.forEach(s => {
-        if (PMS_DKLT.selected.has(s.stay_id)) {
-            vn += Number(s.vn_count || 0);
-            fn += Number(s.foreign_count || 0);
+    PMS_DKLT.guests.forEach(g => {
+        if (PMS_DKLT.selected.has(g.guest_id)) {
+            if (g.is_foreign) fn += 1; else vn += 1;
         }
     });
     if (info) {
-        info.textContent = selectedCount
-            ? `Sẽ xuất ${vn} khách VN + ${fn} khách nước ngoài (${selectedCount} phòng).`
-            : 'Chưa chọn phòng nào.';
+        const scope = PMS_DKLT.scope || 'all';
+        if (!selectedCount) {
+            info.textContent = 'Chưa chọn khách nào.';
+        } else if (scope === 'vn') {
+            info.textContent = `Sẽ xuất ${vn} khách Việt Nam.`;
+        } else if (scope === 'foreign') {
+            info.textContent = `Sẽ xuất ${fn} khách nước ngoài.`;
+        } else {
+            info.textContent = `Sẽ xuất ${vn} khách VN + ${fn} khách nước ngoài.`;
+        }
     }
     if (submit) submit.disabled = selectedCount === 0;
 }
 
 function pmsDkltSyncSelectAll() {
-    const visible = pmsDkltVisibleStays();
+    const visible = pmsDkltVisibleGuests();
     const all = document.getElementById('pms-dklt-select-all');
     if (!all || !visible.length) return;
-    const allSelected = visible.every(s => PMS_DKLT.selected.has(s.stay_id));
-    const someSelected = visible.some(s => PMS_DKLT.selected.has(s.stay_id));
+    const allSelected = visible.every(g => PMS_DKLT.selected.has(g.guest_id));
+    const someSelected = visible.some(g => PMS_DKLT.selected.has(g.guest_id));
     all.checked = allSelected;
     all.indeterminate = !allSelected && someSelected;
 }
 
-function pmsDkltToggleStay(stayId, checked) {
-    if (checked) PMS_DKLT.selected.add(stayId);
-    else PMS_DKLT.selected.delete(stayId);
+function pmsDkltToggleGuest(guestId, checked) {
+    if (checked) PMS_DKLT.selected.add(guestId);
+    else PMS_DKLT.selected.delete(guestId);
+    // Cập nhật trạng thái phòng cha (checkbox + indeterminate) mà không re-render toàn bộ.
+    pmsDkltRefreshRoomHeads();
     pmsDkltUpdateFooter();
     pmsDkltSyncSelectAll();
 }
 
-function pmsDkltToggleAll(checked) {
-    const visible = pmsDkltVisibleStays();
-    visible.forEach(s => {
-        if (checked) PMS_DKLT.selected.add(s.stay_id);
-        else PMS_DKLT.selected.delete(s.stay_id);
+function pmsDkltToggleStay(stayId, checked) {
+    // Tick/untick tất cả guest ĐANG HIỂN THỊ trong phòng.
+    const visibleIds = new Set(pmsDkltVisibleGuests()
+        .filter(g => g.stay_id === stayId)
+        .map(g => g.guest_id));
+    visibleIds.forEach(id => {
+        if (checked) PMS_DKLT.selected.add(id);
+        else PMS_DKLT.selected.delete(id);
     });
-    document.querySelectorAll('#pms-dklt-room-list input[type="checkbox"]').forEach(cb => {
-        const id = Number(cb.dataset.stayId);
-        cb.checked = PMS_DKLT.selected.has(id);
-    });
+    const list = document.getElementById('pms-dklt-room-list');
+    if (list) {
+        list.querySelectorAll('input[data-guest-id]').forEach(cb => {
+            const id = Number(cb.dataset.guestId);
+            if (visibleIds.has(id)) cb.checked = PMS_DKLT.selected.has(id);
+        });
+    }
+    pmsDkltRefreshRoomHeads();
     pmsDkltUpdateFooter();
+    pmsDkltSyncSelectAll();
+}
+
+function pmsDkltRefreshRoomHeads() {
+    const list = document.getElementById('pms-dklt-room-list');
+    if (!list || PMS_DKLT.viewMode !== 'room') return;
+    const visible = pmsDkltVisibleGuests();
+    list.querySelectorAll('input[data-stay-id]').forEach(cb => {
+        const sid = Number(cb.dataset.stayId);
+        const gs = visible.filter(g => g.stay_id === sid);
+        if (!gs.length) return;
+        const allSel = gs.every(g => PMS_DKLT.selected.has(g.guest_id));
+        const someSel = gs.some(g => PMS_DKLT.selected.has(g.guest_id));
+        cb.checked = allSel;
+        cb.indeterminate = !allSel && someSel;
+    });
+}
+
+function pmsDkltToggleAll(checked) {
+    const visible = pmsDkltVisibleGuests();
+    visible.forEach(g => {
+        if (checked) PMS_DKLT.selected.add(g.guest_id);
+        else PMS_DKLT.selected.delete(g.guest_id);
+    });
+    pmsDkltRender();
 }
 
 function pmsDkltFilter(q) {
     PMS_DKLT.filter = q || '';
+    pmsDkltRender();
+}
+
+function pmsDkltSyncScopeButtons() {
+    const scope = PMS_DKLT.scope || 'all';
+    document.querySelectorAll('#pms-dklt-scope .pms-dklt-scope-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.scope === scope);
+    });
+}
+
+function pmsDkltSetScope(scope) {
+    PMS_DKLT.scope = scope || 'all';
+    pmsDkltSyncScopeButtons();
+    pmsDkltRender();
+}
+
+function pmsDkltSyncViewButtons() {
+    const mode = PMS_DKLT.viewMode || 'room';
+    document.querySelectorAll('#pms-dklt-view .pms-dklt-scope-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === mode);
+    });
+}
+
+function pmsDkltSetViewMode(mode) {
+    PMS_DKLT.viewMode = (mode === 'guest') ? 'guest' : 'room';
+    pmsDkltSyncViewButtons();
+    pmsDkltRender();  // giữ nguyên selected
+}
+
+function pmsDkltSyncDateButtons() {
+    const mode = PMS_DKLT.dateFilter || 'all';
+    document.querySelectorAll('#pms-dklt-date .pms-dklt-scope-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.date === mode);
+    });
+}
+
+function pmsDkltSetDateFilter(mode) {
+    PMS_DKLT.dateFilter = mode || 'all';
+    pmsDkltSyncDateButtons();
+    const customWrap = document.getElementById('pms-dklt-date-custom');
+    if (customWrap) customWrap.style.display = (mode === 'custom') ? 'flex' : 'none';
+    pmsDkltRender();
+}
+
+function pmsDkltSetDateFrom(v) {
+    PMS_DKLT.dateFrom = v || null;
+    pmsDkltRender();
+}
+
+function pmsDkltSetDateTo(v) {
+    PMS_DKLT.dateTo = v || null;
     pmsDkltRender();
 }
 
@@ -456,31 +688,43 @@ async function pmsDkltSubmit() {
     const format = document.querySelector('input[name="pms-dklt-format"]:checked')?.value || 'excel';
     const ids = Array.from(PMS_DKLT.selected);
     if (!ids.length) {
-        pmsToast('Hãy chọn ít nhất một phòng để xuất.', false);
+        pmsToast('Hãy chọn ít nhất một khách để xuất.', false);
         return;
     }
 
+    // Đếm theo nhóm trên tập guest đã chọn.
     let vn = 0, fn = 0;
-    PMS_DKLT.stays.forEach(s => {
-        if (PMS_DKLT.selected.has(s.stay_id)) {
-            vn += Number(s.vn_count || 0);
-            fn += Number(s.foreign_count || 0);
+    PMS_DKLT.guests.forEach(g => {
+        if (PMS_DKLT.selected.has(g.guest_id)) {
+            if (g.is_foreign) fn += 1; else vn += 1;
         }
     });
 
     // VN chỉ hỗ trợ Excel; XML chỉ áp dụng cho khách nước ngoài.
+    const scope = PMS_DKLT.scope || 'all';
+    const wantVn = scope !== 'foreign';
+    const wantForeign = scope !== 'vn';
+
     const groups = [];
     if (format === 'xml') {
-        if (fn) groups.push('foreign');
+        if (fn && wantForeign) groups.push('foreign');
     } else {
-        if (vn) groups.push('vn');
-        if (fn) groups.push('foreign');
+        if (vn && wantVn) groups.push('vn');
+        if (fn && wantForeign) groups.push('foreign');
     }
 
     if (!groups.length) {
-        pmsToast(format === 'xml'
-            ? 'Phòng đã chọn không có khách nước ngoài. Hãy chọn Excel hoặc thêm phòng nước ngoài.'
-            : 'Phòng đã chọn không có khách hợp lệ.', false);
+        let msg;
+        if (format === 'xml') {
+            msg = 'XML chỉ xuất khách nước ngoài, nhưng phạm vi/khách đã chọn không có khách nước ngoài.';
+        } else if (scope === 'vn') {
+            msg = 'Khách đã chọn không có khách Việt Nam.';
+        } else if (scope === 'foreign') {
+            msg = 'Khách đã chọn không có khách nước ngoài.';
+        } else {
+            msg = 'Khách đã chọn không hợp lệ.';
+        }
+        pmsToast(msg, false);
         return;
     }
 
@@ -494,6 +738,8 @@ async function pmsDkltSubmit() {
         }
         const fmtLabel = format === 'xml' ? 'XML' : 'Excel';
         pmsToast(`Đã xuất ${groups.length} file ĐKLT (${fmtLabel}).`, true);
+        // Đánh dấu đã xuất sau khi tải file thành công.
+        await pmsDkltMarkExported(ids);
         pmsCloseDkltModal();
     } catch (err) {
         console.error('[DKLT] export failed:', err);
@@ -504,13 +750,43 @@ async function pmsDkltSubmit() {
     }
 }
 
-async function pmsDownloadDkltFile(group, format, stayIds) {
+async function pmsDkltMarkExported(guestIds) {
+    if (!Array.isArray(guestIds) || !guestIds.length) return;
+    try {
+        const params = new URLSearchParams();
+        if (PMS.branchId) params.set('branch_id', PMS.branchId);
+        const url = `/api/pms/dklt/mark-exported${params.toString() ? '?' + params.toString() : ''}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ guest_ids: guestIds }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        // Cập nhật badge tại chỗ trong state để lần render sau hiển thị đúng.
+        const nowIso = new Date().toISOString();
+        const idSet = new Set(guestIds);
+        PMS_DKLT.guests.forEach(g => {
+            if (idSet.has(g.guest_id) && !g.dklt_exported_at) g.dklt_exported_at = nowIso;
+        });
+        (PMS_DKLT.stays || []).forEach(s => {
+            (s.guests || []).forEach(g => {
+                if (idSet.has(g.guest_id) && !g.dklt_exported_at) g.dklt_exported_at = nowIso;
+            });
+        });
+    } catch (err) {
+        console.error('[DKLT] mark-exported failed:', err);
+        pmsToast('Đã xuất file nhưng chưa đánh dấu được trạng thái đã xuất.', false);
+    }
+}
+
+async function pmsDownloadDkltFile(group, format, guestIds) {
     const params = new URLSearchParams();
     if (PMS.branchId) params.set('branch_id', PMS.branchId);
     params.set('group', group);
     params.set('format', format);
-    if (Array.isArray(stayIds) && stayIds.length) {
-        params.set('stay_ids', stayIds.join(','));
+    if (Array.isArray(guestIds) && guestIds.length) {
+        params.set('guest_ids', guestIds.join(','));
     }
     const url = `/api/pms/dklt/export?${params.toString()}`;
     const res = await fetch(url, { credentials: 'same-origin' });

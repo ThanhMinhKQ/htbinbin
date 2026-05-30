@@ -177,7 +177,7 @@
             init() {
                 // Dynamically import the module
                 // Dynamically import the module
-                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=4.0-pagination")
+                import("{{ url_for('static', path='/js/inventory/modules/reception_request/index.js') }}?v=4.1-editsearch")
                     .then(module => {
                         // Make the factory available globally or accessible
                         window.InventoryRequestAppFactory = module.receptionRequestApp;
