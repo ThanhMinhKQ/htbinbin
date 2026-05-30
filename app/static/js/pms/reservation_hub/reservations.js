@@ -70,7 +70,11 @@ Object.assign(BookingHub, {
 
         empty.style.display = 'none';
         wrap.style.display = 'block';
-        body.innerHTML = this.state.reservations.map((booking) => this.renderReservationRow(booking)).join('');
+        // Đẩy booking đã huỷ / no-show xuống cuối bảng, giữ nguyên thứ tự gốc
+        // trong từng nhóm (Array.sort ổn định từ ES2019).
+        const isInactive = (booking) => ['CANCELLED', 'NO_SHOW'].includes(booking.reservation_status || 'PENDING');
+        const ordered = [...this.state.reservations].sort((a, b) => Number(isInactive(a)) - Number(isInactive(b)));
+        body.innerHTML = ordered.map((booking) => this.renderReservationRow(booking)).join('');
     },
 
     renderReservationInsights() {
