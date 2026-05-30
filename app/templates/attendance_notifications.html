@@ -156,39 +156,6 @@
       background-color: rgb(30, 41, 59);
       border-color: rgb(71, 85, 105);
     }
-    @keyframes sn-pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    .sn-upload-spinner {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.375rem;
-      background: rgba(37, 99, 235, 0.08);
-      color: rgb(37, 99, 235);
-      font-size: 0.875rem;
-      animation: sn-pulse 1.5s infinite ease-in-out;
-    }
-    .sn-editor-select {
-      display: inline-flex;
-      height: 2rem;
-      border-radius: 0.5rem;
-      border: 1px solid rgb(226 232 240);
-      background-color: #fff;
-      padding: 0 0.5rem;
-      font-size: 0.75rem;
-      color: rgb(51 65 85);
-      outline: none;
-      cursor: pointer;
-      transition: border-color .15s;
-    }
-    .dark .sn-editor-select {
-      border-color: rgb(71 85 105);
-      background-color: rgb(15 23 42);
-      color: rgb(203 213 225);
-    }
     .sn-editor-shell {
       display: flex;
       min-height: 0;
@@ -209,43 +176,6 @@
       border-color: rgb(71 85 105);
       background: rgb(15 23 42);
     }
-    .sn-editor-toolbar {
-      display: flex;
-      flex: 0 0 auto;
-      flex-wrap: wrap;
-      gap: 0.25rem;
-      border-bottom: 1px solid rgb(226 232 240);
-      background: rgb(248 250 252);
-      padding: 0.5rem;
-    }
-    .dark .sn-editor-toolbar {
-      border-color: rgb(51 65 85);
-      background: rgb(30 41 59);
-    }
-    .sn-editor-btn {
-      display: inline-flex;
-      min-width: 2rem;
-      height: 2rem;
-      align-items: center;
-      justify-content: center;
-      border-radius: 0.5rem;
-      padding: 0 0.55rem;
-      color: rgb(51 65 85);
-      font-size: 0.8rem;
-      font-weight: 800;
-      transition: background .15s, color .15s;
-    }
-    .sn-editor-btn:hover {
-      background: #fff;
-      color: rgb(37 99 235);
-    }
-    .dark .sn-editor-btn {
-      color: rgb(203 213 225);
-    }
-    .dark .sn-editor-btn:hover {
-      background: rgb(51 65 85);
-      color: #fff;
-    }
     .sn-editor-area {
       min-height: 0;
       flex: 1 1 auto;
@@ -264,10 +194,6 @@
     }
     .dark .sn-editor-area {
       color: rgb(241 245 249);
-    }
-    .sn-editor-area:empty::before {
-      content: attr(data-placeholder);
-      color: rgb(148 163 184);
     }
     .sn-rich-content {
       line-height: 1.65;
