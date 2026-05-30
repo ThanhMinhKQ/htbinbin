@@ -1484,12 +1484,20 @@ function shiftNotificationAdmin(options = {}) {
           }
           else if (['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes(tag)) {
             const align = originalStyle.match(/text-align\s*:\s*(left|center|right|justify)/i);
-            const color = originalStyle.match(/color\s*:\s*([^;]+)/i);
+            const color = originalStyle.match(/(^|[^-])color\s*:\s*([^;]+)/i);
             const bg = originalStyle.match(/background-color\s*:\s*([^;]+)/i);
+            const fontSize = originalStyle.match(/font-size\s*:\s*(12px|15px|20px|28px)/i);
+            const fontFamily = originalStyle.match(/font-family\s*:\s*([^;]+)/i);
             const styles = [];
             if (align) styles.push(`text-align: ${align[1].toLowerCase()}`);
-            if (color) styles.push(`color: ${color[1].trim()}`);
+            if (color) styles.push(`color: ${color[2].trim()}`);
             if (bg) styles.push(`background-color: ${bg[1].trim()}`);
+            if (fontSize) styles.push(`font-size: ${fontSize[1].toLowerCase()}`);
+            if (fontFamily) {
+              const allowedFonts = ['inter', 'arial', 'times new roman', 'roboto', 'be vietnam pro'];
+              const fam = fontFamily[1].trim().replace(/["']/g, '').toLowerCase();
+              if (allowedFonts.some(f => fam.includes(f))) styles.push(`font-family: ${fontFamily[1].trim().replace(/["']/g, '')}`);
+            }
             if (styles.length) child.setAttribute('style', styles.join('; '));
             if (originalClass) child.setAttribute('class', originalClass);
           }

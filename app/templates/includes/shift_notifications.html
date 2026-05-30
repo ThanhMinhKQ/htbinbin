@@ -10,10 +10,6 @@
       <span id="shift-notice-count" class="shift-notice-count">1/1</span>
     </div>
     <div id="shift-notice-timeline" class="shift-notice-timeline" style="display: none;"></div>
-    <div class="shift-notice-meta">
-      <span id="shift-notice-priority">Bình thường</span>
-      <span id="shift-notice-shift">Ca hiện tại</span>
-    </div>
     <div id="shift-notice-body" class="shift-notice-body sn-rich-content"></div>
     <div class="shift-notice-foot">
       <div class="shift-notice-read-state">
@@ -162,12 +158,18 @@
   }
   .shift-notice-head h2 {
     margin: 0;
-    max-width: 720px;
+    max-width: 100%;
     color: var(--sn-ink);
-    font-size: clamp(28px, 4.2vw, 46px);
-    line-height: 1.04;
-    font-weight: 900;
-    letter-spacing: -0.045em;
+    font-size: clamp(20px, 2.6vw, 30px);
+    line-height: 1.12;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .shift-notice-head > div:first-child {
+    min-width: 0;
   }
   .shift-notice-count {
     flex: 0 0 auto;
@@ -219,34 +221,6 @@
   @keyframes shiftNoticeStep {
     0%, 100% { transform: translateX(-16%); filter: saturate(0.9); }
     50% { transform: translateX(12%); filter: saturate(1.35); }
-  }
-  .shift-notice-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    padding: 18px clamp(24px, 4.4vw, 54px) 0;
-  }
-  .shift-notice-meta span:not(.shift-notice-priority-badge) {
-    border: 1px solid var(--sn-line);
-    border-radius: 999px;
-    background: rgba(255,255,255,0.58);
-    padding: 8px 13px;
-    color: var(--sn-muted);
-    font-size: 12px;
-    font-weight: 900;
-    backdrop-filter: blur(10px);
-  }
-  html.dark .shift-notice-meta span:not(.shift-notice-priority-badge) {
-    background: rgba(15, 23, 42, 0.48);
-  }
-  .shift-notice-priority-badge {
-    border: 1px solid transparent;
-    border-radius: 999px;
-    padding: 8px 13px;
-    font-size: 12px;
-    font-weight: 900;
-    box-shadow: 0 10px 24px -18px currentColor;
   }
   .shift-notice-body {
     padding: clamp(22px, 3.2vw, 34px) clamp(24px, 4.4vw, 54px) clamp(24px, 3.8vw, 42px);
@@ -478,8 +452,6 @@
   const titleEl = document.getElementById('shift-notice-title');
   const bodyEl = document.getElementById('shift-notice-body');
   const countEl = document.getElementById('shift-notice-count');
-  const priorityEl = document.getElementById('shift-notice-priority');
-  const shiftEl = document.getElementById('shift-notice-shift');
   const waitEl = document.getElementById('shift-notice-wait');
   const readBtn = document.getElementById('shift-notice-read-btn');
   const progressBar = document.getElementById('shift-notice-progress-bar');
@@ -489,20 +461,6 @@
   let index = 0;
   let timer = null;
   let current = null;
-
-  const priorityLabel = {
-    urgent: 'Khẩn cấp',
-    high: 'Quan trọng',
-    normal: 'Bình thường',
-    low: 'Thông tin'
-  };
-
-  const priorityClass = {
-    urgent: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/50',
-    high: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50',
-    normal: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900/50',
-    low: 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
-  };
 
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -597,12 +555,20 @@
         }
         else if (['P', 'DIV', 'SPAN', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes(tag)) {
           const align = originalStyle.match(/text-align\s*:\s*(left|center|right|justify)/i);
-          const color = originalStyle.match(/color\s*:\s*([^;]+)/i);
+          const color = originalStyle.match(/(^|[^-])color\s*:\s*([^;]+)/i);
           const bg = originalStyle.match(/background-color\s*:\s*([^;]+)/i);
+          const fontSize = originalStyle.match(/font-size\s*:\s*(12px|15px|20px|28px)/i);
+          const fontFamily = originalStyle.match(/font-family\s*:\s*([^;]+)/i);
           const styles = [];
           if (align) styles.push(`text-align: ${align[1].toLowerCase()}`);
-          if (color) styles.push(`color: ${color[1].trim()}`);
+          if (color) styles.push(`color: ${color[2].trim()}`);
           if (bg) styles.push(`background-color: ${bg[1].trim()}`);
+          if (fontSize) styles.push(`font-size: ${fontSize[1].toLowerCase()}`);
+          if (fontFamily) {
+            const allowedFonts = ['inter', 'arial', 'times new roman', 'roboto', 'be vietnam pro'];
+            const fam = fontFamily[1].trim().replace(/["']/g, '').toLowerCase();
+            if (allowedFonts.some(f => fam.includes(f))) styles.push(`font-family: ${fontFamily[1].trim().replace(/["']/g, '')}`);
+          }
           if (styles.length) child.setAttribute('style', styles.join('; '));
           if (originalClass) child.setAttribute('class', originalClass);
         }
@@ -695,14 +661,8 @@
     titleEl.textContent = current.title || 'Thông báo nội bộ';
     bodyEl.innerHTML = sanitizeRichHtml(current.body || '');
     countEl.textContent = `${index + 1}/${items.length}`;
-    
-    const pClass = current.priority || 'normal';
-    priorityEl.textContent = priorityLabel[pClass] || pClass;
-    priorityEl.className = 'shift-notice-priority-badge ' + (priorityClass[pClass] || priorityClass.normal);
-    
-    shiftEl.textContent = current.schedule_shift && current.schedule_shift !== 'ALL'
-      ? `Ca ${current.schedule_shift}`
-      : 'Ca hiện tại';
+    countEl.style.display = items.length > 1 ? '' : 'none';
+
     lock(current.min_read_seconds || 5);
   }
 
