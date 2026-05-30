@@ -9,7 +9,7 @@ import secrets
 from ..db.session import get_db, SessionLocal
 from ..db.models import User, Department, Branch, AttendanceLog
 from ..core.utils import get_current_work_shift, _get_log_shift_for_user
-from ..core.security import verify_password, hash_password, is_hashed
+from ..core.security import verify_password, hash_password, is_hashed, dummy_verify
 from ..core.rate_limit import limiter
 from ..schemas.user import VerifyPasswordPayload # THÊM: Import schema mới
 from ..core.config import logger # Import logger từ core
@@ -48,16 +48,10 @@ def login_submit(
 
     # --- Xác thực mật khẩu ---
     if not user or not verify_password(password, user.password):
-        # Logic báo lỗi vẫn giữ nguyên, không cần thay đổi
-        user_exists = db.query(User).options(joinedload(User.department)).filter(User.employee_code == username).first()
-        guessed_role = ""
-        if user_exists and user_exists.department:
-            guessed_role = user_exists.department.role_code
-
-        query = urlencode({
-            "error": "Mã nhân viên hoặc mật khẩu sai",
-            "role": guessed_role
-        })
+        if not user:
+            dummy_verify()  # cân bằng thời gian phản hồi, tránh timing attack
+        # Thông báo chung, không tiết lộ vai trò hay username có tồn tại hay không
+        query = urlencode({"error": "Mã nhân viên hoặc mật khẩu sai"})
         return RedirectResponse(f"/login?{query}", status_code=303)
 
     # Rehash-on-login: nâng cấp mật khẩu plaintext cũ sang bcrypt sau khi xác thực thành công
@@ -160,11 +154,9 @@ def login_form(request: Request):
 
     # Phần còn lại của hàm giữ nguyên
     error = request.query_params.get("error", "")
-    role = request.query_params.get("role", "")
     response = templates.TemplateResponse(request, "login.html", {
         "request": request,
         "error": error,
-        "role": role
     })
     response.headers["Cache-control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
@@ -245,30 +237,32 @@ async def verify_current_user_password(
     API để xác thực mật khẩu của một người dùng có vai trò 'admin' hoặc 'boss'.
     Dùng cho các thao tác cần có sự phê duyệt của cấp quản lý cao nhất.
     """
-    # SỬA: Tìm người dùng theo username từ payload
+    # Tìm người dùng theo username từ payload
     user = db.query(User).options(joinedload(User.department)).filter(User.employee_code == payload.username).first()
 
+    # Thông báo lỗi CHUNG cho mọi trường hợp thất bại (user không tồn tại,
+    # sai vai trò, sai mật khẩu) để tránh user enumeration.
+    _generic_error = "Tên đăng nhập hoặc mật khẩu không chính xác."
+
     if not user:
-        raise HTTPException(status_code=404, detail="Tên đăng nhập không tồn tại.")
+        dummy_verify()  # cân bằng thời gian phản hồi, tránh timing attack
+        raise HTTPException(status_code=401, detail=_generic_error)
 
-    # SỬA: Kiểm tra vai trò của người dùng được xác thực
     user_role = user.department.role_code if user.department else None
-    if user_role not in ['admin', 'boss']:
-        raise HTTPException(status_code=403, detail="Tài khoản này không có quyền xác thực.")
+    pw_ok = verify_password(payload.password, user.password)
 
-    # SỬA: So sánh mật khẩu từ payload với mật khẩu trong DB
-    if verify_password(payload.password, user.password):
-        # Rehash-on-verify: nâng cấp plaintext cũ sang bcrypt
-        if not is_hashed(user.password):
-            try:
-                user.password = hash_password(payload.password)
-                db.commit()
-            except Exception as e:
-                db.rollback()
-                logger.error(f"Lỗi rehash mật khẩu khi xác thực cho {payload.username}: {e}")
-        return {"success": True, "message": "Xác thực thành công."}
-    else:
-        raise HTTPException(status_code=401, detail="Mật khẩu không chính xác.")
+    if not pw_ok or user_role not in ['admin', 'boss']:
+        raise HTTPException(status_code=401, detail=_generic_error)
+
+    # Xác thực thành công — rehash plaintext cũ sang bcrypt
+    if not is_hashed(user.password):
+        try:
+            user.password = hash_password(payload.password)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Lỗi rehash mật khẩu khi xác thực cho {payload.username}: {e}")
+    return {"success": True, "message": "Xác thực thành công."}
 
 @router.get("/api/users/search-checkers", response_class=JSONResponse)
 def search_checkers(q: str = "", db: Session = Depends(get_db)):

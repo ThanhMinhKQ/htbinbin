@@ -48,6 +48,22 @@ def verify_password(plain: str, stored: Optional[str]) -> bool:
     # Plaintext cũ — so sánh constant-time
     return secrets.compare_digest(plain, stored)
 
+
+# Hash cố định dùng cho dummy-verify (chống timing attack khi user không tồn tại).
+# Tính 1 lần lúc import để mọi lời gọi verify đều tốn thời gian tương đương.
+_DUMMY_HASH = bcrypt.hashpw(b"dummy_password_for_timing", bcrypt.gensalt()).decode("utf-8")
+
+
+def dummy_verify() -> None:
+    """
+    Chạy một phép bcrypt.checkpw giả để cân bằng thời gian phản hồi.
+    Gọi khi user không tồn tại, tránh lộ thông tin qua timing.
+    """
+    try:
+        bcrypt.checkpw(b"dummy_password_for_timing", _DUMMY_HASH.encode("utf-8"))
+    except (ValueError, TypeError):
+        pass
+
 def get_branch_code(branch_value: Any) -> Optional[str]:
     """
     Chuẩn hóa dữ liệu chi nhánh về branch_code dạng string để dùng an toàn
