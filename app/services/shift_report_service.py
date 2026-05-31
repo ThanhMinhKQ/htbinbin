@@ -305,6 +305,7 @@ def auto_post_checkout_to_shift(
     checkout_time: datetime,
     user_id: int,
     room_number: str,
+    refund_method: ShiftPaymentMethod | str | None = None,
 ) -> list[ShiftReportTransaction]:
     """
     Tự động tạo ShiftReportTransaction cho mỗi folio checkout.
@@ -339,7 +340,10 @@ def auto_post_checkout_to_shift(
 
         # ── XỬ LÝ REFUND (balance < 0) ──
         if balance < Decimal("0"):
-            # Khách dư tiền → ghi nhận là CHI TIỀN QUẦY (hoàn tiền)
+            # Khách dư tiền → hoàn theo hình thức user chọn (refund_method).
+            # transaction_type=CASH_EXPENSE đánh dấu "tiền ra"; payment_method
+            # quyết định trừ vào quỹ nào (sổ ca refund-aware).
+            refund_pm = normalize_shift_payment_method(refund_method) if refund_method else ShiftPaymentMethod.CASH
             transaction_code = _generate_shift_code(db, branch_code or "XX")
             shift_tx = ShiftReportTransaction(
                 transaction_code=transaction_code,
@@ -351,7 +355,7 @@ def auto_post_checkout_to_shift(
                     room_number=room_number,
                     folio_code=folio_label,
                     amount=abs(balance),
-                    method=ShiftPaymentMethod.CASH,
+                    method=refund_pm,
                     reason=f"Dư {int(abs(balance)):,}đ",
                 ),
                 branch_id=branch_id,
@@ -360,7 +364,7 @@ def auto_post_checkout_to_shift(
                 status=ShiftReportStatus.PENDING,
                 stay_id=stay_id,
                 folio_id=folio.id,
-                payment_method=ShiftPaymentMethod.CASH,
+                payment_method=refund_pm,
                 is_auto_posted=True,
             )
             db.add(shift_tx)

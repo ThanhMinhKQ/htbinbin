@@ -1403,9 +1403,13 @@ def refund_payment(
     payment_id: int,
     amount: str = Query(...),
     reason: str = Query(default=""),
+    method: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    """Hoàn tiền một payment đã thu (Decimal-safe)."""
+    """Hoàn tiền một payment đã thu (Decimal-safe).
+
+    method: hình thức hoàn (CASH / BANK_TRANSFER / UNC). Nếu None → dùng method gốc của payment.
+    """
     from ...db.models import ShiftReportTransaction, ShiftReportStatus, Branch
     from ...services.shift_report_service import (
         _generate_shift_code,
@@ -1462,8 +1466,9 @@ def refund_payment(
                     room_number = stay_with_room.room.room_number if stay_with_room and stay_with_room.room else folio.folio_code
                     guest_name = stay_with_room.guests[0].full_name if (stay_with_room and stay_with_room.guests) else "N/A"
 
+                    # Hình thức hoàn: ưu tiên method user chọn, fallback method gốc của payment
                     original_method = payment.method.value if getattr(payment, "method", None) else "CASH"
-                    shift_pay_method = normalize_shift_payment_method(original_method)
+                    shift_pay_method = normalize_shift_payment_method(method or original_method)
                     transaction_code = _generate_shift_code(db, branch.branch_code or "XX")
                     transaction_info = build_shift_transaction_info(
                         "Hoàn tiền",

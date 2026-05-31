@@ -98,6 +98,7 @@ def execute_checkout(
     extra_charge: Decimal,
     user_id: Optional[int],
     now,
+    refund_method: Optional[str] = None,
 ) -> dict:
     """
     Unified Checkout Flow — Tất cả trong một atomic transaction.
@@ -355,6 +356,7 @@ def execute_checkout(
             checkout_time=now,
             user_id=user_id,
             room_number=room.room_number,
+            refund_method=refund_method,
         )
     except Exception:
         # Non-critical: shift report posting should not block checkout

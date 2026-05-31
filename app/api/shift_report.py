@@ -54,6 +54,7 @@ from ..db.session import get_db
 # SỬA: Import model mới (Giả định)
 from ..db.models import User, ShiftReportTransaction, Branch, Department, ShiftReportStatus, TransactionType, ShiftCloseLog, User, Folio, FolioTransaction, Payment, ShiftPaymentMethod
 from ..core.security import get_active_branch
+from ..core.permissions import is_admin, is_manager, functional_code
 from ..core.config import logger, BRANCHES, SHIFT_TRANSACTION_TYPES # THÊM: Import cấu hình mới
 from ..core.utils import VN_TZ
 from ..services.pricing_service import money
@@ -208,7 +209,17 @@ def summarize_shift_transactions(transactions: list[ShiftReportTransaction]) -> 
         summary["by_type"][tx_type] = summary["by_type"].get(tx_type, 0.0) + amount
         summary["by_method"][method] = summary["by_method"].get(method, 0.0) + amount
         if _is_shift_refund(tx):
-            summary["refund_outflow"] += amount
+            # Hoàn tiền theo từng quỹ (refund-aware, khớp classify_log_revenues):
+            # - Tiền mặt → refund_outflow (chi tiền mặt quầy)
+            # - CK chi nhánh / UNC → giảm đúng quỹ (trừ bucket + gross_inflow)
+            if method == ShiftPaymentMethod.BANK_TRANSFER.value:
+                summary["bank_transfer"] -= amount
+                summary["gross_inflow"] -= amount
+            elif method == ShiftPaymentMethod.UNC.value:
+                summary["company_unc"] -= amount
+                summary["gross_inflow"] -= amount
+            else:
+                summary["refund_outflow"] += amount
             continue
         summary["gross_inflow"] += amount
         key = method_key_map.get(method, "cash")
@@ -286,7 +297,17 @@ def classify_log_revenues(
     for tx in transactions:
         amount = int(getattr(tx, "amount", 0) or 0)
         if _is_refund_tx(tx):
-            refund_total += amount
+            # Hoàn tiền: trừ khỏi ĐÚNG quỹ theo phương thức hoàn (refund-aware).
+            # - Tiền mặt  → refund_outflow (chi tiền mặt quầy)
+            # - CK chi nhánh (BANK_TRANSFER) → giảm quỹ chi nhánh
+            # - UNC công ty (UNC)            → giảm doanh thu online/công ty
+            refund_method = _infer_shift_payment_method(tx)
+            if refund_method == ShiftPaymentMethod.BANK_TRANSFER.value:
+                branch_total -= amount
+            elif refund_method == ShiftPaymentMethod.UNC.value:
+                online_total -= amount
+            else:
+                refund_total += amount
             continue
         if _is_branch_revenue(tx):
             branch_total += amount
@@ -415,7 +436,7 @@ def _get_filtered_transactions(
         joinedload(ShiftReportTransaction.deleter)
     )
 
-    if user_data.get("role") not in ["admin", "boss"]:
+    if not is_admin(user_data):
         query = query.filter(ShiftReportTransaction.status != ShiftReportStatus.DELETED)
 
     if user_data.get("role") == 'letan':
@@ -564,7 +585,7 @@ def shift_report_page(
     # === BẮT ĐẦU SỬA LỖI LOGIC CHI NHÁNH ===
     
     active_branch = ""
-    if user_data.get("role") not in ['admin', 'boss']:
+    if not is_admin(user_data):
         active_branch = get_active_branch(request, db, user_data) or ""
     
     # === KẾT THÚC SỬA LỖI ===
@@ -588,7 +609,7 @@ def shift_report_page(
     # --- SỬA: SỬ DỤNG HÀM DỊCH VỤ ĐỂ LẤY DỮ LIỆU BAN ĐẦU ---
     branch_to_filter = chi_nhanh
     
-    if user_data.get("role") not in ['admin', 'boss']:
+    if not is_admin(user_data):
         branch_to_filter = active_branch
 
     # SỬA: Gọi hàm filter mới
@@ -1046,8 +1067,7 @@ def edit_shift_transaction_details( # SỬA
     if not user_data:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    allowed_roles = ["letan", "quanly", "admin", "boss"]
-    if user_data.get("role") not in allowed_roles:
+    if not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa.")
 
     # SỬA: Query model mới
@@ -1127,7 +1147,7 @@ def edit_shift_transaction_details( # SỬA
         if folio_tx and not _model_value(folio_tx.is_voided):
             folio = db.query(Folio).filter(Folio.id == _model_value(folio_tx.folio_id)).first() if _model_value(folio_tx.folio_id) else None
             folio_status_val = folio.status.value if folio and folio.status and hasattr(folio.status, "value") else None
-            folio_locked = folio_status_val == "CLOSED" and user_data.get("role") not in ("admin", "boss")
+            folio_locked = folio_status_val == "CLOSED" and not is_admin(user_data)
             if folio_locked:
                 cascade_summary["skipped_reason"] = "Folio đã đóng — chỉ admin/boss mới được cascade."
             else:
@@ -1186,8 +1206,7 @@ def update_shift_transaction_status( # SỬA
     if not item:
         raise HTTPException(status_code=404, detail="Không tìm thấy giao dịch.")
     
-    allowed_roles = ["letan", "quanly", "admin", "boss"]
-    if user_data.get("role") not in allowed_roles:
+    if not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện.")
 
     now = datetime.now(VN_TZ)
@@ -1244,7 +1263,7 @@ def delete_shift_transaction( # SỬA
             except Exception:
                 pass  # Nếu cascade thất bại vẫn tiếp tục xóa ShiftReport
 
-    if user_role in ["admin", "boss"] and hard_delete:
+    if is_admin(user_data) and hard_delete:
         item_id_to_delete = item.id
         
         # 1. Tìm tất cả các bản ghi ShiftCloseLog có chứa ID của giao dịch này
@@ -1323,7 +1342,7 @@ def batch_delete_shift_transactions( # SỬA
         return DecimalSafeJSONResponse({"status": "noop", "message": "Không có mục nào được chọn."})
 
     try:
-        if user_role in ["admin", "boss"]:
+        if is_admin(user_data):
             # SỬA LỖI: Chỉ cho phép xóa vĩnh viễn các giao dịch chưa được kết ca.
             # Lấy các bản ghi hợp lệ để xóa từ DB.
             transactions_to_delete = db.query(ShiftReportTransaction).filter(
@@ -1454,7 +1473,7 @@ def batch_close_transactions(
     ngay cả khi không có giao dịch nào đang chờ xử lý (để ghi nhận ca 0-đồng).
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["letan", "quanly", "admin", "boss"]:
+    if not user_data or not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
 
     try:
@@ -1610,7 +1629,7 @@ def get_dashboard_summary(
         # Lọc chi nhánh
         branch_filter_value = chi_nhanh
 
-        if user_data.get("role") not in ['admin', 'boss']:
+        if not is_admin(user_data):
             branch_filter_value = get_active_branch(request, db, user_data)
 
         # --- 2. QUERY 1: LỊCH SỬ KẾT CA (Recent Closes) ---
@@ -1736,7 +1755,7 @@ def get_dashboard_summary(
         # --- 5. QUERY 4: BẢNG XẾP HẠNG (Ranking) ---
         # Chỉ chạy khi Admin/Boss và KHÔNG chọn chi nhánh cụ thể
         final_branch_ranking = []
-        if user_data.get("role") in ['admin', 'boss'] and not chi_nhanh:
+        if is_admin(user_data) and not chi_nhanh:
             # Ranking dựa trên PMS từ bảng Log
             ranking_query = db.query(
                 Branch.branch_code,
@@ -1826,7 +1845,7 @@ def get_shift_close_details(
     db: Session = Depends(get_db)
 ):
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss", "quanly", "letan"]:
+    if not user_data or not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     log_entry = db.query(ShiftCloseLog).options(
@@ -1878,7 +1897,7 @@ def undo_shift_close(
     - Chuyển trạng thái các giao dịch liên quan về PENDING.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss"]:
+    if not user_data or not is_admin(user_data):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
 
     log_entry = db.query(ShiftCloseLog).filter(ShiftCloseLog.id == log_id).first()
@@ -1915,7 +1934,7 @@ def delete_shift_close(
     Chỉ dành cho admin/boss.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss"]:
+    if not user_data or not is_admin(user_data):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
 
     log_entry = db.query(ShiftCloseLog).filter(ShiftCloseLog.id == log_id).first()
@@ -1952,7 +1971,7 @@ def get_monthly_summary(
     Chỉ tính các giao dịch đã ở trạng thái "Đã kết ca".
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss"]:
+    if not user_data or not is_admin(user_data):
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     try:
@@ -2025,7 +2044,7 @@ def undo_transaction_from_log(
     API để hoàn tác một giao dịch cụ thể từ một lần kết ca.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss"]:
+    if not user_data or not is_admin(user_data):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
 
     log_entry = db.query(ShiftCloseLog).filter(ShiftCloseLog.id == payload.log_id).first()
@@ -2083,7 +2102,7 @@ def get_pending_summary(
     summarize trong Python. Chỉ trả về field client thực sự đọc.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss", "letan", "quanly"]:
+    if not user_data or not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     try:
@@ -2207,7 +2226,7 @@ def delete_transaction_from_log(
     - Trả về thông tin log đã cập nhật.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss"]:
+    if not user_data or not is_admin(user_data):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
 
     # SỬA LỖI: Eager load các relationship 'branch' và 'closer' để tránh DetachedInstanceError
@@ -2294,7 +2313,7 @@ def get_pms_pending_summary(
     Dùng để auto-fill recorded revenue khi kết ca.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["letan", "quanly", "admin", "boss"]:
+    if not user_data or not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     try:
@@ -2348,11 +2367,11 @@ def get_shift_analytics(
     Chỉ dành cho Admin/Boss/Quản lý.
     """
     user_data = request.session.get("user")
-    if not user_data or user_data.get("role") not in ["admin", "boss", "quanly", "letan"]:
+    if not user_data or not (functional_code(user_data) == "letan" or is_manager(user_data)):
         raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập chức năng này.")
 
     branch_filter_value = chi_nhanh
-    if user_data.get("role") not in ["admin", "boss"]:
+    if not is_admin(user_data):
         branch_filter_value = get_active_branch(request, db, user_data)
 
     now = datetime.now(VN_TZ)

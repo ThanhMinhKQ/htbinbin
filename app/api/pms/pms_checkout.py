@@ -609,6 +609,7 @@ def api_checkout(
     stay_id: int,
     discount: Optional[str] = Query(default=None),
     extra_charge: Optional[str] = Query(default=None),
+    refund_method: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """
@@ -642,6 +643,7 @@ def api_checkout(
             extra_charge=calc_extra,
             user_id=user.get("id"),
             now=now,
+            refund_method=refund_method,
         )
 
         stay = result["stay"]
@@ -1102,6 +1104,50 @@ def api_approve_refund(
         if money(folio.balance) >= Decimal("0"):
             folio.status = FolioStatus.CLOSED
             folio.closed_at = now
+
+        # ── Post sổ giao ca cho khoản hoàn tiền dư (refund-aware theo quỹ) ──
+        try:
+            from ...db.models import (
+                ShiftReportTransaction, ShiftReportStatus, TransactionType, Branch, HotelStay, HotelRoom
+            )
+            from ...services.shift_report_service import (
+                _generate_shift_code, build_shift_transaction_info, normalize_shift_payment_method,
+            )
+            branch = db.query(Branch).filter(Branch.id == folio.branch_id).first() if folio.branch_id else None
+            if branch:
+                refund_pm = normalize_shift_payment_method(rr.refund_method)
+                room_number = None
+                if folio.stay_id:
+                    _stay = db.query(HotelStay).options(selectinload(HotelStay.room)).filter(HotelStay.id == folio.stay_id).first()
+                    room_number = _stay.room.room_number if _stay and _stay.room else None
+                shift_tx = ShiftReportTransaction(
+                    transaction_code=_generate_shift_code(db, branch.branch_code or "XX"),
+                    transaction_type=TransactionType.CASH_EXPENSE,  # tiền ra; quỹ quyết định bởi payment_method
+                    amount=rr.refund_amount,
+                    room_number=room_number,
+                    transaction_info=build_shift_transaction_info(
+                        "Hoàn tiền",
+                        room_number=room_number,
+                        folio_code=folio.folio_code,
+                        amount=rr.refund_amount,
+                        method=refund_pm,
+                        reason=note or "Hoàn tiền dư",
+                    ),
+                    branch_id=branch.id,
+                    recorder_id=user.get("id"),
+                    created_datetime=now,
+                    status=ShiftReportStatus.PENDING,
+                    stay_id=folio.stay_id,
+                    folio_id=folio.id,
+                    folio_transaction_id=tx.id,
+                    payment_method=refund_pm,
+                    is_auto_posted=True,
+                )
+                db.add(shift_tx)
+                db.flush()
+                logger.info(f"[SHIFT_SYNC] REFUND(approve): shift_tx={shift_tx.id} folio={folio.id} method={refund_pm.value} amount={rr.refund_amount}")
+        except Exception as e:
+            logger.error(f"[SHIFT_SYNC] approve refund post failed: {e}", exc_info=True)
 
     db.refresh(rr)
 

@@ -778,11 +778,11 @@ async function submitCO() {
     // Đọc balance trực tiếp từ dashboard (đã tính sẵn) - NHANH
     const balanceLabel = document.getElementById('rd-pay-dash-balance')?.parentElement?.querySelector('.lbl')?.textContent || '';
     const balanceText = document.getElementById('rd-pay-dash-balance')?.textContent || '0';
-    
+
     // Xác định trạng thái từ label đã hiển thị
     let balanceStatus = 'ĐÃ TẤT TOÁN';
     let balanceMsg = 'Đã thanh toán đủ';
-    
+
     if (balanceLabel.includes('THU THÊM') || balanceLabel.includes('NỢ')) {
         balanceStatus = 'CÒN NỢ';
         balanceMsg = `Còn nợ: ${balanceText}`;
@@ -791,8 +791,13 @@ async function submitCO() {
         balanceMsg = `Khách dư: ${balanceText} (sẽ hoàn tiền)`;
     }
 
-    // LUÔN hiện confirm dialog cho tất cả các trường hợp
-    const confirmMsg = `XÁC NHẬN TRẢ PHÒNG — Phòng ${roomNum}
+    // Khách dư tiền → popup chọn hình thức hoàn. Các trường hợp khác → confirm thường.
+    let refundMethod = null;
+    if (balanceStatus === 'KHÁCH DƯ') {
+        refundMethod = await pmsAskRefundMethod(roomNum, balanceText);
+        if (refundMethod === null) return;  // user huỷ
+    } else {
+        const confirmMsg = `XÁC NHẬN TRẢ PHÒNG — Phòng ${roomNum}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📋 Trạng thái: ${balanceStatus}
@@ -800,8 +805,8 @@ async function submitCO() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Bạn có chắc chắn muốn trả phòng này không?`;
-
-    if (!confirm(confirmMsg)) return;
+        if (!confirm(confirmMsg)) return;
+    }
     pmsCheckoutSubmitting = true;
     if (typeof rdSetBusy === 'function') rdSetBusy(true, 'Đang trả phòng...');
     const rdDialog = document.getElementById('rd-dialog');
@@ -823,7 +828,8 @@ Bạn có chắc chắn muốn trả phòng này không?`;
 
     try {
         await new Promise(resolve => requestAnimationFrame(() => resolve()));
-        const r = await pmsApi(`/api/pms/checkout/${id}`, { method: 'POST' });
+        const qs = refundMethod ? `?refund_method=${encodeURIComponent(refundMethod)}` : '';
+        const r = await pmsApi(`/api/pms/checkout/${id}${qs}`, { method: 'POST' });
         if (r.debt_status === 'checked_out_with_debt') pmsToast(`Đã checkout! Khách còn nợ: ${pmsMoney(r.debt_amount)}`, 'warning');
         else if (r.debt_status === 'checked_out_with_refund') pmsToast(`Đã checkout! Khách được hoàn: ${pmsMoney(r.refund_amount)}`, true);
         else pmsToast('Khách đã trả phòng thành công', true);
@@ -843,6 +849,68 @@ Bạn có chắc chắn muốn trả phòng này không?`;
             btnCO.innerHTML = originalBtnHTML;
         }
     }
+}
+
+/**
+ * Popup chọn hình thức hoàn tiền khi khách trả dư lúc checkout.
+ * Trả về Promise<string|null>: 'CASH' | 'BANK_TRANSFER' | 'UNC', hoặc null nếu huỷ.
+ */
+function pmsAskRefundMethod(roomNum, refundText) {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('pms-refund-method-overlay');
+        if (existing) existing.remove();
+
+        const methods = [
+            { value: 'CASH', label: 'Tiền mặt', desc: 'Chi tiền mặt tại quầy' },
+            { value: 'BANK_TRANSFER', label: 'Chuyển khoản chi nhánh', desc: 'Trừ quỹ ngân hàng chi nhánh' },
+            { value: 'UNC', label: 'Chuyển khoản công ty (UNC)', desc: 'Trừ quỹ công ty' },
+        ];
+
+        const overlay = document.createElement('div');
+        overlay.id = 'pms-refund-method-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100050;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.55);backdrop-filter:blur(3px);';
+
+        overlay.innerHTML = `
+          <div style="width:min(440px,94vw);background:var(--pms-bg,#fff);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;">
+            <div style="padding:18px 22px;background:linear-gradient(135deg,#0ea5e9,#0369a1);color:#fff;">
+              <h3 style="margin:0;font-size:17px;font-weight:800;">Hoàn tiền cho khách</h3>
+              <p style="margin:4px 0 0;font-size:13px;opacity:.9;">Phòng ${roomNum} • Khách dư <b>${refundText}</b></p>
+            </div>
+            <div style="padding:16px 22px;display:flex;flex-direction:column;gap:10px;" id="pms-refund-method-list"></div>
+            <div style="padding:12px 22px 18px;display:flex;justify-content:flex-end;gap:8px;">
+              <button type="button" id="pms-refund-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #cbd5e1;background:transparent;color:#64748b;font-weight:600;cursor:pointer;">Huỷ</button>
+              <button type="button" id="pms-refund-confirm" style="padding:9px 18px;border-radius:9px;border:none;background:#0369a1;color:#fff;font-weight:700;cursor:pointer;">Xác nhận trả phòng</button>
+            </div>
+          </div>`;
+
+        const list = overlay.querySelector('#pms-refund-method-list');
+        let selected = 'CASH';
+        methods.forEach((m, i) => {
+            const item = document.createElement('label');
+            item.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 14px;border:2px solid var(--pms-border,#e2e8f0);border-radius:11px;cursor:pointer;transition:all .15s;';
+            item.innerHTML = `
+              <input type="radio" name="pms-refund-m" value="${m.value}" ${i === 0 ? 'checked' : ''} style="width:18px;height:18px;accent-color:#0369a1;flex-shrink:0;">
+              <div style="min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:var(--pms-text,#1f2937);">${m.label}</div>
+                <div style="font-size:12px;color:var(--pms-text-muted,#6b7280);">${m.desc}</div>
+              </div>`;
+            const sync = () => {
+                list.querySelectorAll('label').forEach(l => l.style.borderColor = 'var(--pms-border,#e2e8f0)');
+                item.style.borderColor = '#0369a1';
+            };
+            item.querySelector('input').addEventListener('change', () => { selected = m.value; sync(); });
+            item.addEventListener('click', () => { item.querySelector('input').checked = true; selected = m.value; sync(); });
+            if (i === 0) item.style.borderColor = '#0369a1';
+            list.appendChild(item);
+        });
+
+        const close = (val) => { overlay.remove(); resolve(val); };
+        overlay.querySelector('#pms-refund-cancel').addEventListener('click', () => close(null));
+        overlay.querySelector('#pms-refund-confirm').addEventListener('click', () => close(selected));
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(null); });
+
+        document.body.appendChild(overlay);
+    });
 }
 
 // Export globally
