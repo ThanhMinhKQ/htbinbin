@@ -9,12 +9,12 @@
 <link rel="stylesheet" href="/static/css/pms/reservation_hub/theme.css?v=2.5">
 <link rel="stylesheet" href="/static/css/pms/reservation_hub/dark.css?v=2.4">
 <link rel="stylesheet" href="/static/css/pms/scan_modal.css?v=2.3">
-<link rel="stylesheet" href="/static/css/hr/hr.css?v=20260518-emp-modal-v3">
+<link rel="stylesheet" href="/static/css/hr/hr.css?v=20260531-dept-access">
 {% endblock %}
 
 {% block content %}
 <div id="pms-booking-page" class="hr-page p-4 sm:p-6" x-data="hrApp" x-init="init()"
-    x-effect="document.body.classList.toggle('hr-modal-open', showEmployeeModal || showPasswordModal || showBranchModal)"
+    x-effect="document.body.classList.toggle('hr-modal-open', showEmployeeModal || showPasswordModal || showBranchModal || showDepartmentModal)"
     style="position: relative; min-height: 100vh;">
     <!-- Diagonal Grid Background -->
     <div style="position: absolute; inset: 0; z-index: 0; pointer-events: none;
@@ -30,6 +30,7 @@
         {% include "hr/modals/employee.html" %}
         {% include "hr/modals/password.html" %}
         {% include "hr/modals/branch.html" %}
+        {% include "hr/modals/department.html" %}
     </div>
 </div>
 {% include "pms/modals/scan_modal.html" %}

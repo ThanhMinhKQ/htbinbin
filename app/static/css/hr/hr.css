@@ -47,6 +47,16 @@ html.dark .role-admin { background: rgba(34, 197, 94, .18); color: #86efac; }
 html.dark .role-boss { background: rgba(249, 115, 22, .18); color: #fdba74; }
 html.dark .role-other { background: rgba(148, 163, 184, .18); color: #cbd5e1; }
 
+/* ----- Access-level badges (data-driven, for any department) ----- */
+.level-owner   { background: #fff7ed; color: #c2410c; }
+.level-admin   { background: #f0fdf4; color: #15803d; }
+.level-manager { background: #fef3c7; color: #92400e; }
+.level-staff   { background: #dbeafe; color: #1d4ed8; }
+html.dark .level-owner   { background: rgba(249, 115, 22, .18); color: #fdba74; }
+html.dark .level-admin   { background: rgba(34, 197, 94, .18); color: #86efac; }
+html.dark .level-manager { background: rgba(245, 158, 11, .18); color: #fcd34d; }
+html.dark .level-staff   { background: rgba(59, 130, 246, .18); color: #93c5fd; }
+
 .status-active { background: #dcfce7; color: #16a34a; }
 .status-inactive { background: #fee2e2; color: #dc2626; }
 html.dark .status-active { background: rgba(34, 197, 94, .18); color: #4ade80; }

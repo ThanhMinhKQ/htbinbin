@@ -11,12 +11,20 @@
                 <i class="bi bi-table"></i>
                 Danh sách
             </button>
+            <button class="hr-tab" :class="{ active: activeTab === 'departments' }" @click="activeTab = 'departments'">
+                <i class="bi bi-diagram-3-fill"></i>
+                Phòng ban & Phân quyền
+            </button>
         </div>
         <div class="hr-tabs-spacer"></div>
         <div class="hr-actions">
-            <button class="hr-btn primary" @click="openAddModal()">
+            <button x-show="activeTab !== 'departments'" class="hr-btn primary" @click="openAddModal()">
                 <i class="bi bi-plus-lg"></i>
                 Thêm nhân viên
+            </button>
+            <button x-show="activeTab === 'departments'" class="hr-btn primary" @click="openAddDepartmentModal()">
+                <i class="bi bi-plus-lg"></i>
+                Thêm phòng ban
             </button>
         </div>
     </div>
@@ -264,6 +272,57 @@
 
             <div x-show="!loading" class="hr-table-foot">
                 Hiển thị <strong x-text="filteredEmployees.length"></strong> / <span x-text="allEmployees.length"></span> nhân viên
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Departments (Phòng ban & Phân quyền) -->
+    <div x-show="activeTab === 'departments'" x-cloak>
+        <div class="hr-table-wrap">
+            <table class="hr-table">
+                <thead>
+                    <tr>
+                        <th>Phòng ban</th>
+                        <th>Mã</th>
+                        <th>Cấp quyền</th>
+                        <th>Số nhân viên</th>
+                        <th>Trạng thái</th>
+                        <th style="text-align:right;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="d in departments" :key="d.id">
+                        <tr>
+                            <td>
+                                <strong x-text="d.name"></strong>
+                                <span x-show="d.is_system" class="hr-badge" style="margin-left:6px; font-size:10px;" title="Phòng ban hệ thống">hệ thống</span>
+                            </td>
+                            <td><code x-text="d.code || d.role_code"></code></td>
+                            <td>
+                                <span class="hr-role-badge" :class="'level-' + (d.access_level || '').toLowerCase()"
+                                    x-text="accessLevelLabel(d.access_level)"></span>
+                            </td>
+                            <td x-text="d.active_employee_count"></td>
+                            <td>
+                                <span x-text="d.is_active ? 'Đang dùng' : 'Ngừng'"
+                                    :style="d.is_active ? 'color: var(--bk-ok, #16a34a)' : 'color: var(--bk-muted)'"></span>
+                            </td>
+                            <td style="text-align:right;">
+                                <button class="hr-icon-btn" @click="openEditDepartmentModal(d)" title="Sửa">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="hr-icon-btn" @click="deleteDepartment(d)" title="Xoá"
+                                    :disabled="d.is_system" :style="d.is_system ? 'opacity:.35; cursor:not-allowed;' : ''">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            <div x-show="departments.length === 0 && !loading" class="hr-empty">
+                <i class="bi bi-diagram-3"></i>
+                Chưa có phòng ban nào
             </div>
         </div>
     </div>

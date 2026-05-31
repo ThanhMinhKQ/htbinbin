@@ -1,0 +1,49 @@
+    <!-- MODAL: Create / Edit department (Phòng ban & Phân quyền) -->
+    <div x-show="showDepartmentModal" x-cloak class="hr-modal-backdrop" @click.self="showDepartmentModal = false">
+        <div class="hr-modal sm">
+            <div class="hr-modal-head">
+                <h2 x-text="editingDepartment ? 'Sửa phòng ban' : 'Thêm phòng ban'"></h2>
+                <button class="hr-icon-btn" @click="showDepartmentModal = false"><i class="bi bi-x-lg"></i></button>
+            </div>
+            <div class="hr-modal-body">
+                <div class="hr-field">
+                    <label>Tên phòng ban <span class="hr-required">*</span></label>
+                    <input class="hr-input" type="text" x-model="deptForm.name"
+                        placeholder="VD: Kế toán, Marketing...">
+                </div>
+                <div class="hr-field">
+                    <label>Mã phòng ban <span class="hr-required">*</span></label>
+                    <input class="hr-input" type="text" x-model="deptForm.code"
+                        placeholder="VD: ketoan (chữ thường, không dấu)"
+                        :disabled="editingDepartment && editingDepartment.is_system">
+                    <small x-show="editingDepartment && editingDepartment.is_system" style="color: var(--bk-muted); font-size: 11px;">
+                        Phòng ban hệ thống không thể đổi mã.
+                    </small>
+                </div>
+                <div class="hr-field">
+                    <label>Cấp quyền <span class="hr-required">*</span></label>
+                    <select class="hr-input" x-model="deptForm.access_level">
+                        <template x-for="lv in accessLevels" :key="lv.value">
+                            <option :value="lv.value" x-text="lv.label"></option>
+                        </template>
+                    </select>
+                    <small style="color: var(--bk-muted); font-size: 11px;">
+                        Cấp quyền quyết định nhân viên thuộc phòng ban này được làm gì trong hệ thống.
+                    </small>
+                </div>
+                <div class="hr-field">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                        <input type="checkbox" x-model="deptForm.is_active">
+                        Đang sử dụng
+                    </label>
+                </div>
+            </div>
+            <div class="hr-modal-foot">
+                <button class="hr-btn" @click="showDepartmentModal = false">Huỷ</button>
+                <button class="hr-btn primary" @click="saveDepartment()" :disabled="saving">
+                    <span x-show="saving" style="width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite;"></span>
+                    <span x-text="editingDepartment ? 'Lưu thay đổi' : 'Tạo phòng ban'"></span>
+                </button>
+            </div>
+        </div>
+    </div>

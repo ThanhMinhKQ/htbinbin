@@ -6,18 +6,21 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel
 from typing import Optional
 import os
 import calendar
+import re
 from datetime import datetime, date as date_type, timedelta, timezone
 from pathlib import Path
 
 from ..db.session import get_db
-from ..db.models import User, Branch, Department, AttendanceRecord, ServiceRecord
+from ..db.models import User, Branch, Department, AttendanceRecord, ServiceRecord, AccessLevel
 from ..core.config import logger
 from ..core.utils import VN_TZ
 from ..core.security import hash_password
+from ..core.permissions import is_admin
 
 router = APIRouter()
 
@@ -35,7 +38,7 @@ def require_admin(request: Request):
     user = request.session.get("user")
     if not user:
         raise HTTPException(status_code=401, detail="Chưa đăng nhập.")
-    if user.get("role", "").lower() not in ["admin", "boss"]:
+    if not is_admin(user):
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới có quyền truy cập.")
     return user
 
@@ -68,6 +71,10 @@ def user_to_dict(user: User) -> dict:
         "department_id": user.department_id,
         "department_name": user.department.name if user.department else None,
         "role_code": user.department.role_code if user.department else None,
+        "access_level": (
+            user.department.access_level.value
+            if user.department and user.department.access_level else None
+        ),
         "main_branch_id": user.main_branch_id,
         "branch_name": user.main_branch.name if user.main_branch else None,
         "branch_code": user.main_branch.branch_code if user.main_branch else None,
@@ -154,12 +161,24 @@ class ResetPasswordPayload(BaseModel):
 class BranchUpdate(BaseModel):
     name: str
 
+class DepartmentCreate(BaseModel):
+    code: str
+    name: str
+    access_level: str  # OWNER/ADMIN/MANAGER/STAFF
+    is_active: Optional[bool] = True
+
+class DepartmentUpdate(BaseModel):
+    name: Optional[str] = None
+    access_level: Optional[str] = None
+    is_active: Optional[bool] = None
+    code: Optional[str] = None  # chỉ đổi được cho phòng ban non-system
+
 class EmployeeCreateFull(BaseModel):
     employee_id: str
     employee_code: str
     name: str
     department_id: int
-    main_branch_id: int
+    main_branch_id: Optional[int] = None  # cấp cao (OWNER/ADMIN/MANAGER) không gắn chi nhánh
     shift: Optional[str] = None
     phone_number: Optional[str] = None
     email: Optional[str] = None
@@ -514,10 +533,11 @@ def create_employee(
     if existing_by_code:
         raise HTTPException(status_code=400, detail=f"Mã đăng nhập '{payload.employee_code}' đã tồn tại.")
 
-    # Kiểm tra branch và department hợp lệ
-    branch = db.query(Branch).filter(Branch.id == payload.main_branch_id).first()
-    if not branch:
-        raise HTTPException(status_code=400, detail="Chi nhánh không tồn tại.")
+    # Kiểm tra branch (cho phép None — nhân sự cấp cao không gắn chi nhánh)
+    if payload.main_branch_id is not None:
+        branch = db.query(Branch).filter(Branch.id == payload.main_branch_id).first()
+        if not branch:
+            raise HTTPException(status_code=400, detail="Chi nhánh không tồn tại.")
 
     department = db.query(Department).filter(Department.id == payload.department_id).first()
     if not department:
@@ -532,7 +552,7 @@ def create_employee(
         shift=payload.shift,
         phone_number=payload.phone_number,
         email=payload.email,
-        password=payload.password or "123456",
+        password=hash_password(payload.password or "123456"),
         is_active=payload.is_active if payload.is_active is not None else True,
         cccd=payload.cccd,
         date_of_birth=date_type.fromisoformat(payload.date_of_birth) if payload.date_of_birth else None,
@@ -730,18 +750,154 @@ def update_branch(
 @router.get("/api/hr/departments", response_class=JSONResponse)
 def get_departments(
     request: Request,
+    active_only: bool = False,
     db: Session = Depends(get_db),
     _=Depends(require_admin)
 ):
-    """Lấy danh sách phòng ban/role (bỏ boss và khac)."""
-    EXCLUDED_ROLES = {"boss", "khac"}
-    departments = (
-        db.query(Department)
-        .filter(~Department.role_code.in_(EXCLUDED_ROLES))
-        .order_by(Department.name)
+    """Danh sách phòng ban kèm cấp quyền + số nhân viên. active_only=true để lọc cho dropdown."""
+    q = db.query(Department)
+    if active_only:
+        q = q.filter(Department.is_active == True)
+    departments = q.order_by(Department.name).all()
+
+    # Đếm nhân viên theo phòng ban (1 query)
+    counts = dict(
+        db.query(User.department_id, func.count(User.id))
+        .group_by(User.department_id)
         .all()
     )
+
+    def _lvl(d):
+        return d.access_level.value if hasattr(d.access_level, "value") else str(d.access_level)
+
     return JSONResponse(content=[
-        {"id": d.id, "role_code": d.role_code, "name": d.name}
+        {
+            "id": d.id,
+            "code": d.code,
+            "role_code": d.code,  # back-compat
+            "name": d.name,
+            "access_level": _lvl(d),
+            "is_active": d.is_active,
+            "is_system": d.is_system,
+            "active_employee_count": counts.get(d.id, 0),
+        }
         for d in departments
     ])
+
+
+def _slugify_code(raw: str) -> str:
+    """Chuẩn hoá code: chữ thường, bỏ dấu cách → gạch dưới, chỉ giữ a-z0-9_."""
+    s = (raw or "").strip().lower().replace(" ", "_")
+    s = re.sub(r"[^a-z0-9_]", "", s)
+    return s
+
+
+@router.post("/api/hr/departments", response_class=JSONResponse)
+def create_department(
+    payload: DepartmentCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin)
+):
+    """Tạo phòng ban mới (do người dùng tạo → is_system=False)."""
+    level = (payload.access_level or "").upper()
+    if level not in AccessLevel.__members__:
+        raise HTTPException(status_code=400, detail=f"Cấp quyền không hợp lệ: {payload.access_level}")
+
+    code = _slugify_code(payload.code)
+    if not code:
+        raise HTTPException(status_code=400, detail="Mã phòng ban không hợp lệ.")
+    if db.query(Department).filter(Department.code == code).first():
+        raise HTTPException(status_code=400, detail=f"Mã phòng ban '{code}' đã tồn tại.")
+    if not (payload.name or "").strip():
+        raise HTTPException(status_code=400, detail="Tên phòng ban không được trống.")
+
+    dept = Department(
+        code=code,
+        name=payload.name.strip(),
+        access_level=level,
+        is_active=payload.is_active if payload.is_active is not None else True,
+        is_system=False,
+    )
+    db.add(dept)
+    try:
+        db.commit()
+        db.refresh(dept)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f"Mã phòng ban '{code}' đã tồn tại.")
+    logger.info(f"[HR] Tạo phòng ban: {code} ({level})")
+    return JSONResponse(content={"success": True, "id": dept.id})
+
+
+@router.put("/api/hr/departments/{dept_id}", response_class=JSONResponse)
+def update_department(
+    dept_id: int,
+    payload: DepartmentUpdate,
+    request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin)
+):
+    """Cập nhật phòng ban. Phòng ban built-in (is_system) không cho đổi mã."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    if not dept:
+        raise HTTPException(status_code=404, detail="Phòng ban không tồn tại.")
+
+    if payload.code is not None:
+        if dept.is_system:
+            raise HTTPException(status_code=400, detail="Không thể đổi mã của phòng ban hệ thống.")
+        new_code = _slugify_code(payload.code)
+        if not new_code:
+            raise HTTPException(status_code=400, detail="Mã phòng ban không hợp lệ.")
+        if new_code != dept.code and db.query(Department).filter(Department.code == new_code).first():
+            raise HTTPException(status_code=400, detail=f"Mã phòng ban '{new_code}' đã tồn tại.")
+        dept.code = new_code
+
+    if payload.name is not None:
+        if not payload.name.strip():
+            raise HTTPException(status_code=400, detail="Tên phòng ban không được trống.")
+        dept.name = payload.name.strip()
+
+    if payload.access_level is not None:
+        level = payload.access_level.upper()
+        if level not in AccessLevel.__members__:
+            raise HTTPException(status_code=400, detail=f"Cấp quyền không hợp lệ: {payload.access_level}")
+        dept.access_level = level
+
+    if payload.is_active is not None:
+        dept.is_active = payload.is_active
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Mã phòng ban bị trùng.")
+    logger.info(f"[HR] Cập nhật phòng ban: {dept.code}")
+    return JSONResponse(content={"success": True})
+
+
+@router.delete("/api/hr/departments/{dept_id}", response_class=JSONResponse)
+def delete_department(
+    dept_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    _=Depends(require_admin)
+):
+    """Xoá phòng ban. Cấm xoá built-in hoặc phòng ban còn nhân viên."""
+    dept = db.query(Department).filter(Department.id == dept_id).first()
+    if not dept:
+        raise HTTPException(status_code=404, detail="Phòng ban không tồn tại.")
+    if dept.is_system:
+        raise HTTPException(status_code=400, detail="Không thể xoá phòng ban hệ thống.")
+
+    user_count = db.query(func.count(User.id)).filter(User.department_id == dept_id).scalar() or 0
+    if user_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Còn {user_count} nhân viên thuộc phòng ban này. Hãy chuyển họ sang phòng ban khác trước."
+        )
+
+    db.delete(dept)
+    db.commit()
+    logger.info(f"[HR] Xoá phòng ban: {dept.code}")
+    return JSONResponse(content={"success": True})

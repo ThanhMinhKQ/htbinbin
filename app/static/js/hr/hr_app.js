@@ -58,6 +58,17 @@ function hrApp() {
             editingBranch: null,
             branchNewName: '',
 
+            // Department (phòng ban & phân quyền) modal
+            showDepartmentModal: false,
+            editingDepartment: null,
+            deptForm: { code: '', name: '', access_level: 'STAFF', is_active: true },
+            accessLevels: [
+                { value: 'OWNER', label: 'Chủ (toàn quyền)' },
+                { value: 'ADMIN', label: 'Quản trị' },
+                { value: 'MANAGER', label: 'Quản lý' },
+                { value: 'STAFF', label: 'Nhân viên' },
+            ],
+
             toast: { show: false, message: '', type: 'success' },
 
             // ===========================================================
@@ -546,6 +557,12 @@ function hrApp() {
             // ROLE HELPERS
             // ===========================================================
             getRoleClass(roleCode) {
+                // Ưu tiên class theo cấp quyền (access_level) từ danh sách phòng ban đã fetch,
+                // để phòng ban mới hiển thị đúng mà không cần sửa JS.
+                const dept = (this.departments || []).find(d => (d.code || d.role_code) === roleCode);
+                if (dept && dept.access_level) {
+                    return 'level-' + dept.access_level.toLowerCase();
+                }
                 const map = {
                     'letan': 'role-letan',
                     'buongphong': 'role-buongphong',
@@ -559,16 +576,10 @@ function hrApp() {
             },
 
             getRoleLabel(roleCode) {
-                const map = {
-                    'letan': 'LT',
-                    'buongphong': 'BP',
-                    'baove': 'BV',
-                    'ktv': 'KTV',
-                    'quanly': 'QL',
-                    'admin': 'ADM',
-                    'boss': 'BOSS',
-                };
-                return map[roleCode?.toLowerCase()] || roleCode || '?';
+                // Lấy tên phòng ban từ dữ liệu đã fetch (data-driven)
+                const dept = (this.departments || []).find(d => (d.code || d.role_code) === roleCode);
+                if (dept && dept.name) return dept.name;
+                return roleCode || '?';
             },
 
             formatAccountAge(days) {
@@ -829,6 +840,88 @@ function hrApp() {
                 } finally {
                     this.saving = false;
                 }
+            },
+
+            // ===========================================================
+            // DEPARTMENT (Phòng ban & Phân quyền)
+            // ===========================================================
+            openAddDepartmentModal() {
+                this.editingDepartment = null;
+                this.deptForm = { code: '', name: '', access_level: 'STAFF', is_active: true };
+                this.showDepartmentModal = true;
+            },
+
+            openEditDepartmentModal(dept) {
+                this.editingDepartment = dept;
+                this.deptForm = {
+                    code: dept.code || dept.role_code,
+                    name: dept.name,
+                    access_level: dept.access_level || 'STAFF',
+                    is_active: dept.is_active !== false,
+                };
+                this.showDepartmentModal = true;
+            },
+
+            async saveDepartment() {
+                if (!this.deptForm.name?.trim()) {
+                    this.showToast('Tên phòng ban không được để trống.', 'error'); return;
+                }
+                if (!this.editingDepartment && !this.deptForm.code?.trim()) {
+                    this.showToast('Mã phòng ban không được để trống.', 'error'); return;
+                }
+                // Cảnh báo khi đổi cấp quyền của phòng ban đang có người
+                if (this.editingDepartment
+                    && this.deptForm.access_level !== this.editingDepartment.access_level
+                    && (this.editingDepartment.active_employee_count || 0) > 0) {
+                    if (!confirm(`Đổi cấp quyền sẽ áp dụng ngay cho ${this.editingDepartment.active_employee_count} nhân viên thuộc phòng ban này. Tiếp tục?`)) {
+                        return;
+                    }
+                }
+                this.saving = true;
+                try {
+                    const isEdit = !!this.editingDepartment;
+                    const url = isEdit ? `/api/hr/departments/${this.editingDepartment.id}` : '/api/hr/departments';
+                    const method = isEdit ? 'PUT' : 'POST';
+                    const body = isEdit
+                        ? { name: this.deptForm.name.trim(), access_level: this.deptForm.access_level, is_active: this.deptForm.is_active,
+                            ...(this.editingDepartment.is_system ? {} : { code: this.deptForm.code.trim() }) }
+                        : { code: this.deptForm.code.trim(), name: this.deptForm.name.trim(), access_level: this.deptForm.access_level, is_active: this.deptForm.is_active };
+                    const res = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { this.showToast(data.detail || 'Lỗi.', 'error'); return; }
+                    await this.fetchDepartments();
+                    this.showDepartmentModal = false;
+                    this.showToast(isEdit ? 'Đã cập nhật phòng ban!' : 'Đã tạo phòng ban!', 'success');
+                } catch (e) {
+                    this.showToast('Lỗi kết nối.', 'error');
+                } finally {
+                    this.saving = false;
+                }
+            },
+
+            async deleteDepartment(dept) {
+                if (dept.is_system) {
+                    this.showToast('Không thể xoá phòng ban hệ thống.', 'error'); return;
+                }
+                if (!confirm(`Xoá phòng ban "${dept.name}"?`)) return;
+                try {
+                    const res = await fetch(`/api/hr/departments/${dept.id}`, { method: 'DELETE' });
+                    const data = await res.json();
+                    if (!res.ok) { this.showToast(data.detail || 'Không thể xoá.', 'error'); return; }
+                    await this.fetchDepartments();
+                    this.showToast('Đã xoá phòng ban!', 'success');
+                } catch (e) {
+                    this.showToast('Lỗi kết nối.', 'error');
+                }
+            },
+
+            accessLevelLabel(level) {
+                const m = (this.accessLevels || []).find(a => a.value === level);
+                return m ? m.label : (level || '');
             },
 
             // ===========================================================
