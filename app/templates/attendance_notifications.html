@@ -1210,15 +1210,23 @@ function shiftNotificationAdmin(options = {}) {
       this.quill.root.addEventListener('paste', (e) => this.handlePaste(e), true);
     },
     refreshEditor() {
-      setTimeout(() => {
+      // Đợi Alpine flush x-show (modal hiện) rồi mới init/nạp Quill.
+      // Init hoặc paste khi editor đang display:none làm selection range null
+      // → crash "Cannot read properties of null (reading 'offset')".
+      this.$nextTick(() => {
         this.initQuill();
-        const html = this.richBody(this.form.body || '');
         if (this.quill) {
-          this.quill.clipboard.dangerouslyPasteHTML(html);
+          const html = this.richBody(this.form.body || '');
+          // setContents(silent): nạp nội dung KHÔNG đặt lại selection (tránh
+          // crash setSelection) và KHÔNG sinh sự kiện text-change.
+          const delta = this.quill.clipboard.convert({ html });
+          this.quill.setContents(delta, 'silent');
+          // Xoá lịch sử undo của lần nạp để Ctrl+Z không quay về rỗng.
+          if (this.quill.history) this.quill.history.clear();
         } else if (this.$refs.editorFallback) {
           this.$refs.editorFallback.value = this.form.body || '';
         }
-      }, 0);
+      });
     },
     handleFileChange(event, isImage) {
       if (!this.canManage) return;
