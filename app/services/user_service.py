@@ -34,12 +34,12 @@ def sync_employees_from_source(db: Session, employees_source: list[dict], force_
         # Mặc định là True nếu không khai báo is_active
         is_active_status = emp.get("is_active", True) 
 
-        branch_id = branch_map.get(branch_code)
+        branch_id = branch_map.get(branch_code)  # None nếu nhân sự phi-chi-nhánh (admin/boss/quanly/ktv)
         department_id = department_map.get(role_code)
 
-        # Skip nếu sai branch/role code (để tránh lỗi DB)
-        if not branch_id or not department_id:
-            logger.warning(f"[SYNC] Bỏ qua {emp.get('name')} do sai mã Branch/Role")
+        # Chỉ skip khi sai ROLE (branch được phép None — nhân sự cấp cao không gắn chi nhánh)
+        if not department_id:
+            logger.warning(f"[SYNC] Bỏ qua {emp.get('name')} do sai mã Role: {role_code}")
             continue
 
         existing_user = existing_users_dict.get(employee_id)

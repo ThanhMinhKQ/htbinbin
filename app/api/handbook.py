@@ -8,19 +8,20 @@ import os
 
 from ..db.session import get_db
 from ..db.models import HandbookEntry, User
+from ..core.permissions import is_manager
 
 router = APIRouter()
 
 APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 templates = Jinja2Templates(directory=os.path.join(APP_ROOT, "templates"))
 
-ADMIN_ROLES      = {"admin", "boss", "quanly", "manager"}
 VALID_SEVERITIES = {"urgent", "serious", "normal", "tip"}
 VALID_CATEGORIES = {"general", "checkin", "ota", "security", "technical", "regulation", "surcharge"}
 
 
 def _is_admin(user_data: dict) -> bool:
-    return user_data.get("role", "").lower() in ADMIN_ROLES
+    # "admin" ở đây nghĩa là MANAGER trở lên (gồm quanly) — giữ nguyên hành vi cũ
+    return is_manager(user_data)
 
 
 def _serialize(e: HandbookEntry) -> dict:

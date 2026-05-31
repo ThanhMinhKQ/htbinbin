@@ -98,11 +98,16 @@ logger = logging.getLogger("binbin-app")
 DEPARTMENTS = ["Chưa phân loại", "Nội bộ", "Sơn nước", "Thợ hồ", "Thợ đá", "Máy lạnh", "Máy nước nóng", "Thợ sắt", "Nhôm kính", "Thang máy", "PCCC", "Bảo trì", "Bảo hành"]
 
 # Danh sách này có thể được thay thế bằng cách query từ bảng `branches` nếu muốn linh hoạt hơn
+# CHỈ chứa chi nhánh THẬT (khách sạn). Các nhóm vai trò KTV/QL/DI DONG/ADMIN/BOSS
+# KHÔNG còn là "chi nhánh" — chúng là phòng ban (xem DEPARTMENT_SEED).
 BRANCHES = [
     "B1", "B2", "B3", "B5", "B6", "B7", "B8", "B9", "B10",
     "B11", "B12", "B14", "B15", "B16", "B17", "B18",
-    "DI DONG", "KTV", "QL"
 ]
+
+# Chi nhánh "Kho Tổng / Văn phòng" — head office cho luồng kho (WMS).
+# Thay cho việc trước đây dùng branch giả "ADMIN" làm Kho Tổng.
+HEADOFFICE_BRANCH = {"code": "HEAD", "name": "Kho Tổng / Văn phòng"}
 
 # Map để dịch trạng thái Đồ thất lạc sang tiếng Việt
 STATUS_MAP = {
@@ -113,12 +118,22 @@ STATUS_MAP = {
     "DELETED": "Đã xoá",
 }
 
-# Map để dịch vai trò sang tiếng Việt
-ROLE_MAP = {
-    "letan": "Lễ tân", "buongphong": "Buồng Phòng", "quanly": "Quản lý",
-    "ktv": "Kỹ thuật viên", "baove": "Bảo vệ", "boss": "Boss",
-    "admin": "Admin", "khac": "Khác",
-}
+# Phòng ban built-in + cấp quyền tương ứng (nguồn seed cho bảng departments).
+# access_level: OWNER > ADMIN > MANAGER > STAFF (xem app/core/permissions.py).
+# is_system=True → built-in, không cho xoá qua HR UI.
+DEPARTMENT_SEED = [
+    {"code": "boss",       "name": "Boss",          "access_level": "OWNER",   "is_system": True},
+    {"code": "admin",      "name": "Admin",         "access_level": "ADMIN",   "is_system": True},
+    {"code": "quanly",     "name": "Quản lý",       "access_level": "MANAGER", "is_system": True},
+    {"code": "letan",      "name": "Lễ tân",        "access_level": "STAFF",   "is_system": True},
+    {"code": "buongphong", "name": "Buồng Phòng",   "access_level": "STAFF",   "is_system": True},
+    {"code": "ktv",        "name": "Kỹ thuật viên", "access_level": "STAFF",   "is_system": True},
+    {"code": "baove",      "name": "Bảo vệ",        "access_level": "STAFF",   "is_system": True},
+    {"code": "khac",       "name": "Khác",          "access_level": "STAFF",   "is_system": True},
+]
+
+# Map để dịch vai trò sang tiếng Việt (derived — giữ cho code cũ còn import ROLE_MAP)
+ROLE_MAP = {d["code"]: d["name"] for d in DEPARTMENT_SEED}
 
 # Tọa độ GPS của các chi nhánh để điểm danh
 BRANCH_COORDINATES = {

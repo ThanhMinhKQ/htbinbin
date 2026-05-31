@@ -9,6 +9,7 @@ from ..db.models import User, AttendanceLog
 from ..db.session import SessionLocal
 from .utils import get_current_work_shift
 from .config import logger
+from .permissions import is_admin
 
 # ====================================================================
 # PASSWORD HASHING (bcrypt)
@@ -100,7 +101,7 @@ def require_checked_in_user(request: Request):
         return False
 
     # Admin và Boss luôn được truy cập nếu đã đăng nhập
-    if user.get("role") in ["admin", "boss"]:
+    if is_admin(user):
         return True
 
     # Lấy ngày làm việc hiện tại, xử lý cả trường hợp trước 7h sáng

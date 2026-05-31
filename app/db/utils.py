@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import text, inspect
-from ..core.config import logger, BRANCHES, ROLE_MAP, BRANCH_COORDINATES
+from sqlalchemy import text, inspect, func
+from ..core.config import logger, BRANCHES, ROLE_MAP, BRANCH_COORDINATES, DEPARTMENT_SEED, HEADOFFICE_BRANCH
 from ..db.models import User, Branch, Department
 
 # Import the `employees` list from the `employees` module
@@ -82,32 +82,48 @@ def sync_master_data(db: Session):
     """
     logger.info("Starting Master Data synchronization...")
     
-    # 1. Đồng bộ DEPARTMENTS (Roles)
-    # ROLE_MAP = {"letan": "Lễ tân", ...}
-    for code, name in ROLE_MAP.items():
-        dept = db.query(Department).filter(Department.role_code == code).first()
+    # 1. Đồng bộ DEPARTMENTS (phòng ban built-in + cấp quyền)
+    # Chính sách: với phòng ban is_system → config là nguồn chân lý cho access_level
+    # (heal drift). Phòng ban do người dùng tạo (non-system) KHÔNG bị đụng tới.
+    for d in DEPARTMENT_SEED:
+        code = d["code"]
+        dept = db.query(Department).filter(Department.code == code).first()
         if not dept:
-            dept = Department(role_code=code, name=name)
+            dept = Department(
+                code=code,
+                name=d["name"],
+                access_level=d["access_level"],
+                is_system=True,
+                is_active=True,
+            )
             db.add(dept)
-            logger.info(f"[MASTER] Created Department: {code} - {name}")
+            logger.info(f"[MASTER] Created Department: {code} ({d['access_level']})")
         else:
-            if dept.name != name:
-                dept.name = name
-                logger.info(f"[MASTER] Updated Department name: {code}")
-    
-    # 2. Đồng bộ BRANCHES
+            changed = False
+            if dept.name != d["name"]:
+                dept.name = d["name"]; changed = True
+            # access_level chỉ ép lại cho built-in (is_system)
+            cur_level = dept.access_level.value if hasattr(dept.access_level, "value") else str(dept.access_level)
+            if dept.is_system and cur_level != d["access_level"]:
+                dept.access_level = d["access_level"]; changed = True
+            if not dept.is_system:
+                dept.is_system = True; changed = True
+            if changed:
+                logger.info(f"[MASTER] Updated Department: {code}")
+
+    # 2. Đồng bộ BRANCHES (chỉ chi nhánh thật B*)
     # BRANCHES = ["B1", "B2", ...]
     # BRANCH_COORDINATES = {"B1": [lat, lng], ...}
     for code in BRANCHES:
         branch = db.query(Branch).filter(Branch.branch_code == code).first()
-        
+
         # Lấy tọa độ nếu có
         coords = BRANCH_COORDINATES.get(code)
         lat, lng = (coords[0], coords[1]) if coords else (None, None)
-        
+
         if not branch:
             branch = Branch(
-                branch_code=code, 
+                branch_code=code,
                 name=f"Chi nhánh {code}" if code.startswith("B") else code,
                 gps_lat=lat,
                 gps_lng=lng
@@ -116,12 +132,26 @@ def sync_master_data(db: Session):
             logger.info(f"[MASTER] Created Branch: {code}")
         else:
             # Cập nhật tọa độ nếu chưa có hoặc thay đổi
-            update = False
             if lat is not None and (branch.gps_lat != lat or branch.gps_lng != lng):
                 branch.gps_lat = lat
                 branch.gps_lng = lng
-                update = True
                 logger.info(f"[MASTER] Updated coordinates for Branch: {code}")
-            
+
+    # 3. Đảm bảo có chi nhánh Kho Tổng / Văn phòng (head office cho WMS)
+    ho = db.query(Branch).filter(Branch.branch_code == HEADOFFICE_BRANCH["code"]).first()
+    if not ho:
+        # Nếu DB cũ còn branch giả ADMIN/BOSS/HEAD/TONG → tận dụng làm head office
+        ho = db.query(Branch).filter(
+            func.upper(Branch.branch_code).in_(["ADMIN", "BOSS", "HEAD", "TONG"])
+        ).first()
+    if not ho:
+        ho = Branch(branch_code=HEADOFFICE_BRANCH["code"], name=HEADOFFICE_BRANCH["name"],
+                    is_headoffice=True, is_active=True)
+        db.add(ho)
+        logger.info(f"[MASTER] Created head-office Branch: {HEADOFFICE_BRANCH['code']}")
+    elif not ho.is_headoffice:
+        ho.is_headoffice = True
+        logger.info(f"[MASTER] Marked Branch {ho.branch_code} as head office")
+
     db.commit()
     logger.info("Master Data synchronization finished.")

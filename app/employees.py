@@ -261,62 +261,62 @@ working_staff = [
 #--------------------------------------- LỄ TÂN CHẠY CA & DỰ BỊ --------------------------------------------#
     {
         "employee_id": "NV063", "code": "lt.lmtrung", "name": "Lê Minh Trung",
-        "role": "letan", "branch": "DI DONG", "shift": None
+        "role": "letan", "branch": None, "shift": None
     },
     {
         "employee_id": "NV065", "code": "lt.ndmluan", "name": "Nguyễn Đỗ Minh Luân",
-        "role": "letan", "branch": "DI DONG", "shift": None
+        "role": "letan", "branch": None, "shift": None
     },
 #--------------------------------------- BUỒNG PHÒNG CHẠY CA --------------------------------------------#
     {
         "employee_id": "NV067", "code": "bp.ltphuc", "name": "Lê Trọng Phúc",
-        "role": "buongphong", "branch": "DI DONG", "shift": None
+        "role": "buongphong", "branch": None, "shift": None
     },
     {
         "employee_id": "NV068", "code": "bp.tnanh", "name": "Trần Ngọc Ánh",
-        "role": "buongphong", "branch": "DI DONG", "shift": None
+        "role": "buongphong", "branch": None, "shift": None
     },
 #--------------------------------------- QUẢN LÍ VÀ KTV --------------------------------------------#
     {
         "employee_id": "NV070", "code": "ktv.ltphuc", "name": "Lê Trọng Phúc",
-        "role": "ktv", "branch": "KTV", "shift": None
+        "role": "ktv", "branch": None, "shift": None
     },
     {
         "employee_id": "NV084", "code": "ktv.hvsau", "name": "Huỳnh Văn Sáu",
-        "role": "ktv", "branch": "KTV", "shift": None
+        "role": "ktv", "branch": None, "shift": None
     },
     {
         "employee_id": "NV072", "code": "ql.tpnguyen", "name": "Trần Phát Nguyên",
-        "role": "quanly", "branch": "QL", "shift": None
+        "role": "quanly", "branch": None, "shift": None
     },
     {
         "employee_id": "NV073", "code": "ql.tnanh", "name": "Trần Ngọc Ánh",
-        "role": "quanly", "branch": "QL", "shift": None
+        "role": "quanly", "branch": None, "shift": None
     },
     {
         "employee_id": "NV074", "code": "ql.ndmluan", "name": "Nguyễn Đỗ Minh Luân",
-        "role": "quanly", "branch": "QL", "shift": None
+        "role": "quanly", "branch": None, "shift": None
     },
 #--------------------------------------- ADMIN & BAN GIÁM ĐỐC --------------------------------------------#
     {
         "employee_id": "NV999", "code": "Tminh", "name": "Vincent Minh",
-        "role": "admin", "branch": "ADMIN", "shift": None
+        "role": "admin", "branch": None, "shift": None
     },
     {
         "employee_id": "NV998", "code": "Tlinh", "name": "Thùy Linh",
-        "role": "admin", "branch": "ADMIN", "shift": None
+        "role": "admin", "branch": None, "shift": None
     },
     {
         "employee_id": "NV995", "code": "Mluan", "name": "Nguyễn Đỗ Minh Luân",
-        "role": "admin", "branch": "ADMIN", "shift": None
+        "role": "admin", "branch": None, "shift": None
     },
     {
         "employee_id": "NV996", "code": "Pnguyen", "name": "Trần Phát Nguyên",
-        "role": "admin", "branch": "ADMIN", "shift": None
+        "role": "admin", "branch": None, "shift": None
     },
     {
         "employee_id": "NV997", "code": "Bin", "name": "Sếp Bin",
-        "role": "boss", "branch": "BOSS", "shift": None
+        "role": "boss", "branch": None, "shift": None
     },
 ]
 #--------------------------------------- OFF --------------------------------------------#
@@ -331,7 +331,7 @@ off_staff = [
     },
     {
         "employee_id": "NV066", "code": "lt.tttin", "name": "Trần Thiện Tín",
-        "role": "letan", "branch": "DI DONG", "shift": None
+        "role": "letan", "branch": None, "shift": None
     },
     {
         "employee_id": "NV009", "code": "lt.ndkhai", "name": "Nguyễn Đăng Khải",
@@ -347,7 +347,7 @@ off_staff = [
     },
     {
         "employee_id": "NV071", "code": "ktv.dthich", "name": "Danh Thích",
-        "role": "ktv", "branch": "KTV", "shift": None
+        "role": "ktv", "branch": None, "shift": None
     },
     {
         "employee_id": "NV017", "code": "bp.ttphu", "name": "Trần Thanh Phú",

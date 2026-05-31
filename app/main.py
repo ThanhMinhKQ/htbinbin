@@ -54,6 +54,7 @@ from .api.pms.guest_crm_api import router as guest_crm_router
 
 from .core.config import settings, logger
 from .core.security import get_branch_code
+from .core.permissions import can_view_all_branches
 from .core.utils import VN_TZ
 from .db.session import SessionLocal, engine, _task_engine, Base
 from .db.utils import reset_all_sequences, sync_master_data
@@ -66,6 +67,7 @@ from .services.reservation_jobs import (
     mark_reservation_no_shows,
     release_expired_inventory_holds,
 )
+from .services.retention_jobs import run_retention_cleanup
 
 # --- LIFESPAN ---
 @asynccontextmanager
@@ -123,21 +125,23 @@ async def ensure_active_branch_in_session(request: Request, call_next):
             current_user = db.query(User).filter(User.id == user_data.get("id")).first()
             
             if current_user:
-                # Xử lý Role: chuyển về chữ thường và cắt khoảng trắng thừa
-                role = str(current_user.department.role_code if current_user.department else "").strip().lower()
-                
-                # Check danh sách quyền Admin mở rộng
-                admin_roles = ["admin", "superadmin", "quanly", "manager", "boss", "giamdoc"]
-                
-                if role in admin_roles:
+                # Backfill access_level vào session cũ (session trước khi có cấp quyền)
+                if current_user.department and current_user.department.access_level:
+                    lvl = current_user.department.access_level.value
+                    if user_data.get("access_level") != lvl:
+                        user_data["access_level"] = lvl
+                        request.session["user"] = user_data
+
+                # Cấp quyền MANAGER trở lên → xem toàn hệ thống (không ghim chi nhánh)
+                if can_view_all_branches(current_user):
                     request.session["active_branch"] = "HỆ THỐNG"
-                    logger.info(f"Middleware: Đã set 'HỆ THỐNG' cho user {current_user.employee_code} (Role: {role})")
-                
+                    logger.info(f"Middleware: Đã set 'HỆ THỐNG' cho user {current_user.employee_code}")
+
                 elif current_user.last_active_branch:
                     branch_code = get_branch_code(current_user.last_active_branch)
                     if branch_code:
                         request.session["active_branch"] = branch_code
-                
+
                 else:
                     request.session["active_branch"] = "Chưa phân bổ"
 
@@ -334,6 +338,18 @@ async def startup_event():
                 id="reservation_auto_no_show",
             )
             logger.info("✅ Reservation Hub jobs đã đăng ký: inventory, holds, no-show")
+
+            # --- DỌN DỮ LIỆU LOG CŨ (Mỗi ngày 03:30, off-peak) ---
+            # Dọn ota_parsing_logs (rỗng hóa nội dung nặng), log audit/attendance
+            # và room_inventory_daily quá khứ xa. Giữ 365 ngày. Không chạy ngay
+            # lúc startup vì có thể nặng trên DB lớn.
+            scheduler.add_job(
+                run_retention_cleanup,
+                'cron', hour=3, minute=30,
+                misfire_grace_time=3600,
+                id="retention_cleanup",
+            )
+            logger.info("🧹 Cronjob dọn dữ liệu log cũ đã đăng ký (chạy mỗi ngày 03:30)")
 
             # --- GATECHEAP KEEP-ALIVE (Mỗi 3 phút) ---
             # Provider gatecheap.io.vn ngủ đông sau idle, request đầu fail/chậm.

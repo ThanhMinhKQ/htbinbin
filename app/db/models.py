@@ -7,7 +7,7 @@ from sqlalchemy import (
     CheckConstraint, UniqueConstraint
 )
 from datetime import date as date_type
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from datetime import datetime
 
@@ -24,6 +24,13 @@ class LostItemStatus(str, enum.Enum):
     DISPOSED = "DISPOSED"
     DISPOSABLE = "DISPOSABLE"
     DELETED = "DELETED"
+
+class AccessLevel(str, enum.Enum):
+    """Cấp quyền cố định — nguồn chân lý cho phân quyền (xem app/core/permissions.py)."""
+    OWNER = "OWNER"       # Chủ (boss cũ) — toàn hệ thống, cao nhất
+    ADMIN = "ADMIN"       # Quản trị (admin cũ) — toàn hệ thống
+    MANAGER = "MANAGER"   # Quản lý (quanly cũ) — xem nhiều chi nhánh
+    STAFF = "STAFF"       # Nhân viên (letan/buongphong/baove/ktv/khac) — 1 chi nhánh
 
 class ShiftReportStatus(str, enum.Enum):
     PENDING = "PENDING"
@@ -98,15 +105,27 @@ class Branch(Base):
     personal_bank_account = Column(String(100), nullable=True)
     personal_bank_holder = Column(String(255), nullable=True)
 
+    # Phân loại chi nhánh
+    is_headoffice = Column(Boolean, nullable=False, server_default="false")  # Kho Tổng / Văn phòng
+    is_active = Column(Boolean, nullable=False, server_default="true")       # ẩn chi nhánh giả/ngừng dùng khỏi picker
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class Department(Base):
-    """Phòng ban / Vai trò"""
+    """Phòng ban — tổ chức tự do (CRUD qua HR). Cấp quyền nằm ở access_level."""
     __tablename__ = "departments"
-    
+
     id = Column(Integer, primary_key=True)
-    role_code = Column(String(50), unique=True, nullable=False, index=True)
+    # Cột vật lý vẫn là "role_code" (tránh rename rủi ro); ORM expose là `code`.
+    code = Column("role_code", String(50), unique=True, nullable=False, index=True)
+    role_code = synonym("code")  # back-compat cho code cũ đọc .role_code
     name = Column(String(255), nullable=False)
+    access_level = Column(
+        SQLAlchemyEnum(AccessLevel, name="access_level", native_enum=True),
+        nullable=False, server_default="STAFF",
+    )
+    is_active = Column(Boolean, nullable=False, server_default="true")
+    is_system = Column(Boolean, nullable=False, server_default="false")  # built-in, không cho xoá
 
 # ====================================================================
 # 3. CORE USER MODEL
@@ -122,7 +141,7 @@ class User(Base):
     password = Column(String(255), nullable=True)
     
     department_id = Column(Integer, ForeignKey("departments.id", ondelete="SET NULL"))
-    main_branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"))
+    main_branch_id = Column(Integer, ForeignKey("branches.id", ondelete="SET NULL"), nullable=True)
     
     shift = Column(String(10), nullable=True)
     is_active = Column(Boolean, default=True)

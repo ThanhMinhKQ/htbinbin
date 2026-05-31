@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates  # type: ignore
 from sqlalchemy.orm import Session  # type: ignore
 from sqlalchemy import func, case, or_, and_  # type: ignore
 from app.db.session import get_db  # type: ignore
+from app.core.permissions import is_manager  # type: ignore
 from app.db.models import Booking, OTAParsingLog, OTAParsingStatus, BookingStatus, Branch  # type: ignore
 from app.services.ota_agent.ota_service import ota_dashboard_service  # type: ignore
 from app.services.ota_agent.gmail_service import gmail_service  # type: ignore
@@ -283,8 +284,7 @@ def update_booking(
     """Admin-only: Cập nhật thông tin booking bị AI trích xuất sai/thiếu."""
     user = request.session.get("user", {})
     user_role = (user.get("role") or "").lower()
-    ADMIN_ROLES = {"admin", "quanly", "manager", "boss"}
-    is_admin = user_role in ADMIN_ROLES
+    is_admin = is_manager(user)
     is_letan = user_role == "letan"
 
     # Chỉ admin và lễ tân mới được chỉnh sửa (với phạm vi khác nhau)
@@ -578,7 +578,7 @@ def delete_booking(
     """Xoá phiếu đặt phòng (chỉ admin)."""
     user = request.session.get("user", {})
     role = (user.get("role") or "").lower()
-    if role not in ("admin", "quanly", "manager", "boss"):
+    if not is_manager(user):
         raise HTTPException(status_code=403, detail="Chỉ admin mới được xoá phiếu đặt phòng.")
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:

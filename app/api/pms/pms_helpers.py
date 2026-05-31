@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, or_
 
 from ...core.utils import VN_TZ
+from ...core.permissions import is_manager as _perm_is_manager
 from ...db.models import Branch, HotelRoom, HotelStay, HotelStayStatus, User
 from ...services.folio_service import generate_folio_code, rebalance_folio
 
@@ -27,14 +28,14 @@ def _require_login(request: Request) -> dict:
     return user
 
 
+# PMS trước đây coi quanly (MANAGER) là "admin-class". Giữ nguyên hành vi:
+# cả hai wrapper đều = MANAGER trở lên (delegate về nguồn chân lý permissions).
 def _is_admin(user: dict) -> bool:
-    role = (user.get("role") or "").strip().lower()
-    return role in {"admin", "quanly", "manager", "boss", "giamdoc", "superadmin"}
+    return _perm_is_manager(user)
 
 
 def _is_manager(user: dict) -> bool:
-    role = (user.get("role") or "").strip().lower()
-    return role in {"admin", "quanly", "manager", "boss", "giamdoc", "superadmin", "dieuhanh"}
+    return _perm_is_manager(user)
 
 
 def _active_branch(request: Request) -> str:

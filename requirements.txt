@@ -7,6 +7,7 @@ starlette>=0.46.0
 # ===== DATABASE =====
 SQLAlchemy==2.0.32
 psycopg[binary]==3.2.13
+alembic==1.13.2
 
 # ===== VALIDATION / CONFIG =====
 pydantic==2.12.0

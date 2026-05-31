@@ -10,6 +10,7 @@ from ..db.session import get_db, SessionLocal
 from ..db.models import User, Department, Branch, AttendanceLog
 from ..core.utils import get_current_work_shift, _get_log_shift_for_user
 from ..core.security import verify_password, hash_password, is_hashed, dummy_verify
+from ..core.permissions import is_admin
 from ..core.rate_limit import limiter
 from ..schemas.user import VerifyPasswordPayload # THÊM: Import schema mới
 from ..core.config import logger # Import logger từ core
@@ -65,20 +66,25 @@ def login_submit(
 
     # === THAY ĐỔI: Truy cập trực tiếp từ relationship, không cần query lại ===
     user_role_code = user.department.role_code if user.department else "khac"
+    user_access_level = (
+        user.department.access_level.value
+        if user.department and user.department.access_level else "STAFF"
+    )
     user_branch_code = user.main_branch.branch_code if user.main_branch else ""
-    
+
     # Tạo dữ liệu session
     session_data = {
         "id": user.id,
-        "employee_id": user.employee_id, 
+        "employee_id": user.employee_id,
         "code": user.employee_code,
-        "role": user_role_code,
+        "role": user_role_code,           # vai trò nghiệp vụ (letan/ktv/...)
+        "access_level": user_access_level, # cấp quyền (OWNER/ADMIN/MANAGER/STAFF)
         "branch": user_branch_code,
         "name": user.name
     }
 
     # --- Phần logic xử lý check-in phía dưới giữ nguyên ---
-    if user_role_code in ["boss", "admin"]:
+    if is_admin(session_data):
         request.session["user"] = session_data
         request.session["after_checkin"] = "choose_function"
         return RedirectResponse("/pms", status_code=303)
@@ -192,7 +198,7 @@ def sync_employees_endpoint(request: Request):
     Chỉ cho phép admin hoặc boss thực hiện.
     """
     user = request.session.get("user")
-    if not user or user.get("role") not in ["admin", "boss"]:
+    if not user or not is_admin(user):
         raise HTTPException(status_code=403, detail="Chỉ admin hoặc boss mới được đồng bộ nhân viên.")
     with SessionLocal() as db:
         sync_employees_from_source(db=db, employees_source=employees, force_delete=True)
@@ -248,10 +254,10 @@ async def verify_current_user_password(
         dummy_verify()  # cân bằng thời gian phản hồi, tránh timing attack
         raise HTTPException(status_code=401, detail=_generic_error)
 
-    user_role = user.department.role_code if user.department else None
     pw_ok = verify_password(payload.password, user.password)
 
-    if not pw_ok or user_role not in ['admin', 'boss']:
+    # Chỉ cho phép tài khoản cấp ADMIN trở lên xác thực (admin/boss cũ)
+    if not pw_ok or not is_admin(user):
         raise HTTPException(status_code=401, detail=_generic_error)
 
     # Xác thực thành công — rehash plaintext cũ sang bcrypt

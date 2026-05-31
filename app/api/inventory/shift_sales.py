@@ -8,10 +8,9 @@ from ...db.models import (
     Product, StockMovement, Warehouse, User, TransactionTypeWMS
 )
 from ...core.utils import VN_TZ, get_current_work_shift
+from ...core.permissions import is_manager
 
 router = APIRouter()
-
-ADMIN_ROLES = {"boss", "admin", "quanly"}
 
 
 def _shift_window():
@@ -158,7 +157,7 @@ async def get_my_shift_sales(
 
     caller_id = user_data.get("id")
     caller_role = user_data.get("role", "")
-    is_admin = caller_role in ADMIN_ROLES
+    is_admin = is_manager(user_data)
 
     if target_user_id and target_user_id != caller_id:
         if not is_admin:
@@ -192,8 +191,7 @@ async def get_shift_sales_staff(
     if not user_data:
         raise HTTPException(status_code=401, detail="Không có phiên đăng nhập")
 
-    caller_role = user_data.get("role", "")
-    if caller_role not in ADMIN_ROLES:
+    if not is_manager(user_data):
         raise HTTPException(status_code=403, detail="Không có quyền truy cập")
 
     start_dt, end_dt = _shift_window()

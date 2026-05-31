@@ -8,6 +8,7 @@ from typing import Optional, List
 from ..db.session import get_db
 from ..db.models import User, Task, Branch, Department
 from ..core.security import get_active_branch
+from ..core.permissions import is_admin, is_manager
 from ..core.utils import format_datetime_display, VN_TZ, clean_query_string, parse_datetime_input
 from ..services.task_service import get_task_stats
 from ..core.config import logger
@@ -262,7 +263,7 @@ def _get_filtered_tasks_query(
         tasks_query = tasks_query.outerjoin(Author, Task.author).outerjoin(Assignee, Task.assignee)
     # Lọc theo trạng thái (loại bỏ "Đã xoá" cho vai trò không phải quản lý)
     role = user_data.get("role")
-    if role not in ["quanly", "admin", "boss"]:
+    if not is_manager(user_data):
         tasks_query = tasks_query.filter(Task.status != "Đã xoá")
 
     # Lọc theo chi nhánh (dựa trên branch_code)
@@ -409,7 +410,7 @@ async def delete_task(task_id: int, request: Request, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Không tìm thấy công việc")
 
     # Kiểm tra vai trò từ session
-    if user_session.get("role") in ["quanly", "admin", "boss"]:
+    if is_manager(user_session):
         db.delete(task)
     else:
         # Cập nhật trạng thái, người xóa và thời gian xóa
@@ -473,7 +474,7 @@ async def batch_delete_permanent_tasks(
     if not user_session:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
-    if user_session.get("role") not in ["admin", "boss"]:
+    if not is_admin(user_session):
         raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
 
     try:
