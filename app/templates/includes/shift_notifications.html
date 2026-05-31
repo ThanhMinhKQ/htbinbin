@@ -21,9 +21,52 @@
           <span id="shift-notice-progress-bar"></span>
         </div>
       </div>
-      <button id="shift-notice-read-btn" type="button" disabled>Đã đọc</button>
+      <div class="shift-notice-foot-actions">
+        <button id="shift-notice-back-btn" type="button" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>Quay lại</span>
+        </button>
+        <button id="shift-notice-read-btn" type="button" disabled>Đã đọc</button>
+      </div>
     </div>
   </section>
+</div>
+
+<!-- Full-screen image viewer (giống CRM xem giấy tờ) -->
+<div id="shift-notice-imgviewer" class="snv-overlay" hidden>
+  <div class="snv-toolbar">
+    <span class="snv-counter" id="snv-counter"></span>
+    <div class="snv-tools">
+      <button type="button" id="snv-zoom-out" title="Thu nhỏ (-)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      </button>
+      <span class="snv-zoom" id="snv-zoom">100%</span>
+      <button type="button" id="snv-zoom-in" title="Phóng to (+)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      </button>
+      <button type="button" id="snv-reset" title="Khôi phục kích thước">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"/><line x1="3" y1="3" x2="3" y2="8"/><line x1="3" y1="8" x2="8" y2="8"/></svg>
+      </button>
+      <button type="button" id="snv-rotate" title="Xoay ảnh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+      <button type="button" id="snv-download" title="Tải xuống">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+      <button type="button" id="snv-close" class="snv-close-btn" title="Đóng (Esc)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <button type="button" id="snv-prev" class="snv-nav snv-prev" title="Ảnh trước (←)" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button type="button" id="snv-next" class="snv-nav snv-next" title="Ảnh sau (→)" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+  <div class="snv-stage" id="snv-stage">
+    <img id="snv-img" class="snv-img" alt="Xem ảnh lớn" />
+  </div>
 </div>
 
 <style>
@@ -130,37 +173,38 @@
     transform: translateY(0) scale(1);
   }
   .shift-notice-head {
+    flex: 0 0 auto;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: clamp(16px, 3vw, 34px);
-    padding: clamp(26px, 4vw, 44px) clamp(24px, 4.4vw, 54px) clamp(18px, 2.8vw, 28px);
+    gap: clamp(14px, 2.4vw, 28px);
+    padding: clamp(14px, 2vw, 20px) clamp(20px, 4vw, 44px) clamp(12px, 1.6vw, 16px);
     border-bottom: 1px solid var(--sn-line);
   }
   .shift-notice-kicker {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 7px;
+    margin-bottom: 5px;
     color: var(--sn-accent);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
   }
   .shift-notice-kicker::before {
     content: "";
-    width: 9px;
-    height: 9px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: var(--sn-accent-2);
-    box-shadow: 0 0 0 7px rgba(20, 184, 166, 0.12);
+    box-shadow: 0 0 0 5px rgba(20, 184, 166, 0.12);
   }
   .shift-notice-head h2 {
     margin: 0;
     max-width: 100%;
     color: var(--sn-ink);
-    font-size: clamp(20px, 2.6vw, 30px);
+    font-size: clamp(18px, 2.1vw, 24px);
     line-height: 1.12;
     font-weight: 800;
     letter-spacing: -0.025em;
@@ -188,21 +232,23 @@
     color: #fcd34d;
   }
   .shift-notice-timeline {
+    flex: 0 0 auto;
     display: flex;
     gap: 8px;
-    padding: 18px clamp(24px, 4.4vw, 54px) 0;
+    padding: 12px clamp(20px, 4vw, 44px) 0;
     width: 100%;
   }
   .shift-notice-timeline-step {
     position: relative;
     flex: 1;
-    height: 8px;
+    height: 6px;
     background: rgba(120, 113, 108, 0.16);
     border-radius: 999px;
     overflow: hidden;
     transition: transform 0.28s ease, background 0.28s ease;
   }
   html.dark .shift-notice-timeline-step { background: rgba(148, 163, 184, 0.16); }
+  .shift-notice-timeline-step.is-clickable { cursor: pointer; }
   .shift-notice-timeline-step.completed::before,
   .shift-notice-timeline-step.active::before {
     content: "";
@@ -223,9 +269,10 @@
     50% { transform: translateX(12%); filter: saturate(1.35); }
   }
   .shift-notice-body {
-    padding: clamp(22px, 3.2vw, 34px) clamp(24px, 4.4vw, 54px) clamp(24px, 3.8vw, 42px);
+    flex: 1 1 auto;
+    padding: clamp(16px, 2.4vw, 26px) clamp(20px, 4vw, 44px) clamp(18px, 2.6vw, 30px);
     overflow-y: auto;
-    min-height: clamp(220px, 34dvh, 420px);
+    min-height: clamp(240px, 46dvh, 560px);
     scrollbar-width: thin;
   }
   .shift-notice-body::-webkit-scrollbar { width: 10px; }
@@ -263,6 +310,7 @@
     margin: 0.75rem 0;
     border-radius: 0.75rem;
     border: 1px solid rgb(226 232 240);
+    cursor: zoom-in;
   }
   html.dark .sn-rich-content img {
     border-color: rgb(51 65 85);
@@ -299,11 +347,12 @@
   }
 
   .shift-notice-foot {
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: clamp(16px, 3vw, 34px);
-    padding: clamp(18px, 2.8vw, 28px) clamp(24px, 4.4vw, 54px);
+    padding: clamp(12px, 1.8vw, 18px) clamp(20px, 4vw, 44px);
     border-top: 1px solid var(--sn-line);
     background: linear-gradient(180deg, rgba(255,255,255,0.44), rgba(255, 247, 237, 0.78));
   }
@@ -318,7 +367,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   .shift-notice-wait {
     min-width: 0;
@@ -346,7 +395,7 @@
   }
   .shift-notice-progress {
     position: relative;
-    height: 12px;
+    height: 8px;
     overflow: hidden;
     border: 1px solid rgba(120, 113, 108, 0.16);
     border-radius: 999px;
@@ -379,12 +428,43 @@
   @keyframes shiftNoticeProgressShine {
     to { transform: translateX(100%); }
   }
+  .shift-notice-foot-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  #shift-notice-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 46px;
+    padding: 0 16px;
+    border: 1px solid var(--sn-line);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--sn-muted);
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 800;
+    transition: transform 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  }
+  #shift-notice-back-btn[hidden] { display: none; }
+  #shift-notice-back-btn svg { width: 18px; height: 18px; }
+  #shift-notice-back-btn:hover {
+    transform: translateY(-2px);
+    color: var(--sn-accent);
+    border-color: rgba(217, 119, 6, 0.4);
+  }
+  html.dark #shift-notice-back-btn {
+    background: rgba(15, 23, 42, 0.5);
+  }
   #shift-notice-read-btn {
     position: relative;
-    min-width: clamp(152px, 18vw, 190px);
-    height: 54px;
+    min-width: clamp(140px, 16vw, 180px);
+    height: 46px;
     border: 0;
-    border-radius: 18px;
+    border-radius: 14px;
     background: linear-gradient(135deg, #0f766e, #14b8a6 58%, #f59e0b);
     color: #ffffff;
     cursor: pointer;
@@ -442,6 +522,119 @@
     .shift-notice-read-dot,
     .shift-notice-progress::after { animation: none !important; }
   }
+
+  /* === Full-screen image viewer === */
+  .snv-overlay[hidden] { display: none !important; }
+  .snv-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483600;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+    overflow: hidden;
+  }
+  .snv-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    cursor: default;
+  }
+  .snv-img {
+    max-width: 90vw;
+    max-height: 86vh;
+    object-fit: contain;
+    border-radius: 8px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    transition: transform 0.15s ease-out;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .snv-img.is-grabbable { cursor: grab; }
+  .snv-img.is-grabbing { cursor: grabbing; transition: none; }
+  .snv-toolbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+    z-index: 5;
+    cursor: default;
+  }
+  .snv-counter {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .snv-tools {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .snv-tools button {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.18s;
+  }
+  .snv-tools button:hover { background: rgba(255, 255, 255, 0.28); }
+  .snv-tools button svg { width: 18px; height: 18px; }
+  .snv-close-btn { background: rgba(220, 38, 38, 0.55) !important; }
+  .snv-close-btn:hover { background: rgba(220, 38, 38, 0.9) !important; }
+  .snv-zoom {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    min-width: 42px;
+    text-align: center;
+  }
+  .snv-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.18s;
+    z-index: 5;
+  }
+  .snv-nav[hidden] { display: none; }
+  .snv-nav:hover { background: rgba(255, 255, 255, 0.3); }
+  .snv-nav svg { width: 24px; height: 24px; }
+  .snv-prev { left: 20px; }
+  .snv-next { right: 20px; }
+  @media (max-width: 640px) {
+    .snv-nav { width: 40px; height: 40px; }
+    .snv-prev { left: 8px; }
+    .snv-next { right: 8px; }
+    .snv-tools button { width: 34px; height: 34px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .snv-img { transition: none !important; }
+  }
 </style>
 
 <script>
@@ -456,11 +649,15 @@
   const readBtn = document.getElementById('shift-notice-read-btn');
   const progressBar = document.getElementById('shift-notice-progress-bar');
   const readState = document.querySelector('.shift-notice-read-state');
+  const backBtn = document.getElementById('shift-notice-back-btn');
 
   let items = [];
   let index = 0;
   let timer = null;
   let current = null;
+  let maxReached = 0;
+  const ackedIds = new Set();
+  const lockCompleted = new Set();
 
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -604,6 +801,7 @@
         waitEl.textContent = 'Bạn có thể xác nhận sau khi đã đọc xong.';
         if (readState) readState.classList.add('is-ready');
         if (progressBar) progressBar.style.width = '100%';
+        if (current) lockCompleted.add(current.id);
         return;
       }
       readBtn.textContent = `Đã đọc (${remaining}s)`;
@@ -637,16 +835,41 @@
       for (let i = 0; i < items.length; i++) {
         const step = document.createElement('div');
         step.className = 'shift-notice-timeline-step';
-        if (i < index) {
+        if (i < maxReached) {
           step.classList.add('completed');
-        } else if (i === index) {
+        }
+        if (i === index) {
           step.classList.add('active');
+        }
+        if (i <= maxReached) {
+          step.classList.add('is-clickable');
+          step.addEventListener('click', () => goTo(i));
         }
         timelineEl.appendChild(step);
       }
     } else {
       timelineEl.style.display = 'none';
     }
+  }
+
+  function goTo(target) {
+    if (target < 0 || target > maxReached || target >= items.length) return;
+    if (target === index) return;
+    index = target;
+    render();
+  }
+
+  function updateBackBtn() {
+    if (!backBtn) return;
+    backBtn.hidden = index <= 0;
+  }
+
+  function setReadyState(label) {
+    clearInterval(timer);
+    readBtn.disabled = false;
+    readBtn.textContent = label;
+    if (readState) readState.classList.add('is-ready');
+    if (progressBar) progressBar.style.width = '100%';
   }
 
   function render() {
@@ -657,17 +880,31 @@
     }
     showOverlay();
     updateTimeline();
-    
+    updateBackBtn();
+
     titleEl.textContent = current.title || 'Thông báo nội bộ';
     bodyEl.innerHTML = sanitizeRichHtml(current.body || '');
+    bindBodyImages();
     countEl.textContent = `${index + 1}/${items.length}`;
     countEl.style.display = items.length > 1 ? '' : 'none';
 
-    lock(current.min_read_seconds || 5);
+    const alreadyRead = index < maxReached || ackedIds.has(current.id) || lockCompleted.has(current.id);
+    if (alreadyRead) {
+      const more = index < maxReached;
+      waitEl.textContent = more ? 'Bạn đã đọc thông báo này.' : 'Bạn có thể xác nhận sau khi đã đọc xong.';
+      setReadyState(more ? 'Tiếp theo' : 'Đã đọc');
+    } else {
+      lock(current.min_read_seconds || 5);
+    }
   }
 
   async function acknowledge() {
     if (!current || readBtn.disabled) return;
+    const reviewing = index < maxReached;
+    if (reviewing) {
+      goTo(index + 1);
+      return;
+    }
     readBtn.disabled = true;
     try {
       await fetch(`/attendance/api/shift-notifications/${current.id}/ack`, {
@@ -678,11 +915,164 @@
       readBtn.disabled = false;
       return;
     }
+    ackedIds.add(current.id);
+    if (index + 1 > maxReached) maxReached = index + 1;
+    if (maxReached >= items.length) {
+      hideOverlay();
+      return;
+    }
     index += 1;
     render();
   }
 
   readBtn.addEventListener('click', acknowledge);
+  if (backBtn) backBtn.addEventListener('click', () => goTo(index - 1));
+
+  // === Full-screen image viewer (giống CRM xem giấy tờ) ===
+  const viewer = document.getElementById('shift-notice-imgviewer');
+  const vImg = document.getElementById('snv-img');
+  const vStage = document.getElementById('snv-stage');
+  const vCounter = document.getElementById('snv-counter');
+  const vZoomLabel = document.getElementById('snv-zoom');
+  const vPrev = document.getElementById('snv-prev');
+  const vNext = document.getElementById('snv-next');
+  let vUrls = [];
+  let vIndex = -1;
+  let vZoom = 1, vRotation = 0, vPanX = 0, vPanY = 0;
+  let vDragging = false, vDidPan = false, vDragOX = 0, vDragOY = 0;
+
+  function bindBodyImages() {
+    if (!bodyEl) return;
+    bodyEl.querySelectorAll('img').forEach(img => {
+      img.style.cursor = 'zoom-in';
+      img.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const urls = [...bodyEl.querySelectorAll('img')].map(i => i.getAttribute('src')).filter(Boolean);
+        const start = urls.indexOf(img.getAttribute('src'));
+        openViewer(urls, start < 0 ? 0 : start);
+      });
+    });
+  }
+
+  function vApplyTransform() {
+    vImg.style.transform = `translate(${vPanX}px,${vPanY}px) scale(${vZoom}) rotate(${vRotation}deg)`;
+    vImg.classList.toggle('is-grabbable', vZoom > 1);
+    vImg.classList.toggle('is-grabbing', vDragging);
+    if (vZoomLabel) vZoomLabel.textContent = Math.round(vZoom * 100) + '%';
+  }
+  function vReset() {
+    vZoom = 1; vRotation = 0; vPanX = 0; vPanY = 0; vDragging = false; vDidPan = false;
+    vApplyTransform();
+  }
+  function vRender() {
+    if (vIndex < 0 || vIndex >= vUrls.length) return;
+    vImg.src = vUrls[vIndex];
+    vCounter.textContent = vUrls.length > 1 ? `${vIndex + 1} / ${vUrls.length}` : '';
+    const multi = vUrls.length > 1;
+    vPrev.hidden = !multi;
+    vNext.hidden = !multi;
+    vReset();
+  }
+  function openViewer(urls, start) {
+    vUrls = urls;
+    vIndex = start;
+    viewer.hidden = false;
+    document.body.style.overflow = 'hidden';
+    vRender();
+  }
+  function closeViewer() {
+    viewer.hidden = true;
+    vIndex = -1;
+    if (overlay.classList.contains('is-open')) document.body.style.overflow = 'hidden';
+    else document.body.style.removeProperty('overflow');
+  }
+  function vPrevImg() { if (vUrls.length > 1) { vIndex = (vIndex - 1 + vUrls.length) % vUrls.length; vRender(); } }
+  function vNextImg() { if (vUrls.length > 1) { vIndex = (vIndex + 1) % vUrls.length; vRender(); } }
+  function vZoomIn() { vZoom = Math.min(Math.round((vZoom + 0.25) * 100) / 100, 5); vApplyTransform(); }
+  function vZoomOut() { vZoom = Math.max(Math.round((vZoom - 0.25) * 100) / 100, 0.25); if (vZoom <= 1) { vPanX = 0; vPanY = 0; } vApplyTransform(); }
+  function vResetZoom() { vZoom = 1; vPanX = 0; vPanY = 0; vApplyTransform(); }
+  function vRotate() { vRotation = (vRotation + 90) % 360; vApplyTransform(); }
+  async function vDownload() {
+    const url = vUrls[vIndex];
+    if (!url) return;
+    const ext = (url.split('?')[0].split('.').pop() || 'jpg');
+    try {
+      const res = await fetch(url, { credentials: 'omit' });
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = 'thong_bao.' + ext;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+    } catch (e) {
+      window.open(url, '_blank');
+    }
+  }
+
+  if (viewer) {
+    document.getElementById('snv-zoom-in').addEventListener('click', (e) => { e.stopPropagation(); vZoomIn(); });
+    document.getElementById('snv-zoom-out').addEventListener('click', (e) => { e.stopPropagation(); vZoomOut(); });
+    document.getElementById('snv-reset').addEventListener('click', (e) => { e.stopPropagation(); vResetZoom(); });
+    document.getElementById('snv-rotate').addEventListener('click', (e) => { e.stopPropagation(); vRotate(); });
+    document.getElementById('snv-download').addEventListener('click', (e) => { e.stopPropagation(); vDownload(); });
+    document.getElementById('snv-close').addEventListener('click', (e) => { e.stopPropagation(); closeViewer(); });
+    vPrev.addEventListener('click', (e) => { e.stopPropagation(); vPrevImg(); });
+    vNext.addEventListener('click', (e) => { e.stopPropagation(); vNextImg(); });
+
+    viewer.addEventListener('click', () => closeViewer());
+    vStage.addEventListener('click', (e) => e.stopPropagation());
+
+    vImg.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.15 : -0.15;
+      vZoom = Math.min(Math.max(Math.round((vZoom + delta) * 100) / 100, 0.25), 5);
+      if (vZoom <= 1) { vPanX = 0; vPanY = 0; }
+      vApplyTransform();
+    }, { passive: false });
+    vImg.addEventListener('dblclick', () => { vZoom > 1 ? vResetZoom() : vZoomIn(); });
+    vImg.addEventListener('mousedown', (e) => {
+      if (vZoom <= 1) return;
+      e.preventDefault();
+      vDragging = true; vDidPan = false;
+      vDragOX = e.clientX - vPanX; vDragOY = e.clientY - vPanY;
+      vApplyTransform();
+    });
+    vImg.addEventListener('click', (e) => { if (vDidPan) e.stopPropagation(); });
+    window.addEventListener('mousemove', (e) => {
+      if (!vDragging) return;
+      vPanX = e.clientX - vDragOX; vPanY = e.clientY - vDragOY; vDidPan = true;
+      vApplyTransform();
+    });
+    window.addEventListener('mouseup', () => { if (vDragging) { vDragging = false; vApplyTransform(); } });
+    vImg.addEventListener('touchstart', (e) => {
+      if (vZoom <= 1) return;
+      const t = e.touches[0];
+      vDragging = true; vDidPan = false;
+      vDragOX = t.clientX - vPanX; vDragOY = t.clientY - vPanY;
+    }, { passive: true });
+    window.addEventListener('touchmove', (e) => {
+      if (!vDragging) return;
+      const t = e.touches[0];
+      vPanX = t.clientX - vDragOX; vPanY = t.clientY - vDragOY; vDidPan = true;
+      vApplyTransform();
+    }, { passive: true });
+    window.addEventListener('touchend', () => { vDragging = false; });
+
+    window.addEventListener('keydown', (e) => {
+      if (viewer.hidden) return;
+      switch (e.key) {
+        case 'Escape': closeViewer(); break;
+        case 'ArrowLeft': vPrevImg(); break;
+        case 'ArrowRight': vNextImg(); break;
+        case '+': case '=': vZoomIn(); break;
+        case '-': case '_': vZoomOut(); break;
+      }
+    });
+  }
 
   async function loadPending() {
     try {
