@@ -1080,6 +1080,19 @@ function shiftNotificationAdmin(options = {}) {
       { value: 'boss', label: 'Boss' }
     ],
     async init() {
+      // Khi modal đóng, editor Quill bị ẩn (display:none qua x-show) nhưng vùng
+      // chọn native có thể vẫn nằm trong nó. Listener selectionchange toàn cục
+      // của Quill khi đó chạy update() trên node ẩn → crash "offset of null".
+      // Bỏ focus và xoá range nằm trong editor mỗi khi đóng modal.
+      this.$watch('modalOpen', (open) => {
+        if (!open && this.quill) {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount && this.quill.root.contains(sel.anchorNode)) {
+            sel.removeAllRanges();
+          }
+          this.quill.blur();
+        }
+      });
       await this.load();
     },
     buildParams() {
