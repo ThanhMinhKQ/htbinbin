@@ -365,7 +365,7 @@
                                     ring-1 ring-inset ring-slate-300 dark:ring-slate-700
                                     focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm appearance-none">
                             <option value="" disabled selected>Chọn chi nhánh</option>
-                            {% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                            {% for b in branches %}<option value="{{ b.code }}">{{ b.label }}</option>{% endfor %}
                         </select>
                         <div class="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none">
                             <svg class="w-5 h-5 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" /></svg>
@@ -534,7 +534,7 @@
                         <select id="chi_nhanh" @change="currentPage = 1; fetchData(); fetchDashboardSummary()"
                             class="w-full py-2.5 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-blue-500 shadow-sm transition cursor-pointer">
                             <option value="" selected>Tất cả chi nhánh</option>
-                            {% for b in branches %}<option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>{% endfor %}
+                            {% for b in branches %}<option value="{{ b.code }}" {% if b.code == branch_filter %}selected{% endif %}>{{ b.label }}</option>{% endfor %}
                         </select>
                     </div>
                     {% endif %}
@@ -910,7 +910,7 @@
                                     ring-1 ring-inset ring-slate-300 dark:ring-slate-700
                                     focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm">
                                 <option value="" disabled selected>Chọn chi nhánh</option>
-                                {% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                                {% for b in branches %}<option value="{{ b.code }}">{{ b.label }}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
@@ -1117,7 +1117,7 @@
                                     ring-1 ring-inset ring-slate-300 dark:ring-slate-700
                                     focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm">
                             <option value="" disabled>Chọn chi nhánh</option>
-                            {% for b in branches %}<option value="{{ b }}">{{ b }}</option>{% endfor %}
+                            {% for b in branches %}<option value="{{ b.code }}">{{ b.label }}</option>{% endfor %}
                         </select>
                     </div>
                 </div>
@@ -1802,7 +1802,7 @@
                         class="w-full py-2 px-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm focus:ring-2 focus:ring-indigo-500 shadow-sm transition cursor-pointer">
                         <option value="">Tất cả chi nhánh</option>
                         {% for b in branches %}
-                        <option value="{{ b }}">{{ b }}</option>
+                        <option value="{{ b.code }}">{{ b.label }}</option>
                         {% endfor %}
                     </select>
                 </div>

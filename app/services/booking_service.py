@@ -23,7 +23,7 @@ from ..db.models import (
     RoomBlock,
 )
 from .room_inventory_service import InventoryService, iter_stay_dates
-from .shift_report_service import post_booking_deposit_to_shift
+from .shift_report_service import post_booking_deposit_to_shift, sync_booking_deposit_to_shift
 
 
 TERMINAL_STATUSES = {"CANCELLED", "CHECKED_OUT", "NO_SHOW"}
@@ -1068,7 +1068,7 @@ class BookingService:
         booking.updated_by = user_id
         booking.updated_at = self._now()
         self._log_booking_activity(booking, "BOOKING_MODIFIED", "Cập nhật đặt phòng", user_id)
-        self._post_booking_deposit_once(booking, user_id)
+        sync_booking_deposit_to_shift(self.db, booking, user_id)
         self.db.flush()
         return booking
 

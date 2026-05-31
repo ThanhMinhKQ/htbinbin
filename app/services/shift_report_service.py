@@ -298,6 +298,148 @@ def post_booking_deposit_to_shift(
     return shift_tx
 
 
+def sync_booking_deposit_to_shift(
+    db: Session,
+    booking,
+    user_id: Optional[int],
+) -> Optional[ShiftReportTransaction]:
+    """Đồng bộ giao dịch cọc trong Sổ Giao ca khi đặt phòng được tạo/sửa.
+
+    - Chưa từng ghi cọc + cọc mới > 0   → tạo mới (PENDING).
+    - Giao dịch cọc còn PENDING          → sửa số tiền / phương thức tại chỗ;
+                                           cọc về 0 → xoá mềm (DELETED).
+    - Giao dịch cọc đã CHỐT (CLOSED)     → giữ nguyên dòng đã chốt, tạo bút toán
+                                           điều chỉnh phần chênh lệch ở ca hiện tại.
+    - Cọc đã áp vào folio (đã check-in)  → folio sở hữu dòng tiền, không đụng.
+
+    Trả về giao dịch vừa tạo/sửa, hoặc None nếu không phát sinh thay đổi.
+    """
+    raw = dict(booking.raw_data or {})
+
+    # Cọc đã chuyển vào folio lúc check-in: mọi điều chỉnh phải đi qua folio,
+    # không sửa Sổ Giao ca ở đây để tránh ghi nhận trùng dòng tiền.
+    if raw.get("deposit_applied_to_folio"):
+        return None
+
+    new_amount = Decimal(str(booking.deposit_amount or 0))
+    method = booking.payment_method or raw.get("deposit_type") or "Chi nhánh"
+    room_label = booking.room_type or "Đặt phòng"
+
+    tx_id = raw.get("deposit_shift_transaction_id")
+    existing = None
+    if tx_id:
+        existing = db.query(ShiftReportTransaction).filter(
+            ShiftReportTransaction.id == tx_id
+        ).first()
+
+    # ── Chưa có giao dịch cọc hợp lệ (chưa post hoặc đã bị xoá) ──
+    if existing is None or existing.status == ShiftReportStatus.DELETED:
+        if new_amount <= 0:
+            return None
+        tx = post_booking_deposit_to_shift(
+            db=db,
+            branch_id=booking.branch_id,
+            user_id=user_id,
+            booking_code=booking.external_id,
+            guest_name=booking.guest_name,
+            amount=new_amount,
+            payment_method=method,
+            room_label=room_label,
+        )
+        if not tx:
+            return None
+        raw["deposit_shift_posted"] = True
+        raw["deposit_shift_transaction_id"] = tx.id
+        raw["deposit_shift_transaction_code"] = tx.transaction_code
+        raw["deposit_applied_to_folio"] = False
+        raw["deposit_shift_amount"] = float(new_amount)
+        booking.raw_data = raw
+        db.flush()
+        return tx
+
+    # ── Giao dịch còn PENDING: sửa tại chỗ ──
+    if existing.status == ShiftReportStatus.PENDING:
+        if new_amount <= 0:
+            existing.status = ShiftReportStatus.DELETED
+            existing.deleter_id = user_id
+            existing.deleted_datetime = now_vn()
+            raw["deposit_shift_amount"] = 0.0
+            booking.raw_data = raw
+            db.flush()
+            return existing
+        pm, tx_type = map_booking_payment_method(method)
+        existing.amount = new_amount
+        existing.payment_method = pm
+        existing.transaction_type = tx_type
+        existing.transaction_info = build_shift_transaction_info(
+            "Cọc đặt phòng",
+            room_number=room_label,
+            folio_code=booking.external_id,
+            guest_name=booking.guest_name or "Khách",
+            amount=new_amount,
+            method=pm,
+        )
+        raw["deposit_shift_amount"] = float(new_amount)
+        booking.raw_data = raw
+        db.flush()
+        return existing
+
+    # ── Giao dịch đã CHỐT (CLOSED): không sửa dòng đã chốt, tạo bút toán
+    #    điều chỉnh phần chênh lệch ở ca hiện tại (PENDING). ──
+    if existing.status == ShiftReportStatus.CLOSED:
+        # Số tiền cọc mà Sổ Giao ca đang phản ánh (gồm cả các bút toán điều chỉnh
+        # trước đó). Dùng để tính đúng chênh lệch khi sửa cọc nhiều lần.
+        last_synced = Decimal(str(raw.get("deposit_shift_amount", existing.amount) or 0))
+        diff = new_amount - last_synced
+        if diff == 0:
+            return None
+
+        pm = existing.payment_method or normalize_shift_payment_method(method)
+        old_int = int(last_synced)
+        new_int = int(new_amount)
+        if diff > 0:
+            adj_type = shift_transaction_type_for_method(pm)
+            adj_amount = diff
+            reason = f"Tăng cọc {old_int:,}→{new_int:,}đ"
+        else:
+            adj_type = TransactionType.CASH_EXPENSE
+            adj_amount = abs(diff)
+            reason = f"Giảm cọc {old_int:,}→{new_int:,}đ"
+
+        from ..db.models import Branch
+        branch = db.query(Branch).filter(Branch.id == booking.branch_id).first()
+        branch_code = branch.branch_code if branch else "XX"
+
+        adj_tx = ShiftReportTransaction(
+            transaction_code=_generate_shift_code(db, branch_code or "XX"),
+            transaction_type=adj_type,
+            amount=adj_amount,
+            room_number=room_label,
+            transaction_info=build_shift_transaction_info(
+                "Điều chỉnh cọc đặt phòng",
+                room_number=room_label,
+                folio_code=booking.external_id,
+                guest_name=booking.guest_name or "Khách",
+                amount=adj_amount,
+                method=pm,
+                reason=reason,
+            ),
+            branch_id=booking.branch_id,
+            recorder_id=user_id,
+            created_datetime=now_vn(),
+            status=ShiftReportStatus.PENDING,
+            payment_method=pm,
+            is_auto_posted=True,
+        )
+        db.add(adj_tx)
+        raw["deposit_shift_amount"] = float(new_amount)
+        booking.raw_data = raw
+        db.flush()
+        return adj_tx
+
+    return None
+
+
 def auto_post_checkout_to_shift(
     db: Session,
     folios: list[Folio],

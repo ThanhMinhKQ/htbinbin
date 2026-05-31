@@ -117,6 +117,11 @@ function hrApp() {
                 return this.branches.filter(b => /^B\d+$/i.test(b.branch_code));
             },
 
+            branchLabel(b) {
+                const m = /^B(\d+)$/i.exec(b?.branch_code || '');
+                return m ? `Bin Bin Hotel ${parseInt(m[1], 10)}` : (b?.name || b?.branch_code || '');
+            },
+
             async fetchDepartments() {
                 try {
                     const res = await fetch('/api/hr/departments');

@@ -2571,8 +2571,10 @@
     }
   }
 
+  // Trừ modal sửa khách (egModal): tránh mất dữ liệu đang nhập khi lỡ bấm ra ngoài.
   document.addEventListener('click', e => {
     if (e.target.classList && e.target.classList.contains('v-modal')) {
+      if (['ciModal', 'agModal', 'egModal'].includes(e.target.id)) return;
       closeModal(e.target.id);
     }
   });

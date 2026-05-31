@@ -69,10 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (typeof agScanCode === 'function') agScanCode();
         }
-        if (e.key === 'F1' && document.getElementById('egModal')?.classList?.contains('show')) {
-            e.preventDefault();
-            if (typeof egScanCode === 'function') egScanCode();
-        }
     });
     const ciName = document.getElementById('ci-name');
     if (ciName) ciName.addEventListener('input', pmsCiUpdateCapacityWarn);

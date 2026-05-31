@@ -15,7 +15,7 @@ from datetime import datetime, date, timedelta
 from ..db.session import get_db
 from ..db.models import User, AttendanceRecord, ServiceRecord, Branch, Department
 from ..core.utils import VN_TZ
-from ..core.config import ROLE_MAP
+from ..core.config import ROLE_MAP, hotel_branch_number, hotel_branch_display_name
 from sqlalchemy import cast, Date
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, distinct
@@ -44,21 +44,14 @@ def view_attendance_calendar(
         return RedirectResponse("/choose-function", status_code=303)
 
     # Lấy danh sách chi nhánh và phòng ban từ DB để hiển thị trong bộ lọc
-    # Sửa lỗi: Loại bỏ Admin và Boss khỏi danh sách chi nhánh
-    all_branches_obj = db.query(Branch).filter(Branch.branch_code.notin_(['Admin', 'Boss'])).all()
-
-    # Logic sắp xếp chi nhánh tùy chỉnh
-    b_branches = []
-    other_branches = []
-    for b in all_branches_obj:
-        if b.branch_code.startswith('B') and b.branch_code[1:].isdigit():
-            b_branches.append(b.branch_code)
-        else:
-            other_branches.append(b.branch_code)
-
-    b_branches.sort(key=lambda x: int(x[1:]))
-    other_branches.sort()
-    display_branches = b_branches + other_branches
+    # Chỉ chi nhánh thật (B + số); hiển thị "Bin Bin Hotel N", value vẫn là branch_code.
+    all_branches_obj = db.query(Branch).all()
+    display_branches = [
+        {"code": b.branch_code, "label": hotel_branch_display_name(b.branch_code)}
+        for b in all_branches_obj
+        if hotel_branch_number(b.branch_code) is not None
+    ]
+    display_branches.sort(key=lambda x: hotel_branch_number(x["code"]))
 
     # Xử lý giá trị chi_nhanh mặc định. Nếu chi_nhanh là chuỗi rỗng từ form, nó sẽ trở thành None.
     # Nếu không có chi nhánh nào được chọn (kể cả lần đầu vào trang), thì xử lý mặc định.

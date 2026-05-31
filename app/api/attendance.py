@@ -27,7 +27,7 @@ from ..core.security import (
 )
 from ..core.utils import get_current_work_shift, VN_TZ, format_datetime_display, _get_log_shift_for_user
 # SỬA DÒNG DƯỚI ĐỂ IMPORT TỌA ĐỘ
-from ..core.config import logger, ROLE_MAP, BRANCHES, BRANCH_COORDINATES
+from ..core.config import logger, ROLE_MAP, BRANCHES, BRANCH_COORDINATES, hotel_branch_number, hotel_branch_display_name
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy import cast, Date, select, or_, and_, func
 from sqlalchemy.orm import joinedload
@@ -411,14 +411,19 @@ def attendance_notifications_page(request: Request, db: Session = Depends(get_db
     user_data = _notification_view_required(request)
     can_manage = _notification_can_manage(user_data)
     if can_manage:
-        branches = sorted(db.query(Branch).all(), key=_notification_branch_sort_key)
+        branches = sorted(
+            [b for b in db.query(Branch).all() if hotel_branch_number(b.branch_code) is not None],
+            key=lambda b: hotel_branch_number(b.branch_code),
+        )
     else:
         active_branch_code = get_active_branch(request, db, user_data) or user_data.get("branch")
         branches = []
         if active_branch_code:
             branch = db.query(Branch).filter(Branch.branch_code == active_branch_code).first()
-            if branch:
+            if branch and hotel_branch_number(branch.branch_code) is not None:
                 branches = [branch]
+    for b in branches:
+        b.display_name = hotel_branch_display_name(b.branch_code)
     response = templates.TemplateResponse(request, "attendance_notifications.html", {
         "request": request,
         "user": user_data,

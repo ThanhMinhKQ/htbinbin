@@ -11,7 +11,7 @@ from ..core.security import get_active_branch
 from ..core.permissions import is_admin, is_manager
 from ..core.utils import format_datetime_display, VN_TZ, clean_query_string, parse_datetime_input
 from ..services.task_service import get_task_stats
-from ..core.config import logger
+from ..core.config import logger, hotel_branch_number, hotel_branch_display_name
 from ..schemas.task import Task as TaskSchema
 
 # Import các thành phần SQLAlchemy cần thiết
@@ -162,22 +162,15 @@ def home(
         "qua_han": stats_result.qua_han if stats_result else 0,
     }
 
-    # Lấy danh sách chi nhánh từ DB và sắp xếp theo yêu cầu (B1, B2, B3...)
-    all_branches_obj = db.query(Branch).filter(func.lower(Branch.branch_code).notin_(['admin', 'boss'])).all()
-
-    # Logic sắp xếp chi nhánh tùy chỉnh
-    b_branches = []
-    other_branches = []
-    for b in all_branches_obj:
-        branch_code = b.branch_code
-        if branch_code.startswith('B') and branch_code[1:].isdigit():
-            b_branches.append(branch_code)
-        else:
-            other_branches.append(branch_code)
-
-    b_branches.sort(key=lambda x: int(x[1:]))
-    other_branches.sort()
-    display_branches = b_branches + other_branches
+    # Lấy danh sách chi nhánh từ DB: chỉ chi nhánh thật (B + số), sắp xếp theo số,
+    # hiển thị "Bin Bin Hotel N" nhưng value vẫn là branch_code để backend lọc đúng.
+    all_branches_obj = db.query(Branch).all()
+    display_branches = [
+        {"code": b.branch_code, "label": hotel_branch_display_name(b.branch_code)}
+        for b in all_branches_obj
+        if hotel_branch_number(b.branch_code) is not None
+    ]
+    display_branches.sort(key=lambda x: hotel_branch_number(x["code"]))
 
     # Tạo query string cho phân trang
     query_params = {

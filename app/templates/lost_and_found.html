@@ -108,7 +108,7 @@
                     <div>
                         <select id="chi_nhanh" @change="currentPage = 1; fetchData()" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                             <option value="" selected>Tất cả chi nhánh</option>
-                            {% for b in branches %}<option value="{{ b }}" {% if b == branch_filter %}selected{% endif %}>{{ b }}</option>{% endfor %}
+                            {% for b in branches %}<option value="{{ b.code }}" {% if b.code == branch_filter %}selected{% endif %}>{{ b.label }}</option>{% endfor %}
                         </select>
                     </div>
                     {% endif %}
@@ -372,7 +372,7 @@
                         <select id="add_chi_nhanh" name="chi_nhanh" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                             <option value="" disabled selected>Chọn chi nhánh</option>
                             {% for b in branches %}
-                            <option value="{{ b }}">{{ b }}</option>
+                            <option value="{{ b.code }}">{{ b.label }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -485,7 +485,7 @@
                         <select id="edit_chi_nhanh" name="chi_nhanh" x-model="editItem.chi_nhanh" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                             <option value="" disabled>Chọn chi nhánh</option>
                             {% for b in branches %}
-                            <option value="{{ b }}">{{ b }}</option>
+                            <option value="{{ b.code }}">{{ b.label }}</option>
                             {% endfor %}
                         </select>
                     </div>

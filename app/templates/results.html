@@ -142,9 +142,7 @@
                             <select id="filter-cn-lam" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                                 <option value="">Tất cả</option>
                                 {% for branch in branches %}
-                                {% if branch not in ['Admin', 'Boss'] %}
-                                <option value="{{ branch }}">{{ branch }}</option>
-                                {% endif %}
+                                <option value="{{ branch.code }}">{{ branch.label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -342,9 +340,7 @@
                     <select id="modal-chi-nhanh-lam" name="chi_nhanh_lam" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         <option value="" disabled selected>Chọn chi nhánh</option>
                         {% for branch in branches %}
-                        {% if branch not in ['Admin', 'Boss'] %}
-                        <option value="{{ branch }}">{{ branch }}</option>
-                        {% endif %}
+                        <option value="{{ branch.code }}">{{ branch.label }}</option>
                         {% endfor %}
                     </select>
                 </div>

@@ -12,7 +12,7 @@ from datetime import datetime
 from ..db.session import get_db
 from ..db.models import AttendanceRecord, ServiceRecord, User, Branch
 from ..core.security import require_checked_in_user
-from ..core.config import ROLE_MAP, BRANCHES, logger
+from ..core.config import ROLE_MAP, BRANCHES, logger, hotel_branch_display_name
 from fastapi.encoders import jsonable_encoder
 from ..core.utils import VN_TZ, parse_form_datetime, format_datetime_display
 
@@ -362,7 +362,7 @@ def view_attendance_results(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "results.html", {
         "request": request,
         "user": user_data,
-        "branches": BRANCHES,
+        "branches": [{"code": c, "label": hotel_branch_display_name(c)} for c in BRANCHES],
         "roles": roles_for_filter,
         "active_page": "work-log",
     })

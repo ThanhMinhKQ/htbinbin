@@ -100,7 +100,7 @@
             <select class="bk-select" id="bk-ota-log-branch-filter" onchange="BookingHub.loadOtaLogs()">
               <option value="">Tất cả chi nhánh</option>
               {% for b in branches %}
-              <option value="{{ b.id }}">{{ b.name }}</option>
+              <option value="{{ b.id }}">{{ b.pms_display_name }}</option>
               {% endfor %}
             </select>
             {% endif %}

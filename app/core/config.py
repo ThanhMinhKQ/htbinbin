@@ -105,6 +105,32 @@ BRANCHES = [
     "B11", "B12", "B14", "B15", "B16", "B17", "B18",
 ]
 
+
+# Chuẩn hóa hiển thị chi nhánh khách sạn cho mọi dropdown chọn chi nhánh.
+# "Chi nhánh thật" = mã dạng B + số (B1, B2, B10...). Mọi mã khác (HEAD, ADMIN,
+# BOSS, QL, KTV...) KHÔNG phải chi nhánh và bị loại khỏi picker.
+import re as _re
+
+_HOTEL_BRANCH_CODE_RE = _re.compile(r"^B(\d+)$", _re.IGNORECASE)
+
+
+def is_hotel_branch_code(code: str | None) -> bool:
+    """True nếu mã là chi nhánh khách sạn thật (B + số)."""
+    return bool(code and _HOTEL_BRANCH_CODE_RE.match(str(code).strip()))
+
+
+def hotel_branch_number(code: str | None) -> Optional[int]:
+    """Số thứ tự chi nhánh từ mã (B7 -> 7), hoặc None nếu không phải B#."""
+    m = _HOTEL_BRANCH_CODE_RE.match(str(code or "").strip())
+    return int(m.group(1)) if m else None
+
+
+def hotel_branch_display_name(code: str | None) -> str:
+    """Nhãn hiển thị: B7 -> 'Bin Bin Hotel 7'. Mã không phải B# trả về nguyên văn."""
+    number = hotel_branch_number(code)
+    return f"Bin Bin Hotel {number}" if number is not None else str(code or "")
+
+
 # Chi nhánh "Kho Tổng / Văn phòng" — head office cho luồng kho (WMS).
 # Thay cho việc trước đây dùng branch giả "ADMIN" làm Kho Tổng.
 HEADOFFICE_BRANCH = {"code": "HEAD", "name": "Kho Tổng / Văn phòng"}

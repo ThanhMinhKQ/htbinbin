@@ -73,7 +73,7 @@
           <i class="ph-fill ph-house-line"></i>
           <select id="rs-branch" aria-label="Chọn chi nhánh" onchange="RoomStatus.changeBranch(this.value)">
             {% for b in branches %}
-            <option value="{{ b.id }}" {% if branch and branch.id==b.id %}selected{% endif %}>{{ b.name }}</option>
+            <option value="{{ b.id }}" {% if branch and branch.id==b.id %}selected{% endif %}>{{ b.pms_display_name }}</option>
             {% endfor %}
           </select>
         </div>

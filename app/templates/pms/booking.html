@@ -36,7 +36,7 @@
     <i class="bi bi-building"></i>
     <select id="bk-branch" onchange="BookingHub.changeBranch(this.value)">
       {% for b in branches %}
-      <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% elif not branch and loop.first %}selected{% endif %}>{{ b.name }}</option>
+      <option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% elif not branch and loop.first %}selected{% endif %}>{{ b.pms_display_name }}</option>
       {% endfor %}
     </select>
   </div>

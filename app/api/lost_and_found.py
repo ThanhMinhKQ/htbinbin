@@ -14,7 +14,7 @@ import time
 from ..db.session import get_db
 from ..db.models import User, LostAndFoundItem, Branch, Department, LostItemStatus
 from ..core.security import get_active_branch
-from ..core.config import logger, STATUS_MAP, BRANCHES
+from ..core.config import logger, STATUS_MAP, BRANCHES, hotel_branch_number, hotel_branch_display_name
 from ..core.utils import VN_TZ
 
 from ..services.lost_and_found_service import update_disposable_items_status
@@ -207,19 +207,13 @@ async def lost_and_found_page(
             db.rollback() 
             logger.error(f"Lỗi khi cập nhật trạng thái đồ thất lạc: {e}", exc_info=True)
 
-    all_branches_obj = db.query(Branch).filter(func.lower(Branch.branch_code).notin_(['admin', 'boss'])).all()
-
-    b_branches = []
-    other_branches = []
-    for b in all_branches_obj:
-        branch_code = b.branch_code
-        if branch_code.startswith('B') and branch_code[1:].isdigit():
-            b_branches.append(branch_code)
-        else:
-            other_branches.append(branch_code)
-    b_branches.sort(key=lambda x: int(x[1:]))
-    other_branches.sort()
-    display_branches = b_branches + other_branches
+    all_branches_obj = db.query(Branch).all()
+    display_branches = [
+        {"code": b.branch_code, "label": hotel_branch_display_name(b.branch_code)}
+        for b in all_branches_obj
+        if hotel_branch_number(b.branch_code) is not None
+    ]
+    display_branches.sort(key=lambda x: hotel_branch_number(x["code"]))
 
     active_branch = "" 
     if user_data.get("role") == 'letan':

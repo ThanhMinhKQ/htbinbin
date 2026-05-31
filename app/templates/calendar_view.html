@@ -24,11 +24,9 @@
             onchange="this.form.submit()"
             class="w-full rounded-lg border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500 text-sm">
       {% for branch in branches %}
-        {% if branch.lower() not in ['admin', 'boss'] %}
-        <option value="{{ branch }}" {% if branch == selected_branch %}selected{% endif %}>
-          {{ branch }}
+        <option value="{{ branch.code }}" {% if branch.code == selected_branch %}selected{% endif %}>
+          {{ branch.label }}
         </option>
-        {% endif %}
       {% endfor %}
     </select>
   </div>

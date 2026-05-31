@@ -521,7 +521,7 @@
             <select class="sn-control" x-model="filters.branch_id" @change="applyFilters()">
               <option value="">Tất cả chi nhánh</option>
               {% for branch in branches %}
-              <option value="{{ branch.id }}">{{ branch.branch_code }} - {{ branch.name }}</option>
+              <option value="{{ branch.id }}">{{ branch.display_name }}</option>
               {% endfor %}
             </select>
           </div>
@@ -1129,7 +1129,7 @@
                   {% for branch in branches %}
                   <label class="flex min-w-0 items-center gap-2 rounded-lg p-2 transition hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer text-sm text-slate-700 dark:text-slate-200 border border-transparent hover:border-slate-200 dark:hover:border-slate-600">
                     <input type="checkbox" value="{{ branch.id }}" x-model.number="form.branch_ids" class="sn-checkbox flex-none rounded text-blue-600 focus:ring-blue-500">
-                    <span class="truncate font-medium whitespace-nowrap"><span class="text-slate-400 font-normal w-7 inline-block">{{ branch.branch_code }}</span> {{ branch.name }}</span>
+                    <span class="truncate font-medium whitespace-nowrap">{{ branch.display_name }}</span>
                   </label>
                   {% endfor %}
                 </div>
@@ -1150,7 +1150,7 @@
 
 <div id="sn-branch-data" style="display: none;">
   {% for branch in branches %}
-  <span data-id="{{ branch.id }}" data-name="{{ branch.branch_code }} - {{ branch.name }}"></span>
+  <span data-id="{{ branch.id }}" data-name="{{ branch.display_name }}"></span>
   {% endfor %}
 </div>
 

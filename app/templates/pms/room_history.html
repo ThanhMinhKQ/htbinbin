@@ -991,7 +991,7 @@ html.dark #pms-toast.err { background: #450a0a; border-left-color: var(--rh-debt
       {% if is_admin %}
       <select class="rh-select" id="rh-branch-select" onchange="rhChangeBranch(this.value)">
         <option value="" disabled>— Chi nhánh —</option>
-        {% for b in branches %}<option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+        {% for b in branches %}<option value="{{ b.id }}" {% if branch and branch.id == b.id %}selected{% endif %}>{{ b.pms_display_name }}</option>{% endfor %}
       </select>
       {% endif %}
       <button class="rh-btn" onclick="rhLoad()">

@@ -227,7 +227,7 @@
                 <div>
                     <select name="chi_nhanh" class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         <option value="">Tất cả chi nhánh</option>
-                        {% for cn in branches %}{% if cn|lower not in ['admin', 'boss'] %}<option value="{{ cn }}" {% if chi_nhanh == cn %}selected{% endif %}>{{ cn }}</option>{% endif %}{% endfor %}
+                        {% for b in branches %}<option value="{{ b.code }}" {% if chi_nhanh == b.code %}selected{% endif %}>{{ b.label }}</option>{% endfor %}
                     </select>
                 </div>
                 {% else %}
@@ -556,7 +556,7 @@
                         <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Chi nhánh</label>
                         <select name="chi_nhanh" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                             <option value="" disabled selected>Chọn chi nhánh</option>
-                            {% for cn in branches %}{% if cn|lower not in ['admin', 'boss'] %}<option value="{{ cn }}" {% if chi_nhanh == cn %}selected{% endif %}>{{ cn }}</option>{% endif %}{% endfor %}
+                            {% for b in branches %}<option value="{{ b.code }}" {% if chi_nhanh == b.code %}selected{% endif %}>{{ b.label }}</option>{% endfor %}
                         </select>
                     </div>
                     {% else %}
@@ -619,7 +619,7 @@
                     <label class="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">Chi nhánh</label>
                     <select name="chi_nhanh" id="edit_chi_nhanh" required class="w-full py-2.5 px-4 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                         <option value="" disabled selected>Chọn chi nhánh</option>
-                        {% for cn in branches %}{% if cn|lower not in ['admin', 'boss'] %}<option value="{{ cn }}" {% if chi_nhanh == cn %}selected{% endif %}>{{ cn }}</option>{% endif %}{% endfor %}
+                        {% for b in branches %}<option value="{{ b.code }}" {% if chi_nhanh == b.code %}selected{% endif %}>{{ b.label }}</option>{% endfor %}
                     </select>
                 </div>
                 {% else %}

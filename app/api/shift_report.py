@@ -55,7 +55,7 @@ from ..db.session import get_db
 from ..db.models import User, ShiftReportTransaction, Branch, Department, ShiftReportStatus, TransactionType, ShiftCloseLog, User, Folio, FolioTransaction, Payment, ShiftPaymentMethod
 from ..core.security import get_active_branch
 from ..core.permissions import is_admin, is_manager, functional_code
-from ..core.config import logger, BRANCHES, SHIFT_TRANSACTION_TYPES # THÊM: Import cấu hình mới
+from ..core.config import logger, BRANCHES, SHIFT_TRANSACTION_TYPES, hotel_branch_number, hotel_branch_display_name # THÊM: Import cấu hình mới
 from ..core.utils import VN_TZ
 from ..services.pricing_service import money
 
@@ -568,19 +568,13 @@ def shift_report_page(
 
     per_page = int(request.cookies.get('shiftReportPerPage', 9))
 
-    all_branches_obj = db.query(Branch).filter(func.lower(Branch.branch_code).notin_(['admin', 'boss'])).all()
-
-    b_branches = []
-    other_branches = []
-    for b in all_branches_obj:
-        branch_code = b.branch_code
-        if branch_code.startswith('B') and branch_code[1:].isdigit():
-            b_branches.append(branch_code)
-        else:
-            other_branches.append(branch_code)
-    b_branches.sort(key=lambda x: int(x[1:]))
-    other_branches.sort()
-    display_branches = b_branches + other_branches
+    all_branches_obj = db.query(Branch).all()
+    display_branches = [
+        {"code": b.branch_code, "label": hotel_branch_display_name(b.branch_code)}
+        for b in all_branches_obj
+        if hotel_branch_number(b.branch_code) is not None
+    ]
+    display_branches.sort(key=lambda x: hotel_branch_number(x["code"]))
 
     # === BẮT ĐẦU SỬA LỖI LOGIC CHI NHÁNH ===
     
@@ -1642,6 +1636,11 @@ def get_dashboard_summary(
         if date_filters_log:
             history_query = history_query.filter(*date_filters_log)
 
+        # Khi đã có bộ lọc thời gian (chọn ngày, hoặc mặc định tháng hiện tại của
+        # admin/boss), kết quả đã bị giới hạn trong cửa sổ thời gian nên nâng trần
+        # để không cắt cụt danh sách giữa tháng. Chỉ giữ trần thấp khi không có
+        # bộ lọc nào (vd: letan không chọn ngày) để tránh tải toàn bộ lịch sử.
+        recent_limit = 1000 if date_filters_log else 50
         recent_closes = history_query.with_entities(
             ShiftCloseLog.id,
             ShiftCloseLog.pms_revenue,
@@ -1650,7 +1649,7 @@ def get_dashboard_summary(
             ShiftCloseLog.closed_datetime,
             Branch.branch_code,
             User.name.label("closer_name")
-        ).order_by(desc(ShiftCloseLog.closed_datetime)).limit(50).all() # Limit 50 để không quá tải
+        ).order_by(desc(ShiftCloseLog.closed_datetime)).limit(recent_limit).all()
 
         # --- 3. QUERY 2: TỔNG HỢP LOG (Log Summary) ---
         # Query này để tính tổng PMS Revenue, Cash Revenue

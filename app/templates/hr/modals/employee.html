@@ -65,8 +65,8 @@
                                 <label>Chi nhánh <span class="hr-required">*</span></label>
                                 <select class="hr-select" x-model="form.main_branch_id">
                                     <option value="">Chọn chi nhánh</option>
-                                    <template x-for="b in branches" :key="b.id">
-                                        <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+                                    <template x-for="b in hotelBranches()" :key="b.id">
+                                        <option :value="b.id" x-text="branchLabel(b)"></option>
                                     </template>
                                 </select>
                             </div>

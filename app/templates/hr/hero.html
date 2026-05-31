@@ -5,7 +5,7 @@
         <select class="hr-select" x-model="dashboardBranch" @change="syncDashboardBranch()">
             <option value="">Tất cả chi nhánh</option>
             <template x-for="b in hotelBranches()" :key="b.id">
-                <option :value="b.id" x-text="b.branch_code + ' — ' + b.name"></option>
+                <option :value="b.id" x-text="branchLabel(b)"></option>
             </template>
         </select>
         <select class="hr-select" x-model="dashboardDept" @change="syncDashboardDept()">
