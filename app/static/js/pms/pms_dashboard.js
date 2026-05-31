@@ -1283,10 +1283,15 @@ async function pmsToggleRoomCondition(roomId, condition) {
         if (res.ok) {
             const condLabels = { CLEAN:'Phòng dọn xong', DIRTY:'Phòng chưa dọn', CLEANING:'Yêu cầu dọn phòng', MAINTENANCE:'Phòng đang khóa' };
             if (typeof pmsToast === 'function') pmsToast(condLabels[condition] || 'Cập nhật thành công', true);
+            // Phản ánh ngay trạng thái server vừa xác nhận và render lại để gỡ overlay,
+            // không phụ thuộc vào pmsLoadRooms (có thể bị guard dedup/_loading bỏ qua → overlay treo).
+            if (PMS.roomMap && PMS.roomMap[roomId]) PMS.roomMap[roomId].condition = condition;
+            pmsRender();
             pmsLoadRooms(undefined, true);
         }
     } catch(err) {
         if (typeof pmsToast === 'function') pmsToast(err.message, false);
+        pmsRender();
         pmsLoadRooms(undefined, true);
     }
 }
