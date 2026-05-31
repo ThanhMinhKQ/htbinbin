@@ -33,7 +33,7 @@ async def get_inventory_report_realtime(
         # [FIX] Admin Branch should see Main Warehouse (branch_id=None) too
         from ...db.models import Branch
         branch = db.query(Branch).get(branch_id)
-        is_admin = branch and branch.branch_code.upper() in ['ADMIN', 'BOSS', 'HEAD']
+        is_admin = branch and branch.is_headoffice
         
         if is_admin:
             query = query.join(InventoryLevel.warehouse).filter(
@@ -218,11 +218,21 @@ async def get_dashboard_stats(
         wh_imp_filter = "1=1"
         wh_sm_filter = "1=1"
 
-    # Request stats: manager perspective uses source_warehouse, reception uses dest_warehouse
-    wh_req_filter = wh_dest_filter if is_reception else wh_src_filter
+    # Request stats: manager perspective uses source_warehouse, reception uses dest_warehouse.
+    # NHƯNG khi manager xem kho CHI NHÁNH (chi nhánh là bên nhận), phải đếm theo dest,
+    # nếu không sẽ ra 0 (chi nhánh gần như không bao giờ là source).
+    ov_is_branch_wh = False
+    if warehouse_id and not is_reception:
+        _wh = db.query(Warehouse).options(joinedload(Warehouse.branch)).get(warehouse_id)
+        if _wh:
+            _b = _wh.branch
+            ov_is_branch_wh = bool(_b and not _b.is_headoffice and (_wh.type or "").upper() != "MAIN")
+
+    use_dest_for_req = is_reception or ov_is_branch_wh
+    wh_req_filter = wh_dest_filter if use_dest_for_req else wh_src_filter
     req_join = (
         "LEFT JOIN warehouses dw ON it.dest_warehouse_id = dw.id"
-        if (branch_id and is_reception)
+        if (branch_id and use_dest_for_req)
         else ("LEFT JOIN warehouses sw ON it.source_warehouse_id = sw.id" if branch_id else "")
     )
 

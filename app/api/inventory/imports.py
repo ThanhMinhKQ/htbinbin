@@ -176,7 +176,7 @@ async def get_receipts(
             from ...db.models import Branch, Warehouse
             
             branch = db.query(Branch).get(branch_id)
-            is_admin = branch and branch.branch_code.upper() in ['ADMIN', 'BOSS', 'HEAD']
+            is_admin = branch and branch.is_headoffice
             
             wh_query = db.query(Warehouse.id)
             if is_admin:

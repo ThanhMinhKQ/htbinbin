@@ -86,6 +86,7 @@ async def get_warehouses(active_only: bool = False, db: Session = Depends(get_db
             "type": w.type,
             "branch_id": w.branch_id,
             "branch_name": w.branch.name if w.branch else "Kho Tổng",
+            "is_headoffice": bool(w.branch.is_headoffice) if w.branch else False,
             "is_active": w.is_active
         })
     return data

@@ -33,7 +33,7 @@ async def create_request_ticket(
     else:
         # [FIX] Default behavior: Priority Admin Branch's Warehouse -> Main Warehouse -> First Available
         # Find Admin Branch first
-        admin_branch = db.query(Branch).filter(Branch.branch_code.in_(['ADMIN', 'BOSS', 'HEAD', 'TONG'])).first()
+        admin_branch = db.query(Branch).filter(Branch.is_headoffice == True).first()
         if admin_branch:
             source_warehouse = db.query(Warehouse).filter(Warehouse.branch_id == admin_branch.id).first()
         
@@ -200,7 +200,7 @@ async def get_request_detail(
              is_hub = False
              if source_wh:
                  if source_wh.type == 'MAIN': is_hub = True
-                 elif source_wh.branch and source_wh.branch.branch_code.upper() in ['ADMIN', 'BOSS', 'HEAD']: is_hub = True
+                 elif source_wh.branch and source_wh.branch.is_headoffice: is_hub = True
              
              related_wh_ids = [t.source_warehouse_id]
              
@@ -209,7 +209,7 @@ async def get_request_detail(
                  hub_warehouses = db.query(Warehouse).outerjoin(Branch).filter(
                      or_(
                          Warehouse.type == 'MAIN',
-                         Branch.branch_code.in_(['ADMIN', 'BOSS', 'HEAD', 'HỆ THỐNG']),
+                         Branch.is_headoffice == True,
                          Warehouse.branch_id.is_(None)
                      )
                  ).all()
@@ -387,7 +387,7 @@ async def get_request_tickets(
     elif source_branch_id:
         # [MODIFIED] If Admin, also include warehouses with NO branch (e.g. legacy Main Warehouse)
         source_branch = db.query(Branch).get(source_branch_id)
-        is_admin_branch = source_branch and source_branch.branch_code.upper() in ['ADMIN', 'BOSS']
+        is_admin_branch = source_branch and source_branch.is_headoffice
         
         if is_admin_branch:
             source_warehouses = db.query(Warehouse).filter(

@@ -12,6 +12,7 @@ from ...db.session import get_db
 from ...db.models import (
     Branch, Product, ProductCategory, Warehouse
 )
+from ...core.permissions import is_manager
 
 router = APIRouter()
 
@@ -19,9 +20,12 @@ APP_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
 templates = Jinja2Templates(directory=os.path.join(APP_ROOT, "app", "templates"))
 
 
-def _natural_branch_key(branch_code: Optional[str]) -> tuple[int, int, str]:
-    code = (branch_code or "").upper()
-    if code == "ADMIN":
+def _natural_branch_key(branch) -> tuple[int, int, str]:
+    # branch có thể là None (warehouse Kho Tổng không gắn chi nhánh) → ưu tiên đầu
+    if branch is None:
+        return (0, 0, "")
+    code = (branch.branch_code or "").upper()
+    if branch.is_headoffice:
         return (0, 0, code)
     if code.startswith("B") and code[1:].isdigit():
         return (1, int(code[1:]), code)
@@ -32,8 +36,7 @@ def _natural_branch_key(branch_code: Optional[str]) -> tuple[int, int, str]:
 
 def _warehouse_sort_key(warehouse: Warehouse) -> tuple[int, int, int, str, int, str]:
     branch = getattr(warehouse, "branch", None)
-    branch_code = getattr(branch, "branch_code", None)
-    branch_rank, branch_number, branch_text = _natural_branch_key(branch_code)
+    branch_rank, branch_number, branch_text = _natural_branch_key(branch)
     warehouse_type = (warehouse.type or "").upper()
     special_rank = 0 if warehouse_type == "MAIN" or branch_rank == 0 else 1 if warehouse_type == "TRANSIT" else 2
     type_rank = 0 if special_rank < 2 else 1
@@ -46,7 +49,7 @@ async def inventory_page(request: Request, db: Session = Depends(get_db)):
     if not user_data:
          return templates.TemplateResponse(request, "auth/login.html", {"request": request})
 
-    branches = db.query(Branch).filter(Branch.branch_code.notin_(['admin', 'boss'])).all()
+    branches = db.query(Branch).filter(Branch.is_active == True).all()
     categories = db.query(ProductCategory).all()
 
     return templates.TemplateResponse(request, "inventory/master_data.html", {
@@ -68,8 +71,7 @@ async def manager_dashboard(
 ):
     """Dashboard dành riêng cho Quản lý Kho (Updated: UI giống Reception + Chọn chi nhánh)"""
     user_data = request.session.get("user")
-    allowed_roles = ["admin", "manager", "quanly", "boss"]
-    if not user_data or user_data.get("role") not in allowed_roles:
+    if not user_data or not is_manager(user_data):
          return templates.TemplateResponse(request, "403.html", {"request": request})
 
     # [NEW] 1. Fetch Branches for Selector
@@ -80,9 +82,9 @@ async def manager_dashboard(
     branches = sorted(
         [
             b for b in all_branches
-            if b.branch_code.upper() == 'ADMIN' or (b.branch_code.upper().startswith('B') and b.branch_code[1:].isdigit())
+            if b.is_headoffice or (b.branch_code.upper().startswith('B') and b.branch_code[1:].isdigit())
         ],
-        key=lambda b: _natural_branch_key(b.branch_code)
+        key=lambda b: _natural_branch_key(b)
     )
     
     # [NEW] 2. Determine Current Branch ID & Warehouse ID

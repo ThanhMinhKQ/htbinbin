@@ -151,7 +151,7 @@ async def get_page_load(
     ).filter(InventoryTransfer.status == TicketStatus.PENDING)
     if is_reception and branch_id:
         source_branch = db.query(Branch).get(branch_id)
-        is_admin_branch = source_branch and source_branch.branch_code.upper() in ['ADMIN', 'BOSS']
+        is_admin_branch = source_branch and source_branch.is_headoffice
         if is_admin_branch:
             source_warehouses = db.query(Warehouse).filter(
                 (Warehouse.branch_id == branch_id) |
@@ -222,13 +222,29 @@ async def get_page_load(
     # ── 3. Overview stats (raw SQL single query) ──
     ov_params: dict = {}
     # Request stats perspective:
-    # - Manager (source warehouse owner): count tickets where source_warehouse_id = wh_id
-    # - Reception (dest warehouse owner): count tickets where dest_warehouse_id = wh_id
-    if is_reception:
+    # - Manager xem Kho Tổng (source warehouse): đếm theo source_warehouse_id (bên xuất).
+    # - Manager xem kho CHI NHÁNH: chi nhánh là bên NHẬN → đếm theo dest_warehouse_id,
+    #   nếu không sẽ ra 0 (chi nhánh gần như không bao giờ là source).
+    # - Reception (dest warehouse owner): luôn đếm theo dest_warehouse_id.
+    ov_is_branch_wh = False
+    if warehouse_id and not is_reception:
+        _ov_wh = db.query(Warehouse).options(joinedload(Warehouse.branch)).get(warehouse_id)
+        if _ov_wh:
+            _ov_b = _ov_wh.branch
+            ov_is_branch_wh = bool(
+                _ov_b and not _ov_b.is_headoffice and (_ov_wh.type or "").upper() != "MAIN"
+            )
+
+    if is_reception or ov_is_branch_wh:
         ov_wh_req = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
-        ov_wh_export = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
     else:
         ov_wh_req = "it.source_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
+
+    # "Xuất" (export) = hàng rời khỏi kho đang xem → luôn theo source khi là manager,
+    # theo dest khi là reception (giữ nguyên hành vi cũ).
+    if is_reception:
+        ov_wh_export = "it.dest_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
+    else:
         ov_wh_export = "it.source_warehouse_id = :wh_id AND it.related_transfer_id IS NULL" if warehouse_id else "1=1"
     ov_wh_ir = "ir.warehouse_id = :wh_id" if warehouse_id else "1=1"
     ov_wh_sm = "sm.warehouse_id = :wh_id" if warehouse_id else "1=1"

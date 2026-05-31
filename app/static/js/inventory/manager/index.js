@@ -46,7 +46,7 @@ function inventoryManagerApp(totalRecords, currentPage, totalPages) {
                 if (this.currentWarehouseId && this.allWarehouses.length > 0) {
                     const cw = this.allWarehouses.find(w => w.id == this.currentWarehouseId);
                     if (cw) {
-                        if (!cw.branch_id || cw.branch_name === 'Kho Tổng' || (cw.branch && ['ADMIN', 'BOSS', 'HEAD'].includes(cw.branch.code))) {
+                        if (!cw.branch_id || cw.is_headoffice || cw.branch_name === 'Kho Tổng' || (cw.type === 'MAIN')) {
                             this.isCurrentWarehouseMain = true;
                         }
                     }
