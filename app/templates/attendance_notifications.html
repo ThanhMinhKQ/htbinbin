@@ -307,6 +307,7 @@
       margin: 0.75rem 0;
       border-radius: 0.75rem;
       border: 1px solid rgb(226 232 240);
+      cursor: zoom-in;
     }
     .sn-rich-preview {
       max-height: 2.75rem;
@@ -1293,10 +1294,25 @@ function shiftNotificationAdmin(options = {}) {
     openDetail(item) {
       this.detailItem = item;
       this.detailOpen = true;
+      this.$nextTick(() => this.bindDetailImages());
     },
     closeDetail() {
       this.detailOpen = false;
       this.detailItem = null;
+    },
+    bindDetailImages() {
+      const container = document.querySelector('.sn-detail-shell .sn-rich-content');
+      if (!container || !window.snOpenViewer) return;
+      container.querySelectorAll('img').forEach(img => {
+        if (img.dataset.snBound) return;
+        img.dataset.snBound = '1';
+        img.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const urls = [...container.querySelectorAll('img')].map(i => i.getAttribute('src')).filter(Boolean);
+          const idx = urls.indexOf(img.getAttribute('src'));
+          window.snOpenViewer(urls, idx < 0 ? 0 : idx);
+        });
+      });
     },
     openEditFromDetail() {
       if (!this.canManage || !this.detailItem) return;

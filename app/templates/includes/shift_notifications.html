@@ -999,6 +999,9 @@
     if (overlay.classList.contains('is-open')) document.body.style.overflow = 'hidden';
     else document.body.style.removeProperty('overflow');
   }
+
+  // Expose globally so other pages (e.g. attendance_notifications) can reuse the viewer
+  window.snOpenViewer = openViewer;
   function vPrevImg() { if (vUrls.length > 1) { vIndex = (vIndex - 1 + vUrls.length) % vUrls.length; vRender(); } }
   function vNextImg() { if (vUrls.length > 1) { vIndex = (vIndex + 1) % vUrls.length; vRender(); } }
   function vZoomIn() { vZoom = Math.min(Math.round((vZoom + 0.25) * 100) / 100, 5); vApplyTransform(); }
